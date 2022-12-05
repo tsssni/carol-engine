@@ -1,3 +1,3 @@
 #pragma once
 
-#include "resource.h"
+#include "Win32/Resource.h"

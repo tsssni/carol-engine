@@ -23,6 +23,10 @@ struct Light
     float FalloffEnd;
     float3 Position; 
     float SpotPower;
+    float3 Ambient;
+    float LightPad0;
+    
+    float4x4 LightViewProjTex;
 };
 
 cbuffer PassCB : register(b0)
@@ -32,51 +36,46 @@ cbuffer PassCB : register(b0)
     float4x4 gProj;
     float4x4 gInvProj;
     float4x4 gViewProj;
-    float4x4 gHistViewProj;
     float4x4 gInvViewProj;
+
     float4x4 gViewProjTex;
+
+    float4x4 gHistViewProj;
+    float4x4 gJitteredViewProj;
     
     float3 gEyePosW;
-    float passPad0;
+    float gPassPad0;
     float2 gRenderTargetSize;
     float2 gInvRenderTargetSize;
     float gNearZ;
     float gFarZ;
-    float passPad1;
-    float passPad2;
+    float gPassPad1;
+    float gPassPad2;
 
     Light gLights[MAX_LIGHTS];
 }
 
-cbuffer ObjCB : register(b1)
+cbuffer MeshCB : register(b1)
 {
     float4x4 gWorld;
     float4x4 gHistWorld;
-    float4x4 gTexTransform;
-    uint gMatTBIndex;
-    uint objPad0;
-    uint objPad1;
-    uint objPad2;
+    
+	float3 gFresnelR0;
+	float gRoughness;
 }
 
-cbuffer SkinnedCB : register(b2)
+cbuffer LightCB : register(b2)
+{
+    float4x4 gLightViewProj;
+}
+
+#ifdef SKINNED
+cbuffer SkinnedCB : register(b3)
 {
     float4x4 gBoneTransforms[256];
     float4x4 gHistBoneTransforms[256];
 }
-
-struct MaterialData
-{
-    float4 diffuseAlbedo;
-    float3 fresnelR0;
-    float roughness;
-    float4x4 matTransform;
-    
-    int diffuseSrvHeapIndex;
-    int normalSrvHeapIndex;
-    uint matPad0;
-    uint matPad1;
-};
+#endif
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);
@@ -84,5 +83,59 @@ SamplerState gsamLinearWrap : register(s2);
 SamplerState gsamLinearClamp : register(s3);
 SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
+SamplerComparisonState gsamShadow : register(s6);
+
+struct VertexIn
+{
+    float3 PosL : POSITION;
+    float3 NormalL : NORMAL;
+    float3 TangentL : TANGENT;
+    float2 TexC : TEXCOORD;
+#ifdef SKINNED
+    float3 BoneWeights : WEIGHTS;
+    uint4 BoneIndices : BONEINDICES;
+#endif
+};
+
+float3 TexNormalToWorldSpace(float3 texNormal, float3 pixelNormalW, float3 pixelTangentW)
+{
+    texNormal = 2.0f * texNormal - 1.0f;
+    
+    float3 N = pixelNormalW;
+    float3 T = pixelTangentW - dot(pixelNormalW, pixelTangentW) * N;
+    float3 B = cross(N, T);
+    
+    float3x3 TBN = float3x3(T, B, N);
+    return mul(texNormal, TBN);
+}
+
+#ifdef SKINNED
+VertexIn SkinnedTransform(VertexIn vin)
+{
+    float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    weights[0] = vin.BoneWeights.x;
+    weights[1] = vin.BoneWeights.y;
+    weights[2] = vin.BoneWeights.z;
+    weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+    
+    float3 posL = float3(0.0f, 0.0f, 0.0f);
+    float3 normalL = float3(0.0f, 0.0f, 0.0f);
+    float3 tangentL = float3(0.0f, 0.0f, 0.0f);
+
+    [unroll]
+    for(int i = 0; i < 4; ++i)
+    {
+        posL += weights[i] * mul(float4(vin.PosL, 1.0f), gBoneTransforms[vin.BoneIndices[i]]).xyz;
+        normalL += weights[i] * mul(float4(vin.NormalL, 0.0f), gBoneTransforms[vin.BoneIndices[i]]).xyz;
+        tangentL += weights[i] * mul(float4(vin.TangentL, 0.0f), gBoneTransforms[vin.BoneIndices[i]]).xyz;    
+    }
+    
+    vin.PosL = posL;
+    vin.NormalL = normalL;
+    vin.TangentL = tangentL;
+    
+    return vin;
+}
+#endif
 
 #endif

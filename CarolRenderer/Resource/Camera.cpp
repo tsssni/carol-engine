@@ -1,23 +1,24 @@
 #include "Camera.h"
 
+using namespace DirectX;
 
 Carol::Camera::Camera()
 {
-    DirectX::XMStoreFloat4x4(&mView, DirectX::XMMatrixIdentity());
-    DirectX::XMStoreFloat4x4(&mProj, DirectX::XMMatrixIdentity());
-    SetLens(0.25 * DirectX::XM_PI, 1.0f, 1.0f, 1000.0f);
+    XMStoreFloat4x4(&mView, XMMatrixIdentity());
+    XMStoreFloat4x4(&mProj, XMMatrixIdentity());
+    SetLens(0.25*XM_PI, 1.0f, 1.0f, 1000.0f);
 }
 
 Carol::Camera::~Camera()
 {
 }
 
-DirectX::XMVECTOR Carol::Camera::GetPosition() const
+XMVECTOR Carol::Camera::GetPosition() const
 {
-    return DirectX::XMLoadFloat3(&mPosition);
+    return XMLoadFloat3(&mPosition);
 }
 
-DirectX::XMFLOAT3 Carol::Camera::GetPosition3f() const
+XMFLOAT3 Carol::Camera::GetPosition3f() const
 {
     return mPosition;
 }
@@ -28,38 +29,38 @@ void Carol::Camera::SetPosition(float x, float y, float z)
     mViewDirty = true;
 }
 
-void Carol::Camera::SetPosition(const DirectX::XMFLOAT3& v)
+void Carol::Camera::SetPosition(const XMFLOAT3& v)
 {
     mPosition = v;
     mViewDirty = true;
 }
 
-DirectX::XMVECTOR Carol::Camera::GetRight() const
+XMVECTOR Carol::Camera::GetRight() const
 {
-    return DirectX::XMLoadFloat3(&mRight);
+    return XMLoadFloat3(&mRight);
 }
 
-DirectX::XMFLOAT3 Carol::Camera::GetRight3f() const
+XMFLOAT3 Carol::Camera::GetRight3f() const
 {
     return mRight;
 }
 
-DirectX::XMVECTOR Carol::Camera::GetUp() const
+XMVECTOR Carol::Camera::GetUp() const
 {
-    return DirectX::XMLoadFloat3(&mUp);
+    return XMLoadFloat3(&mUp);
 }
 
-DirectX::XMFLOAT3 Carol::Camera::GetUp3f() const
+XMFLOAT3 Carol::Camera::GetUp3f() const
 {
     return mUp;
 }
 
-DirectX::XMVECTOR Carol::Camera::GetLook() const
+XMVECTOR Carol::Camera::GetLook() const
 {
-    return DirectX::XMLoadFloat3(&mLook);
+    return XMLoadFloat3(&mLook);
 }
 
-DirectX::XMFLOAT3 Carol::Camera::GetLook3f() const
+XMFLOAT3 Carol::Camera::GetLook3f() const
 {
     return mLook;
 }
@@ -120,147 +121,153 @@ void Carol::Camera::SetLens(float fovY, float aspect, float zn, float zf)
     mNearWindowHeight = 2.0f * zn * tan(0.5f * fovY);
     mFarWindowHeight = 2.0f * zf * tan(0.5f * fovY);
 
-    DirectX::XMMATRIX proj = DirectX::XMMatrixPerspectiveFovLH(fovY, aspect, zn, zf);
-    mCameraLens = DirectX::BoundingFrustum(proj);
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(fovY, aspect, zn, zf);
+    mBoundingFrustrum = BoundingFrustum(proj);
 
-    DirectX::XMStoreFloat4x4(&mProj, proj);
+    XMStoreFloat4x4(&mProj, proj);
 }
 
-void Carol::Camera::LookAt(DirectX::FXMVECTOR pos, DirectX::FXMVECTOR target, DirectX::FXMVECTOR worldUp)
+bool Carol::Camera::Contains(DirectX::BoundingBox boundingBox)
 {
-    auto look = DirectX::XMVector3Normalize(DirectX::XMVectorSubtract(pos, target));
-    auto right = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(worldUp, look));
-    auto up = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(look, right));
+    boundingBox.Transform(boundingBox, XMLoadFloat4x4(&mView));
+    return mBoundingFrustrum.Contains(boundingBox) != DirectX::DISJOINT;
+}
 
-    DirectX::XMStoreFloat3(&mPosition, pos);
-    DirectX::XMStoreFloat3(&mLook, look);
-    DirectX::XMStoreFloat3(&mRight, right);
-    DirectX::XMStoreFloat3(&mUp, up);
+void Carol::Camera::LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp)
+{
+    auto look = XMVector3Normalize(XMVectorSubtract(pos, target));
+    auto right = XMVector3Normalize(XMVector3Cross(worldUp, look));
+    auto up = XMVector3Normalize(XMVector3Cross(look, right));
+
+    XMStoreFloat3(&mPosition, pos);
+    XMStoreFloat3(&mLook, look);
+    XMStoreFloat3(&mRight, right);
+    XMStoreFloat3(&mUp, up);
 
     mViewDirty = true;
 }
 
-void Carol::Camera::LookAt(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target, const DirectX::XMFLOAT3& up)
+void Carol::Camera::LookAt(const XMFLOAT3& pos, const XMFLOAT3& target, const XMFLOAT3& up)
 {
-    DirectX::XMVECTOR posVec = DirectX::XMLoadFloat3(&pos);
-    DirectX::XMVECTOR targetVec = DirectX::XMLoadFloat3(&target);
-    DirectX::XMVECTOR upVec = DirectX::XMLoadFloat3(&up);
+    XMVECTOR posVec = XMLoadFloat3(&pos);
+    XMVECTOR targetVec = XMLoadFloat3(&target);
+    XMVECTOR upVec = XMLoadFloat3(&up);
 
     LookAt(posVec, targetVec, upVec);
 }
 
-DirectX::XMMATRIX Carol::Camera::GetView() const
+XMMATRIX Carol::Camera::GetView() const
 {
-    return DirectX::XMLoadFloat4x4(&mView);
+    return XMLoadFloat4x4(&mView);
 }
 
-DirectX::XMMATRIX Carol::Camera::GetProj() const
+XMMATRIX Carol::Camera::GetProj() const
 {
-    return DirectX::XMLoadFloat4x4(&mProj);
+    return XMLoadFloat4x4(&mProj);
 }
 
-DirectX::XMFLOAT4X4 Carol::Camera::GetView4x4f() const
+XMFLOAT4X4 Carol::Camera::GetView4x4f() const
 {
     return mView;
 }
 
-DirectX::XMFLOAT4X4 Carol::Camera::GetProj4x4f() const
+XMFLOAT4X4 Carol::Camera::GetProj4x4f() const
 {
     return mProj;
 }
 
 void Carol::Camera::Strafe(float d)
 {
-    DirectX::XMVECTOR strafe = DirectX::XMVectorReplicate(d);
-    DirectX::XMVECTOR right = DirectX::XMLoadFloat3(&mRight);
-    DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&mPosition);
+    XMVECTOR strafe = XMVectorReplicate(d);
+    XMVECTOR right = XMLoadFloat3(&mRight);
+    XMVECTOR pos = XMLoadFloat3(&mPosition);
 
-    DirectX::XMStoreFloat3(&mPosition, DirectX::XMVectorMultiplyAdd(strafe, right, pos));
+    XMStoreFloat3(&mPosition, XMVectorMultiplyAdd(strafe, right, pos));
 
     mViewDirty = true;
 }
 
 void Carol::Camera::Walk(float d)
 {
-    DirectX::XMVECTOR walk = DirectX::XMVectorReplicate(d);
-    DirectX::XMVECTOR look = DirectX::XMLoadFloat3(&mLook);
-    DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&mPosition);
+    XMVECTOR walk = XMVectorReplicate(d);
+    XMVECTOR look = XMLoadFloat3(&mLook);
+    XMVECTOR pos = XMLoadFloat3(&mPosition);
 
-    DirectX::XMStoreFloat3(&mPosition, DirectX::XMVectorMultiplyAdd(walk, look, pos));
+    XMStoreFloat3(&mPosition, XMVectorMultiplyAdd(walk, look, pos));
 
     mViewDirty = true;
 }
 
 void Carol::Camera::Pitch(float angle)
 {
-    DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(DirectX::XMLoadFloat3(&mRight), angle);
+    XMMATRIX rotation = XMMatrixRotationAxis(XMLoadFloat3(&mRight), angle);
 
-    DirectX::XMStoreFloat3(&mUp, DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mUp), rotation));
-    DirectX::XMStoreFloat3(&mLook, DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mLook), rotation));
+    XMStoreFloat3(&mUp, XMVector3TransformNormal(XMLoadFloat3(&mUp), rotation));
+    XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), rotation));
 
     mViewDirty = true;
 }
 
 void Carol::Camera::Roll(float angle)
 {
-    DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(DirectX::XMLoadFloat3(&mLook), angle);
+    XMMATRIX rotation = XMMatrixRotationAxis(XMLoadFloat3(&mLook), angle);
 
-    DirectX::XMStoreFloat3(&mUp, DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mUp), rotation));
-    DirectX::XMStoreFloat3(&mRight, DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mRight), rotation));
+    XMStoreFloat3(&mUp, XMVector3TransformNormal(XMLoadFloat3(&mUp), rotation));
+    XMStoreFloat3(&mRight, XMVector3TransformNormal(XMLoadFloat3(&mRight), rotation));
 
     mViewDirty = true;
 }
 
 void Carol::Camera::Yaw(float angle)
 {
-    DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationAxis(DirectX::XMLoadFloat3(&mUp), angle);
+    XMMATRIX rotation = XMMatrixRotationAxis(XMLoadFloat3(&mUp), angle);
 
-    DirectX::XMStoreFloat3(&mRight, DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mRight), rotation));
-    DirectX::XMStoreFloat3(&mLook, DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&mLook), rotation));
+    XMStoreFloat3(&mRight, XMVector3TransformNormal(XMLoadFloat3(&mRight), rotation));
+    XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), rotation));
 
     mViewDirty = true;
 }
 
 void Carol::Camera::RotateX(float angle)
 {
-    DirectX::XMMATRIX R = DirectX::XMMatrixRotationX(angle);
+    XMMATRIX R = XMMatrixRotationX(angle);
 
-    XMStoreFloat3(&mRight, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
-    XMStoreFloat3(&mUp, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
-    XMStoreFloat3(&mLook, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
+    XMStoreFloat3(&mRight, XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
+    XMStoreFloat3(&mUp, XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
+    XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
 
     mViewDirty = true;
 }
 
 void Carol::Camera::RotateY(float angle)
 {
-    DirectX::XMMATRIX R = DirectX::XMMatrixRotationY(angle);
+    XMMATRIX R = XMMatrixRotationY(angle);
 
-    XMStoreFloat3(&mRight, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
-    XMStoreFloat3(&mUp, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
-    XMStoreFloat3(&mLook, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
+    XMStoreFloat3(&mRight, XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
+    XMStoreFloat3(&mUp, XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
+    XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
 
     mViewDirty = true;
 }
 
 void Carol::Camera::RotateZ(float angle)
 {
-    DirectX::XMMATRIX R = DirectX::XMMatrixRotationZ(angle);
+    XMMATRIX R = XMMatrixRotationZ(angle);
 
-    XMStoreFloat3(&mRight, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
-    XMStoreFloat3(&mUp, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
-    XMStoreFloat3(&mLook, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
+    XMStoreFloat3(&mRight, XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
+    XMStoreFloat3(&mUp, XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
+    XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
 
     mViewDirty = true;
 }
 
-void Carol::Camera::Rotate(DirectX::XMFLOAT3 axis, float angle)
+void Carol::Camera::Rotate(XMFLOAT3 axis, float angle)
 {
-    DirectX::XMMATRIX R = DirectX::XMMatrixRotationAxis(DirectX::XMLoadFloat3(&axis), angle);
+    XMMATRIX R = XMMatrixRotationAxis(XMLoadFloat3(&axis), angle);
 
-    XMStoreFloat3(&mRight, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
-    XMStoreFloat3(&mUp, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
-    XMStoreFloat3(&mLook, DirectX::XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
+    XMStoreFloat3(&mRight, XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
+    XMStoreFloat3(&mUp, XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
+    XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
 
     mViewDirty = true;
 }
@@ -269,22 +276,22 @@ void Carol::Camera::UpdateViewMatrix()
 {
     if (mViewDirty)
     {
-        DirectX::XMVECTOR right = DirectX::XMLoadFloat3(&mRight);
-        DirectX::XMVECTOR up = DirectX::XMLoadFloat3(&mUp);
-        DirectX::XMVECTOR look = DirectX::XMLoadFloat3(&mLook);
-        DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&mPosition);
+        XMVECTOR right = XMLoadFloat3(&mRight);
+        XMVECTOR up = XMLoadFloat3(&mUp);
+        XMVECTOR look = XMLoadFloat3(&mLook);
+        XMVECTOR pos = XMLoadFloat3(&mPosition);
 
-        look = DirectX::XMVector3Normalize(look);
-        up = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(look, right));
-        right = DirectX::XMVector3Cross(up, look);
+        look = XMVector3Normalize(look);
+        up = XMVector3Normalize(XMVector3Cross(look, right));
+        right = XMVector3Cross(up, look);
 
-        float oriX = -DirectX::XMVectorGetX(DirectX::XMVector3Dot(pos, right));
-        float oriY = -DirectX::XMVectorGetX(DirectX::XMVector3Dot(pos, up));
-        float oriZ = -DirectX::XMVectorGetX(DirectX::XMVector3Dot(pos, look));
+        float oriX = -XMVectorGetX(XMVector3Dot(pos, right));
+        float oriY = -XMVectorGetX(XMVector3Dot(pos, up));
+        float oriZ = -XMVectorGetX(XMVector3Dot(pos, look));
 
-        DirectX::XMStoreFloat3(&mRight, right);
-        DirectX::XMStoreFloat3(&mUp, up);
-        DirectX::XMStoreFloat3(&mLook, look);
+        XMStoreFloat3(&mRight, right);
+        XMStoreFloat3(&mUp, up);
+        XMStoreFloat3(&mLook, look);
 
         mView(0, 0) = mRight.x;
         mView(1, 0) = mRight.y;
@@ -308,4 +315,37 @@ void Carol::Camera::UpdateViewMatrix()
 
         mViewDirty = false;
     }
+}
+
+Carol::OrthographicCamera::OrthographicCamera(XMFLOAT3 viewDir, XMFLOAT3 targetPos, float radius)
+{
+    SetLens(viewDir, targetPos, radius);
+}
+
+Carol::OrthographicCamera::~OrthographicCamera()
+{
+}
+
+void Carol::OrthographicCamera::SetLens(XMFLOAT3 viewDir3f, XMFLOAT3 targetPos3f, float radius)
+{
+    XMVECTOR viewDir = XMLoadFloat3(&viewDir3f);
+    XMVECTOR targetPos = XMLoadFloat3(&targetPos3f);
+    XMVECTOR viewPos = targetPos - 2.0f * radius * viewDir;
+    XMMATRIX view = XMMatrixLookAtLH(viewPos, targetPos, { 0.0f,1.0f,0.0f,0.0f });
+    XMStoreFloat4x4(&mView, view);
+
+    XMFLOAT3 rectCenter;
+    XMStoreFloat3(&rectCenter, XMVector3TransformCoord(targetPos, view));
+
+    float l = rectCenter.x - radius;
+    float b = rectCenter.y - radius;
+    float n = rectCenter.z - radius;
+    float r = rectCenter.x + radius;
+    float t = rectCenter.y + radius;
+    float f = rectCenter.z + radius;
+    
+    mNearZ = n;
+    mFarZ = f;
+    XMMATRIX proj = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+    XMStoreFloat4x4(&mProj, proj);
 }

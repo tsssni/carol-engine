@@ -1,5 +1,5 @@
 #pragma once
-#include "Buffer.h"
+#include "Resource.h"
 #include <d3d12.h>
 #include <vector>
 #include <string>
@@ -17,14 +17,13 @@ namespace Carol
 	class Shader
 	{
 	public:
-		Shader() = default;
-
-		Blob* GetBlob();
-		void CompileShader(
-			const wstring& filenName,
+		Shader(
+			const wstring& fileName,
 			const D3D_SHADER_MACRO* defines,
 			const string& entryPoint,
 			const string& target);
+
+		Blob* GetBlob();
 	private:
 		unique_ptr<Blob> mShader;
 	};

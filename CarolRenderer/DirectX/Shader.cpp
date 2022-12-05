@@ -1,17 +1,12 @@
 #include "Shader.h"
+#include "../Utils/d3dx12.h"
 #include "../Utils/Common.h"
-#include "Buffer.h"
-#include "d3dx12.h"
+#include "Resource.h"
 #include <d3dcompiler.h>
 
 using std::make_unique;
 
-Carol::Blob* Carol::Shader::GetBlob()
-{
-    return mShader.get();
-}
-
-void Carol::Shader::CompileShader(const std::wstring& fileName, const D3D_SHADER_MACRO* defines, const std::string& entryPoint, const std::string& target)
+Carol::Shader::Shader(const wstring& fileName, const D3D_SHADER_MACRO* defines, const string& entryPoint, const string& target)
 {
     uint32_t compileFlags = 0;
 #if defined(DEBUG) || defined(_DEBUG)
@@ -26,4 +21,9 @@ void Carol::Shader::CompileShader(const std::wstring& fileName, const D3D_SHADER
     {
         OutputDebugStringA((char*)errorBlob->GetBufferPointer());
     }
+}
+
+Carol::Blob* Carol::Shader::GetBlob()
+{
+    return mShader.get();
 }

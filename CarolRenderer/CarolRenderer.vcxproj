@@ -132,58 +132,69 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ResourceCompile Include="Renderer.rc" />
+    <ResourceCompile Include="Win32\Renderer.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Renderer.ico" />
-    <Image Include="small.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Ambient Occlusion\Ssao.cpp" />
-    <ClCompile Include="Anti-Aliasing\Taa.cpp" />
-    <ClCompile Include="BaseRenderer.cpp" />
-    <ClCompile Include="DirectX\Buffer.cpp" />
-    <ClCompile Include="DirectX\DescriptorHeap.cpp" />
-    <ClCompile Include="DirectX\Display.cpp" />
+    <ClCompile Include="Manager\Transparency\Oitppll.cpp" />
+    <ClCompile Include="Utils\Bitset.cpp" />
+    <ClCompile Include="Utils\Buddy.cpp" />
+    <ClCompile Include="DirectX\DescriptorAllocator.cpp" />
+    <ClCompile Include="DirectX\Resource.cpp" />
     <ClCompile Include="DirectX\Shader.cpp" />
-    <ClCompile Include="FrameResources.cpp" />
+    <ClCompile Include="DirectX\Heap.cpp" />
+    <ClCompile Include="DirectX\Sampler.cpp" />
+    <ClCompile Include="Manager\Ambient Occlusion\Ssao.cpp" />
+    <ClCompile Include="Manager\Anti-Aliasing\Taa.cpp" />
+    <ClCompile Include="Manager\Display\Display.cpp" />
+    <ClCompile Include="Manager\Light\Light.cpp" />
+    <ClCompile Include="Manager\Manager.cpp" />
+    <ClCompile Include="Manager\Mesh\Mesh.cpp" />
+    <ClCompile Include="Resource\AssimpModel.cpp" />
+    <ClCompile Include="BaseRenderer.cpp" />
     <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="Renderer.cpp" />
-    <ClCompile Include="Resource\AssimpModel.cpp" />
     <ClCompile Include="Resource\Camera.cpp" />
     <ClCompile Include="Resource\GameTimer.cpp" />
-    <ClCompile Include="Resource\Light.cpp" />
-    <ClCompile Include="Resource\Material.cpp" />
     <ClCompile Include="Resource\Model.cpp" />
     <ClCompile Include="Resource\SkinnedData.cpp" />
     <ClCompile Include="Resource\Texture.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Ambient Occlusion\Ssao.h" />
-    <ClInclude Include="Anti-Aliasing\Taa.h" />
-    <ClInclude Include="BaseRenderer.h" />
-    <ClInclude Include="DirectX\Buffer.h" />
-    <ClInclude Include="DirectX\d3dx12.h" />
-    <ClInclude Include="DirectX\DescriptorHeap.h" />
-    <ClInclude Include="DirectX\Display.h" />
+    <ClInclude Include="Manager\Transparency\Oitppll.h" />
+    <ClInclude Include="Utils\Bitset.h" />
+    <ClInclude Include="Utils\Buddy.h" />
+    <ClInclude Include="Utils\d3dx12.h" />
+    <ClInclude Include="DirectX\DescriptorAllocator.h" />
+    <ClInclude Include="DirectX\Resource.h" />
     <ClInclude Include="DirectX\Shader.h" />
-    <ClInclude Include="FrameResources.h" />
-    <ClInclude Include="framework.h" />
+    <ClInclude Include="DirectX\Heap.h" />
+    <ClInclude Include="DirectX\Sampler.h" />
+    <ClInclude Include="Manager\Ambient Occlusion\Ssao.h" />
+    <ClInclude Include="Manager\Anti-Aliasing\Taa.h" />
+    <ClInclude Include="Manager\Display\Display.h" />
+    <ClInclude Include="Manager\Light\Light.h" />
+    <ClInclude Include="Manager\Manager.h" />
+    <ClInclude Include="Manager\Mesh\Mesh.h" />
+    <ClInclude Include="Resource\AssimpModel.h" />
+    <ClInclude Include="BaseRenderer.h" />
+    <ClInclude Include="Win32\framework.h" />
     <ClInclude Include="MainWindow.h" />
     <ClInclude Include="Renderer.h" />
-    <ClInclude Include="Resource.h" />
-    <ClInclude Include="Resource\AssimpModel.h" />
+    <ClInclude Include="Win32\Resource.h" />
     <ClInclude Include="Resource\Camera.h" />
     <ClInclude Include="Resource\GameTimer.h" />
-    <ClInclude Include="Resource\Light.h" />
-    <ClInclude Include="Resource\Material.h" />
     <ClInclude Include="Resource\Model.h" />
     <ClInclude Include="Resource\SkinnedData.h" />
     <ClInclude Include="Resource\Texture.h" />
-    <ClInclude Include="targetver.h" />
+    <ClInclude Include="Win32\targetver.h" />
+    <ClInclude Include="Utils\Common.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="Win32\packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Win32\Carol.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -19,8 +19,8 @@ cbuffer RootConstant : register(b1)
     bool gHorizontalBlur;
 }
 
-Texture2D gNormalMap : register(t0);
-Texture2D gDepthMap : register(t1);
+Texture2D gDepthMap : register(t0);
+Texture2D gNormalMap : register(t1);
 Texture2D gRandomVectorMap : register(t2);
 
 SamplerState gsamPointWrap : register(s0);
@@ -85,7 +85,7 @@ float4 PS(VertexOut pin) : SV_Target
     float viewDepth = NdcDepthToViewDepth(gDepthMap.SampleLevel(gsamLinearClamp, pin.TexC, 0.0f).r);
     float3 viewPos = (viewDepth / pin.PosV.z) * pin.PosV.xyz;
     
-    float3 randVec = 2.0f * gRandomVectorMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz - 1.0f;
+    float3 randVec = 2.0f * gRandomVectorMap.SampleLevel(gsamPointWrap, 4.0f * pin.TexC, 0.0f).xyz - 1.0f;
     float occlusionSum = 0.0f;
     
     for (int i = 0; i < gSampleCount;++i)

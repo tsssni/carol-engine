@@ -20,6 +20,7 @@ static const float2 gTexCoords[6] =
     float2(1.0f, 1.0f)
 };
 
+static int sampleCount = 9;
 static int dx[9] = { -1, -1, -1, 0, 0, 0, 1, 1, 1 };
 static int dy[9] = { -1, 0, 1, -1, 0, 1, -1, 0, 1 };
 
@@ -55,46 +56,55 @@ float3 Ycocg2Rgb(float3 ycocgColor)
     return rgb;
 }
 
-float3 Clip(float3 histColor, float3 currColor, float3 minPixelColor, float3 maxPixelColor)
+float3 Clip(float3 histColor, float3 minPixelColor, float3 maxPixelColor)
 {
-    float3 ray = currColor - histColor;
+    float3 centerColor = (minPixelColor + maxPixelColor) / 2;
+    float3 ray = centerColor - histColor;
     float3 invRay = rcp(ray);
     
     float3 minRay = (minPixelColor - histColor) * invRay;
     float3 maxRay = (maxPixelColor - histColor) * invRay;
     float3 factorVec = min(minRay, maxRay);
     
-    float blendFactor = saturate(max(factorVec.x, max(factorVec.y, factorVec.z)));
-    return lerp(histColor, currColor, blendFactor);
+    float blendFactor = saturate(max(max(factorVec.x, factorVec.y), factorVec.z));
+    return lerp(histColor, centerColor, blendFactor);
 }
 
 
-void CalcPixelColorAabb(float2 currPos, inout float3 minPixelColor, inout float3 maxPixelColor)
+void CalcPixelColorAabb(float2 pixelPos, inout float3 minPixelColor, inout float3 maxPixelColor)
 {
     minPixelColor = float3(1.0f, 0.5f, 0.5f);
     maxPixelColor = float3(0.0f, -0.5f, -0.5f);
+
+    float3 meanColor = float3(0.0f, 0.0f, 0.0f);
+    float3 varColor = float3(0.0f, 0.0f, 0.0f);
+    static float3 gamma = 1.0f;
     
     [unroll]
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < sampleCount; i++)
     {
-        float2 pos = float2(currPos.x + dx[i], currPos.y + dy[i]) * gInvRenderTargetSize;
+        float2 pos = float2(pixelPos.x + dx[i], pixelPos.y + dy[i]) * gInvRenderTargetSize;
         float3 pixelColor = Rgb2Ycocg(gCurrFrameMap.Sample(gsamPointClamp, pos).rgb);
-        minPixelColor = min(minPixelColor, pixelColor);
-        maxPixelColor = max(maxPixelColor, pixelColor);
+        meanColor += pixelColor;
+        varColor += pixelColor * pixelColor;
     }
 
+    meanColor /= sampleCount;
+    varColor = sqrt(abs(varColor / sampleCount - meanColor * meanColor));
+    
+    minPixelColor = meanColor - gamma * varColor;
+    maxPixelColor = meanColor + gamma * varColor;
 }
 
 float4 PS(VertexOut pin) : SV_Target
 {
     float minZ = 1.0f;
-    float2 minZPos = pin.PosH.xy;
+    float2 minZPos = pin.PosH.xy * gInvRenderTargetSize;
     
     [unroll]
     for (int i = 0; i < 9; ++i)
     {
-        float2 adjacentPos = int2(pin.PosH.x + dx[i] * gInvRenderTargetSize.x, pin.PosH.y + dy[i] * gInvRenderTargetSize.y);
-        
+        float2 adjacentPos = int2(pin.PosH.x + dx[i], pin.PosH.y + dy[i]) * gInvRenderTargetSize;
         float adjacentZ = gDepthMap.Sample(gsamPointClamp, adjacentPos).r;
         
         if (adjacentZ < minZ)
@@ -106,17 +116,16 @@ float4 PS(VertexOut pin) : SV_Target
     
     float2 currPos = pin.PosH.xy * gInvRenderTargetSize;
     float2 histPos = currPos + gVelocityMap.Sample(gsamPointClamp, minZPos).xy;
-
-    float4 currPixel = gCurrFrameMap.Sample(gsamPointClamp, currPos);
-    float4 histPixel = gHistFrameMap.Sample(gsamPointClamp, histPos);
+    
+    float4 currPixelColor = gCurrFrameMap.Sample(gsamPointClamp, currPos);
+    float4 histPixelColor = gHistFrameMap.Sample(gsamPointClamp, histPos);
     
     float3 minPixelColor;
     float3 maxPixelColor;
-    
     CalcPixelColorAabb(pin.PosH.xy, minPixelColor, maxPixelColor);
     
-    histPixel.rgb = Ycocg2Rgb(Clip(Rgb2Ycocg(histPixel.rgb), Rgb2Ycocg(currPixel.rgb), minPixelColor, maxPixelColor));
+    histPixelColor.rgb = Ycocg2Rgb(Clip(Rgb2Ycocg(histPixelColor.rgb), minPixelColor, maxPixelColor));
     
-    float4 taaPixel = 0.05f * currPixel + 0.95f * histPixel;
+    float4 taaPixel = 0.05f * currPixelColor + 0.95f * histPixelColor;
     return taaPixel;
 }

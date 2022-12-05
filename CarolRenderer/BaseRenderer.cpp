@@ -1,5 +1,10 @@
 #include "BaseRenderer.h"
-#include "DirectX/Display.h"
+#include "Manager/Display/Display.h"
+#include "DirectX/DescriptorAllocator.h"
+#include "DirectX/Heap.h"
+#include "Resource/GameTimer.h"
+#include "Resource/Camera.h"
+#include "Resource/SkinnedData.h"
 #include "Utils/Common.h"
 #include <DirectXMath.h>
 #include <memory>
@@ -11,24 +16,25 @@ float Carol::BaseRenderer::AspectRatio()
 	return 1.0f * mClientWidth / mClientHeight;
 }
 
-void Carol::BaseRenderer::InitRtvDsvDescriptorHeaps()
+void Carol::BaseRenderer::InitTimer()
 {
-	mRtvHeap = make_unique<RtvDescriptorHeap>();
-	mDsvHeap = make_unique<DsvDescriptorHeap>();
-
-	mRtvHeap->InitRtvDescriptorHeap(mDevice.Get(), 2);
-	mDsvHeap->InitDsvDescriptorHeap(mDevice.Get(), 1);
-}
-
-void Carol::BaseRenderer::InitRenderer(HWND hWnd, uint32_t width, uint32_t height)
-{
-	mDisplayManager = make_unique<DisplayManager>();
-	
 	mTimer = make_unique<GameTimer>();
 	mTimer->Reset();
-	mCamera = make_unique<Camera>();
+	mRenderData->Timer = mTimer.get();
+}
 
-	mhWnd = hWnd;
+void Carol::BaseRenderer::InitCamera()
+{
+	mCamera = make_unique<Camera>();
+	mCamera->SetPosition(0.0f, 5.0f, -5.0f);
+	mRenderData->Camera = mCamera.get();
+}
+
+Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
+	:mhWnd(hWnd),mRenderData(make_unique<RenderData>())
+{
+	InitTimer();
+	InitCamera();
 
 #if defined(DEBUG) || defined(_DEBUG)
 	InitDebug();
@@ -41,8 +47,9 @@ void Carol::BaseRenderer::InitRenderer(HWND hWnd, uint32_t width, uint32_t heigh
 	InitCommandList();
 	InitCommandQueue();
 
-	mDisplayManager->InitDisplayManager(hWnd, mDxgiFactory.Get(), mCommandQueue.Get(), width, height, 2);
-	InitRtvDsvDescriptorHeaps();
+	InitHeaps();
+	InitAllocators();	
+	InitDisplay();
 
 	BaseRenderer::OnResize(width, height);
 }
@@ -97,6 +104,7 @@ void Carol::BaseRenderer::InitDevice()
 	ComPtr<ID3D12Device> device;
 	ThrowIfFailed(D3D12CreateDevice(device.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(device.GetAddressOf())));
 	mDevice = device;
+	mRenderData->Device = mDevice.Get();
 }
 
 void Carol::BaseRenderer::InitFence()
@@ -113,6 +121,7 @@ void Carol::BaseRenderer::InitCommandQueue()
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 
 	ThrowIfFailed(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(mCommandQueue.GetAddressOf())));
+	mRenderData->CommandQueue = mCommandQueue.Get();
 }
 
 void Carol::BaseRenderer::InitCommandAllocator()
@@ -124,17 +133,45 @@ void Carol::BaseRenderer::InitCommandList()
 {
 	ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mInitCommandAllocator.Get(), nullptr, IID_PPV_ARGS(mCommandList.GetAddressOf())));
 	mCommandList->Close();
+	mRenderData->CommandList = mCommandList.Get();
 }
 
-void Carol::SkinnedModelInfo::UpdateSkinnedModel(float dt)
+void Carol::BaseRenderer::InitHeaps()
 {
-	TimePos += dt;
-	if (TimePos > SkinnedInfo->GetClipEndTime(ClipName))
-	{
-		TimePos = 0.0f;
-	}
+	mDefaultBuffersHeap = make_unique<BuddyHeap>(mDevice.Get(), D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS, 1 << 29);
+	mUploadBuffersHeap = make_unique<BuddyHeap>(mDevice.Get(), D3D12_HEAP_TYPE_UPLOAD, D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS, 1 << 29);
+	mReadbackBuffersHeap = make_unique<BuddyHeap>(mDevice.Get(), D3D12_HEAP_TYPE_READBACK, D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS);
+	mSrvTexturesHeap = make_unique<SegListHeap>(mDevice.Get(), D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES);
+	mRtvDsvTexturesHeap = make_unique<SegListHeap>(mDevice.Get(), D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES);
 
-	SkinnedInfo->GetFinalTransforms(ClipName, TimePos, FinalTransforms);
+	mRenderData->DefaultBuffersHeap = mDefaultBuffersHeap.get();
+	mRenderData->UploadBuffersHeap = mUploadBuffersHeap.get();
+	mRenderData->ReadbackBuffersHeap = mReadbackBuffersHeap.get();
+	mRenderData->SrvTexturesHeap = mSrvTexturesHeap.get();
+	mRenderData->RtvDsvTexturesHeap = mRtvDsvTexturesHeap.get();
+}
+
+void Carol::BaseRenderer::InitAllocators()
+{
+	mCbvSrvUavAllocator = make_unique<DescriptorAllocator>(mDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	mRtvAllocator = make_unique<DescriptorAllocator>(mDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	mDsvAllocator = make_unique<DescriptorAllocator>(mDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+	mRenderData->CbvSrvUavAllocator = mCbvSrvUavAllocator.get();
+	mRenderData->RtvAllocator = mRtvAllocator.get();
+	mRenderData->DsvAllocator = mDsvAllocator.get();
+}
+
+void Carol::BaseRenderer::InitDisplay()
+{
+	mRenderData->ScreenViewport = &mScreenViewport;
+	mRenderData->ScissorRect = &mScissorRect;
+	
+	mRenderData->ClientWidth = &mClientWidth;
+	mRenderData->ClientHeight = &mClientHeight;
+
+	mDisplay=make_unique<DisplayManager>(mRenderData.get(), mhWnd, mDxgiFactory.Get(), mClientWidth, mClientHeight, 2);
+	mRenderData->Display = mDisplay.get();
 }
 
 void Carol::BaseRenderer::Tick()
@@ -155,7 +192,7 @@ void Carol::BaseRenderer::Start()
 void Carol::BaseRenderer::OnResize(uint32_t width, uint32_t height)
 {
 	assert(mDevice.Get());
-	assert(mDisplayManager->GetSwapChain());
+	assert(mDisplay->GetSwapChain());
 	assert(mInitCommandAllocator.Get());
 
 	if (mClientWidth == width && mClientHeight == height)
@@ -173,15 +210,9 @@ void Carol::BaseRenderer::OnResize(uint32_t width, uint32_t height)
 
 	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
 
-	mDisplayManager->OnResize(
-		mCommandList.Get(),
-		mRtvHeap.get(),
-		mDsvHeap.get(),
-		mClientWidth,
-		mClientHeight);
+	mDisplay->OnResize();
 
 	mCommandList->Close();
-
 	vector<ID3D12CommandList*> cmdLists = { mCommandList.Get() };
 	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 	FlushCommandQueue();
@@ -238,13 +269,13 @@ bool Carol::BaseRenderer::Resizing()
 
 void Carol::BaseRenderer::FlushCommandQueue()
 {
-	++mCurrFence;
-	ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCurrFence));
+	++mCpuFence;
+	ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFence));
 
-	if (mFence->GetCompletedValue() < mCurrFence)
+	if (mFence->GetCompletedValue() < mCpuFence)
 	{
 		auto eventHandle = CreateEventEx(nullptr, LPCWSTR(nullptr), 0, EVENT_ALL_ACCESS);
-		ThrowIfFailed(mFence->SetEventOnCompletion(mCurrFence, eventHandle));
+		ThrowIfFailed(mFence->SetEventOnCompletion(mCpuFence, eventHandle));
 
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);

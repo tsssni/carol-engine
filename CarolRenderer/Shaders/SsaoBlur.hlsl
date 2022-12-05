@@ -19,8 +19,8 @@ cbuffer RootConstant : register(b1)
     bool gHorizontalBlur;
 }
 
-Texture2D gNormalMap : register(t0);
-Texture2D gDepthMap : register(t1);
+Texture2D gDepthMap : register(t0);
+Texture2D gNormalMap : register(t1);
 Texture2D gInputMap : register(t2);
 
 SamplerState gsamPointWrap : register(s0);

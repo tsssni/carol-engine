@@ -1,0 +1,1105 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json",
+  "runs": [
+    {
+      "results": [
+        {
+          "ruleId": "C6001",
+          "message": {
+            "text": "使用未初始化的内存“*pParameters_1_0.DescriptorTable.pDescriptorRanges”。"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                },
+                "region": {
+                  "startLine": 2139,
+                  "startColumn": 63,
+                  "endLine": 2139,
+                  "endColumn": 157
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "D3DX12SerializeVersionedRootSignature",
+                  "decoratedName": "?D3DX12SerializeVersionedRootSignature@@YAJPEBUD3D12_VERSIONED_ROOT_SIGNATURE_DESC@@W4D3D_ROOT_SIGNATURE_VERSION@@PEAPEAUID3D10Blob@@2@Z",
+                  "kind": "function"
+                }
+              ]
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2047,
+                            "startColumn": 21
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2049,
+                            "startColumn": 22
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2052,
+                            "startColumn": 13
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2054,
+                            "startColumn": 9
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2055,
+                            "startColumn": 39
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2060,
+                            "startColumn": 17
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2062,
+                            "startColumn": 29
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2063,
+                            "startColumn": 55
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2065,
+                            "startColumn": 34
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2066,
+                            "startColumn": 27
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2067,
+                            "startColumn": 44
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2071,
+                            "startColumn": 26
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2073,
+                            "startColumn": 25
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2075,
+                            "startColumn": 35
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2075,
+                            "startColumn": 44
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2077,
+                            "startColumn": 29
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2078,
+                            "startColumn": 62
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2079,
+                            "startColumn": 65
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2081,
+                            "startColumn": 60
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2096,
+                            "startColumn": 29
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2097,
+                            "startColumn": 69
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2099,
+                            "startColumn": 46
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2100,
+                            "startColumn": 39
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2101,
+                            "startColumn": 62
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2105,
+                            "startColumn": 38
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2107,
+                            "startColumn": 37
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2109,
+                            "startColumn": 47
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2109,
+                            "startColumn": 56
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2120,
+                            "startColumn": 62
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2121,
+                            "startColumn": 63
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2122,
+                            "startColumn": 61
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2075,
+                            "startColumn": 71
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2075,
+                            "startColumn": 44
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2077,
+                            "startColumn": 29
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2078,
+                            "startColumn": 62
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2079,
+                            "startColumn": 65
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2081,
+                            "startColumn": 60
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2096,
+                            "startColumn": 29
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2097,
+                            "startColumn": 69
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2099,
+                            "startColumn": 46
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2100,
+                            "startColumn": 39
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2101,
+                            "startColumn": 62
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2105,
+                            "startColumn": 38
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2107,
+                            "startColumn": 37
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2109,
+                            "startColumn": 47
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2109,
+                            "startColumn": 56
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2120,
+                            "startColumn": 62
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2121,
+                            "startColumn": 63
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2122,
+                            "startColumn": 61
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2075,
+                            "startColumn": 71
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2075,
+                            "startColumn": 44
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2127,
+                            "startColumn": 25
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2129,
+                            "startColumn": 53
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2130,
+                            "startColumn": 28
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2133,
+                            "startColumn": 25
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2135,
+                            "startColumn": 35
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2135,
+                            "startColumn": 44
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2137,
+                            "startColumn": 71
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2139,
+                            "startColumn": 41
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2135,
+                            "startColumn": 71
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2135,
+                            "startColumn": 44
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2137,
+                            "startColumn": 71
+                          }
+                        }
+                      },
+                      "importance": "unimportant"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2139,
+                            "startColumn": 41
+                          }
+                        },
+                        "message": {
+                          "text": "未初始化“*pParameters_1_0.DescriptorTable.pDescriptorRanges”"
+                        }
+                      },
+                      "kinds": [
+                        "declaration"
+                      ],
+                      "importance": "essential"
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+                          },
+                          "region": {
+                            "startLine": 2139,
+                            "startColumn": 63
+                          }
+                        },
+                        "message": {
+                          "text": "已使用“*pParameters_1_0.DescriptorTable.pDescriptorRanges”，但可能尚未将其初始化"
+                        }
+                      },
+                      "kinds": [
+                        "usage"
+                      ],
+                      "importance": "essential"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "PREfast",
+          "fullName": "PREfast Code Analysis",
+          "version": "14.32.31329.0",
+          "informationUri": "https://aka.ms/cpp/ca"
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true
+        }
+      ],
+      "artifacts": [
+        {
+          "location": {
+            "uri": "file:///C:/CarolEngine/CarolRenderer/Utils/d3dx12.h"
+          },
+          "roles": [
+            "resultFile"
+          ],
+          "hashes": {
+            "sha-256": "c3f8f6a0f21863a86454a0ee12c650f9c55af33a687fcd8036a8173049f8d9f9"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/mainwindow.cpp"
+          },
+          "roles": [
+            "analysisTarget"
+          ],
+          "hashes": {
+            "sha-256": "3e3fcb63891b32039335c97fb78478faa735fab7acb22953cc9a3b51750ce328"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/renderer.h"
+          },
+          "hashes": {
+            "sha-256": "2269dd2d2b52447bca3fc1df1231ef1be82cc6d78fdca01d1f7af2b16a4133c0"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/baserenderer.h"
+          },
+          "hashes": {
+            "sha-256": "81344298d9b5313478377f3460d53ecd971591c8466b9866180504f84abecc86"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/manager/light/light.h"
+          },
+          "hashes": {
+            "sha-256": "07aa0fb63a98963634f28c239613f748b3941736ec4120837fdfbbde3a466543"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/manager/manager.h"
+          },
+          "hashes": {
+            "sha-256": "0554234b1bfd03b860964b9a2c817eba354dcbbd914394b4d531bc289f2136b6"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/directx/resource.h"
+          },
+          "hashes": {
+            "sha-256": "ce96237558e7b02ef26e5f168ece8d363d6e24626a8848867615deca9a81bf1b"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/utils/common.h"
+          },
+          "hashes": {
+            "sha-256": "d789103c03c4ced2c0f034d1227e87b58fef4514e514617390f385b8e2f82012"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/directx/descriptorallocator.h"
+          },
+          "hashes": {
+            "sha-256": "bc451046d3afa5c2f11b76c8fbad348348e6a3c569f934287767f1857b63b35a"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/utils/buddy.h"
+          },
+          "hashes": {
+            "sha-256": "0ea5eb66c01e22001cdbbd55d491a100df5ed66eeaa9c4603cb96643d737bf0a"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/utils/bitset.h"
+          },
+          "hashes": {
+            "sha-256": "3e4f5a0c5797b02114fc8cc7d0a328b2f91daba93548be6f7d56fd7d444f0c9a"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/resource/camera.h"
+          },
+          "hashes": {
+            "sha-256": "762a3893cddfbee246adcf50de9a6a19a3db331b91ae9063201e72216f86b6c6"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/mainwindow.h"
+          },
+          "hashes": {
+            "sha-256": "3f4a99a236a8a90ad0b6810166beb738b4833ded83e9e3c977b1ac56c02d38eb"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/win32/resource.h"
+          },
+          "hashes": {
+            "sha-256": "597b18903a0e86fcff9e10ef47ce31b4de94c2d790618d093d0e54ff1249f38d"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/win32/framework.h"
+          },
+          "hashes": {
+            "sha-256": "fadd01f34c01054fbf7ff16e98e37f09f22350e9edfb7a700e65cb3c1980d5ff"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/win32/targetver.h"
+          },
+          "hashes": {
+            "sha-256": "22d5a70d062707e58c110067d71ae2476fc14dff3630079dfec0e771ac577a81"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,12 @@
 #include "Common.hlsl"
 
+struct LightMaterialData
+{
+    float3 diffuseAlbedo;
+    float3 fresnelR0;
+    float roughness;
+};
+
 float CalcAttenuation(float d, float falloffStart, float falloffEnd)
 {
     // Linear falloff.
@@ -18,9 +25,9 @@ float3 SchlickFresnel(float3 R0, float3 normal, float3 lightVec)
     return reflectPercent;
 }
 
-float3 BlinnPhong(float3 lightStrength, float3 lightVec, float3 normal, float3 toEye, MaterialData mat)
+float3 BlinnPhong(float3 lightStrength, float3 lightVec, float3 normal, float3 toEye, LightMaterialData mat)
 {
-    const float m = (1.0f - mat.roughness) * 256.0f;
+    const float m = (1.0f - mat.roughness) * 256.0f + 0.0001f;
     float3 halfVec = normalize(toEye + lightVec);
 
     float roughnessFactor = (m + 8.0f) * pow(max(dot(halfVec, normal), 0.0f), m) / 8.0f;
@@ -38,7 +45,7 @@ float3 BlinnPhong(float3 lightStrength, float3 lightVec, float3 normal, float3 t
 //---------------------------------------------------------------------------------------
 // Evaluates the lighting equation for directional lights.
 //---------------------------------------------------------------------------------------
-float3 ComputeDirectionalLight(Light L, MaterialData mat, float3 normal, float3 toEye)
+float3 ComputeDirectionalLight(Light L, LightMaterialData mat, float3 normal, float3 toEye)
 {
     // The light vector aims opposite the direction the light rays travel.
     float3 lightVec = -L.Direction;
@@ -53,7 +60,7 @@ float3 ComputeDirectionalLight(Light L, MaterialData mat, float3 normal, float3 
 //---------------------------------------------------------------------------------------
 // Evaluates the lighting equation for point lights.
 //---------------------------------------------------------------------------------------
-float3 ComputePointLight(Light L, MaterialData mat, float3 pos, float3 normal, float3 toEye)
+float3 ComputePointLight(Light L, LightMaterialData mat, float3 pos, float3 normal, float3 toEye)
 {
     // The vector from the surface to the light.
     float3 lightVec = L.Position - pos;
@@ -82,7 +89,7 @@ float3 ComputePointLight(Light L, MaterialData mat, float3 pos, float3 normal, f
 //---------------------------------------------------------------------------------------
 // Evaluates the lighting equation for spot lights.
 //---------------------------------------------------------------------------------------
-float3 ComputeSpotLight(Light L, MaterialData mat, float3 pos, float3 normal, float3 toEye)
+float3 ComputeSpotLight(Light L, LightMaterialData mat, float3 pos, float3 normal, float3 toEye)
 {
     // The vector from the surface to the light.
     float3 lightVec = L.Position - pos;
@@ -112,7 +119,7 @@ float3 ComputeSpotLight(Light L, MaterialData mat, float3 pos, float3 normal, fl
     return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
 }
 
-float4 ComputeLighting(Light gLights[MAX_LIGHTS], MaterialData mat,
+float4 ComputeLighting(Light gLights[MAX_LIGHTS], LightMaterialData mat,
                        float3 pos, float3 normal, float3 toEye,
                        float3 shadowFactor)
 {
@@ -121,6 +128,7 @@ float4 ComputeLighting(Light gLights[MAX_LIGHTS], MaterialData mat,
     int i = 0;
 
 #if (NUM_DIR_LIGHTS > 0)
+    [unroll]
     for(i = 0; i < NUM_DIR_LIGHTS; ++i)
     {
         result += shadowFactor[i] * ComputeDirectionalLight(gLights[i], mat, normal, toEye);
@@ -128,6 +136,7 @@ float4 ComputeLighting(Light gLights[MAX_LIGHTS], MaterialData mat,
 #endif
 
 #if (NUM_POINT_LIGHTS > 0)
+    [unroll]
     for(i = NUM_DIR_LIGHTS; i < NUM_DIR_LIGHTS+NUM_POINT_LIGHTS; ++i)
     {
         result += ComputePointLight(gLights[i], mat, pos, normal, toEye);
@@ -135,11 +144,12 @@ float4 ComputeLighting(Light gLights[MAX_LIGHTS], MaterialData mat,
 #endif
 
 #if (NUM_SPOT_LIGHTS > 0)
+    [unroll]
     for(i = NUM_DIR_LIGHTS + NUM_POINT_LIGHTS; i < NUM_DIR_LIGHTS + NUM_POINT_LIGHTS + NUM_SPOT_LIGHTS; ++i)
     {
         result += ComputeSpotLight(gLights[i], mat, pos, normal, toEye);
     }
 #endif 
 
-    return float4(result, 0.0f);
+    return float4(result, 1.0f);
 }

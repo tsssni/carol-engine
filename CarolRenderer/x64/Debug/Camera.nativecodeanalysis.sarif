@@ -1,0 +1,101 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json",
+  "runs": [
+    {
+      "results": [
+        {
+          "ruleId": "C26451",
+          "message": {
+            "text": "算术溢出: 使用 4 字节值上的运算符 * ，然后将结果转换到 8 字节值。在调用运算符 * 之前将值强制转换为宽类型可避免溢出(io.2)。"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/CarolEngine/CarolRenderer/Resource/Camera.cpp"
+                },
+                "region": {
+                  "startLine": 121,
+                  "startColumn": 41,
+                  "endLine": 121,
+                  "endColumn": 48
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "Carol::Camera::SetLens",
+                  "decoratedName": "?SetLens@Camera@Carol@@QEAAXMMMM@Z",
+                  "kind": "function"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "C26451",
+          "message": {
+            "text": "算术溢出: 使用 4 字节值上的运算符 * ，然后将结果转换到 8 字节值。在调用运算符 * 之前将值强制转换为宽类型可避免溢出(io.2)。"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/CarolEngine/CarolRenderer/Resource/Camera.cpp"
+                },
+                "region": {
+                  "startLine": 122,
+                  "startColumn": 40,
+                  "endLine": 122,
+                  "endColumn": 47
+                }
+              },
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "Carol::Camera::SetLens",
+                  "decoratedName": "?SetLens@Camera@Carol@@QEAAXMMMM@Z",
+                  "kind": "function"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "PREfast",
+          "fullName": "PREfast Code Analysis",
+          "version": "14.32.31329.0",
+          "informationUri": "https://aka.ms/cpp/ca"
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true
+        }
+      ],
+      "artifacts": [
+        {
+          "location": {
+            "uri": "file:///C:/CarolEngine/CarolRenderer/Resource/Camera.cpp"
+          },
+          "roles": [
+            "analysisTarget",
+            "resultFile"
+          ],
+          "hashes": {
+            "sha-256": "2a1bf6deba3241d669f72c4b5f517112d0cf02a926a26ec0bb82348361ef5c55"
+          }
+        },
+        {
+          "location": {
+            "uri": "file:///c:/carolengine/carolrenderer/resource/camera.h"
+          },
+          "hashes": {
+            "sha-256": "762a3893cddfbee246adcf50de9a6a19a3db331b91ae9063201e72216f86b6c6"
+          }
+        }
+      ]
+    }
+  ]
+}

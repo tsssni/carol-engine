@@ -1,7 +1,9 @@
 #include "SkinnedData.h"
+#include "../DirectX/Heap.h"
 #include <cmath>
 
 using namespace DirectX;
+using std::make_unique;
 
 float Carol::BoneAnimation::GetStartTime() const
 {
@@ -93,7 +95,7 @@ XMVECTOR Carol::BoneAnimation::InterpolateQuat(float t) const
 {
 	if (RotationQuatKeyframes.size() == 0)
 	{
-		return { 1.0f,0.0f,0.0f,0.0f };
+		return { 0.0f,0.0f,0.0f,1.0f };
 	}
 
 	if (t < RotationQuatKeyframes.front().TimePos)
@@ -150,69 +152,10 @@ float Carol::AnimationClip::GetClipEndTime() const
 	return endTime;
 }
 
-void Carol::AnimationClip::Interpolate(float t, std::vector<DirectX::XMFLOAT4X4>& boneTransforms) const
+void Carol::AnimationClip::Interpolate(float t, vector<DirectX::XMFLOAT4X4>& boneTransforms) const
 {
 	for (int i = 0; i < boneTransforms.size(); ++i)
-	{
+	{	
 		BoneAnimations[i].Interpolate(t, boneTransforms[i]);
-	}
-}
-
-uint32_t Carol::SkinnedData::BoneCount() const
-{
-	return mBoneHierarchy.size();
-}
-
-float Carol::SkinnedData::GetClipStartTime(const wstring& clipName) const
-{
-	return mAnimations.at(clipName).GetClipStartTime();
-}
-
-float Carol::SkinnedData::GetClipEndTime(const wstring& clipName) const
-{
-	return mAnimations.at(clipName).GetClipEndTime();
-}
-
-void Carol::SkinnedData::Set(std::vector<int>& boneHierarchy, std::vector<DirectX::XMFLOAT4X4>& boneOffsets, std::unordered_map<wstring, AnimationClip>& animations)
-{
-	mBoneHierarchy = std::move(boneHierarchy);
-	mBoneOffsets = std::move(boneOffsets);
-	mAnimations = std::move(animations);
-}
-
-void Carol::SkinnedData::GetFinalTransforms(const wstring& clipName, float timePos, std::vector<DirectX::XMFLOAT4X4>& finalTransforms) const
-{
-	uint32_t numBones = mBoneOffsets.size();
-
-	std::vector<XMFLOAT4X4> toParentTransforms(numBones);
-
-	auto clip = mAnimations.find(clipName);
-	clip->second.Interpolate(timePos, toParentTransforms);
-
-	std::vector<XMFLOAT4X4> toRootTransforms(numBones);
-	toRootTransforms[0] = toParentTransforms[0];
-
-	for (uint32_t i = 1; i < numBones; ++i)
-	{
-		XMMATRIX toParent = XMLoadFloat4x4(&toParentTransforms[i]);
-
-		int parentIndex = mBoneHierarchy[i];
-		if (parentIndex == -1)
-		{
-			continue;
-		}
-		XMMATRIX parentToRoot = XMLoadFloat4x4(&toRootTransforms[parentIndex]);
-
-		XMMATRIX toRoot = XMMatrixMultiply(toParent, parentToRoot);
-
-		XMStoreFloat4x4(&toRootTransforms[i], toRoot);
-	}
-
-	for (UINT i = 0; i < numBones; ++i)
-	{
-		XMMATRIX offset = XMLoadFloat4x4(&mBoneOffsets[i]);
-		XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[i]);
-		XMMATRIX finalTransform = XMMatrixMultiply(offset, toRoot);
-		XMStoreFloat4x4(&finalTransforms[i], XMMatrixTranspose(finalTransform));
 	}
 }

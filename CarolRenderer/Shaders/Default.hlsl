@@ -1,30 +1,25 @@
 #include "Common.hlsl"
 #include "Light.hlsl"
 
-Texture2D gTextureMaps[256] : register(t0);
-StructuredBuffer<MaterialData> gMaterialData : register(t0, space1);
-Texture2D gSsaoMap : register(t1, space1);
+Texture2D gDiffuseMap : register(t0);
+Texture2D gNormalMap : register(t1);
+Texture2D gShadowMap : register(t2);
 
-struct VertexIn
-{
-    float3 PosL : POSITION;
-    float3 NormalL : NORMAL;
-    float3 TangentL : TANGENT;
-    float2 TexC : TEXCOORD;  
-#ifdef SKINNED
-    float3 BoneWeights : WEIGHTS;
-    uint4 BoneIndices : BONEINDICES;
+#ifdef SSAO
+Texture2D gSsaoMap : register(t3);
 #endif
-};
 
 struct VertexOut
 {
     float4 PosH : SV_POSITION;
     float3 PosW : POSITION0;
-    float4 SsaoPosH : POSITION1;
     float3 NormalW : NORMAL;
     float3 TangentW : TANGENT;
-    float2 TexC : TEXCOORD;
+    float2 TexC : TEXCOORD; 
+#ifdef SSAO
+    float4 SsaoPosH : POSITION1;
+#endif
+
 };
 
 VertexOut VS(VertexIn vin)
@@ -32,48 +27,83 @@ VertexOut VS(VertexIn vin)
     VertexOut vout;
     
 #ifdef SKINNED
-    float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    weights[0] = vin.BoneWeights.x;
-    weights[1] = vin.BoneWeights.y;
-    weights[2] = vin.BoneWeights.z;
-    weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
-    
-    float3 posL = float3(0.0f, 0.0f, 0.0f);
-    float3 normalL = float3(0.0f, 0.0f, 0.0f);
-    float3 tangentL = float3(0.0f, 0.0f, 0.0f);
-
-    for(int i = 0; i < 4; ++i)
-    {
-        posL += weights[i] * mul(float4(vin.PosL, 1.0f), gBoneTransforms[vin.BoneIndices[i]]).xyz;
-        normalL += weights[i] * mul(vin.NormalL, (float3x3)gBoneTransforms[vin.BoneIndices[i]]);
-        tangentL += weights[i] * mul(vin.TangentL.xyz, (float3x3)gBoneTransforms[vin.BoneIndices[i]]);
-    }
-    
-    vin.PosL = posL;
-    vin.NormalL = normalL;
-    vin.TangentL.xyz = tangentL;
+    vin = SkinnedTransform(vin);
 #endif
 
     vout.PosW = mul(float4(vin.PosL, 1.0f), gWorld).xyz;
+    vout.NormalW = normalize(mul(vin.NormalL, (float3x3) gWorld));
+    vout.TangentW = normalize(mul(vin.TangentL, (float3x3) gWorld));
+    vout.TexC = vin.TexC;
+   
+#ifdef TAA
+    vout.PosH = mul(float4(vout.PosW, 1.0f), gJitteredViewProj);
+#else
     vout.PosH = mul(float4(vout.PosW, 1.0f), gViewProj);
+#endif
+
+#ifdef SSAO
     vout.SsaoPosH = mul(float4(vout.PosW, 1.0f), gViewProjTex);
-    vout.NormalW = mul(vin.NormalL, (float3x3)gWorld);
-	vout.TangentW = mul(vin.TangentL, (float3x3)gWorld);
-    vout.TexC = mul(float4(vin.TexC, 0.0f, 0.0f), gTexTransform).xy;
+#endif
     
     return vout;
 }
 
+float CalcShadowFactor(float4 shadowPosH)
+{
+    // Complete projection by doing division by w.
+    shadowPosH.xyz /= shadowPosH.w;
+
+    // Depth in NDC space.
+    float depth = shadowPosH.z;
+
+    uint width, height, numMips;
+    gShadowMap.GetDimensions(0, width, height, numMips);
+
+    // Texel size.
+    float dx = 1.0f / (float)width;
+
+    float percentLit = 0.0f;
+    const float2 offsets[9] =
+    {
+        float2(-dx,  -dx), float2(0.0f,  -dx), float2(dx,  -dx),
+        float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
+        float2(-dx,  +dx), float2(0.0f,  +dx), float2(dx,  +dx)
+    };
+
+    
+    [unroll]
+    for(int i = 0; i < 9; ++i)
+    {
+        percentLit += gShadowMap.SampleCmpLevelZero(gsamShadow,
+            shadowPosH.xy + offsets[i], depth).r;
+    }
+    
+    return pow(percentLit / 9.0f, 10.0f);
+}
+
 float4 PS(VertexOut pin) : SV_Target
 {
-    MaterialData matData = gMaterialData[gMatTBIndex];
-    float4 texColor = gTextureMaps[matData.diffuseSrvHeapIndex].SampleLevel(gsamLinearClamp, pin.TexC, 0.0f);
+    float4 texDiffuse = gDiffuseMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
    
+    LightMaterialData lightMat;
+    lightMat.fresnelR0 = gFresnelR0;
+    lightMat.diffuseAlbedo = texDiffuse.rgb;
+    lightMat.roughness = gRoughness;
+
+    float3 texNormal = gNormalMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
+    texNormal = TexNormalToWorldSpace(texNormal, pin.NormalW, pin.TangentW);
+    
+    float3 ambient = gLights[0].Ambient * texDiffuse.rgb;
+    
+#ifdef SSAO
     pin.SsaoPosH /= pin.SsaoPosH.w;
-    float ambientAccess = gSsaoMap.SampleLevel(gsamPointClamp, pin.SsaoPosH.xy, 0.0f).r;
+    float ambientAccess = gSsaoMap.SampleLevel(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
+    //ambient *= ambientAccess;
+#endif
+
+    float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
+    shadowFactor[0] = CalcShadowFactor(mul(float4(pin.PosW, 1.0f), gLights[0].LightViewProjTex));
+    float4 litColor = ComputeLighting(gLights, lightMat, pin.PosW, texNormal, normalize(gEyePosW - pin.PosW), shadowFactor);
     
-    matData.diffuseAlbedo = texColor;
-    float4 litColor = ComputeLighting(gLights, matData, pin.PosW, pin.NormalW, normalize(gEyePosW - pin.PosW), float3(1.0f, 1.0f, 1.0f));
-    
-    return 0.5 * ambientAccess * texColor + litColor;
+    return float4(ambient + litColor.rgb, 1.0f);
 }

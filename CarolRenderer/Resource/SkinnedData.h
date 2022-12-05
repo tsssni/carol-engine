@@ -6,11 +6,20 @@
 #include <string>
 #include <unordered_map>
 #include <string.h>
+#include <vector>
+#include <memory>
+#include <unordered_map>
 
 using std::wstring;
+using std::vector;
+using std::unique_ptr;
+using std::unordered_map;
 
 namespace Carol
 {
+	class HeapAllocInfo;
+	class CircularHeap;
+
 	struct TranslationKeyframe
 	{
 		float TimePos;
@@ -49,31 +58,15 @@ namespace Carol
 		float GetClipStartTime()const;
 		float GetClipEndTime()const;
 
-		void Interpolate(float t, std::vector<DirectX::XMFLOAT4X4>& boneTransforms)const;
+		void Interpolate(float t, vector<DirectX::XMFLOAT4X4>& boneTransforms)const;
 
 		std::vector<BoneAnimation> BoneAnimations; 	
 	};
 
-	class SkinnedData
+	class SkinnedConstants
 	{
 	public:
-
-		UINT BoneCount()const;
-
-		float GetClipStartTime(const wstring& clipName)const;
-		float GetClipEndTime(const wstring& clipName)const;
-
-		void Set(
-			std::vector<int>& boneHierarchy, 
-			std::vector<DirectX::XMFLOAT4X4>& boneOffsets,
-			std::unordered_map<wstring, AnimationClip>& animations);
-
-		void GetFinalTransforms(const wstring& clipName, float timePos, 
-			 std::vector<DirectX::XMFLOAT4X4>& finalTransforms)const;
-
-	private:
-		std::vector<int> mBoneHierarchy;
-		std::vector<DirectX::XMFLOAT4X4> mBoneOffsets;
-		std::unordered_map<wstring, AnimationClip> mAnimations;
+		DirectX::XMFLOAT4X4 FinalTransforms[256];
+		DirectX::XMFLOAT4X4 HistoryFinalTransforms[256];
 	};
 }

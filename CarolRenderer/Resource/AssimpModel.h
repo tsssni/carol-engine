@@ -1,7 +1,6 @@
 #pragma once
 #include "Model.h"
 #include "SkinnedData.h"
-#include "Texture.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <DirectXMath.h>
@@ -16,13 +15,12 @@ using std::wstring;
 
 namespace Carol
 {
+
+	class RenderData;
+
 	class AssimpMaterial
 	{
 	public:
-		int DiffuseMapIndex = -1;
-		int NormalMapIndex = -1;
-		int MatTBIndex = -1;
-
 		XMFLOAT3 Emissive = {0.0f, 0.0f, 0.0f};
 		XMFLOAT3 Ambient = {0.0f, 0.0f, 0.0f};
 		XMFLOAT3 Diffuse = {0.0f, 0.0f, 0.0f};
@@ -31,69 +29,92 @@ namespace Carol
 		float Shininess = 0.0f;
 	};
 
+	class AssimpVertex
+	{
+	public:
+		XMFLOAT3 Pos = {0.0f ,0.0f ,0.0f};
+		XMFLOAT3 Normal = {0.0f ,0.0f ,0.0f};
+		XMFLOAT3 Tangent = {0.0f ,0.0f ,0.0f};
+		XMFLOAT2 TexC = {0.0f ,0.0f};
+		XMFLOAT3 Weights = { 0.0f,0.0f,0.0f };
+		XMUINT4 BoneIndices = {0,0,0,0};
+	};
+
 	class AssimpModel : public Model
 	{
 	public:
-		class AssimpVertex
-		{
-		public:
-			XMFLOAT3 Pos = {0.0f ,0.0f ,0.0f};
-			XMFLOAT3 Normal = {0.0f ,0.0f ,0.0f};
-			XMFLOAT3 Tangent = {0.0f ,0.0f ,0.0f};
-			XMFLOAT2 TexC = {0.0f ,0.0f};
-		};
+		AssimpModel(RenderData* renderData);
+	    AssimpModel(RenderData* renderData, wstring path, wstring textureDir, bool isSkinned, bool isTransparent);
+		AssimpModel(const AssimpModel&) = delete;
+		AssimpModel(AssimpModel&&) = delete;
+		AssimpModel& operator=(const AssimpModel&) = delete;
 
-	    void LoadAssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, wstring path, uint32_t matOffset, uint32_t& texOffset);
-		vector<AssimpMaterial>& GetMaterials();
-		unordered_map<wstring, uint32_t>& GetTextures();
+		static void InitSkinnedCBHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList);
+		static CircularHeap* GetSkinnedCBHeap();
 
-		static unique_ptr<AssimpModel> GetFlatGround(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, uint32_t matOffset, uint32_t& texOffset);
+		bool InitSucceeded();
+		bool IsSkinned();
+		void LoadFlatGround();
+		void LoadSkyBox();
 
+		void SetWorld(XMMATRIX world);
+
+		void SetAnimation(wstring clipName);
+		vector<wstring> GetAnimations();
+		void UpdateAnimation();
 	protected:
-		void ProcessNode(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, vector<AssimpVertex>& vertices, vector<uint32_t>& indices, uint32_t matOffset, uint32_t& texOffset, aiNode* node, const aiScene* scene);
-		void ProcessMesh(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, vector<AssimpVertex>& vertices, vector<uint32_t>& indices, uint32_t matOffset, uint32_t& texOffset, aiMesh* mesh, const aiScene* scene);
+		void ProcessNode(aiNode* node, const aiScene* scene);
+		void ProcessMesh(aiMesh* mesh, const aiScene* scene);
+		void ReadMeshBones(uint32_t vertexOffset, aiMesh* mesh);
+		void InsertBoneWeightToVertex(AssimpVertex& vertex, uint32_t boneIndex, float boneWeight);
 		
-		void ReadMeshVerticesAndIndices(vector<AssimpVertex>& vertices, vector<uint32_t>& indices, aiMesh* mesh);
-		void ReadMeshMaterialAndTextures(uint32_t matOffset, uint32_t& texOffset, aiMesh* mesh, const aiScene* scene);
-		void ReadTexture(uint32_t& texOffset, aiMaterial* matData, AssimpMaterial& mat, aiTextureType type);
-
-	protected:
-		vector<AssimpMaterial> mMaterials;
-		unordered_map<wstring, uint32_t> mTextureIndexMap;
-	};
-
-	class SkinnedAssimpModel : public AssimpModel
-	{
-	public:
-		class SkinnedAssimpVertex : public AssimpVertex
-		{
-		public:
-			XMFLOAT3 Weights = { 0.0f,0.0f,0.0f };
-			XMUINT4 BoneIndices = {0,0,0,0};
-		};
-
-		void LoadSkinnedAssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, wstring path, uint32_t matOffset, uint32_t& texOffset);
-		SkinnedData& GetSkinnedData();
-	protected:
+		void LoadAssimpSkinnedData(const aiScene* scene);
 		void ReadBones(aiNode* node, const aiScene* scene);
-		void ReadBoneHierachy(aiNode* node, uint32_t& boneCount);
+		void MarkSkinnedNodes(aiNode* node, aiNode* meshNode, wstring boneName);
 
-		void ProcessNode(vector<SkinnedAssimpVertex>& vertices, vector<uint32_t>& indices, uint32_t matOffset, uint32_t& texOffset, aiNode* node, const aiScene* scene);
-		void ProcessMesh(vector<SkinnedAssimpVertex>& vertices, vector<uint32_t>& indices, uint32_t matOffset, uint32_t& texOffset, aiMesh* mesh, const aiScene* scene);
-		
-		void ReadMeshVerticesAndIndices(vector<SkinnedAssimpVertex>& vertices, vector<uint32_t>& indices, aiMesh* mesh);
-		void ReadMeshBones(vector<SkinnedAssimpVertex>& vertices, uint32_t vertexOffset, aiMesh* mesh);
-		void InsertBoneWeightToVertex(SkinnedAssimpVertex& vertex, uint32_t boneIndex, float boneWeight);
+		void InitBoneData(const aiScene* scene);
+		void ReadBoneHierarchy(aiNode* node);
+		void ReadBoneOffsets(aiNode* node, const aiScene* scene);
+		void ReadSkinnedNodeTransforms(aiNode* node);
+		void ReadAnimations(const aiScene* scene);
 
-		void ReadAnimation(const aiScene* scene);
+		void ReadMeshVerticesAndIndices(aiMesh* mesh);
+		void ReadMeshMaterialAndTextures(MeshManager& submesh, aiMesh* mesh, const aiScene* scene);
+		void ReadTexture(MeshManager& mesh, aiMaterial* matData);
+		void LoadTexture(MeshManager& mesh, aiString aiPath, aiTextureType type);
+
+		XMMATRIX aiMatrix4x4ToXM(aiMatrix4x4 aiM);
+		aiMatrix4x4 XMToaiMatrix4x4(XMMATRIX xm);
 	protected:
-		SkinnedData mSkinnedData;
+		RenderData* mRenderData;
+		wstring mTextureDir;
+		
+		bool mInitSucceeded;
+		bool mSkinned;
+		bool mTransparent;
 
-		vector<int> mBoneHierachy;
+		vector<AssimpVertex> mVertices;
+		vector<uint32_t> mIndices;
+
+		static unique_ptr<CircularHeap> SkinnedCBHeap;
+		unordered_map<wstring, bool> mSkinnedMark;
+		vector<XMFLOAT4X4> mSkinnedNodeTransforms;
+		uint32_t mSkinnedCount = 0;
+
+		unordered_map<wstring, uint32_t> mBoneIndices;
+		vector<int> mBoneMark;
+		vector<int> mBoneHierarchy;
 		vector<XMFLOAT4X4> mBoneOffsets;
-		unordered_map<wstring, int> mBoneIndices;
-		vector<bool> mBoneInited;
 
-		unordered_map<wstring, AnimationClip> mAnimationClips;
+		XMFLOAT4X4 mWorld;
+		unordered_map<wstring, unique_ptr<AnimationClip>> mAnimations;
+		wstring mClipName;
+		
+		float mTimePos = 0;
+		vector<XMFLOAT4X4> mFinalTransforms;
+
+		unique_ptr<SkinnedConstants> mSkinnedConstants;
+		unique_ptr<HeapAllocInfo> mSkinnedCBAllocInfo;
 	};
+
 }

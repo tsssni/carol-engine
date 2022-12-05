@@ -13,49 +13,14 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="头文件\DirectX">
-      <UniqueIdentifier>{563a9935-9b78-46ae-ba69-57854e4a5d58}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="头文件\Resource">
-      <UniqueIdentifier>{edfc180f-0f9b-47fc-8db9-ca25e27873dc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="头文件\Ambient Occlusion">
-      <UniqueIdentifier>{51fc11ce-7799-4095-8045-2909f98bf4dc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="头文件\Anti-Aliasing">
-      <UniqueIdentifier>{83b18596-27cb-4ed5-9cac-3ed1f8ca4c08}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="源文件\DirectX">
-      <UniqueIdentifier>{c8f41aa4-a4b2-4025-8f7c-a5f96561c6f3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="源文件\AmbientOcclusion">
-      <UniqueIdentifier>{058c26fe-0c6d-4bb3-b756-93994df30a77}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="源文件\Anti-Aliasing">
-      <UniqueIdentifier>{409d7c1c-9229-4565-a198-891d14ea00ba}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="源文件\Resource">
-      <UniqueIdentifier>{77bce594-83a8-44da-b5b6-be61fcfb3b0f}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Renderer.rc">
+    <ResourceCompile Include="Win32\Renderer.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="small.ico">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="Renderer.ico">
-      <Filter>资源文件</Filter>
-    </Image>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="BaseRenderer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="FrameResources.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="MainWindow.cpp">
@@ -64,54 +29,72 @@
     <ClCompile Include="Renderer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Resource\AssimpModel.cpp">
-      <Filter>源文件\Resource</Filter>
+    <ClCompile Include="Manager\Mesh\Mesh.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="DirectX\Buffer.cpp">
-      <Filter>源文件\DirectX</Filter>
+    <ClCompile Include="Manager\Manager.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Resource\Camera.cpp">
-      <Filter>源文件\Resource</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\DescriptorHeap.cpp">
-      <Filter>源文件\DirectX</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\Display.cpp">
-      <Filter>源文件\DirectX</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\GameTimer.cpp">
-      <Filter>源文件\Resource</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\Light.cpp">
-      <Filter>源文件\Resource</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\Material.cpp">
-      <Filter>源文件\Resource</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\Model.cpp">
-      <Filter>源文件\Resource</Filter>
+    <ClCompile Include="DirectX\Resource.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="DirectX\Shader.cpp">
-      <Filter>源文件\DirectX</Filter>
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Manager\Ambient Occlusion\Ssao.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Manager\Anti-Aliasing\Taa.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Manager\Display\Display.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Manager\Light\Light.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\AssimpModel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\Camera.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\GameTimer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\Model.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Resource\SkinnedData.cpp">
-      <Filter>源文件\Resource</Filter>
-    </ClCompile>
-    <ClCompile Include="Ambient Occlusion\Ssao.cpp">
-      <Filter>源文件\AmbientOcclusion</Filter>
-    </ClCompile>
-    <ClCompile Include="Anti-Aliasing\Taa.cpp">
-      <Filter>源文件\Anti-Aliasing</Filter>
+      <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Resource\Texture.cpp">
-      <Filter>源文件\Resource</Filter>
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\Heap.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Buddy.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\DescriptorAllocator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectX\Sampler.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Bitset.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Manager\Transparency\Oitppll.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BaseRenderer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="framework.h">
+    <ClInclude Include="Win32\framework.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="MainWindow.h">
@@ -120,62 +103,86 @@
     <ClInclude Include="Renderer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Resource.h">
+    <ClInclude Include="Win32\Resource.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="targetver.h">
+    <ClInclude Include="Win32\targetver.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\DescriptorHeap.h">
-      <Filter>头文件\DirectX</Filter>
+    <ClInclude Include="Manager\Mesh\Mesh.h">
+      <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\Display.h">
-      <Filter>头文件\DirectX</Filter>
+    <ClInclude Include="Manager\Manager.h">
+      <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\Buffer.h">
-      <Filter>头文件\DirectX</Filter>
+    <ClInclude Include="Utils\d3dx12.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\Resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\Shader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Manager\Ambient Occlusion\Ssao.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Manager\Anti-Aliasing\Taa.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Manager\Display\Display.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Manager\Light\Light.h">
+      <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Resource\AssimpModel.h">
-      <Filter>头文件\Resource</Filter>
+      <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Resource\Camera.h">
-      <Filter>头文件\Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="FrameResources.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Resource\GameTimer.h">
-      <Filter>头文件\Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\Light.h">
-      <Filter>头文件\Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\Material.h">
-      <Filter>头文件\Resource</Filter>
+      <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Resource\Model.h">
-      <Filter>头文件\Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\Shader.h">
-      <Filter>头文件\DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\Texture.h">
-      <Filter>头文件\Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Ambient Occlusion\Ssao.h">
-      <Filter>头文件\Ambient Occlusion</Filter>
-    </ClInclude>
-    <ClInclude Include="Anti-Aliasing\Taa.h">
-      <Filter>头文件\Anti-Aliasing</Filter>
+      <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Resource\SkinnedData.h">
-      <Filter>头文件\Resource</Filter>
+      <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="DirectX\d3dx12.h">
-      <Filter>头文件\DirectX</Filter>
+    <ClInclude Include="Resource\Texture.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Common.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\Heap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Buddy.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\DescriptorAllocator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX\Sampler.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Bitset.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Manager\Transparency\Oitppll.h">
+      <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Win32\packages.config" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Win32\Carol.ico">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
 </Project>

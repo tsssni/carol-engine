@@ -1,5 +1,4 @@
 #pragma once
-#include "../DirectX/Buffer.h"
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <memory>
@@ -11,19 +10,23 @@ using std::wstring;
 
 namespace Carol
 {
-	class Device;
-	class GraphicsCommandList;
+	class RenderData;
+	class DefaultResource;
 
 	class Texture
 	{
 	public:
-		DefaultBuffer* GetBuffer();
+		DefaultResource* GetBuffer();
 		void SetDesc();
 		D3D12_SHADER_RESOURCE_VIEW_DESC GetDesc();
-		void LoadTexture(wstring fileName, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, bool isSrgb = false);
+		void LoadTexture(RenderData* renderData, wstring fileName, bool isSrgb = false);
+		void ReleaseIntermediateBuffer();
 	private:
-		unique_ptr<DefaultBuffer> mTexture;
+		unique_ptr<DefaultResource> mTexture;
 		D3D12_SHADER_RESOURCE_VIEW_DESC mTexDesc;
+
+		bool mIsCube = false;
+		bool mIsVolume = false;
 	};
 }
 
