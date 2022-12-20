@@ -15,174 +15,180 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Win32\Renderer.rc">
+    <ResourceCompile Include="win32\Renderer.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="BaseRenderer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="MainWindow.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Renderer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Manager\Mesh\Mesh.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Manager\Manager.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\Resource.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\Shader.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Manager\Ambient Occlusion\Ssao.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Manager\Anti-Aliasing\Taa.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Manager\Display\Display.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Manager\Light\Light.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\AssimpModel.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\Camera.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\GameTimer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\Model.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\SkinnedData.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\Texture.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\Heap.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Utils\Buddy.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\DescriptorAllocator.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="DirectX\Sampler.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Utils\Bitset.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Manager\Transparency\Oitppll.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="BaseRenderer.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Win32\framework.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="MainWindow.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Renderer.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Win32\Resource.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Win32\targetver.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Manager\Mesh\Mesh.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Manager\Manager.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Utils\d3dx12.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\Resource.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\Shader.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Manager\Ambient Occlusion\Ssao.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Manager\Anti-Aliasing\Taa.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Manager\Display\Display.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Manager\Light\Light.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\AssimpModel.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\Camera.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\GameTimer.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\Model.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\SkinnedData.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\Texture.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Utils\Common.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\Heap.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Utils\Buddy.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\DescriptorAllocator.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="DirectX\Sampler.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Utils\Bitset.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Manager\Transparency\Oitppll.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Win32\packages.config" />
+    <None Include="win32\packages.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Win32\Carol.ico">
+    <Image Include="win32\Carol.ico">
       <Filter>资源文件</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\dx12\descriptor_allocator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dx12\heap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dx12\resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dx12\sampler.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dx12\shader.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\manager\ssao.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\manager\taa.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\manager\display.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\manager\light.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\manager\mesh.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\manager\oitppll.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\manager\manager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene\assimp.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene\camera.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene\timer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene\model.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene\skinned_data.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene\texture.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\utils\bitset.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\utils\buddy.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\utils\common.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\utils\d3dx12.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="win32\framework.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="win32\resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="win32\targetver.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\base_renderer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\renderer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="main.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\global_resources.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\dx12\descriptor_allocator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dx12\heap.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dx12\resource.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dx12\sampler.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dx12\Shader.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\manager\ssao.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\manager\taa.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\manager\display.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\manager\light.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\manager\mesh.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\manager\oitppll.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\manager\manager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\scene\assimp.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\scene\camera.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\scene\timer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\scene\model.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\scene\skinned_data.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\scene\texture.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\utils\bitset.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\utils\buddy.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\base_renderer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\renderer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\global_resources.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
