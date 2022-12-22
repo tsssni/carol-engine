@@ -1,5 +1,5 @@
 #pragma once
-#include <manager/manager.h>
+#include <render/pass.h>
 #include <utils/d3dx12.h>
 #include <DirectXMath.h>
 #include <memory>
@@ -8,23 +8,36 @@ namespace Carol
 {
 	class GlobalResources;
 	class DefaultResource;
+	class HeapAllocInfo;
+	class CircularHeap;
 	class Shader;
-
-	class TaaManager : public Manager
+	
+	class TaaConstants
 	{
 	public:
-		TaaManager(
+		uint32_t TaaDepthMapIdx = 0;
+		uint32_t TaaHistFrameMapIdx = 0;
+		uint32_t TaaCurrFrameMapIdx = 0;
+		uint32_t TaaVelocityMapIdx = 0;
+	};
+
+	class TaaPass : public Pass
+	{
+	public:
+		TaaPass(
 			GlobalResources* globalResources,
 			DXGI_FORMAT velocityMapFormat = DXGI_FORMAT_R16G16_FLOAT,
 			DXGI_FORMAT frameFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
-		TaaManager(const TaaManager&) = delete;
-		TaaManager(TaaManager&&) = delete;
-		TaaManager& operator=(const TaaManager&) = delete;
+		TaaPass(const TaaPass&) = delete;
+		TaaPass(TaaPass&&) = delete;
+		TaaPass& operator=(const TaaPass&) = delete;
 
 		virtual void Draw()override;
 		virtual void Update()override;
 		virtual void OnResize()override;
 		virtual void ReleaseIntermediateBuffers()override;
+
+		static void InitTaaCBHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList);
 
 		void GetHalton(float& proj0,float& proj1);
 		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCurrFrameRtv();
@@ -32,7 +45,7 @@ namespace Carol
 		DirectX::XMMATRIX GetHistViewProj();
 
 	protected:
-		virtual void InitRootSignature()override;
+		virtual void CopyDescriptors()override;
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
 		virtual void InitResources()override;
@@ -47,7 +60,7 @@ namespace Carol
 
 		enum
 		{
-			HIST_SRV, CURR_SRV, VELOCITY_SRV, TAA_SRV_COUNT
+			HIST_TEX2D_SRV, CURR_TEX2D_SRV, VELOCITY_TEX2D_SRV, TAA_TEX2D_SRV_COUNT
 		};
 
 		enum
@@ -64,6 +77,10 @@ namespace Carol
 
 		DirectX::XMFLOAT2 mHalton[8];
 		DirectX::XMMATRIX mHistViewProj;
+
+		std::unique_ptr<TaaConstants> mTaaConstants;
+		std::unique_ptr<HeapAllocInfo> mTaaCBAllocInfo;
+		static std::unique_ptr<CircularHeap> TaaCBHeap;
 	};
 }
 

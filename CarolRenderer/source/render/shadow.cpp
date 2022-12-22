@@ -1,10 +1,11 @@
-#include <manager/light.h>
-#include <global_resources.h>
-#include <manager/display.h>
-#include <manager/mesh.h>
+#include <render/shadow.h>
+#include <render/global_resources.h>
+#include <render/display.h>
+#include <render/mesh.h>
 #include <dx12/heap.h>
 #include <dx12/shader.h>
 #include <dx12/descriptor_allocator.h>
+#include <dx12/root_signature.h>
 #include <scene/assimp.h>
 #include <scene/camera.h>
 #include <utils/common.h>
@@ -17,8 +18,8 @@ namespace Carol {
 	using std::make_unique;
 }
 
-Carol::LightManager::LightManager(GlobalResources* globalResources, LightData lightData, uint32_t width, uint32_t height, DXGI_FORMAT shadowFormat, DXGI_FORMAT shadowDsvFormat, DXGI_FORMAT shadowSrvFormat)
-	:Manager(globalResources), mLightData(make_unique<LightData>(lightData)), mWidth(width), mHeight(height), mShadowFormat(shadowFormat), mShadowDsvFormat(shadowDsvFormat), mShadowSrvFormat(shadowSrvFormat)
+Carol::ShadowPass::ShadowPass(GlobalResources* globalResources, Light light, uint32_t width, uint32_t height, DXGI_FORMAT shadowFormat, DXGI_FORMAT shadowDsvFormat, DXGI_FORMAT shadowSrvFormat)
+	:Pass(globalResources), mLight(make_unique<Light>(light)), mWidth(width), mHeight(height), mShadowFormat(shadowFormat), mShadowDsvFormat(shadowDsvFormat), mShadowSrvFormat(shadowSrvFormat)
 {
 	InitConstants();
 	InitLightView();
@@ -28,22 +29,23 @@ Carol::LightManager::LightManager(GlobalResources* globalResources, LightData li
 	InitResources();
 }
 
-void Carol::LightManager::Draw()
+void Carol::ShadowPass::Draw()
 {
 	mGlobalResources->CommandList->RSSetViewports(1, &mViewport);
 	mGlobalResources->CommandList->RSSetScissorRects(1, &mScissorRect);
 
 	mGlobalResources->CommandList->ClearDepthStencilView(GetDsv(0), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 	mGlobalResources->CommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(GetDsv(0)));
-
-	mGlobalResources->CommandList->SetGraphicsRootSignature(mGlobalResources->RootSignature);
-	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(2, ShadowCBHeap->GetGPUVirtualAddress(mShadowCBAllocInfo.get()));
+	
+	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_MANAGER_CB, ShadowCBHeap->GetGPUVirtualAddress(mShadowCBAllocInfo.get()));
 
 	DrawAllMeshes();
 }
 
-void Carol::LightManager::Update()
+void Carol::ShadowPass::Update()
 {
+	CopyDescriptors();
+
 	DirectX::XMMATRIX view = mCamera->GetView();
 	DirectX::XMMATRIX proj = mCamera->GetProj();
 	DirectX::XMMATRIX lightViewProj = DirectX::XMMatrixMultiply(view, proj);
@@ -54,23 +56,24 @@ void Carol::LightManager::Update()
 		0.5f, 0.5f, 0.0f, 1.0f
 	);
 
-	DirectX::XMStoreFloat4x4(&mShadowConstants->LightViewProj, DirectX::XMMatrixTranspose(lightViewProj));
-	DirectX::XMStoreFloat4x4(&mLightData->ViewProjTex, DirectX::XMMatrixTranspose(DirectX::XMMatrixMultiply(lightViewProj, tex)));
+	DirectX::XMStoreFloat4x4(&mLight->ViewProj, DirectX::XMMatrixTranspose(lightViewProj));
+	DirectX::XMStoreFloat4x4(&mLight->ViewProjTex, DirectX::XMMatrixTranspose(DirectX::XMMatrixMultiply(lightViewProj, tex)));
+	mShadowConstants->LightIdx = 0;
 
 	ShadowCBHeap->DeleteResource(mShadowCBAllocInfo.get());
 	ShadowCBHeap->CreateResource(nullptr, nullptr, mShadowCBAllocInfo.get());
 	ShadowCBHeap->CopyData(mShadowCBAllocInfo.get(), mShadowConstants.get());
 }
 
-void Carol::LightManager::OnResize()
+void Carol::ShadowPass::OnResize()
 {
 }
 
-void Carol::LightManager::ReleaseIntermediateBuffers()
+void Carol::ShadowPass::ReleaseIntermediateBuffers()
 {
 }
 
-void Carol::LightManager::InitShadowCBHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
+void Carol::ShadowPass::InitShadowCBHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
 {
 	if (!ShadowCBHeap)
 	{
@@ -78,17 +81,17 @@ void Carol::LightManager::InitShadowCBHeap(ID3D12Device* device, ID3D12GraphicsC
 	}
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::LightManager::GetShadowSrv()
+uint32_t Carol::ShadowPass::GetShadowSrvIdx()
 {
-	return GetShaderGpuSrv(SHADOW_SRV);
+	return mTex2DGpuSrvStartOffset + SHADOW_TEX2D_SRV;
 }
 
-const Carol::LightData& Carol::LightManager::GetLightData()
+const Carol::Light& Carol::ShadowPass::GetLight()
 {
-	return *mLightData;
+	return *mLight;
 }
 
-void Carol::LightManager::InitResources()
+void Carol::ShadowPass::InitResources()
 {
 	D3D12_RESOURCE_DESC texDesc = {};
     texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -112,12 +115,10 @@ void Carol::LightManager::InitResources()
 	InitDescriptors();
 }
 
-void Carol::LightManager::InitDescriptors()
+void Carol::ShadowPass::InitDescriptors()
 {
-	mCpuCbvSrvUavAllocInfo = make_unique<DescriptorAllocInfo>();
-	mDsvAllocInfo = make_unique<DescriptorAllocInfo>();
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(LIGHT_SRV_COUNT, mCpuCbvSrvUavAllocInfo.get());
-	mGlobalResources->DsvAllocator->CpuAllocate(1, mDsvAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(LIGHT_TEX2D_SRV_COUNT, mTex2DSrvAllocInfo.get());
+	mGlobalResources->DsvAllocator->CpuAllocate(LIGHT_DSV_COUNT, mDsvAllocInfo.get());
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -126,22 +127,22 @@ void Carol::LightManager::InitDescriptors()
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = 1;
 	
-    mGlobalResources->Device->CreateShaderResourceView(mShadowMap->Get(), &srvDesc, GetCpuSrv(SHADOW_SRV));
+    mGlobalResources->Device->CreateShaderResourceView(mShadowMap->Get(), &srvDesc, GetTex2DSrv(SHADOW_TEX2D_SRV));
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 	dsvDesc.Format = mShadowDsvFormat;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 
-	mGlobalResources->Device->CreateDepthStencilView(mShadowMap->Get(), &dsvDesc, GetDsv(0));
+	mGlobalResources->Device->CreateDepthStencilView(mShadowMap->Get(), &dsvDesc, GetDsv(SHADOW_DSV));
 }
 
-void Carol::LightManager::InitConstants()
+void Carol::ShadowPass::InitConstants()
 {
 	mShadowConstants = make_unique<ShadowConstants>();
 	mShadowCBAllocInfo = make_unique<HeapAllocInfo>();
 }
 
-void Carol::LightManager::InitLightView()
+void Carol::ShadowPass::InitLightView()
 {
 	mViewport.TopLeftX = 0.0f;
 	mViewport.TopLeftY = 0.0f;
@@ -152,15 +153,15 @@ void Carol::LightManager::InitLightView()
 	mScissorRect = { 0,0,(int)mWidth,(int)mHeight };
 }
 
-void Carol::LightManager::InitCamera()
+void Carol::ShadowPass::InitCamera()
 {
-	mCamera = make_unique<OrthographicCamera>(mLightData->Direction, DirectX::XMFLOAT3{0.0f,0.0f,0.0f}, 70.0f);
+	mCamera = make_unique<OrthographicCamera>(mLight->Direction, DirectX::XMFLOAT3{0.0f,0.0f,0.0f}, 70.0f);
 }
 
-void Carol::LightManager::DrawAllMeshes()
+void Carol::ShadowPass::DrawAllMeshes()
 {
-	static vector<MeshManager*> staticMeshes;
-	static vector<MeshManager*> skinnedMeshes;
+	static vector<MeshPass*> staticMeshes;
+	static vector<MeshPass*> skinnedMeshes;
 	staticMeshes.clear();
 	skinnedMeshes.clear();
 
@@ -184,23 +185,17 @@ void Carol::LightManager::DrawAllMeshes()
 	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"ShadowStatic"].Get());
 	for (auto* mesh : staticMeshes)
 	{
-		mesh->SetTextureDrawing(false);
 		mesh->Draw();
 	}
 
 	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"ShadowSkinned"].Get());
 	for (auto* mesh : skinnedMeshes)
 	{
-		mesh->SetTextureDrawing(false);
 		mesh->Draw();
 	}
 }
 
-void Carol::LightManager::InitRootSignature()
-{
-}
-
-void Carol::LightManager::InitShaders()
+void Carol::ShadowPass::InitShaders()
 {
 	vector<wstring> nullDefines{};
 
@@ -213,7 +208,7 @@ void Carol::LightManager::InitShaders()
 	(*mGlobalResources->Shaders)[L"ShadowSkinnedVS"] = make_unique<Shader>(L"shader\\shadow.hlsl", skinnedDefines, L"VS", L"vs_6_5");
 }
 
-void Carol::LightManager::InitPSOs()
+void Carol::ShadowPass::InitPSOs()
 {
 	auto shadowStaticPsoDesc = *mGlobalResources->BasePsoDesc;
 	auto shadowStaticVS = (*mGlobalResources->Shaders)[L"ShadowStaticVS"].get();

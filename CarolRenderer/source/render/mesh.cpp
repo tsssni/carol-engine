@@ -1,11 +1,11 @@
-#include <manager/mesh.h>
-#include <global_resources.h>
-#include <manager/light.h>
-#include <manager/ssao.h>
-#include <dx12/heap.h>
-#include <dx12/descriptor_allocator.h>
+#include <render/mesh.h>
+#include <render/global_resources.h>
 #include <scene/assimp.h>
 #include <scene/texture.h>
+#include <scene/light.h>
+#include <dx12/heap.h>
+#include <dx12/descriptor_allocator.h>
+#include <dx12/root_signature.h>
 
 namespace Carol {
 	using std::wstring;
@@ -13,7 +13,7 @@ namespace Carol {
 	using namespace DirectX;
 }
 
-Carol::MeshManager::MeshManager(
+Carol::MeshPass::MeshPass(
 	GlobalResources* globalResources,
 	bool isSkinned,
 	HeapAllocInfo* skinnedCBAllocInfo,
@@ -24,7 +24,7 @@ Carol::MeshManager::MeshManager(
 	D3D12_VERTEX_BUFFER_VIEW& vertexBufferView,
 	D3D12_INDEX_BUFFER_VIEW& indexBufferView)
 	:
-	Manager(globalResources),
+	Pass(globalResources),
 	mSkinned(isSkinned),
 	mSkinnedCBAllocInfo(skinnedCBAllocInfo),
 	mTransparent(isTransparent),
@@ -36,48 +36,48 @@ Carol::MeshManager::MeshManager(
 {
 	mMeshConstants = make_unique<MeshConstants>();
 	mMeshCBAllocInfo = make_unique<HeapAllocInfo>();
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(TEXTURE_TYPE_COUNT, mCpuCbvSrvUavAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(TEXTURE_TYPE_COUNT, mTex2DSrvAllocInfo.get());
 }
 
-D3D12_VERTEX_BUFFER_VIEW Carol::MeshManager::GetVertexBufferView()
+D3D12_VERTEX_BUFFER_VIEW Carol::MeshPass::GetVertexBufferView()
 {
 	return *mVertexBufferView;
 }
 
-D3D12_INDEX_BUFFER_VIEW Carol::MeshManager::GetIndexBufferView()
+D3D12_INDEX_BUFFER_VIEW Carol::MeshPass::GetIndexBufferView()
 {
 	return *mIndexBufferView;
 }
 
-Carol::MeshConstants& Carol::MeshManager::GetMeshConstants()
+Carol::MeshConstants& Carol::MeshPass::GetMeshConstants()
 {
 	return *mMeshConstants;
 }
 
-void Carol::MeshManager::LoadDiffuseMap(wstring path)
+void Carol::MeshPass::LoadDiffuseMap(wstring path)
 {
 	mDiffuseMap = make_unique<Texture>();
-	mDiffuseMap->LoadTexture(mGlobalResources, path);
+	mDiffuseMap->LoadTexture(mGlobalResources->CommandList, mGlobalResources->TexturesHeap, mGlobalResources->UploadBuffersHeap, path);
 
-	mGlobalResources->Device->CreateShaderResourceView(mDiffuseMap->GetBuffer()->Get(), GetRvaluePtr(mDiffuseMap->GetDesc()), GetCpuSrv(DIFFUSE_TEXTURE));
+	mGlobalResources->Device->CreateShaderResourceView(mDiffuseMap->GetResource()->Get(), GetRvaluePtr(mDiffuseMap->GetDesc()), GetTex2DSrv(DIFFUSE_TEXTURE));
 }
 
-void Carol::MeshManager::LoadNormalMap(wstring path)
+void Carol::MeshPass::LoadNormalMap(wstring path)
 {
 	mNormalMap = make_unique<Texture>();
-	mNormalMap->LoadTexture(mGlobalResources, path);
+	mNormalMap->LoadTexture(mGlobalResources->CommandList, mGlobalResources->TexturesHeap, mGlobalResources->UploadBuffersHeap, path);
 
-	mGlobalResources->Device->CreateShaderResourceView(mNormalMap->GetBuffer()->Get(), GetRvaluePtr(mNormalMap->GetDesc()), GetCpuSrv(NORMAL_TEXTURE));
+	mGlobalResources->Device->CreateShaderResourceView(mNormalMap->GetResource()->Get(), GetRvaluePtr(mNormalMap->GetDesc()), GetTex2DSrv(NORMAL_TEXTURE));
 }
 
-void Carol::MeshManager::SetWorld(XMMATRIX world)
+void Carol::MeshPass::SetWorld(XMMATRIX world)
 {
 	XMStoreFloat4x4(&mMeshConstants->World, XMMatrixTranspose(world));
 	XMStoreFloat4x4(&mMeshConstants->HistWorld, XMMatrixTranspose(world));
 	TransformBoundingBox(world);
 }
 
-void Carol::MeshManager::SetBoundingBox(aiAABB* boundingBox)
+void Carol::MeshPass::SetBoundingBox(aiAABB* boundingBox)
 {
 	DirectX::XMVECTOR boxMin = { boundingBox->mMin.x,boundingBox->mMin.y, boundingBox->mMin.z };
 	DirectX::XMVECTOR boxMax = { boundingBox->mMax.x,boundingBox->mMax.y, boundingBox->mMax.z };
@@ -93,7 +93,7 @@ void Carol::MeshManager::SetBoundingBox(aiAABB* boundingBox)
 	mBoundingBox = { boxCenter, boxExtent };
 }
 
-void Carol::MeshManager::SetBoundingBox(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax)
+void Carol::MeshPass::SetBoundingBox(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax)
 {
 	DirectX::XMFLOAT3 boxCenter;
 	DirectX::XMFLOAT3 boxExtent;
@@ -106,7 +106,7 @@ void Carol::MeshManager::SetBoundingBox(DirectX::XMVECTOR boxMin, DirectX::XMVEC
 	mBoundingBox = { boxCenter, boxExtent };
 }
 
-void Carol::MeshManager::TransformBoundingBox(DirectX::XMMATRIX transform)
+void Carol::MeshPass::TransformBoundingBox(DirectX::XMMATRIX transform)
 {
 	auto boxMin = DirectX::XMVector3Transform(DirectX::XMLoadFloat3(&mBoxMin), transform);
 	auto boxMax = DirectX::XMVector3Transform(DirectX::XMLoadFloat3(&mBoxMax), transform);
@@ -120,73 +120,67 @@ void Carol::MeshManager::TransformBoundingBox(DirectX::XMMATRIX transform)
 	mBoundingBox = { boxCenter, boxExtent };
 }
 
-DirectX::BoundingBox Carol::MeshManager::GetBoundingBox()
+DirectX::BoundingBox Carol::MeshPass::GetBoundingBox()
 {
 	return mBoundingBox;
 }
 
-void Carol::MeshManager::SetTextureDrawing(bool drawing)
-{
-	mTextureDrawing = drawing;
-}
-
-bool Carol::MeshManager::IsSkinned()
+bool Carol::MeshPass::IsSkinned()
 {
 	return mSkinned;
 }
 
-bool Carol::MeshManager::IsTransparent()
+bool Carol::MeshPass::IsTransparent()
 {
 	return mTransparent;
 }
 
-void Carol::MeshManager::InitRootSignature()
+void Carol::MeshPass::CopyDescriptors()
+{
+	Pass::CopyDescriptors();
+
+	mMeshConstants->MeshDiffuseMapIdx = mTex2DGpuSrvStartOffset + DIFFUSE_TEXTURE;
+	mMeshConstants->MeshNormalMapIdx = mTex2DGpuSrvStartOffset + NORMAL_TEXTURE;
+}
+
+void Carol::MeshPass::InitShaders()
 {
 }
 
-void Carol::MeshManager::InitShaders()
+void Carol::MeshPass::InitPSOs()
 {
 }
 
-void Carol::MeshManager::InitPSOs()
-{
-}
-
-void Carol::MeshManager::Draw()
+void Carol::MeshPass::Draw()
 {
 	mGlobalResources->CommandList->IASetVertexBuffers(0, 1, mVertexBufferView);
 	mGlobalResources->CommandList->IASetIndexBuffer(mIndexBufferView);
 	mGlobalResources->CommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(1, MeshCBHeap->GetGPUVirtualAddress(mMeshCBAllocInfo.get()));
+	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_MESH_CB, MeshCBHeap->GetGPUVirtualAddress(mMeshCBAllocInfo.get()));
 
 	if (mSkinnedCBAllocInfo)
 	{
-		mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(3, AssimpModel::GetSkinnedCBHeap()->GetGPUVirtualAddress(mSkinnedCBAllocInfo));
-	}
-
-	if (mTextureDrawing)
-	{
-		mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(4, GetShaderGpuSrv(0));
-		mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(5, mGlobalResources->MainLight->GetShadowSrv());
-		mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(6, mGlobalResources->Ssao->GetSsaoSrv());
+		mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_SKINNED_CB, AssimpModel::GetSkinnedCBHeap()->GetGPUVirtualAddress(mSkinnedCBAllocInfo));
 	}
 
 	mGlobalResources->CommandList->DrawIndexedInstanced(mIndexCount, 1, mStartIndexLocation, mBaseVertexLocation, 0);
 }
 
-void Carol::MeshManager::Update()
+void Carol::MeshPass::Update()
 {
+	CopyDescriptors();
+
 	MeshCBHeap->DeleteResource(mMeshCBAllocInfo.get());
 	MeshCBHeap->CreateResource(nullptr, nullptr, mMeshCBAllocInfo.get());
 	MeshCBHeap->CopyData(mMeshCBAllocInfo.get(), mMeshConstants.get());
 }
 
-void Carol::MeshManager::OnResize()
+void Carol::MeshPass::OnResize()
 {
 }
 
-void Carol::MeshManager::ReleaseIntermediateBuffers()
+void Carol::MeshPass::ReleaseIntermediateBuffers()
 {
 	if (mDiffuseMap)
 	{
@@ -199,7 +193,7 @@ void Carol::MeshManager::ReleaseIntermediateBuffers()
 	}
 }
 
-void Carol::MeshManager::InitMeshCBHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
+void Carol::MeshPass::InitMeshCBHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
 {
 	if (!MeshCBHeap)
 	{
@@ -207,10 +201,10 @@ void Carol::MeshManager::InitMeshCBHeap(ID3D12Device* device, ID3D12GraphicsComm
 	}
 }
 
-void Carol::MeshManager::InitResources()
+void Carol::MeshPass::InitResources()
 {
 }
 
-void Carol::MeshManager::InitDescriptors()
+void Carol::MeshPass::InitDescriptors()
 {
 }

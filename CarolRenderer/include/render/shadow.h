@@ -1,5 +1,6 @@
 #pragma once
-#include <manager/manager.h>
+#include <render/pass.h>
+#include <scene/light.h>
 #include <DirectXMath.h>
 #include <vector>
 #include <memory>
@@ -15,47 +16,19 @@ namespace Carol
     class Shader;
     class Camera;
 
-    enum
-    {
-        DIR_LIGHT,POINT_LIGHT,SPOT_LIGHT
-    };
-
-	class LightData
-	{
-    public:
-        DirectX::XMFLOAT3 Strength = { 0.3f, 0.3f, 0.3f };
-        float FalloffStart = 1.0f;                          
-        DirectX::XMFLOAT3 Direction = { 1.0f, -1.0f, 1.0f };
-        float FalloffEnd = 10.0f;                  
-        DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f }; 
-        float SpotPower = 64.0f;
-        DirectX::XMFLOAT3 Ambient = { 0.4f,0.4f,0.4f };
-        float LightPad0;
-
-        DirectX::XMFLOAT4X4 ViewProjTex;
-	};
-
-    class ShadowConstants
+	class ShadowConstants
     {
     public:
-        DirectX::XMFLOAT4X4 LightViewProj;
-    };
+        uint32_t LightIdx;
+        DirectX::XMUINT3 ShadowPad0;
+    };    
 
-    class Light
+    class ShadowPass : public Pass
     {
     public:
-        LightData LightData;
-        uint32_t Width;
-        uint32_t Height;
-    };
-    
-
-    class LightManager : public Manager
-    {
-    public:
-        LightManager(
+        ShadowPass(
             GlobalResources* globalResources,
-            LightData lightData,
+            Light light,
             uint32_t width = 1024,
             uint32_t height = 1024,
             DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_TYPELESS,
@@ -69,10 +42,9 @@ namespace Carol
 
         static void InitShadowCBHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList);
 
-        CD3DX12_GPU_DESCRIPTOR_HANDLE GetShadowSrv();
-        const LightData& GetLightData();
+        uint32_t GetShadowSrvIdx();
+        const Light& GetLight();
     protected:
-        virtual void InitRootSignature()override;
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
         virtual void InitResources()override;
@@ -84,13 +56,17 @@ namespace Carol
 
         void DrawAllMeshes();
 
-        std::unique_ptr<LightData> mLightData;
-        std::unique_ptr<Light> mMainLight;
+        std::unique_ptr<Light> mLight;
         std::unique_ptr<DefaultResource> mShadowMap;
 
         enum
         {
-            SHADOW_SRV, LIGHT_SRV_COUNT
+            SHADOW_TEX2D_SRV, LIGHT_TEX2D_SRV_COUNT
+        };
+
+        enum
+        {
+            SHADOW_DSV, LIGHT_DSV_COUNT
         };
 
         D3D12_VIEWPORT mViewport;

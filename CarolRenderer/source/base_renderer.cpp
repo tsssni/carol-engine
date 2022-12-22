@@ -1,9 +1,11 @@
 #include <base_renderer.h>
-#include <global_resources.h>
-#include <manager/display.h>
+#include <render/global_resources.h>
+#include <render/display.h>
 #include <dx12/resource.h>
-#include <dx12/descriptor_allocator.h>
 #include <dx12/heap.h>
+#include <dx12/descriptor_allocator.h>
+#include <dx12/root_signature.h>
+#include <dx12/shader.h>
 #include <scene/timer.h>
 #include <scene/camera.h>
 #include <scene/skinned_data.h>
@@ -45,7 +47,7 @@ Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitTimer();
 	InitCamera();
 
-#if defined(DEBUG) || defined(_DEBUG)
+#if defined(_DEBUG)
 	InitDebug();
 #endif
 	InitDxgiFactory();
@@ -58,6 +60,7 @@ Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
 
 	InitHeaps();
 	InitAllocators();	
+	InitRootSignature();
 	InitDisplay();
 
 	BaseRenderer::OnResize(width, height);
@@ -145,6 +148,13 @@ void Carol::BaseRenderer::InitCommandList()
 	mGlobalResources->CommandList = mCommandList.Get();
 }
 
+void Carol::BaseRenderer::InitRootSignature()
+{
+	Shader::InitCompiler();
+	mRootSignature = make_unique<RootSignature>(mDevice.Get(), mCbvSrvUavAllocator.get());
+	mGlobalResources->RootSignature = mRootSignature.get();
+}
+
 void Carol::BaseRenderer::InitHeaps()
 {
 	mDefaultBuffersHeap = make_unique<BuddyHeap>(mDevice.Get(), D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, 1 << 29);
@@ -177,7 +187,7 @@ void Carol::BaseRenderer::InitDisplay()
 	mGlobalResources->ClientWidth = &mClientWidth;
 	mGlobalResources->ClientHeight = &mClientHeight;
 
-	mDisplay=make_unique<DisplayManager>(mGlobalResources.get(), mhWnd, mDxgiFactory.Get(), mClientWidth, mClientHeight, 2);
+	mDisplay=make_unique<Display>(mGlobalResources.get(), mhWnd, mDxgiFactory.Get(), mClientWidth, mClientHeight, 2);
 	mGlobalResources->Display = mDisplay.get();
 }
 

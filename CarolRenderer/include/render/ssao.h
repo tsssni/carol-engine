@@ -1,5 +1,5 @@
 #pragma once
-#include <manager/manager.h>
+#include <render/pass.h>
 #include <utils/d3dx12.h>
 #include <DirectXMath.h>
 #include <memory>
@@ -15,31 +15,33 @@ namespace Carol
 
 	class SsaoConstants {
 	public:
-		DirectX::XMFLOAT4X4 Proj;
-		DirectX::XMFLOAT4X4 InvProj;
-		DirectX::XMFLOAT4X4 ProjTex;
 		DirectX::XMFLOAT4 OffsetVectors[14];
-
 		DirectX::XMFLOAT4 BlurWeights[3];
-		DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f,0.0f };
 
 		float OcclusionRadius = 0.5f;
 		float OcclusionFadeStart = 0.2f;
 		float OcclusionFadeEnd = 1.0f;
 		float SurfaceEplison = 0.05f;
+
+		uint32_t SsaoDepthMapIdx = 0;
+		uint32_t SsaoNormalMapIdx = 0;
+		uint32_t SsaoRandVecMapIdx = 0;
+		uint32_t SsaoAmbientMapIdx = 0;
+		uint32_t BlurDirection = 0;
+		DirectX::XMFLOAT3 SsaoPad0;
 	};
 
-	class SsaoManager : public Manager
+	class SsaoPass : public Pass
 	{
 	public:
-		SsaoManager(
+		SsaoPass(
 			GlobalResources* globalResources,
 			uint32_t blurCount = 6,
 			DXGI_FORMAT normalMapFormat = DXGI_FORMAT_R16G16B16A16_SNORM,
 			DXGI_FORMAT ambientMapFormat = DXGI_FORMAT_R16_UNORM);
-		SsaoManager(const SsaoManager&) = delete;
-		SsaoManager(SsaoManager&&) = delete;
-		SsaoManager& operator=(const SsaoManager&) = delete;
+		SsaoPass(const SsaoPass&) = delete;
+		SsaoPass(SsaoPass&&) = delete;
+		SsaoPass& operator=(const SsaoPass&) = delete;
 
 		virtual void Draw()override;
 		virtual void Update()override;
@@ -49,9 +51,9 @@ namespace Carol
 		static void InitSsaoCBHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList);
 
 		void SetBlurCount(uint32_t blurCout);
-		CD3DX12_GPU_DESCRIPTOR_HANDLE GetSsaoSrv();
+		uint32_t GetSsaoSrvIdx();
 	protected:
-		virtual void InitRootSignature()override;
+		virtual void CopyDescriptors()override;
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
 		virtual void InitResources()override;
@@ -79,7 +81,7 @@ namespace Carol
 
 		enum
 		{
-			NORMAL_SRV, RAND_VEC_SRV, AMBIENT0_SRV, AMBIENT1_SRV, SSAO_SRV_COUNT
+			NORMAL_TEX2D_SRV, RAND_VEC_TEX2D_SRV, AMBIENT0_TEX2D_SRV, AMBIENT1_TEX2D_SRV, SSAO_TEX2D_SRV_COUNT
 		};
 
 		enum

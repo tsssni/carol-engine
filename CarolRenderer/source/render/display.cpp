@@ -1,7 +1,8 @@
-#include <manager/display.h>
-#include <global_resources.h>
+#include <render/display.h>
+#include <render/global_resources.h>
 #include <dx12/resource.h>
 #include <dx12/descriptor_allocator.h>
+#include <dx12/root_signature.h>
 #include <dx12/heap.h>
 #include <utils/Common.h>
 #include <stdlib.h>
@@ -12,22 +13,22 @@ namespace Carol {
 }
 
 
-IDXGISwapChain* Carol::DisplayManager::GetSwapChain()
+IDXGISwapChain* Carol::Display::GetSwapChain()
 {
 	return mSwapChain.Get();
 }
 
-IDXGISwapChain** Carol::DisplayManager::GetAddressOfSwapChain()
+IDXGISwapChain** Carol::Display::GetAddressOfSwapChain()
 {
 	return mSwapChain.GetAddressOf();
 }
 
-uint32_t Carol::DisplayManager::GetBackBufferCount()
+uint32_t Carol::Display::GetBackBufferCount()
 {
 	return mBackBuffer.size();
 }
 
-Carol::DisplayManager::DisplayManager(
+Carol::Display::Display(
 	GlobalResources* globalResources,
 	HWND hwnd,
 	IDXGIFactory* factory,
@@ -36,7 +37,7 @@ Carol::DisplayManager::DisplayManager(
 	uint32_t bufferCount,
 	DXGI_FORMAT backBufferFormat,
 	DXGI_FORMAT depthStencilFormat)
-	:Manager(globalResources)
+	:Pass(globalResources)
 {
 	mBackBufferFormat = backBufferFormat;
 	mBackBuffer.resize(bufferCount);
@@ -63,62 +64,63 @@ Carol::DisplayManager::DisplayManager(
 	ThrowIfFailed(factory->CreateSwapChain(globalResources->CommandQueue, &swapChainDesc, mSwapChain.GetAddressOf()));
 }
 
-void Carol::DisplayManager::SetBackBufferIndex()
+void Carol::Display::SetBackBufferIndex()
 {
 	mCurrBackBufferIndex = (mCurrBackBufferIndex + 1) % mBackBuffer.size();
 }
 
-Carol::Resource* Carol::DisplayManager::GetCurrBackBuffer()
+Carol::Resource* Carol::Display::GetCurrBackBuffer()
 {
 	return mBackBuffer[mCurrBackBufferIndex].get();
 }
 
-Carol::Resource* Carol::DisplayManager::GetDepthStencilBuffer()
+Carol::Resource* Carol::Display::GetDepthStencilBuffer()
 {
 	return mDepthStencilBuffer.get();
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DisplayManager::GetCurrBackBufferView()
+CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::Display::GetCurrBackBufferRtv()
 {
 	return GetRtv(mCurrBackBufferIndex);
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DisplayManager::GetDepthStencilView()
+CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::Display::GetDepthStencilDsv()
 {
 	return mGlobalResources->DsvAllocator->GetCpuHandle(mDsvAllocInfo.get());
 }
 
-DXGI_FORMAT Carol::DisplayManager::GetBackBufferFormat()
+DXGI_FORMAT Carol::Display::GetBackBufferFormat()
 {
 	return mBackBufferFormat;
 }
 
-DXGI_FORMAT Carol::DisplayManager::GetDepthStencilFormat()
+DXGI_FORMAT Carol::Display::GetDepthStencilFormat()
 {
 	return mDepthStencilFormat;
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::DisplayManager::GetDepthStencilSrv()
+uint32_t Carol::Display::GetDepthStencilSrvIdx()
 {
-	return GetShaderGpuSrv(DEPTH_STENCIL_SRV);
+	return mTex2DGpuSrvStartOffset + DEPTH_STENCIL_TEX2D_SRV;
 }
 
-void Carol::DisplayManager::Draw()
-{
-}
-
-void Carol::DisplayManager::Update()
+void Carol::Display::Draw()
 {
 }
 
-void Carol::DisplayManager::OnResize()
+void Carol::Display::Update()
+{
+	CopyDescriptors();
+}
+
+void Carol::Display::OnResize()
 {
 	static uint32_t width = 0;
     static uint32_t height = 0;
 
     if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
     {
-		Manager::OnResize();
+		Pass::OnResize();
 
         width = *mGlobalResources->ClientWidth;
         height = *mGlobalResources->ClientHeight;
@@ -127,11 +129,11 @@ void Carol::DisplayManager::OnResize()
     }
 }
 
-void Carol::DisplayManager::ReleaseIntermediateBuffers()
+void Carol::Display::ReleaseIntermediateBuffers()
 {
 }
 
-void Carol::DisplayManager::Present()
+void Carol::Display::Present()
 {
 	ComPtr<ID3D12Device> device;
 	mDepthStencilBuffer->Get()->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
@@ -143,19 +145,15 @@ void Carol::DisplayManager::Present()
 	SetBackBufferIndex();
 }
 
-void Carol::DisplayManager::InitRootSignature()
+void Carol::Display::InitShaders()
 {
 }
 
-void Carol::DisplayManager::InitShaders()
+void Carol::Display::InitPSOs()
 {
 }
 
-void Carol::DisplayManager::InitPSOs()
-{
-}
-
-void Carol::DisplayManager::InitResources()
+void Carol::Display::InitResources()
 {
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
@@ -195,11 +193,11 @@ void Carol::DisplayManager::InitResources()
 	InitDescriptors();
 }
 
-void Carol::DisplayManager::InitDescriptors()
+void Carol::Display::InitDescriptors()
 {
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(1, mCpuCbvSrvUavAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(DISPLAY_TEX2D_SRV_COUNT, mTex2DSrvAllocInfo.get());
 	mGlobalResources->RtvAllocator->CpuAllocate(mBackBuffer.size(), mRtvAllocInfo.get());
-	mGlobalResources->DsvAllocator->CpuAllocate(DISPLAY_SRV_COUNT, mDsvAllocInfo.get());
+	mGlobalResources->DsvAllocator->CpuAllocate(DISPLAY_DSV_COUNT, mDsvAllocInfo.get());
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -208,7 +206,7 @@ void Carol::DisplayManager::InitDescriptors()
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	auto depthStencilCpuSrv = GetCpuSrv(DEPTH_STENCIL_SRV);
+	auto depthStencilCpuSrv = GetTex2DSrv(DEPTH_STENCIL_TEX2D_SRV);
 	mGlobalResources->Device->CreateShaderResourceView(mDepthStencilBuffer->Get(), &srvDesc, depthStencilCpuSrv);
 
 	for (int i = 0; i < mBackBuffer.size(); ++i)
@@ -223,5 +221,5 @@ void Carol::DisplayManager::InitDescriptors()
 	dsvDesc.Format = mDepthStencilFormat;
 	dsvDesc.Texture2D.MipSlice = 0;
 
-	mGlobalResources->Device->CreateDepthStencilView(mDepthStencilBuffer->Get(), &dsvDesc, GetDsv(0));
+	mGlobalResources->Device->CreateDepthStencilView(mDepthStencilBuffer->Get(), &dsvDesc, GetDsv(DEPTH_STENCIL_DSV));
 }

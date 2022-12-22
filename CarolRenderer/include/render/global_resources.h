@@ -10,20 +10,21 @@ namespace Carol
 {
 	class Heap;
 	class HeapAllocInfo;
+	class RootSignature;
 	class Shader;
 	class CircularHeap;
 	class DescriptorAllocator;
-	class DisplayManager;
-	class LightManager;
-	class SsaoManager;
-	class TaaManager;
-	class OitppllManager;
+	class Display;
+	class ShadowPass;
+	class SsaoPass;
+	class TaaPass;
+	class OitppllPass;
 	class BoundingRect;
 	class Camera;
 	class Timer;
 	class AssimpModel;
-	class MeshManager;
-	class PassConstants;
+	class MeshPass;
+	class FrameConstants;
 
 	class GlobalResources
 	{
@@ -40,15 +41,16 @@ namespace Carol
 		HeapAllocInfo* PassCBAllocInfo;
 		CircularHeap* PassCBHeap;
 
+		RootSignature* RootSignature;
 		DescriptorAllocator* CbvSrvUavAllocator;
 		DescriptorAllocator* RtvAllocator;
 		DescriptorAllocator* DsvAllocator;
 
-		DisplayManager* Display;
-		LightManager* MainLight;
-		SsaoManager* Ssao;
-		TaaManager* Taa;
-		OitppllManager* Oitppll;
+		Display* Display;
+		ShadowPass* MainLight;
+		SsaoPass* Ssao;
+		TaaPass* Taa;
+		OitppllPass* Oitppll;
 
 		D3D12_VIEWPORT* ScreenViewport;
 		D3D12_RECT* ScissorRect;
@@ -59,23 +61,22 @@ namespace Carol
 		uint32_t* ClientWidth;
 		uint32_t* ClientHeight;
 
-		ID3D12RootSignature* RootSignature;
-		std::vector<MeshManager*>* OpaqueStaticMeshes;
-		std::vector<MeshManager*>* OpaqueSkinnedMeshes;
-		std::vector<MeshManager*>* TransparentStaticMeshes;
-		std::vector<MeshManager*>* TransparentSkinnedMeshes;
+		std::vector<MeshPass*>* OpaqueStaticMeshes;
+		std::vector<MeshPass*>* OpaqueSkinnedMeshes;
+		std::vector<MeshPass*>* TransparentStaticMeshes;
+		std::vector<MeshPass*>* TransparentSkinnedMeshes;
 
 		std::unordered_map<std::wstring, std::unique_ptr<AssimpModel>>* Models;
-		MeshManager* SkyBoxMesh;
+		MeshPass* SkyBoxMesh;
 
 		std::unordered_map<std::wstring, std::unique_ptr<Shader>>* Shaders;
 		std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<ID3D12PipelineState>>* PSOs;
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC* BasePsoDesc;
 
-		void DrawMeshes(ID3D12PipelineState* pso, bool textureDrawing);
-		void DrawMeshes(ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO, ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO, bool textureDrawing);
-		void DrawOpaqueMeshes(ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO, bool textureDrawing);
-		void DrawTransparentMeshes(ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO, bool textureDrawing);
+		void DrawMeshes(ID3D12PipelineState* pso);
+		void DrawMeshes(ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO, ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO);
+		void DrawOpaqueMeshes(ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO);
+		void DrawTransparentMeshes(ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO);
 		void DrawSkyBox(ID3D12PipelineState* skyBoxPSO);
 	};
 }

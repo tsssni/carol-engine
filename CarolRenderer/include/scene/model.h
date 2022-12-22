@@ -1,5 +1,5 @@
 #pragma once
-#include <global_resources.h>
+#include <render/global_resources.h>
 #include <dx12/resource.h>
 #include <utils/d3dx12.h>
 #include <d3d12.h>
@@ -11,13 +11,13 @@
 
 namespace Carol
 {
-	class MeshManager;
+	class MeshPass;
 
 	class Model
 	{
 	public:
 		template<class Vertex, class Index>
-		void LoadVerticesAndIndices(GlobalResources* globalResources, std::vector<Vertex>& vertices, std::vector<Index>& indices)
+		void LoadVerticesAndIndices(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, std::vector<Vertex>& vertices, std::vector<Index>& indices)
 		{
 			uint32_t vbByteSize = sizeof(Vertex) * vertices.size();
 			uint32_t ibByteSize = sizeof(Index) * indices.size();
@@ -30,17 +30,17 @@ namespace Carol
 			case 4: indexFormat = DXGI_FORMAT_R32_UINT; break;
 			}
 
-			mVertexBufferGpu = std::make_unique<DefaultResource>(GetRvaluePtr(CD3DX12_RESOURCE_DESC::Buffer(vbByteSize)), globalResources->DefaultBuffersHeap);
-			mVertexBufferGpu->CopySubresources(globalResources, GetRvaluePtr(CreateSingleSubresource(reinterpret_cast<void*>(vertices.data()), vbByteSize)));
+			mVertexBufferGpu = std::make_unique<DefaultResource>(GetRvaluePtr(CD3DX12_RESOURCE_DESC::Buffer(vbByteSize)), heap);
+			mVertexBufferGpu->CopySubresources(cmdList, uploadHeap, GetRvaluePtr(CreateSingleSubresource(reinterpret_cast<void*>(vertices.data()), vbByteSize)));
 
-			mIndexBufferGpu = std::make_unique<DefaultResource>(GetRvaluePtr(CD3DX12_RESOURCE_DESC::Buffer(ibByteSize)), globalResources->DefaultBuffersHeap);
-			mIndexBufferGpu->CopySubresources(globalResources, GetRvaluePtr(CreateSingleSubresource(reinterpret_cast<void*>(indices.data()), ibByteSize)));
+			mIndexBufferGpu = std::make_unique<DefaultResource>(GetRvaluePtr(CD3DX12_RESOURCE_DESC::Buffer(ibByteSize)), heap);
+			mIndexBufferGpu->CopySubresources(cmdList, uploadHeap, GetRvaluePtr(CreateSingleSubresource(reinterpret_cast<void*>(indices.data()), ibByteSize)));
 
 			mVertexBufferView = { mVertexBufferGpu->Get()->GetGPUVirtualAddress(), vbByteSize, vertexStride};
 			mIndexBufferView = { mIndexBufferGpu->Get()->GetGPUVirtualAddress(), ibByteSize, indexFormat };
 		}
 
-		const std::unordered_map<std::wstring, std::unique_ptr<MeshManager>>& GetMeshes();
+		const std::unordered_map<std::wstring, std::unique_ptr<MeshPass>>& GetMeshes();
 	protected:
 		std::unique_ptr<DefaultResource> mVertexBufferGpu;
 		std::unique_ptr<DefaultResource> mIndexBufferGpu;
@@ -48,6 +48,6 @@ namespace Carol
 		D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
 		D3D12_INDEX_BUFFER_VIEW mIndexBufferView;
 
-		std::unordered_map<std::wstring, std::unique_ptr<MeshManager>> mMeshes;
+		std::unordered_map<std::wstring, std::unique_ptr<MeshPass>> mMeshes;
 	};
 }

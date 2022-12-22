@@ -114,6 +114,10 @@
       <AdditionalLibraryDirectories>C:\dxc_2022_12_16\lib\x64;C:\assimp-5.2.5\build\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>d3d12.lib;dxgi.lib;dxcompiler.lib;d3dcompiler.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <FxCompile>
+      <AdditionalIncludeDirectories>C:\CarolEngine\CarolRenderer\shader\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ShaderModel>6.5</ShaderModel>
+    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -136,6 +140,23 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="shader\include\light.hlsli">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\include\mesh.hlsli">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\include\oitppll.hlsli" />
+    <None Include="shader\include\root_signature.hlsli">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\include\root_signature_compile.hlsli">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\include\screen_tex.hlsli" />
+    <None Include="shader\include\skinned.hlsli" />
+    <None Include="shader\include\ssao.hlsli" />
+    <None Include="shader\include\vertex_in.hlsli" />
     <None Include="win32\packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -146,18 +167,21 @@
     <ClInclude Include="include\dx12\descriptor_allocator.h" />
     <ClInclude Include="include\dx12\heap.h" />
     <ClInclude Include="include\dx12\resource.h" />
+    <ClInclude Include="include\dx12\root_signature.h" />
     <ClInclude Include="include\dx12\sampler.h" />
     <ClInclude Include="include\dx12\shader.h" />
-    <ClInclude Include="include\global_resources.h" />
-    <ClInclude Include="include\manager\ssao.h" />
-    <ClInclude Include="include\manager\taa.h" />
-    <ClInclude Include="include\manager\display.h" />
-    <ClInclude Include="include\manager\light.h" />
-    <ClInclude Include="include\manager\manager.h" />
-    <ClInclude Include="include\manager\mesh.h" />
-    <ClInclude Include="include\manager\oitppll.h" />
+    <ClInclude Include="include\render\global_resources.h" />
+    <ClInclude Include="include\render\ssao.h" />
+    <ClInclude Include="include\render\taa.h" />
+    <ClInclude Include="include\render\display.h" />
+    <ClInclude Include="include\render\shadow.h" />
+    <ClInclude Include="include\render\pass.h" />
+    <ClInclude Include="include\render\mesh.h" />
+    <ClInclude Include="include\render\oitppll.h" />
     <ClInclude Include="include\scene\assimp.h" />
     <ClInclude Include="include\scene\camera.h" />
+    <ClInclude Include="include\render\frame.h" />
+    <ClInclude Include="include\scene\light.h" />
     <ClInclude Include="include\scene\timer.h" />
     <ClInclude Include="include\scene\model.h" />
     <ClInclude Include="include\scene\skinned_data.h" />
@@ -173,22 +197,23 @@
     <ClInclude Include="win32\targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\dx12\root_signature.cpp" />
     <ClCompile Include="source\base_renderer.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="source\global_resources.cpp" />
+    <ClCompile Include="source\render\global_resources.cpp" />
     <ClCompile Include="source\renderer.cpp" />
     <ClCompile Include="source\dx12\descriptor_allocator.cpp" />
     <ClCompile Include="source\dx12\heap.cpp" />
     <ClCompile Include="source\dx12\resource.cpp" />
     <ClCompile Include="source\dx12\sampler.cpp" />
-    <ClCompile Include="source\dx12\Shader.cpp" />
-    <ClCompile Include="source\manager\ssao.cpp" />
-    <ClCompile Include="source\manager\taa.cpp" />
-    <ClCompile Include="source\manager\display.cpp" />
-    <ClCompile Include="source\manager\light.cpp" />
-    <ClCompile Include="source\manager\manager.cpp" />
-    <ClCompile Include="source\manager\mesh.cpp" />
-    <ClCompile Include="source\manager\oitppll.cpp" />
+    <ClCompile Include="source\dx12\shader.cpp" />
+    <ClCompile Include="source\render\ssao.cpp" />
+    <ClCompile Include="source\render\taa.cpp" />
+    <ClCompile Include="source\render\display.cpp" />
+    <ClCompile Include="source\render\shadow.cpp" />
+    <ClCompile Include="source\render\pass.cpp" />
+    <ClCompile Include="source\render\mesh.cpp" />
+    <ClCompile Include="source\render\oitppll.cpp" />
     <ClCompile Include="source\scene\assimp.cpp" />
     <ClCompile Include="source\scene\camera.cpp" />
     <ClCompile Include="source\scene\timer.cpp" />
@@ -197,6 +222,38 @@
     <ClCompile Include="source\scene\texture.cpp" />
     <ClCompile Include="source\utils\bitset.cpp" />
     <ClCompile Include="source\utils\buddy.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shader\default.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\normals.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\oitppll.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\oitppll_build.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\shadow.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\skybox.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\ssao.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\ssao_blur.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\taa.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\velocity.hlsl">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

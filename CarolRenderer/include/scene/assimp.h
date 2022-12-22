@@ -9,6 +9,7 @@
 namespace Carol
 {
 	class GlobalResources;
+	class CircularHeap;
 	class SkinnedConstants;
 	class AnimationClip;
 
@@ -73,9 +74,9 @@ namespace Carol
 		void ReadAnimations(const aiScene* scene);
 
 		void ReadMeshVerticesAndIndices(aiMesh* mesh);
-		void ReadMeshMaterialAndTextures(MeshManager& submesh, aiMesh* mesh, const aiScene* scene);
-		void ReadTexture(MeshManager& mesh, aiMaterial* matData);
-		void LoadTexture(MeshManager& mesh, aiString aiPath, aiTextureType type);
+		void ReadMeshMaterialAndTextures(MeshPass& submesh, aiMesh* mesh, const aiScene* scene);
+		void ReadTexture(MeshPass& mesh, aiMaterial* matData);
+		void LoadTexture(MeshPass& mesh, aiString aiPath, aiTextureType type);
 
 		DirectX::XMMATRIX aiMatrix4x4ToXM(aiMatrix4x4 aiM);
 		aiMatrix4x4 XMToaiMatrix4x4(DirectX::XMMATRIX xm);

@@ -1,4 +1,14 @@
-#include "common.hlsli"
+#include "include/root_signature.hlsli"
+
+#ifdef SKINNED
+#include "include/skinned.hlsli"
+#endif
+
+cbuffer ShadowCB : register(b3)
+{
+    uint gLightIdx;
+    uint3 gShadowPad0;
+}
 
 struct VertexOut
 {
@@ -14,7 +24,7 @@ VertexOut VS(VertexIn vin)
 #endif
     
     float4 posW = mul(float4(vin.PosL, 1.0f), gWorld);
-    vout.PosH = mul(posW, gLightViewProj);
+    vout.PosH = mul(posW, gLights[gLightIdx].ViewProj);
     
     return vout;
 }

@@ -1,5 +1,5 @@
 #pragma once
-#include <manager/manager.h>
+#include <render/pass.h>
 #include <d3d12.h>
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
@@ -21,12 +21,16 @@ namespace Carol
 
 		DirectX::XMFLOAT3 FresnelR0 = { 0.6f,0.6f,0.6f };
 		float Roughness = 0.1f;
+
+		uint32_t MeshDiffuseMapIdx = 0;
+		uint32_t MeshNormalMapIdx = 0;
+		DirectX::XMUINT2 MeshPad0;
 	};
 
-	class MeshManager : public Manager
+	class MeshPass : public Pass
 	{
 	public:
-		MeshManager(
+		MeshPass(
 			GlobalResources* globalResources,
 			bool isSkinned,
 			HeapAllocInfo* skinnedCBAllocInfo,
@@ -52,7 +56,6 @@ namespace Carol
 		void LoadNormalMap(std::wstring path);
 
 		void SetWorld(DirectX::XMMATRIX world);
-		void SetTextureDrawing(bool drawing);
 
 		void SetBoundingBox(aiAABB* boundingBox);
 		void SetBoundingBox(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax);
@@ -63,7 +66,7 @@ namespace Carol
 		bool IsTransparent();
 		
 	protected:
-		virtual void InitRootSignature()override;
+		virtual void CopyDescriptors()override;
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
 		virtual void InitResources()override;
@@ -87,7 +90,6 @@ namespace Carol
 
 		bool mSkinned;
 		bool mTransparent;
-		bool mTextureDrawing;
 
 		enum
 		{

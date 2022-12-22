@@ -1,5 +1,4 @@
 #include <scene/texture.h>
-#include <global_resources.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <utils/d3dx12.h>
@@ -15,7 +14,7 @@ namespace Carol {
 	using namespace DirectX;
 }
 
-Carol::DefaultResource* Carol::Texture::GetBuffer()
+Carol::DefaultResource* Carol::Texture::GetResource()
 {
 	return mTexture.get();
 }
@@ -65,7 +64,7 @@ D3D12_SHADER_RESOURCE_VIEW_DESC Carol::Texture::GetDesc()
 	return mTexDesc;
 }
 
-void Carol::Texture::LoadTexture(GlobalResources* globalResources, wstring fileName, bool isSrgb)
+void Carol::Texture::LoadTexture(ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, wstring fileName, bool isSrgb)
 {
 	wstring suffix = fileName.substr(fileName.find_last_of(L'.') + 1, 3);
 	TexMetadata metaData;
@@ -109,7 +108,7 @@ void Carol::Texture::LoadTexture(GlobalResources* globalResources, wstring fileN
 
 	}
 	
-	mTexture = make_unique<DefaultResource>(&texResDesc, globalResources->TexturesHeap);
+	mTexture = make_unique<DefaultResource>(&texResDesc, texHeap);
 	SetDesc();
 
 	vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
@@ -122,7 +121,7 @@ void Carol::Texture::LoadTexture(GlobalResources* globalResources, wstring fileN
 		subresources[i].pData = images[i].pixels;
 	}
 
-	mTexture->CopySubresources(globalResources, subresources.data(), 0, subresources.size());
+	mTexture->CopySubresources(cmdList, uploadHeap, subresources.data(), 0, subresources.size());
 }
 
 void Carol::Texture::ReleaseIntermediateBuffer()

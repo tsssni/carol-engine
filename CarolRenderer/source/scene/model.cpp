@@ -1,5 +1,5 @@
 #include <scene/model.h>
-#include <manager/mesh.h>
+#include <render/mesh.h>
 
 namespace Carol
 {
@@ -8,7 +8,7 @@ namespace Carol
 	using std::wstring;
 }
 
-const Carol::unordered_map<Carol::wstring, Carol::unique_ptr<Carol::MeshManager>>& Carol::Model::GetMeshes()
+const Carol::unordered_map<Carol::wstring, Carol::unique_ptr<Carol::MeshPass>>& Carol::Model::GetMeshes()
 {
 	return mMeshes;
 }

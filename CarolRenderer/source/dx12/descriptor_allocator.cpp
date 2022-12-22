@@ -22,6 +22,11 @@ Carol::DescriptorAllocator::DescriptorAllocator(ID3D12Device* device, D3D12_DESC
 
 bool Carol::DescriptorAllocator::CpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info)
 {
+	if (numDescriptors == 0)
+	{
+		return true;
+	}
+
 	BuddyAllocInfo buddyInfo;
 
 	for (int i = 0; i < mCpuBuddies.size(); ++i)
@@ -52,9 +57,9 @@ bool Carol::DescriptorAllocator::CpuAllocate(uint32_t numDescriptors, Descriptor
 
 bool Carol::DescriptorAllocator::CpuDeallocate(DescriptorAllocInfo* info)
 {
-	if (info->NumDescriptors <= 0 || info->NumDescriptors > mNumCpuDescriptorsPerHeap)
+	if (info->NumDescriptors == 0) 
 	{
-		return false;
+		return true;
 	}
 
 	uint32_t buddyIdx = info->StartOffset / mNumCpuDescriptorsPerHeap;
@@ -82,6 +87,11 @@ CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorAllocator::GetCpuHandle(Descripto
 
 bool Carol::DescriptorAllocator::GpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info)
 {
+	if (numDescriptors == 0)
+	{
+		return true;
+	}
+
 	if (mType != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
 	{
 		return false;
@@ -107,9 +117,9 @@ bool Carol::DescriptorAllocator::GpuAllocate(uint32_t numDescriptors, Descriptor
 
 bool Carol::DescriptorAllocator::GpuDeallocate(DescriptorAllocInfo* info)
 {
-	if (info->NumDescriptors <= 0 || mType != D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+	if (info->NumDescriptors == 0)
 	{
-		return false;
+		return true;
 	}
 
 	uint32_t buddyIdx = info->StartOffset / mNumGpuDescriptorsPerSection;

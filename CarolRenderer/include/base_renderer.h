@@ -10,7 +10,8 @@ namespace Carol
 {
 	class Heap;
 	class DescriptorAllocator;
-	class DisplayManager;
+	class RootSignature;
+	class Display;
 	class Timer;
 	class Camera;
 	class GlobalResources;
@@ -59,6 +60,7 @@ namespace Carol
 		virtual void InitCommandQueue();
 		virtual void InitCommandAllocator();
 		virtual void InitCommandList();
+		virtual void InitRootSignature();
 
 		virtual void InitHeaps();
 		virtual void InitAllocators();
@@ -85,8 +87,9 @@ namespace Carol
 		std::unique_ptr<DescriptorAllocator> mCbvSrvUavAllocator;
 		std::unique_ptr<DescriptorAllocator> mRtvAllocator;
 		std::unique_ptr<DescriptorAllocator> mDsvAllocator;
+		std::unique_ptr<RootSignature> mRootSignature;
 
-		std::unique_ptr<DisplayManager> mDisplay;
+		std::unique_ptr<Display> mDisplay;
 
 		std::unique_ptr<Timer> mTimer;
 		std::unique_ptr<Camera> mCamera;

@@ -1,4 +1,8 @@
-#include "common.hlsli"
+#include "include/root_signature.hlsli"
+
+#ifdef SKINNED
+#include "include/skinned.hlsli"
+#endif
 
 struct VertexOut
 {

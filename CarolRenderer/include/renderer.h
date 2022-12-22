@@ -1,8 +1,6 @@
 #pragma once
-#define MAX_LIGHTS 16
 
 #include <base_renderer.h>
-#include <manager/light.h>
 #include <memory>
 #include <unordered_map>
 #include <string>
@@ -10,44 +8,22 @@
 namespace Carol
 {
     class GlobalResources;
+    class FrameConstants;
     class Heap;
+    class HeapAllocInfo;
     class CircularHeap;
     class DescriptorAllocator;
+    class DescriptorAllocInfo;
     class Shader;
-    class SsaoManager;
-    class TaaManager;
-    class LightManager;
-    class OitppllManager;
-    class MeshManager;
+    class SsaoPass;
+    class TaaPass;
+    class ShadowPass;
+    class OitppllPass;
+    class MeshPass;
     class AssimpModel;
-
-    class PassConstants
-	{
-	public:
-		DirectX::XMFLOAT4X4 View;
-		DirectX::XMFLOAT4X4 InvView;
-		DirectX::XMFLOAT4X4 Proj;
-		DirectX::XMFLOAT4X4 InvProj;
-		DirectX::XMFLOAT4X4 ViewProj;
-		DirectX::XMFLOAT4X4 InvViewProj;
-
-        DirectX::XMFLOAT4X4 ViewProjTex;
-        
-		DirectX::XMFLOAT4X4 HistViewProj;
-        DirectX::XMFLOAT4X4 JitteredViewProj;
-
-		DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
-		float CbPad1 = 0.0f;
-		DirectX::XMFLOAT2 RenderTargetSize = { 0.0f, 0.0f };
-		DirectX::XMFLOAT2 InvRenderTargetSize = { 0.0f, 0.0f };
-		float NearZ = 0.0f;
-		float FarZ = 0.0f;
-		float CbPad2;
-		float CbPad3;
-
-		LightData Lights[MAX_LIGHTS];
-	};
-
+    class Texture;
+    class FrameConstants;
+ 
     class Renderer :public BaseRenderer
     {
     public:
@@ -69,7 +45,6 @@ namespace Carol
         std::vector<std::wstring> GetModelNames();
     protected:
         void InitFrameAllocators();
-        void InitRootSignature();
         void InitConstants();
         void InitShaders();
         void InitPSOs();
@@ -78,29 +53,28 @@ namespace Carol
         void InitMainLight();
         void InitOitppll();
         void InitMeshes();
-        void InitGpuDescriptors();
 
         void ReleaseIntermediateBuffers();
 
         void UpdateCamera();
-        void UpdatePassCB();
+        void UpdateFrameCB();
         void UpdateMeshes();
         void UpdateAnimations();
 
     protected:
-        Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature;
-
         std::unordered_map<std::wstring, std::unique_ptr<AssimpModel>> mModels;
         std::unique_ptr<AssimpModel> mSkyBox;
+        std::unique_ptr<Texture> mSkyBoxTex;
+        std::unique_ptr<DescriptorAllocInfo> mSkyBoxAllocInfo;
         
         std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
         std::vector<D3D12_INPUT_ELEMENT_DESC> mNullInputLayout;
         D3D12_GRAPHICS_PIPELINE_STATE_DESC mBasePsoDesc;
 
-        std::vector<MeshManager*> mOpaqueStaticMeshes;
-        std::vector<MeshManager*> mTransparentStaticMeshes;
-        std::vector<MeshManager*> mOpaqueSkinnedMeshes;
-        std::vector<MeshManager*> mTransparentSkinnedMeshes;
+        std::vector<MeshPass*> mOpaqueStaticMeshes;
+        std::vector<MeshPass*> mTransparentStaticMeshes;
+        std::vector<MeshPass*> mOpaqueSkinnedMeshes;
+        std::vector<MeshPass*> mTransparentSkinnedMeshes;
 
         std::unordered_map<std::wstring, std::unique_ptr<Shader>> mShaders;
         std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
@@ -110,14 +84,14 @@ namespace Carol
         std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mFrameAllocator;
         std::vector<uint32_t> mGpuFence = { 0,0,0 };
 
-        std::unique_ptr<PassConstants> mPassConstants;
-        std::unique_ptr<HeapAllocInfo> mPassCBAllocInfo;
-        std::unique_ptr<CircularHeap> mPassCBHeap;
+        std::unique_ptr<FrameConstants> mFrameConstants;
+        std::unique_ptr<HeapAllocInfo> mFrameCBAllocInfo;
+        std::unique_ptr<CircularHeap> mFrameCBHeap;
 
-        std::unique_ptr<SsaoManager> mSsao;
-        std::unique_ptr<TaaManager> mTaa;
-        std::unique_ptr<LightManager> mMainLight;
-        std::unique_ptr<OitppllManager> mOitppll;
+        std::unique_ptr<SsaoPass> mSsao;
+        std::unique_ptr<TaaPass> mTaa;
+        std::unique_ptr<ShadowPass> mMainLight;
+        std::unique_ptr<OitppllPass> mOitppll;
     };
 
 }

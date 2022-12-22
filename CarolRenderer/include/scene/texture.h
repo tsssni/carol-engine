@@ -6,18 +6,18 @@
 
 namespace Carol
 {
-	class GlobalResources;
 	class DefaultResource;
+	class Heap;
 
 	class Texture
 	{
 	public:
-		DefaultResource* GetBuffer();
-		void SetDesc();
+		DefaultResource* GetResource();
 		D3D12_SHADER_RESOURCE_VIEW_DESC GetDesc();
-		void LoadTexture(GlobalResources* globalResources, std::wstring fileName, bool isSrgb = false);
+		void LoadTexture(ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, std::wstring fileName, bool isSrgb = false);
 		void ReleaseIntermediateBuffer();
 	private:
+		void SetDesc();
 		std::unique_ptr<DefaultResource> mTexture;
 		D3D12_SHADER_RESOURCE_VIEW_DESC mTexDesc;
 

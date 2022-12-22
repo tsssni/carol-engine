@@ -1,7 +1,34 @@
-#ifndef LIGHT
-#define LIGHT
+#ifndef LIGHT_HEADER
+#define LIGHT_HEADER
 
-#include "common.hlsli"
+#define MAX_LIGHTS 16
+
+#ifndef NUM_DIR_LIGHTS
+    #define NUM_DIR_LIGHTS 1
+#endif
+
+#ifndef NUM_POINT_LIGHTS
+    #define NUM_POINT_LIGHTS 0
+#endif
+
+#ifndef NUM_SPOT_LIGHTS
+    #define NUM_SPOT_LIGHTS 0
+#endif
+
+struct Light
+{
+    float3 Strength;
+    float FalloffStart;
+    float3 Direction;
+    float FalloffEnd;
+    float3 Position; 
+    float SpotPower;
+    float3 Ambient;
+    float LightPad0;
+    
+    float4x4 ViewProj;
+    float4x4 ViewProjTex;
+};
 
 struct LightMaterialData
 {

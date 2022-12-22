@@ -1,9 +1,12 @@
-#include "common.hlsli"
+#include "include/root_signature.hlsli"
 
-Texture2D gDepthMap : register(t0);
-Texture2D gHistFrameMap : register(t1);
-Texture2D gCurrFrameMap : register(t2);
-Texture2D gVelocityMap : register(t3);
+cbuffer TaaCB : register(b3)
+{
+    uint gTaaDepthMapIdx;
+    uint gTaaHistFrameMapIdx;
+    uint gTaaCurrFrameMapIdx;
+    uint gTaaVelocityMapIdx;
+}
 
 struct VertexOut
 {
@@ -84,7 +87,7 @@ void CalcPixelColorAabb(float2 pixelPos, inout float3 minPixelColor, inout float
     for (int i = 0; i < sampleCount; i++)
     {
         float2 pos = float2(pixelPos.x + dx[i], pixelPos.y + dy[i]) * gInvRenderTargetSize;
-        float3 pixelColor = Rgb2Ycocg(gCurrFrameMap.Sample(gsamPointClamp, pos).rgb);
+        float3 pixelColor = Rgb2Ycocg(gTex2D[gTaaCurrFrameMapIdx].Sample(gsamPointClamp, pos).rgb);
         meanColor += pixelColor;
         varColor += pixelColor * pixelColor;
     }
@@ -105,7 +108,7 @@ float4 PS(VertexOut pin) : SV_Target
     for (int i = 0; i < 9; ++i)
     {
         float2 adjacentPos = int2(pin.PosH.x + dx[i], pin.PosH.y + dy[i]) * gInvRenderTargetSize;
-        float adjacentZ = gDepthMap.Sample(gsamPointClamp, adjacentPos).r;
+        float adjacentZ = gTex2D[gTaaDepthMapIdx].Sample(gsamPointClamp, adjacentPos).r;
         
         if (adjacentZ < minZ)
         {
@@ -115,10 +118,10 @@ float4 PS(VertexOut pin) : SV_Target
     }
     
     float2 currPos = pin.PosH.xy * gInvRenderTargetSize;
-    float2 histPos = currPos + gVelocityMap.Sample(gsamPointClamp, minZPos).xy;
+    float2 histPos = currPos + gTex2D[gTaaVelocityMapIdx].Sample(gsamPointClamp, minZPos).xy;
     
-    float4 currPixelColor = gCurrFrameMap.Sample(gsamPointClamp, currPos);
-    float4 histPixelColor = gHistFrameMap.Sample(gsamPointClamp, histPos);
+    float4 currPixelColor = gTex2D[gTaaCurrFrameMapIdx].Sample(gsamPointClamp, currPos);
+    float4 histPixelColor = gTex2D[gTaaHistFrameMapIdx].Sample(gsamPointClamp, histPos);
     
     float3 minPixelColor;
     float3 maxPixelColor;

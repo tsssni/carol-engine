@@ -1,16 +1,10 @@
-#include "common.hlsli"
+#include "include/oitppll.hlsli"
+#include "include/root_signature.hlsli"
 
 #define MAX_SORTED_PIXELS 16
 
-struct OitNode
-{
-    float4 ColorU;
-    uint DepthU;
-    uint NextU;
-};
-
-StructuredBuffer<OitNode> gOitNodeBuffer : register(t0);
-Buffer<uint> gStartOffsetBuffer : register(t1);
+StructuredBuffer<OitNode> gOitNodeBuffer : register(t0, space4);
+Buffer<uint> gStartOffsetBuffer : register(t1, space4);
 
 static const float2 gTexCoords[6] =
 {

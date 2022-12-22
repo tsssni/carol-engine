@@ -1,4 +1,3 @@
-#include <global_resources.h>
 #include <dx12/resource.h>
 #include <dx12/Heap.h>
 #include <d3dcompiler.h>
@@ -77,14 +76,14 @@ Carol::DefaultResource::DefaultResource(D3D12_RESOURCE_DESC* desc, Heap* heap, D
 	mIntermediateBufferAllocInfo = make_unique<HeapAllocInfo>();
 }
 
-void Carol::DefaultResource::CopySubresources(GlobalResources* globalResources, D3D12_SUBRESOURCE_DATA* subresourceData, uint32_t firstSubresource, uint32_t numSubresources)
+void Carol::DefaultResource::CopySubresources(ID3D12GraphicsCommandList* cmdList, Heap* heap, D3D12_SUBRESOURCE_DATA* subresourceData, uint32_t firstSubresource, uint32_t numSubresources)
 {
-	globalResources->CommandList->ResourceBarrier(1,GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mResource.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST)));
+	cmdList->ResourceBarrier(1,GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mResource.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST)));
 	auto resourceSize = GetRequiredIntermediateSize(mResource.Get(), firstSubresource, numSubresources);
-	globalResources->UploadBuffersHeap->CreateResource(&mIntermediateBuffer, GetRvaluePtr(CD3DX12_RESOURCE_DESC::Buffer(resourceSize)), mIntermediateBufferAllocInfo.get(), D3D12_RESOURCE_STATE_GENERIC_READ);
+	heap->CreateResource(&mIntermediateBuffer, GetRvaluePtr(CD3DX12_RESOURCE_DESC::Buffer(resourceSize)), mIntermediateBufferAllocInfo.get(), D3D12_RESOURCE_STATE_GENERIC_READ);
 	
-	UpdateSubresources(globalResources->CommandList, mResource.Get(), mIntermediateBuffer.Get(), 0, firstSubresource, numSubresources, subresourceData);
-	globalResources->CommandList->ResourceBarrier(1,GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ)));
+	UpdateSubresources(cmdList, mResource.Get(), mIntermediateBuffer.Get(), 0, firstSubresource, numSubresources, subresourceData);
+	cmdList->ResourceBarrier(1,GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ)));
 }
 
 void Carol::DefaultResource::ReleaseIntermediateBuffer()

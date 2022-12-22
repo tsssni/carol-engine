@@ -22,6 +22,25 @@
   <ItemGroup>
     <None Include="win32\packages.config" />
     <None Include="packages.config" />
+    <None Include="shader\include\skinned.hlsli" />
+    <None Include="shader\include\vertex_in.hlsli" />
+    <None Include="shader\include\light.hlsli" />
+    <None Include="shader\include\mesh.hlsli" />
+    <None Include="shader\include\root_signature.hlsli" />
+    <None Include="shader\include\root_signature_compile.hlsli" />
+    <None Include="shader\include\ssao.hlsli" />
+    <None Include="shader\include\screen_tex.hlsli" />
+    <None Include="shader\include\oitppll.hlsli" />
+    <None Include="shader\velocity.hlsl" />
+    <None Include="shader\taa.hlsl" />
+    <None Include="shader\ssao_blur.hlsl" />
+    <None Include="shader\ssao.hlsl" />
+    <None Include="shader\skybox.hlsl" />
+    <None Include="shader\shadow.hlsl" />
+    <None Include="shader\oitppll_build.hlsl" />
+    <None Include="shader\oitppll.hlsl" />
+    <None Include="shader\normals.hlsl" />
+    <None Include="shader\default.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="win32\Carol.ico">
@@ -44,25 +63,25 @@
     <ClInclude Include="include\dx12\shader.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\manager\ssao.h">
+    <ClInclude Include="include\render\ssao.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\manager\taa.h">
+    <ClInclude Include="include\render\taa.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\manager\display.h">
+    <ClInclude Include="include\render\display.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\manager\light.h">
+    <ClInclude Include="include\render\shadow.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\manager\mesh.h">
+    <ClInclude Include="include\render\mesh.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\manager\oitppll.h">
+    <ClInclude Include="include\render\oitppll.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\manager\manager.h">
+    <ClInclude Include="include\render\pass.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\scene\assimp.h">
@@ -113,7 +132,16 @@
     <ClInclude Include="main.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\global_resources.h">
+    <ClInclude Include="include\render\global_resources.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dx12\root_signature.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\render\frame.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene\light.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -130,28 +158,28 @@
     <ClCompile Include="source\dx12\sampler.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\dx12\Shader.cpp">
+    <ClCompile Include="source\dx12\shader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\manager\ssao.cpp">
+    <ClCompile Include="source\render\ssao.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\manager\taa.cpp">
+    <ClCompile Include="source\render\taa.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\manager\display.cpp">
+    <ClCompile Include="source\render\display.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\manager\light.cpp">
+    <ClCompile Include="source\render\shadow.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\manager\mesh.cpp">
+    <ClCompile Include="source\render\mesh.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\manager\oitppll.cpp">
+    <ClCompile Include="source\render\oitppll.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\manager\manager.cpp">
+    <ClCompile Include="source\render\pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\scene\assimp.cpp">
@@ -187,7 +215,10 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\global_resources.cpp">
+    <ClCompile Include="source\render\global_resources.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dx12\root_signature.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

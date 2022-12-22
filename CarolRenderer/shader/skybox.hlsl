@@ -1,6 +1,4 @@
-#include "common.hlsli"
-
-TextureCube gCubeMap : register(t0);
+#include "include/root_signature.hlsli"
 
 struct VertexOut
 {
@@ -22,5 +20,5 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    return gCubeMap.Sample(gsamLinearWrap, pin.PosL);
+    return gTexCube[0].Sample(gsamLinearWrap, pin.PosL);
 }

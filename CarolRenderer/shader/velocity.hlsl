@@ -1,6 +1,8 @@
-#include "common.hlsli"
+#include "include/root_signature.hlsli"
 
 #ifdef SKINNED
+#include "include/skinned.hlsli"
+
 float3 HistPosL(float3 posL, VertexIn vin)
 {
     float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };

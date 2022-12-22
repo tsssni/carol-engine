@@ -11,9 +11,6 @@
 
 namespace Carol
 {
-	class HeapAllocInfo;
-	class CircularHeap;
-
 	struct TranslationKeyframe
 	{
 		float TimePos;

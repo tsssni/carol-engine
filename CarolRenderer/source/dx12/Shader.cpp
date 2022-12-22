@@ -20,7 +20,7 @@ Carol::Shader::Shader(const wstring& fileName, const vector<wstring>& defines, c
     auto result = Compile(fileName, args);
     CheckError(result);
 
-#if DEBUG_SHADERS
+#if _DEBUG
     OutputPdb(result);
 #endif
 

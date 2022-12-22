@@ -1,12 +1,8 @@
-#include "common.hlsli"
-#include "light.hlsli"
+#include "include/root_signature.hlsli"
+#include "include/mesh.hlsli"
 
-Texture2D gDiffuseMap : register(t0);
-Texture2D gNormalMap : register(t1);
-Texture2D gShadowMap : register(t2);
-
-#ifdef SSAO
-Texture2D gSsaoMap : register(t3);
+#ifdef SKINNED
+#include "include/skinned.hlsli"
 #endif
 
 struct VertexOut
@@ -48,61 +44,28 @@ VertexOut VS(VertexIn vin)
     return vout;
 }
 
-float CalcShadowFactor(float4 shadowPosH)
-{
-    // Complete projection by doing division by w.
-    shadowPosH.xyz /= shadowPosH.w;
-
-    // Depth in NDC space.
-    float depth = shadowPosH.z;
-
-    uint width, height, numMips;
-    gShadowMap.GetDimensions(0, width, height, numMips);
-
-    // Texel size.
-    float dx = 1.0f / (float)width;
-
-    float percentLit = 0.0f;
-    const float2 offsets[9] =
-    {
-        float2(-dx,  -dx), float2(0.0f,  -dx), float2(dx,  -dx),
-        float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
-        float2(-dx,  +dx), float2(0.0f,  +dx), float2(dx,  +dx)
-    };
-
-    
-    [unroll]
-    for(int i = 0; i < 9; ++i)
-    {
-        percentLit += gShadowMap.SampleCmpLevelZero(gsamShadow,
-            shadowPosH.xy + offsets[i], depth).r;
-    }
-    
-    return pow(percentLit / 9.0f, 10.0f);
-}
-
 float4 PS(VertexOut pin) : SV_Target
 {
-    float4 texDiffuse = gDiffuseMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
+    float4 texDiffuse = gTex2D[gMeshDiffuseMapIdx].SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
    
     LightMaterialData lightMat;
     lightMat.fresnelR0 = gFresnelR0;
     lightMat.diffuseAlbedo = texDiffuse.rgb;
     lightMat.roughness = gRoughness;
 
-    float3 texNormal = gNormalMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
+    float3 texNormal = gTex2D[gMeshNormalMapIdx].SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
     texNormal = TexNormalToWorldSpace(texNormal, pin.NormalW, pin.TangentW);
     
     float3 ambient = gLights[0].Ambient * texDiffuse.rgb;
     
 #ifdef SSAO
     pin.SsaoPosH /= pin.SsaoPosH.w;
-    float ambientAccess = gSsaoMap.SampleLevel(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
+    float ambientAccess = gTex2D[gSsaoMapIdx].SampleLevel(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
     //ambient *= ambientAccess;
 #endif
 
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
-    shadowFactor[0] = CalcShadowFactor(mul(float4(pin.PosW, 1.0f), gLights[0].LightViewProjTex));
+    shadowFactor[0] = CalcShadowFactor(mul(float4(pin.PosW, 1.0f), gLights[0].ViewProjTex));
     float4 litColor = ComputeLighting(gLights, lightMat, pin.PosW, texNormal, normalize(gEyePosW - pin.PosW), shadowFactor);
     
     return float4(ambient + litColor.rgb, 1.0f);

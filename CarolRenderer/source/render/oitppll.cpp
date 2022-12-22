@@ -1,12 +1,12 @@
-#include <manager/oitppll.h>
-#include <global_resources.h>
-#include <manager/display.h>
-#include <manager/taa.h>
+#include <render/oitppll.h>
+#include <render/global_resources.h>
+#include <render/display.h>
+#include <render/taa.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <dx12/descriptor_allocator.h>
+#include <dx12/root_signature.h>
 #include <dx12/shader.h>
-#include <dx12/sampler.h>
 
 namespace Carol {
 	using std::vector;
@@ -14,16 +14,18 @@ namespace Carol {
 	using std::make_unique;
 }
 
-Carol::OitppllManager::OitppllManager(GlobalResources* globalResources, DXGI_FORMAT outputFormat)
-	:Manager(globalResources), mOutputFormat(outputFormat)
+Carol::OitppllPass::OitppllPass(GlobalResources* globalResources, DXGI_FORMAT outputFormat)
+	:Pass(globalResources),
+	 mOutputFormat(outputFormat),
+	 mOitppllConstants(make_unique<OitppllConstants>()),
+	 mOitppllCBAllocInfo(make_unique<HeapAllocInfo>())
 {
-	InitRootSignature();
 	InitShaders();
 	InitPSOs();
 	OnResize();
 }
 
-void Carol::OitppllManager::Draw()
+void Carol::OitppllPass::Draw()
 {
 	if (mGlobalResources->TransparentStaticMeshes->size() == 0 
 		&& mGlobalResources->TransparentSkinnedMeshes->size() == 0)
@@ -35,18 +37,23 @@ void Carol::OitppllManager::Draw()
 	DrawOit();
 }
 
-void Carol::OitppllManager::Update()
+void Carol::OitppllPass::Update()
 {
+	CopyDescriptors();
+
+	OitppllCBHeap->DeleteResource(mOitppllCBAllocInfo.get());
+	OitppllCBHeap->CreateResource(nullptr, nullptr, mOitppllCBAllocInfo.get());
+	OitppllCBHeap->CopyData(mOitppllCBAllocInfo.get(), mOitppllConstants.get());
 }
 
-void Carol::OitppllManager::OnResize()
+void Carol::OitppllPass::OnResize()
 {
 	static uint32_t width = 0;
     static uint32_t height = 0;
 
     if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
     {
-        Manager::OnResize();
+        Pass::OnResize();
 
         width = *mGlobalResources->ClientWidth;
         height = *mGlobalResources->ClientHeight;
@@ -55,7 +62,7 @@ void Carol::OitppllManager::OnResize()
     }
 }
 
-void Carol::OitppllManager::ReleaseIntermediateBuffers()
+void Carol::OitppllPass::ReleaseIntermediateBuffers()
 {
 	if (mOitppllBuffer)
 	{
@@ -63,11 +70,23 @@ void Carol::OitppllManager::ReleaseIntermediateBuffers()
 	}
 }
 
-void Carol::OitppllManager::InitRootSignature()
+void Carol::OitppllPass::CopyDescriptors()
 {
+	Pass::CopyDescriptors();
+
+	mOitppllConstants->OitppllDepthMapIdx = mGlobalResources->Display->GetDepthStencilSrvIdx();
 }
 
-void Carol::OitppllManager::InitShaders()
+void Carol::OitppllPass::InitOitppllCBHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
+{
+	if (!OitppllCBHeap)
+	{
+		OitppllCBHeap = make_unique<CircularHeap>(device, cmdList, true, 32, sizeof(OitppllConstants));
+	}
+
+}
+
+void Carol::OitppllPass::InitShaders()
 {
 	vector<wstring> nullDefines{};
 
@@ -89,7 +108,7 @@ void Carol::OitppllManager::InitShaders()
 	(*mGlobalResources->Shaders)[L"DrawOitppllPS"] = make_unique<Shader>(L"shader\\oitppll.hlsl", nullDefines, L"PS", L"ps_6_5");
 }
 
-void Carol::OitppllManager::InitPSOs()
+void Carol::OitppllPass::InitPSOs()
 {
 	auto buildStaticOitppllPsoDesc = *mGlobalResources->BasePsoDesc;
 	auto buildStaicOitppllVS = (*mGlobalResources->Shaders)[L"BuildStaticOitppllVS"].get();
@@ -128,7 +147,7 @@ void Carol::OitppllManager::InitPSOs()
 	ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&drawOitppllPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"DrawOitppll"].GetAddressOf())));
 }
 
-void Carol::OitppllManager::InitResources()
+void Carol::OitppllPass::InitResources()
 {
 	uint32_t linkedListBufferSize = (*mGlobalResources->ClientWidth) * (*mGlobalResources->ClientHeight) * 16 * sizeof(OitppllNode);
 	auto linkedListBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(linkedListBufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
@@ -145,9 +164,10 @@ void Carol::OitppllManager::InitResources()
 	InitDescriptors();
 }
 
-void Carol::OitppllManager::InitDescriptors()
+void Carol::OitppllPass::InitDescriptors()
 {
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(OITPPLL_UAV_SRV_COUNT, mCpuCbvSrvUavAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(OITPPLL_UAV_COUNT, mCpuUavAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(OITPPLL_SRV_COUNT, mCpuSrvAllocInfo.get());
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -186,7 +206,7 @@ void Carol::OitppllManager::InitDescriptors()
 	mGlobalResources->Device->CreateShaderResourceView(mStartOffsetBuffer->Get(), &srvDesc, GetCpuSrv(OFFSET_SRV));
 }
 
-void Carol::OitppllManager::DrawPpll()
+void Carol::OitppllPass::DrawPpll()
 {
 	mGlobalResources->CommandList->RSSetViewports(1, mGlobalResources->ScreenViewport);
     mGlobalResources->CommandList->RSSetScissorRects(1, mGlobalResources->ScissorRect);
@@ -195,25 +215,21 @@ void Carol::OitppllManager::DrawPpll()
 	static const uint32_t initCounterValue = 0;
 	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetShaderGpuUav(OFFSET_UAV), GetCpuUav(OFFSET_UAV), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
 	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetShaderGpuUav(COUNTER_UAV), GetCpuUav(COUNTER_UAV), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
-	mGlobalResources->CommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mGlobalResources->Display->GetDepthStencilView()));
+	mGlobalResources->CommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mGlobalResources->Display->GetDepthStencilDsv()));
 
-	mGlobalResources->CommandList->SetGraphicsRootSignature(mGlobalResources->RootSignature);
-    mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(0, mGlobalResources->PassCBHeap->GetGPUVirtualAddress(mGlobalResources->PassCBAllocInfo));
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(7, GetShaderGpuUav(PPLL_UAV));
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(8, mGlobalResources->Display->GetDepthStencilSrv());
+	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_MANAGER_CB, OitppllCBHeap->GetGPUVirtualAddress(mOitppllCBAllocInfo.get()));
+	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_OITPPLL_UAV, GetShaderGpuCbv(PPLL_UAV));
 
 	mGlobalResources->DrawTransparentMeshes(
 		(*mGlobalResources->PSOs)[L"BuildStaticOitppll"].Get(),
-		(*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].Get(),
-		true
+		(*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].Get()
 	);
 }
 
-void Carol::OitppllManager::DrawOit()
+void Carol::OitppllPass::DrawOit()
 {
-	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mGlobalResources->Taa->GetCurrFrameRtv()), true, GetRvaluePtr(mGlobalResources->Display->GetDepthStencilView()));
-	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(0, mGlobalResources->PassCBHeap->GetGPUVirtualAddress(mGlobalResources->PassCBAllocInfo));
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(4, GetShaderGpuSrv(PPLL_SRV));
+	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mGlobalResources->Taa->GetCurrFrameRtv()), true, GetRvaluePtr(mGlobalResources->Display->GetDepthStencilDsv()));
+	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_OITPPLL_SRV, GetShaderGpuSrv(PPLL_SRV));
 
 	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"DrawOitppll"].Get());
 	mGlobalResources->CommandList->IASetVertexBuffers(0, 0, nullptr);

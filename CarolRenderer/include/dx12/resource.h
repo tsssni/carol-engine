@@ -9,7 +9,6 @@ namespace Carol
 {
 	class Heap;
 	class HeapAllocInfo;
-	class GlobalResources;
 
 	class Blob
 	{
@@ -56,7 +55,8 @@ namespace Carol
 		);
 
 		void CopySubresources(
-			GlobalResources* globalResources,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* heap,
 			D3D12_SUBRESOURCE_DATA* subresourceData,
 			uint32_t firstSubresource = 0,
 			uint32_t numSubresources = 1

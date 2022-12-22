@@ -1,44 +1,5 @@
-cbuffer SsaoCB : register(b0)
-{
-    float4x4 gProj;
-    float4x4 gInvProj;
-    float4x4 gProjTex;
-    float4 gOffsetVectors[14];
-    
-    float4 gBlurWeights[3];
-    float2 gInvRenderTargetSize;
-    
-    float gOcclusionRadius;
-    float gOcclusionFadeStart;
-    float gOcclusionFadeEnd;
-    float gSurfaceEplison;
-}
-
-cbuffer RootConstant : register(b1)
-{
-    bool gHorizontalBlur;
-}
-
-Texture2D gDepthMap : register(t0);
-Texture2D gNormalMap : register(t1);
-Texture2D gInputMap : register(t2);
-
-SamplerState gsamPointWrap : register(s0);
-SamplerState gsamPointClamp : register(s1);
-SamplerState gsamLinearWrap : register(s2);
-SamplerState gsamLinearClamp : register(s3);
-SamplerState gsamAnisotropicWrap : register(s4);
-SamplerState gsamAnisotropicClamp : register(s5);
-
-static const float2 gTexCoords[6] =
-{
-    float2(0.0f, 1.0f),
-    float2(0.0f, 0.0f),
-    float2(1.0f, 0.0f),
-    float2(0.0f, 1.0f),
-    float2(1.0f, 0.0f),
-    float2(1.0f, 1.0f)
-};
+#include "include/ssao.hlsli"
+#include "include/root_signature.hlsli"
 
 static const int gBlurRadius = 5;
 
@@ -73,7 +34,7 @@ float4 PS(VertexOut pin) : SV_Target
     };
     
     float2 texOffset;
-    if (gHorizontalBlur)
+    if (gBlurDirection == 0)
     {
         texOffset = float2(gInvRenderTargetSize.x, 0.0f);
     }
@@ -82,11 +43,11 @@ float4 PS(VertexOut pin) : SV_Target
         texOffset = float2(0.0f, gInvRenderTargetSize.y);
     }
     
-    float4 color = blurWeights[gBlurRadius] * gInputMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f);
+    float4 color = blurWeights[gBlurRadius] * gTex2D[gSsaoAmbientMap0Idx+gBlurDirection].SampleLevel(gsamPointClamp, pin.TexC, 0.0f);
     float totalWeight = blurWeights[gBlurRadius];
     
-    float3 centerNormal = gNormalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz;
-    float centerDepth = NdcDepthToViewDepth(gDepthMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).r);
+    float3 centerNormal = gTex2D[gSsaoNormalMapIdx].SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz;
+    float centerDepth = NdcDepthToViewDepth(gTex2D[gSsaoDepthStencilMapIdx].SampleLevel(gsamPointClamp, pin.TexC, 0.0f).r);
     
     for (int i = -gBlurRadius; i <= gBlurRadius; ++i)
     {
@@ -96,12 +57,12 @@ float4 PS(VertexOut pin) : SV_Target
         }
         
         float2 offsetTexC = pin.TexC + i * texOffset;
-        float3 neighborNormal = gNormalMap.SampleLevel(gsamPointClamp, offsetTexC, 0.0f).xyz;
-        float neighborDepth = NdcDepthToViewDepth(gDepthMap.SampleLevel(gsamPointClamp, offsetTexC, 0.0f).r);
+        float3 neighborNormal = gTex2D[gSsaoNormalMapIdx].SampleLevel(gsamPointClamp, offsetTexC, 0.0f).xyz;
+        float neighborDepth = NdcDepthToViewDepth(gTex2D[gSsaoDepthStencilMapIdx].SampleLevel(gsamPointClamp, offsetTexC, 0.0f).r);
  
         if (dot(centerNormal, neighborNormal) >= 0.8f && abs(centerDepth - neighborDepth) <= 0.2f)
         {
-            color += blurWeights[i + gBlurRadius] * gInputMap.SampleLevel(gsamPointClamp, offsetTexC, 0.0f);
+            color += blurWeights[i + gBlurRadius] * gTex2D[gSsaoAmbientMap0Idx+gBlurDirection].SampleLevel(gsamPointClamp, offsetTexC, 0.0f);
             totalWeight += blurWeights[i + gBlurRadius];
         }
     }

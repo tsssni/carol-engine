@@ -1,6 +1,6 @@
 #include <scene/assimp.h>
-#include <global_resources.h>
-#include <manager/mesh.h>
+#include <render/global_resources.h>
+#include <render/mesh.h>
 #include <dx12/heap.h>
 #include <scene/skinned_data.h>
 #include <scene/timer.h>
@@ -61,7 +61,7 @@ Carol::AssimpModel::AssimpModel(GlobalResources* globalResources, wstring path, 
 
 	LoadAssimpSkinnedData(scene);
 	ProcessNode(scene->mRootNode, scene);
-	LoadVerticesAndIndices(mGlobalResources, mVertices, mIndices);
+	LoadVerticesAndIndices(mGlobalResources->CommandList, mGlobalResources->DefaultBuffersHeap, mGlobalResources->UploadBuffersHeap, mVertices, mIndices);
 
 	mVertices.clear();
 	mVertices.shrink_to_fit();
@@ -119,12 +119,11 @@ void Carol::AssimpModel::LoadFlatGround()
 		mVertices[i] = { pos[i],normal,tangent,texC[i] };
 	}
 	vector<uint16_t> mIndices = { 0,1,2,0,2,3 };
-	LoadVerticesAndIndices(mGlobalResources, mVertices, mIndices);
+	LoadVerticesAndIndices(mGlobalResources->CommandList, mGlobalResources->DefaultBuffersHeap, mGlobalResources->UploadBuffersHeap, mVertices, mIndices);
 
-	mMeshes[L"Ground"] = make_unique<MeshManager>(mGlobalResources, false, nullptr, false, 0, 0, 6, mVertexBufferView, mIndexBufferView);
+	mMeshes[L"Ground"] = make_unique<MeshPass>(mGlobalResources, false, nullptr, false, 0, 0, 6, mVertexBufferView, mIndexBufferView);
 	mMeshes[L"Ground"]->LoadDiffuseMap(L"texture\\tile.dds");
 	mMeshes[L"Ground"]->LoadNormalMap(L"texture\\tile_nmap.dds");
-	mMeshes[L"Ground"]->CopyDescriptors();
 	mMeshes[L"Ground"]->SetBoundingBox({ -50.0f,-0.1f,-50.0f }, { 50.0f,0.1f,50.0f });
 
 	SetWorld(XMMatrixIdentity());
@@ -151,13 +150,9 @@ void Carol::AssimpModel::LoadSkyBox()
 	}
 
 	vector<uint16_t> mIndices = { 0,1,2,0,2,3,4,5,1,4,1,0,7,6,5,7,5,4,3,2,6,3,6,7,1,5,6,1,6,2,4,0,3,4,3,7 };
-	LoadVerticesAndIndices(mGlobalResources, mVertices, mIndices);
+	LoadVerticesAndIndices(mGlobalResources->CommandList, mGlobalResources->DefaultBuffersHeap, mGlobalResources->UploadBuffersHeap, mVertices, mIndices);
 
-	mMeshes[L"SkyBox"] = make_unique<MeshManager>(mGlobalResources, false, nullptr, false, 0, 0, 36, mVertexBufferView, mIndexBufferView);
-	mMeshes[L"SkyBox"]->LoadDiffuseMap(L"texture\\snowcube1024.dds");
-	mMeshes[L"SkyBox"]->CopyDescriptors();
-	mMeshes[L"SkyBox"]->SetTextureDrawing(true);
-
+	mMeshes[L"SkyBox"] = make_unique<MeshPass>(mGlobalResources, false, nullptr, false, 0, 0, 36, mVertexBufferView, mIndexBufferView);
 	mGlobalResources->SkyBoxMesh = mMeshes[L"SkyBox"].get();
 }
 
@@ -272,7 +267,7 @@ void Carol::AssimpModel::ProcessMesh(aiMesh* mesh, const aiScene* scene)
 		++count;
 	}
 
-	mMeshes[meshName] = make_unique<MeshManager>(mGlobalResources, mSkinned, mSkinnedCBAllocInfo.get(), mTransparent, 0, mIndices.size(), mesh->mNumFaces * 3, mVertexBufferView, mIndexBufferView);
+	mMeshes[meshName] = make_unique<MeshPass>(mGlobalResources, mSkinned, mSkinnedCBAllocInfo.get(), mTransparent, 0, mIndices.size(), mesh->mNumFaces * 3, mVertexBufferView, mIndexBufferView);
 	mMeshes[meshName]->SetBoundingBox(&mesh->mAABB);
 
 	ReadMeshVerticesAndIndices(mesh);
@@ -601,7 +596,7 @@ void Carol::AssimpModel::ReadMeshVerticesAndIndices(aiMesh* mesh)
 
 }
 
-void Carol::AssimpModel::ReadMeshMaterialAndTextures(MeshManager& submesh, aiMesh* mesh, const aiScene* scene)
+void Carol::AssimpModel::ReadMeshMaterialAndTextures(MeshPass& submesh, aiMesh* mesh, const aiScene* scene)
 {
 	auto& meshConstants = submesh.GetMeshConstants();
 	auto* matData = scene->mMaterials[mesh->mMaterialIndex];
@@ -616,7 +611,7 @@ void Carol::AssimpModel::ReadMeshMaterialAndTextures(MeshManager& submesh, aiMes
 	ReadTexture(submesh, matData);
 }
 
-void Carol::AssimpModel::ReadTexture(MeshManager& mesh, aiMaterial* matData)
+void Carol::AssimpModel::ReadTexture(MeshPass& mesh, aiMaterial* matData)
 {
 	aiString diffusePath;
 	aiString normalPath;
@@ -626,10 +621,9 @@ void Carol::AssimpModel::ReadTexture(MeshManager& mesh, aiMaterial* matData)
 
 	LoadTexture(mesh, diffusePath, aiTextureType_DIFFUSE);
 	LoadTexture(mesh, normalPath, aiTextureType_NORMALS);
-	mesh.CopyDescriptors();
 }
 
-void Carol::AssimpModel::LoadTexture(MeshManager& mesh, aiString aiPath, aiTextureType type)
+void Carol::AssimpModel::LoadTexture(MeshPass& mesh, aiString aiPath, aiTextureType type)
 {
 	wstring path = StringToWString(aiPath.C_Str());
 	const static wstring defaultDiffuseMapPath = L"texture\\default_diffuse_map.png";
