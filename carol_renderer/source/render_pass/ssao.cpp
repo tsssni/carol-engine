@@ -1,6 +1,7 @@
 #include <render_pass/ssao.h>
 #include <render_pass/global_resources.h>
-#include <render_pass/display.h>
+#include <render_pass/normal.h>
+#include <render_pass/frame.h>
 #include <render_pass/mesh.h>
 #include <dx12/heap.h>
 #include <dx12/resource.h>
@@ -21,10 +22,9 @@ namespace Carol
     using std::make_unique;
 }
 
-Carol::SsaoPass::SsaoPass(GlobalResources* globalResources, uint32_t blurCount, DXGI_FORMAT normalMapFormat, DXGI_FORMAT ambientMapFormat)
+Carol::SsaoPass::SsaoPass(GlobalResources* globalResources, uint32_t blurCount, DXGI_FORMAT ambientMapFormat)
     :RenderPass(globalResources), 
      mBlurCount(blurCount), 
-     mNormalMapFormat(normalMapFormat), 
      mAmbientMapFormat(ambientMapFormat), 
      mSsaoConstants(make_unique<SsaoConstants>()),
      mSsaoCBAllocInfo(make_unique<HeapAllocInfo>())
@@ -78,7 +78,6 @@ void Carol::SsaoPass::InitSsaoCBHeap(ID3D12Device* device, ID3D12GraphicsCommand
 
 void Carol::SsaoPass::Draw()
 {
-    DrawNormalsAndDepth();
     DrawSsao();
     DrawAmbientMap();
 }
@@ -96,26 +95,6 @@ void Carol::SsaoPass::Update()
     SsaoCBHeap->CopyData(mSsaoCBAllocInfo.get(), mSsaoConstants.get());
 }
 
-void Carol::SsaoPass::DrawNormalsAndDepth()
-{
-    mGlobalResources->CommandList->RSSetViewports(1, mGlobalResources->ScreenViewport);
-    mGlobalResources->CommandList->RSSetScissorRects(1, mGlobalResources->ScissorRect);
-
-    mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mNormalMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-    mGlobalResources->CommandList->ClearRenderTargetView(GetRtv(NORMAL_RTV), DirectX::Colors::Blue, 0, nullptr);
-    mGlobalResources->CommandList->ClearDepthStencilView(mGlobalResources->Display->GetDepthStencilDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-    mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(NORMAL_RTV)), true, GetRvaluePtr(mGlobalResources->Display->GetDepthStencilDsv()));
-
-    mGlobalResources->Meshes->DrawMainCameraContainedMeshes(
-        (*mGlobalResources->PSOs)[L"NormalsStatic"].Get(),
-        (*mGlobalResources->PSOs)[L"NormalsSkinned"].Get(),
-        (*mGlobalResources->PSOs)[L"NormalsStatic"].Get(),
-		(*mGlobalResources->PSOs)[L"NormalsSkinned"].Get()
-    );
-
-    mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mNormalMap->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ)));
-}
-
 void Carol::SsaoPass::DrawSsao()
 {
     mGlobalResources->CommandList->RSSetViewports(1, mGlobalResources->ScreenViewport);
@@ -126,8 +105,8 @@ void Carol::SsaoPass::DrawSsao()
     mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(AMBIENT0_RTV)), true, nullptr);
     
     mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_SSAO_CB, SsaoCBHeap->GetGPUVirtualAddress(mSsaoCBAllocInfo.get()));
-    mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_0, mGlobalResources->Display->GetDepthStencilSrv());
-    mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_1, GetShaderGpuSrv(NORMAL_SRV));
+    mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_0, mGlobalResources->Frame->GetDepthStencilSrv());
+    mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_1, mGlobalResources->Normal->GetNormalSrv());
     mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_2, GetShaderGpuSrv(RAND_VEC_SRV));
     
     mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"Ssao"].Get());
@@ -167,29 +146,22 @@ Carol::vector<float> Carol::SsaoPass::CalcGaussWeights(float sigma)
 
 void Carol::SsaoPass::InitResources()
 {
-    D3D12_RESOURCE_DESC texDesc = {};
-    texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    texDesc.Alignment = 0;
-    texDesc.Width = *mGlobalResources->ClientWidth;
-    texDesc.Height = *mGlobalResources->ClientHeight;
-    texDesc.DepthOrArraySize = 1;
-    texDesc.MipLevels = 1;
-    texDesc.Format = mNormalMapFormat;
-    texDesc.SampleDesc.Count = 1;
-    texDesc.SampleDesc.Quality = 0;
-    texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-
-    CD3DX12_CLEAR_VALUE normalMapClearValue(mNormalMapFormat, DirectX::Colors::Blue);
-    mNormalMap = make_unique<DefaultResource>(&texDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &normalMapClearValue);
-	
-    texDesc.Width = *mGlobalResources->ClientWidth;
-    texDesc.Height = *mGlobalResources->ClientHeight;
-    texDesc.Format = mAmbientMapFormat;
-
+    D3D12_RESOURCE_DESC ambientMapDesc = {};
+    ambientMapDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    ambientMapDesc.Alignment = 0;
+    ambientMapDesc.Width = *mGlobalResources->ClientWidth;
+    ambientMapDesc.Height = *mGlobalResources->ClientHeight;
+    ambientMapDesc.DepthOrArraySize = 1;
+    ambientMapDesc.MipLevels = 1;
+    ambientMapDesc.Format = mAmbientMapFormat;
+    ambientMapDesc.SampleDesc.Count = 1;
+    ambientMapDesc.SampleDesc.Quality = 0;
+    ambientMapDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    ambientMapDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;	
     CD3DX12_CLEAR_VALUE ambientMapClearValue(mAmbientMapFormat, DirectX::Colors::Red);
-    mAmbientMap0 = make_unique<DefaultResource>(&texDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &ambientMapClearValue);
-    mAmbientMap1 = make_unique<DefaultResource>(&texDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &ambientMapClearValue);
+
+    mAmbientMap0 = make_unique<DefaultResource>(&ambientMapDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &ambientMapClearValue);
+    mAmbientMap1 = make_unique<DefaultResource>(&ambientMapDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &ambientMapClearValue);
 
     InitDescriptors();
 }
@@ -269,10 +241,6 @@ void Carol::SsaoPass::InitShaders()
         L"SKINNED=1"
     };
 
-    (*mGlobalResources->Shaders)[L"NormalsStaticVS"] = make_unique<Shader>(L"shader\\normals.hlsl", nullDefines, L"VS", L"vs_6_5");
-    (*mGlobalResources->Shaders)[L"NormalsStaticPS"] = make_unique<Shader>(L"shader\\normals.hlsl", nullDefines, L"PS", L"ps_6_5");
-    (*mGlobalResources->Shaders)[L"NormalsSkinnedVS"] = make_unique<Shader>(L"shader\\normals.hlsl", skinnedDefines, L"VS", L"vs_6_5");
-    (*mGlobalResources->Shaders)[L"NormalsSkinnedPS"] = make_unique<Shader>(L"shader\\normals.hlsl", skinnedDefines, L"PS", L"ps_6_5");
     (*mGlobalResources->Shaders)[L"SsaoVS"] = make_unique<Shader>(L"shader\\ssao.hlsl", nullDefines, L"VS", L"vs_6_5");
     (*mGlobalResources->Shaders)[L"SsaoPS"] = make_unique<Shader>(L"shader\\ssao.hlsl", nullDefines, L"PS", L"ps_6_5");
     (*mGlobalResources->Shaders)[L"SsaoBlurVS"] = make_unique<Shader>(L"shader\\ssao_blur.hlsl", nullDefines, L"VS", L"vs_6_5");
@@ -282,21 +250,6 @@ void Carol::SsaoPass::InitShaders()
 void Carol::SsaoPass::InitPSOs()
 {
     vector<D3D12_INPUT_ELEMENT_DESC> nullInputLayout(0);
-
-    auto normalsStaticPsoDesc = *mGlobalResources->BasePsoDesc;
-    auto normalsStaticVS = (*mGlobalResources->Shaders)[L"NormalsStaticVS"].get();
-    auto normalsStaticPS = (*mGlobalResources->Shaders)[L"NormalsStaticPS"].get();
-    normalsStaticPsoDesc.VS = { reinterpret_cast<byte*>(normalsStaticVS->GetBufferPointer()),normalsStaticVS->GetBufferSize() };
-    normalsStaticPsoDesc.PS = { reinterpret_cast<byte*>(normalsStaticPS->GetBufferPointer()),normalsStaticPS->GetBufferSize() };
-    normalsStaticPsoDesc.RTVFormats[0] = mNormalMapFormat;
-    ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&normalsStaticPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"NormalsStatic"].GetAddressOf())));
-
-    auto normalsSkinnedPsoDesc = normalsStaticPsoDesc;
-    auto normalsSkinnedVS = (*mGlobalResources->Shaders)[L"NormalsSkinnedVS"].get();
-    auto normalsSkinnedPS = (*mGlobalResources->Shaders)[L"NormalsSkinnedPS"].get();
-    normalsSkinnedPsoDesc.VS = { reinterpret_cast<byte*>(normalsSkinnedVS->GetBufferPointer()),normalsSkinnedVS->GetBufferSize() };
-    normalsSkinnedPsoDesc.PS = { reinterpret_cast<byte*>(normalsSkinnedPS->GetBufferPointer()),normalsSkinnedPS->GetBufferSize() };
-    ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&normalsSkinnedPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"NormalsSkinned"].GetAddressOf())));
 
     auto ssaoPsoDesc = *mGlobalResources->BasePsoDesc;
     auto ssaoVS = (*mGlobalResources->Shaders)[L"SsaoVS"].get();
@@ -336,13 +289,11 @@ void Carol::SsaoPass::InitDescriptors()
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Format = mNormalMapFormat;
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.Texture2D.MipLevels = 1;
-
-    mGlobalResources->Device->CreateShaderResourceView(mNormalMap->Get(), &srvDesc, GetCpuSrv(NORMAL_SRV));
-
     srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
     mGlobalResources->Device->CreateShaderResourceView(mRandomVecMap->Get(), &srvDesc, GetCpuSrv(RAND_VEC_SRV));
 
     srvDesc.Format = mAmbientMapFormat;
@@ -351,13 +302,10 @@ void Carol::SsaoPass::InitDescriptors()
     
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-    rtvDesc.Format = mNormalMapFormat;
+    rtvDesc.Format = mAmbientMapFormat;
     rtvDesc.Texture2D.MipSlice = 0;
     rtvDesc.Texture2D.PlaneSlice = 0;
 
-    mGlobalResources->Device->CreateRenderTargetView(mNormalMap->Get(), &rtvDesc, GetRtv(NORMAL_RTV));
-
-    rtvDesc.Format = mAmbientMapFormat;
     mGlobalResources->Device->CreateRenderTargetView(mAmbientMap0->Get(), &rtvDesc, GetRtv(AMBIENT0_RTV));
     mGlobalResources->Device->CreateRenderTargetView(mAmbientMap1->Get(), &rtvDesc, GetRtv(AMBIENT1_RTV));
 }

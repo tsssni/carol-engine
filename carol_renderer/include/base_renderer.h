@@ -73,9 +73,8 @@ namespace Carol
 		virtual void InitAllocators();
 		virtual void InitDisplay();
 
-        virtual void InitConstants();
-		virtual void InitShaders() = 0;
-		virtual void InitPSOs() = 0;
+		virtual void InitShaders();
+		virtual void InitPSOs();
 
 		virtual void FlushCommandQueue();
 
@@ -101,7 +100,6 @@ namespace Carol
 		std::unique_ptr<RootSignature> mRootSignature;
 
 		std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
-        std::vector<D3D12_INPUT_ELEMENT_DESC> mNullInputLayout;
         D3D12_GRAPHICS_PIPELINE_STATE_DESC mBasePsoDesc;
 
         std::unordered_map<std::wstring, std::unique_ptr<Shader>> mShaders;
@@ -111,10 +109,6 @@ namespace Carol
         uint32_t mCurrFrame = 0;
         std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mFrameAllocator;
         std::vector<uint32_t> mGpuFence = { 0,0,0 };
-
-        std::unique_ptr<FrameConstants> mFrameConstants;
-        std::unique_ptr<HeapAllocInfo> mFrameCBAllocInfo;
-        static std::unique_ptr<CircularHeap> FrameCBHeap;
 
 		std::unique_ptr<Display> mDisplay;
 

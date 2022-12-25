@@ -138,7 +138,7 @@ namespace Carol
 		std::vector<std::vector<std::unique_ptr<Bitset>>> mBitsets;
 
 		uint32_t mMaxNumPages;
-		uint32_t mMinPageSize = 65536;
+		uint32_t mPageSize = 65536;
 		uint32_t mOrder;
 	};
 }

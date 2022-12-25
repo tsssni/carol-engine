@@ -29,6 +29,7 @@
     <ClInclude Include="include\renderer.h" />
     <ClInclude Include="include\render_pass\display.h" />
     <ClInclude Include="include\render_pass\frame.h" />
+    <ClInclude Include="include\render_pass\normal.h" />
     <ClInclude Include="include\render_pass\global_resources.h" />
     <ClInclude Include="include\render_pass\mesh.h" />
     <ClInclude Include="include\render_pass\oitppll.h" />
@@ -53,6 +54,8 @@
     <ClInclude Include="win32\targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\render_pass\frame.cpp" />
+    <ClCompile Include="source\render_pass\normal.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="source\base_renderer.cpp" />
     <ClCompile Include="source\dx12\descriptor_allocator.cpp" />
@@ -83,6 +86,50 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="win32\Carol.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shader\default.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\normals.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\oitppll.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\oitppll_build.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\shadow.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\skybox.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\ssao.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\ssao_blur.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\taa.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\velocity.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shader\include\light.hlsli" />
+    <None Include="shader\include\mesh.hlsli" />
+    <None Include="shader\include\oitppll.hlsli" />
+    <None Include="shader\include\root_signature.hlsli" />
+    <None Include="shader\include\root_signature_compile.hlsli" />
+    <None Include="shader\include\screen_tex.hlsli" />
+    <None Include="shader\include\shadow.hlsli" />
+    <None Include="shader\include\skinned.hlsli" />
+    <None Include="shader\include\ssao.hlsli" />
+    <None Include="shader\include\vertex_in.hlsli" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

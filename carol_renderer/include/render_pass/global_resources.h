@@ -15,8 +15,10 @@ namespace Carol
 	class CircularHeap;
 	class DescriptorAllocator;
 	class Display;
+	class FramePass;
 	class ShadowPass;
 	class SsaoPass;
+	class NormalPass;
 	class TaaPass;
 	class OitppllPass;
 	class MeshesPass;
@@ -26,7 +28,6 @@ namespace Carol
 	class Timer;
 	class AssimpModel;
 	class MeshesPass;
-	class FrameConstants;
 
 	class GlobalResources
 	{
@@ -46,7 +47,9 @@ namespace Carol
 		DescriptorAllocator* DsvAllocator;
 
 		Display* Display;
+		FramePass* Frame;
 		ShadowPass* MainLight;
+		NormalPass* Normal;
 		SsaoPass* Ssao;
 		TaaPass* Taa;
 		OitppllPass* Oitppll;

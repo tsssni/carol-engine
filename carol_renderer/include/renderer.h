@@ -7,7 +7,9 @@
 
 namespace Carol
 {
+    class FramePass;
     class SsaoPass;
+    class NormalPass;
     class TaaPass;
     class ShadowPass;
     class OitppllPass;
@@ -34,9 +36,10 @@ namespace Carol
         void SetAnimation(std::wstring modelName, std::wstring animationName);
         std::vector<std::wstring> GetModelNames();
     protected:
-        void InitShaders();
         void InitPSOs();
+        void InitFrame();
         void InitSsao();
+        void InitNormal();
         void InitTaa();
         void InitMainLight();
         void InitOitppll();
@@ -44,12 +47,12 @@ namespace Carol
 
         void ReleaseIntermediateBuffers();
         void CopyDescriptors();
-        void UpdateFrameCB();
         void SetTextures();
 
     protected:
-
+        std::unique_ptr<FramePass> mFrame;
         std::unique_ptr<SsaoPass> mSsao;
+        std::unique_ptr<NormalPass> mNormal;
         std::unique_ptr<TaaPass> mTaa;
         std::unique_ptr<ShadowPass> mMainLight;
         std::unique_ptr<OitppllPass> mOitppll;

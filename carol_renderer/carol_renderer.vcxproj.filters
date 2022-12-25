@@ -110,10 +110,13 @@
     <ClInclude Include="include\dx12\root_signature.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\render_pass\frame.h">
+    <ClInclude Include="include\scene\light.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\scene\light.h">
+    <ClInclude Include="include\render_pass\normal.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\render_pass\frame.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -190,10 +193,38 @@
     <ClCompile Include="source\dx12\root_signature.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="source\render_pass\normal.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\render_pass\frame.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="win32\Carol.ico">
       <Filter>资源文件</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shader\include\light.hlsli" />
+    <None Include="shader\include\mesh.hlsli" />
+    <None Include="shader\include\oitppll.hlsli" />
+    <None Include="shader\include\root_signature.hlsli" />
+    <None Include="shader\include\root_signature_compile.hlsli" />
+    <None Include="shader\include\screen_tex.hlsli" />
+    <None Include="shader\include\shadow.hlsli" />
+    <None Include="shader\include\skinned.hlsli" />
+    <None Include="shader\include\ssao.hlsli" />
+    <None Include="shader\include\vertex_in.hlsli" />
+    <None Include="shader\default.hlsl" />
+    <None Include="shader\normals.hlsl" />
+    <None Include="shader\oitppll.hlsl" />
+    <None Include="shader\oitppll_build.hlsl" />
+    <None Include="shader\shadow.hlsl" />
+    <None Include="shader\skybox.hlsl" />
+    <None Include="shader\ssao.hlsl" />
+    <None Include="shader\ssao_blur.hlsl" />
+    <None Include="shader\taa.hlsl" />
+    <None Include="shader\velocity.hlsl" />
   </ItemGroup>
 </Project>

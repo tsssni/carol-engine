@@ -272,11 +272,11 @@ void Carol::SegListHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_
     
     auto order = GetOrder(info->Bytes);
     auto orderNumPages = 1 << (mOrder - order);
-    auto heapIdx = info->Addr / (orderNumPages * (mMinPageSize << order));
+    auto heapIdx = info->Addr / (orderNumPages * (mPageSize << order));
 
     ThrowIfFailed(mDevice->CreatePlacedResource(
         mSegLists[order][heapIdx].Get(),
-        info->Addr % (orderNumPages * (mMinPageSize << order)),
+        info->Addr % (orderNumPages * (mPageSize << order)),
         desc,
         initState,
         optimizedClearValue,
@@ -291,7 +291,7 @@ void Carol::SegListHeap::DeleteResource(HeapAllocInfo* info)
 
 bool Carol::SegListHeap::Allocate(uint32_t size, HeapAllocInfo* info)
 {
-    if (size <= 0 || size > mMinPageSize << mOrder)
+    if (size <= 0 || size > mPageSize << mOrder)
     {
         return false;
     }
@@ -306,8 +306,8 @@ bool Carol::SegListHeap::Allocate(uint32_t size, HeapAllocInfo* info)
             if (mBitsets[order][i]->IsPageIdle(j))
             {
                 info->Heap = this;
-                info->Addr = (i * orderNumPages + j) * (mMinPageSize << order);
-                info->Bytes = mMinPageSize << order;
+                info->Addr = (i * orderNumPages + j) * (mPageSize << order);
+                info->Bytes = mPageSize << order;
                 mBitsets[order][i]->Set(j);
 
                 return true;
@@ -317,8 +317,8 @@ bool Carol::SegListHeap::Allocate(uint32_t size, HeapAllocInfo* info)
 
     AddHeap(order);
     info->Heap = this;
-    info->Addr = (mSegLists[order].size() - 1) * orderNumPages * (mMinPageSize << order);
-    info->Bytes = mMinPageSize << order;
+    info->Addr = (mSegLists[order].size() - 1) * orderNumPages * (mPageSize << order);
+    info->Bytes = mPageSize << order;
     mBitsets[order].back()->Set(0);
 
     return true;
@@ -343,7 +343,7 @@ bool Carol::SegListHeap::Deallocate(HeapAllocInfo* info)
 
 uint32_t Carol::SegListHeap::GetOrder(uint32_t size)
 {
-    size = std::ceil(size * 1.0f / mMinPageSize);
+    size = std::ceil(size * 1.0f / mPageSize);
 	return std::ceil(std::log2(size));
 }
 
@@ -353,7 +353,7 @@ void Carol::SegListHeap::AddHeap(uint32_t order)
     mBitsets[order].emplace_back(make_unique<Bitset>(1 << (mOrder - order)));
 
     D3D12_HEAP_DESC desc = {};
-    desc.SizeInBytes = (1 << (mOrder - order)) * (mMinPageSize << order);
+    desc.SizeInBytes = (1 << (mOrder - order)) * (mPageSize << order);
     desc.Properties = CD3DX12_HEAP_PROPERTIES(mType);
     desc.Alignment = 0;
     desc.Flags = mFlag;

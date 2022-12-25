@@ -29,7 +29,6 @@ namespace Carol
 		virtual void ReleaseIntermediateBuffers()override;
 
 		void GetHalton(float& proj0,float& proj1);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCurrFrameRtv();
 		void SetHistViewProj(DirectX::XMMATRIX& histViewProj);
 		DirectX::XMMATRIX GetHistViewProj();
 
@@ -42,22 +41,20 @@ namespace Carol
 		void InitHalton();
 		float RadicalInversion(int base, int num);
 
-		void DrawCurrFrameMap();
         void DrawVelocityMap();
         void DrawOutput();
 
 		enum
 		{
-			HIST_SRV, CURR_SRV, VELOCITY_SRV, TAA_SRV_COUNT
+			HIST_SRV, VELOCITY_SRV, TAA_SRV_COUNT
 		};
 
 		enum
 		{
-			CURR_RTV, VELOCITY_RTV, TAA_RTV_COUNT
+			VELOCITY_RTV, TAA_RTV_COUNT
 		};
 
 		std::unique_ptr<DefaultResource> mHistFrameMap;
-		std::unique_ptr<DefaultResource> mCurrFrameMap;
 		std::unique_ptr<DefaultResource> mVelocityMap;
 
 		DXGI_FORMAT mVelocityMapFormat = DXGI_FORMAT_R16G16_SNORM;

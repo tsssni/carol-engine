@@ -30,7 +30,6 @@ namespace Carol
 		SsaoPass(
 			GlobalResources* globalResources,
 			uint32_t blurCount = 3,
-			DXGI_FORMAT normalMapFormat = DXGI_FORMAT_R16G16B16A16_SNORM,
 			DXGI_FORMAT ambientMapFormat = DXGI_FORMAT_R16_UNORM);
 		SsaoPass(const SsaoPass&) = delete;
 		SsaoPass(SsaoPass&&) = delete;
@@ -55,7 +54,6 @@ namespace Carol
 		void InitRandomVectorMap();
 		void InitConstants();
 
-		void DrawNormalsAndDepth();
 		void DrawSsao();
 		void DrawAmbientMap();
 		void DrawAmbientMap(bool vertBlur);
@@ -63,7 +61,6 @@ namespace Carol
 		std::vector<float> CalcGaussWeights(float sigma);
 		void GetOffsetVectors(DirectX::XMFLOAT4 offsets[14]);
 
-		std::unique_ptr<DefaultResource> mNormalMap;
 		std::unique_ptr<DefaultResource> mRandomVecMap;
 		std::unique_ptr<DefaultResource> mAmbientMap0;
 		std::unique_ptr<DefaultResource> mAmbientMap1;
@@ -72,15 +69,14 @@ namespace Carol
 		
 		enum
 		{
-			NORMAL_SRV, RAND_VEC_SRV, AMBIENT0_SRV, AMBIENT1_SRV, SSAO_SRV_COUNT
+			RAND_VEC_SRV, AMBIENT0_SRV, AMBIENT1_SRV, SSAO_SRV_COUNT
 		};
 
 		enum
 		{
-			NORMAL_RTV, AMBIENT0_RTV, AMBIENT1_RTV, SSAO_RTV_COUNT
+			AMBIENT0_RTV, AMBIENT1_RTV, SSAO_RTV_COUNT
 		};
 
-		DXGI_FORMAT mNormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 		DXGI_FORMAT mAmbientMapFormat = DXGI_FORMAT_R16_UNORM;
 
 		DirectX::XMFLOAT4 mOffsets[14];

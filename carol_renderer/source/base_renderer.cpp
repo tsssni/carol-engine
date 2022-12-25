@@ -1,7 +1,6 @@
 #include <base_renderer.h>
 #include <render_pass/global_resources.h>
 #include <render_pass/display.h>
-#include <render_pass/frame.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <dx12/descriptor_allocator.h>
@@ -63,7 +62,9 @@ Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitAllocators();	
 	InitRootSignature();
 	InitDisplay();
-	InitConstants();
+	
+	InitShaders();
+	InitPSOs();
 
 	BaseRenderer::OnResize(width, height);
 }
@@ -202,11 +203,14 @@ void Carol::BaseRenderer::InitDisplay()
 	mGlobalResources->Display = mDisplay.get();
 }
 
-void Carol::BaseRenderer::InitConstants()
+void Carol::BaseRenderer::InitShaders()
 {
-	FrameCBHeap = make_unique<CircularHeap>(mDevice.Get(), mCommandList.Get(), true, 32, sizeof(FrameConstants));
-	mFrameConstants = make_unique<FrameConstants>();
-	mFrameCBAllocInfo = make_unique<HeapAllocInfo>();
+	mGlobalResources->Shaders = &mShaders;
+}
+
+void Carol::BaseRenderer::InitPSOs()
+{
+	mGlobalResources->PSOs = &mPSOs;
 }
 
 void Carol::BaseRenderer::Tick()

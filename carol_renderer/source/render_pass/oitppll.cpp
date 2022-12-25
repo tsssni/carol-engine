@@ -1,6 +1,7 @@
 #include <render_pass/oitppll.h>
 #include <render_pass/global_resources.h>
 #include <render_pass/display.h>
+#include <render_pass/frame.h>
 #include <render_pass/taa.h>
 #include <render_pass/mesh.h>
 #include <dx12/resource.h>
@@ -95,6 +96,8 @@ void Carol::OitppllPass::InitPSOs()
 	buildStaticOitppllPsoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
 	buildStaticOitppllPsoDesc.NumRenderTargets = 0;
 	buildStaticOitppllPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+	buildStaticOitppllPsoDesc.DepthStencilState.DepthEnable = false;
+	buildStaticOitppllPsoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
 	ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&buildStaticOitppllPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"BuildStaticOitppll"].GetAddressOf())));
 
 	auto buildSkinnedOitppllPsoDesc = buildStaticOitppllPsoDesc;
@@ -193,10 +196,9 @@ void Carol::OitppllPass::DrawPpll()
 	static const uint32_t initCounterValue = 0;
 	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetShaderGpuUav(OFFSET_UAV), GetCpuUav(OFFSET_UAV), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
 	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetShaderGpuUav(COUNTER_UAV), GetCpuUav(COUNTER_UAV), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
-	mGlobalResources->CommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mGlobalResources->Display->GetDepthStencilDsv()));
 
 	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_OITPPLL_UAV, GetShaderGpuUav(PPLL_UAV));
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_2, mGlobalResources->Display->GetDepthStencilSrv());
+	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_2, mGlobalResources->Frame->GetDepthStencilSrv());
 
 	mGlobalResources->Meshes->DrawMainCameraContainedTransparentMeshes(
 		(*mGlobalResources->PSOs)[L"BuildStaticOitppll"].Get(),
@@ -206,7 +208,7 @@ void Carol::OitppllPass::DrawPpll()
 
 void Carol::OitppllPass::DrawOit()
 {
-	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mGlobalResources->Taa->GetCurrFrameRtv()), true, nullptr);
+	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mGlobalResources->Frame->GetFrameRtv()), true, nullptr);
 	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_0, GetShaderGpuSrv(PPLL_SRV));
 	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_1, GetShaderGpuSrv(OFFSET_SRV));
 

@@ -1,6 +1,7 @@
 #include <render_pass/taa.h>
 #include <render_pass/global_resources.h>
 #include <render_pass/display.h>
+#include <render_pass/frame.h>
 #include <render_pass/shadow.h>
 #include <render_pass/oitppll.h>
 #include <render_pass/ssao.h>
@@ -109,38 +110,16 @@ void Carol::TaaPass::InitPSOs()
 void Carol::TaaPass::Draw()
 {
 	DrawVelocityMap();
-	DrawCurrFrameMap();
 	DrawOutput();
 }
 
-void Carol::TaaPass::DrawCurrFrameMap()
-{
-	mGlobalResources->CommandList->RSSetViewports(1, mGlobalResources->ScreenViewport);
-	mGlobalResources->CommandList->RSSetScissorRects(1, mGlobalResources->ScissorRect);
-
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCurrFrameMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-	mGlobalResources->CommandList->ClearRenderTargetView(GetRtv(CURR_RTV), DirectX::Colors::Gray, 0, nullptr);
-	mGlobalResources->CommandList->ClearDepthStencilView(mGlobalResources->Display->GetDepthStencilDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(CURR_RTV)), true, GetRvaluePtr(mGlobalResources->Display->GetDepthStencilDsv()));
-
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_0, mGlobalResources->MainLight->GetShadowSrv());
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_1, mGlobalResources->Ssao->GetSsaoSrv());
-
-	mGlobalResources->Meshes->DrawMainCameraContainedOpaqueMeshes(
-		(*mGlobalResources->PSOs)[L"OpaqueStatic"].Get(),
-		(*mGlobalResources->PSOs)[L"OpaqueSkinned"].Get());
-	mGlobalResources->Meshes->DrawSkyBox((*mGlobalResources->PSOs)[L"SkyBox"].Get());
-	mGlobalResources->Oitppll->Draw();
-
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCurrFrameMap->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ)));
-}
 
 void Carol::TaaPass::DrawVelocityMap()
 {
 	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mVelocityMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET)));
 	mGlobalResources->CommandList->ClearRenderTargetView(GetRtv(VELOCITY_RTV), DirectX::Colors::Black, 0, nullptr);
-	mGlobalResources->CommandList->ClearDepthStencilView(mGlobalResources->Display->GetDepthStencilDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(VELOCITY_RTV)), true, GetRvaluePtr(mGlobalResources->Display->GetDepthStencilDsv()));
+	mGlobalResources->CommandList->ClearDepthStencilView(mGlobalResources->Frame->GetDepthStencilDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(VELOCITY_RTV)), true, GetRvaluePtr(mGlobalResources->Frame->GetDepthStencilDsv()));
 
 	mGlobalResources->Meshes->DrawMainCameraContainedMeshes(
 		(*mGlobalResources->PSOs)[L"TaaVelocityStatic"].Get(),
@@ -158,9 +137,9 @@ void Carol::TaaPass::DrawOutput()
 	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mGlobalResources->Display->GetCurrBackBufferRtv()), true, nullptr);
 	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"TaaOutput"].Get());
 
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_0, mGlobalResources->Display->GetDepthStencilSrv());
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_1, GetShaderGpuSrv(HIST_SRV));
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_2, GetShaderGpuSrv(CURR_SRV));
+	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_0, mGlobalResources->Frame->GetDepthStencilSrv());
+	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_1, mGlobalResources->Frame->GetFrameSrv());
+	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_2, GetShaderGpuSrv(HIST_SRV));
 	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_3, GetShaderGpuSrv(VELOCITY_SRV));
 	
 	mGlobalResources->CommandList->IASetVertexBuffers(0, 0, nullptr);
@@ -183,11 +162,6 @@ void Carol::TaaPass::GetHalton(float& proj0, float& proj1)
 	proj1 = (2 * mHalton[i].y - 1) / (*mGlobalResources->ClientHeight);
 
 	i = (i + 1) % 8;
-}
-
-CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::TaaPass::GetCurrFrameRtv()
-{
-	return GetRtv(CURR_RTV);
 }
 
 void Carol::TaaPass::SetHistViewProj(DirectX::XMMATRIX& histViewProj)
@@ -216,12 +190,9 @@ void Carol::TaaPass::InitResources()
     texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
 	mHistFrameMap = make_unique<DefaultResource>(&texDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ);
-
-	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    CD3DX12_CLEAR_VALUE frameMapClearValue(mFrameFormat, DirectX::Colors::Gray);
-	mCurrFrameMap = make_unique<DefaultResource>(&texDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &frameMapClearValue);
 	
     texDesc.Format = mVelocityMapFormat;
+	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
     CD3DX12_CLEAR_VALUE velocityMapClearValue(mVelocityMapFormat, DirectX::Colors::Black);
 	mVelocityMap = make_unique<DefaultResource>(&texDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &velocityMapClearValue);
 
@@ -241,20 +212,16 @@ void Carol::TaaPass::InitDescriptors()
 	srvDesc.Texture2D.MipLevels = 1;
 
 	mGlobalResources->Device->CreateShaderResourceView(mHistFrameMap->Get(), &srvDesc, GetCpuSrv(HIST_SRV));
-	mGlobalResources->Device->CreateShaderResourceView(mCurrFrameMap->Get(), &srvDesc, GetCpuSrv(CURR_SRV));
 
 	srvDesc.Format = mVelocityMapFormat;
 	mGlobalResources->Device->CreateShaderResourceView(mVelocityMap->Get(), &srvDesc, GetCpuSrv(VELOCITY_SRV));
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-    rtvDesc.Format = mFrameFormat;
+    rtvDesc.Format = mVelocityMapFormat;
     rtvDesc.Texture2D.MipSlice = 0;
     rtvDesc.Texture2D.PlaneSlice = 0;
 
-	mGlobalResources->Device->CreateRenderTargetView(mCurrFrameMap->Get(), &rtvDesc, GetRtv(CURR_RTV));
-
-	rtvDesc.Format = mVelocityMapFormat;
 	mGlobalResources->Device->CreateRenderTargetView(mVelocityMap->Get(), &rtvDesc, GetRtv(VELOCITY_RTV));
 }
 

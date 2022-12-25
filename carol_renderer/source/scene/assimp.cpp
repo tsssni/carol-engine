@@ -80,7 +80,7 @@ void Carol::AssimpModel::ProcessMesh(aiMesh* mesh, const aiScene* scene)
 		++count;
 	}
 
-	mMeshes[meshName] = make_unique<Mesh>(true, 0, mIndices.size(), mesh->mNumFaces * 3);
+	mMeshes[meshName] = make_unique<Mesh>(false, 0, mIndices.size(), mesh->mNumFaces * 3);
 	mMeshes[meshName]->SetBoundingBox(
 		{ mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z },
 		{ mesh->mAABB.mMax.x,mesh->mAABB.mMax.y,mesh->mAABB.mMax.z });

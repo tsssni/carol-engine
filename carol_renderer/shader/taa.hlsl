@@ -6,8 +6,8 @@ struct VertexOut
 };
 
 Texture2D gDepthMap : register(t0);
-Texture2D gHistMap : register(t1);
-Texture2D gCurrMap : register(t2);
+Texture2D gCurrMap : register(t1);
+Texture2D gHistMap : register(t2);
 Texture2D gVelocityMap : register(t3);
 
 static const float2 gTexCoords[6] =
