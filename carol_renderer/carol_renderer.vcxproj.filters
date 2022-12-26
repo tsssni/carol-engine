@@ -13,9 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="着色器文件">
+      <UniqueIdentifier>{1dddad87-661a-4040-b99d-a8ae84958f4e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="win32\Renderer.rc">
+    <ResourceCompile Include="win32\renderer.rc">
       <Filter>资源文件</Filter>
     </ResourceCompile>
   </ItemGroup>
@@ -201,30 +204,68 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="win32\Carol.ico">
+    <Image Include="win32\carol.ico">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shader\include\light.hlsli" />
-    <None Include="shader\include\mesh.hlsli" />
-    <None Include="shader\include\oitppll.hlsli" />
-    <None Include="shader\include\root_signature.hlsli" />
-    <None Include="shader\include\root_signature_compile.hlsli" />
-    <None Include="shader\include\screen_tex.hlsli" />
-    <None Include="shader\include\shadow.hlsli" />
-    <None Include="shader\include\skinned.hlsli" />
-    <None Include="shader\include\ssao.hlsli" />
-    <None Include="shader\include\vertex_in.hlsli" />
-    <None Include="shader\default.hlsl" />
-    <None Include="shader\normals.hlsl" />
-    <None Include="shader\oitppll.hlsl" />
-    <None Include="shader\oitppll_build.hlsl" />
-    <None Include="shader\shadow.hlsl" />
-    <None Include="shader\skybox.hlsl" />
-    <None Include="shader\ssao.hlsl" />
-    <None Include="shader\ssao_blur.hlsl" />
-    <None Include="shader\taa.hlsl" />
-    <None Include="shader\velocity.hlsl" />
+    <None Include="shader\default.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\include\light.hlsli">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\include\mesh.hlsli">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\normals.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\oitppll.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\include\oitppll.hlsli">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\oitppll_build.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\include\root_signature.hlsli">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\include\root_signature_compile.hlsli">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\include\screen_tex.hlsli">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\shadow.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\include\shadow.hlsli">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\include\skinned.hlsli">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\skybox.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\ssao.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\ssao_blur.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\taa.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\velocity.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\include\vertex_in.hlsli">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

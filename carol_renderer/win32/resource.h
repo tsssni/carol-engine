@@ -38,16 +38,11 @@
 #define IDC_TEXTURE_PATH_BUTTON         1033
 #define IDC_MODEL_NAME_EDIT             1034
 #define IDC_CHECK_ANIMATION             1035
-#define IDC_CHECK_TRANSPARENCY          1036
 #define IDC_ANIMATION_LABEL             1036
 #define IDC_ANIMATION_LIST              1037
 #define IDC_BUTTON1                     1038
 #define IDC_DELETE_LABEL                1040
 #define IDC_DELETE_LIST                 1041
-#define ID_32773                        32773
-#define ID_32774                        32774
-#define ID_32775                        32775
-#define ID_32776                        32776
 #define ID_LOAD                         32777
 #define ID_DELETE_MODEL                 32778
 #define ID_LOAD_MODEL                   32779

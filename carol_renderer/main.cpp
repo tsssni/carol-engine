@@ -485,7 +485,6 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             GetEditTextFloat(hWnd, IDC_ROTATION_AXIS_Z, rotationAxis.z, 0.0f);
 
             GetButtonState(hWnd, IDC_CHECK_ANIMATION, animation);
-            GetButtonState(hWnd, IDC_CHECK_TRANSPARENCY, transparency);
 
             EnableWindow(GetDlgItem(hWnd, IDC_LOAD_CONFIRM), false);
             
@@ -493,7 +492,7 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             auto translation = DirectX::XMMatrixTranslationFromVector(DirectX::XMLoadFloat3(&transl));
             auto rotation = DirectX::XMMatrixRotationAxis(DirectX::XMLoadFloat3(&rotationAxis), DirectX::XM_PI * angle / 180.f);
             auto world = scaling * rotation * translation;
-            renderer->LoadModel(modelPath, textureDirPath, loadModelName, world, animation, transparency);
+            renderer->LoadModel(modelPath, textureDirPath, loadModelName, world, animation);
 
             if (animation)
             {

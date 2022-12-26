@@ -7,15 +7,9 @@
 #include "include/skinned.hlsli"
 #endif
 
-RWStructuredBuffer<OitNode> gOitNodeBuffer : register(u0);
-RWByteAddressBuffer gStartOffsetBuffer : register(u1);
-RWByteAddressBuffer gCounter : register(u2);
 
-#ifdef SSAO
-Texture2D gSsaoMap : register(t1);
-#endif
 
-Texture2D gDepthMap : register(t2);
+
 
 struct VertexOut
 {
@@ -57,20 +51,31 @@ VertexOut VS(VertexIn vin)
 
 void PS(VertexOut pin)
 {
+    RWStructuredBuffer<OitNode> gOitNodeBuffer = ResourceDescriptorHeap[gResourceStartOffset + gOitW];
+    RWByteAddressBuffer gStartOffsetBuffer = ResourceDescriptorHeap[gResourceStartOffset + gOitOffsetW];
+    RWByteAddressBuffer gCounter = ResourceDescriptorHeap[gResourceStartOffset + gOitCounterW];
+    
+    Texture2D gDiffuseMap = ResourceDescriptorHeap[gResourceStartOffset + gDiffuseMapIdx];
+    Texture2D gNormalMap = ResourceDescriptorHeap[gResourceStartOffset + gNormalMapIdx];
+    Texture2D gDepthMap = ResourceDescriptorHeap[gResourceStartOffset + gDepthStencilIdx];
+#ifdef SSAO
+    Texture2D gSsaoMap = ResourceDescriptorHeap[gResourceStartOffset + gAmbientIdx];
+#endif
+    
     float2 ndcPos = pin.PosH.xy * gInvRenderTargetSize;
     if (pin.PosH.z > gDepthMap.Sample(gsamAnisotropicWrap, ndcPos).r)
     {
         return;
     }
 
-    float4 texDiffuse = gTex2D[gDiffuseMapIdx].SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
+    float4 texDiffuse = gDiffuseMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
 
     LightMaterialData lightMat;
     lightMat.fresnelR0 = gFresnelR0;
     lightMat.diffuseAlbedo = texDiffuse.rgb;
     lightMat.roughness = gRoughness;
 
-    float3 texNormal = gTex2D[gNormalMapIdx].SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
+    float3 texNormal = gNormalMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
     texNormal = TexNormalToWorldSpace(texNormal, pin.NormalW, pin.TangentW);
 
     float3 ambient = gLights[0].Ambient * texDiffuse.rgb;

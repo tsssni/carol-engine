@@ -10,7 +10,7 @@ namespace Carol {
 
 Carol::RootSignature::RootSignature(ID3D12Device* device, DescriptorAllocator* allocator)
 {
-    Shader rootSignatureShader(L"shader\\include\\root_signature_compile.hlsli", {}, L"main", L"vs_6_5");
+    Shader rootSignatureShader(L"shader\\include\\root_signature_compile.hlsli", {}, L"main", L"vs_6_6");
     ThrowIfFailed(device->CreateRootSignature(0, rootSignatureShader.GetBufferPointer(), rootSignatureShader.GetBufferSize(), IID_PPV_ARGS(mRootSignature.GetAddressOf())));
 }
 

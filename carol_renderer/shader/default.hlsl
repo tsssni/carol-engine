@@ -6,8 +6,6 @@
 #include "include/skinned.hlsli"
 #endif
 
-Texture2D gSsaoMap : register(t1);
-
 struct VertexOut
 {
     float4 PosH : SV_POSITION;
@@ -49,14 +47,21 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    float4 texDiffuse = gTex2D[gDiffuseMapIdx].SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
+    Texture2D gDiffuseMap = ResourceDescriptorHeap[gResourceStartOffset + gDiffuseMapIdx];
+    Texture2D gNormalMap = ResourceDescriptorHeap[gResourceStartOffset + gNormalMapIdx];
+
+#ifdef SSAO
+    Texture2D gSsaoMap = ResourceDescriptorHeap[gResourceStartOffset + gAmbientIdx];
+#endif
+    
+    float4 texDiffuse = gDiffuseMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
     
     LightMaterialData lightMat;
     lightMat.fresnelR0 = gFresnelR0;
     lightMat.diffuseAlbedo = texDiffuse.rgb;
     lightMat.roughness = gRoughness;
 
-    float3 texNormal = gTex2D[gNormalMapIdx].SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
+    float3 texNormal = gNormalMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
     texNormal = TexNormalToWorldSpace(texNormal, pin.NormalW, pin.TangentW);
     
     float3 ambient = gLights[0].Ambient * texDiffuse.rgb;

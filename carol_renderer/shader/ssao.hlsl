@@ -1,5 +1,5 @@
-#include "include/ssao.hlsli"
 #include "include/root_signature.hlsli"
+#include "include/screen_tex.hlsli"
 
 static const int gSampleCount = 14;
 
@@ -9,8 +9,6 @@ struct VertexOut
     float3 PosV : POSITION;
     float2 TexC : TEXCOORD;
 };
-
-Texture2D gRandVec : register(t2);
 
 VertexOut VS(uint vid : SV_VertexID)
 {
@@ -44,6 +42,10 @@ float OcclusionFunction(float distZ)
 
 float4 PS(VertexOut pin) : SV_Target
 {
+    Texture2D gDepthMap = ResourceDescriptorHeap[gResourceStartOffset + gDepthStencilIdx];
+    Texture2D gNormalMap = ResourceDescriptorHeap[gResourceStartOffset + gNormalIdx];
+    Texture2D gRandVec = ResourceDescriptorHeap[gResourceStartOffset + gRandVecIdx];
+    
     float3 normal = normalize(gNormalMap.SampleLevel(gsamLinearClamp, pin.TexC, 0.0f).xyz);
     float viewDepth = NdcDepthToViewDepth(gDepthMap.SampleLevel(gsamLinearClamp, pin.TexC, 0.0f).r);
     float3 viewPos = (viewDepth / pin.PosV.z) * pin.PosV.xyz;

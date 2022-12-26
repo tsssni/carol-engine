@@ -69,12 +69,12 @@ void Carol::TaaPass::InitShaders()
 		L"SKINNED=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"TaaVelocityStaticVS"] = make_unique<Shader>(L"shader\\velocity.hlsl", nullDefines, L"VS", L"vs_6_5");
-	(*mGlobalResources->Shaders)[L"TaaVelocityStaticPS"] = make_unique<Shader>(L"shader\\velocity.hlsl", nullDefines, L"PS", L"ps_6_5");
-	(*mGlobalResources->Shaders)[L"TaaVelocitySkinnedVS"] = make_unique<Shader>(L"shader\\velocity.hlsl", skinnedDefines, L"VS", L"vs_6_5");
-	(*mGlobalResources->Shaders)[L"TaaVelocitySkinnedPS"] = make_unique<Shader>(L"shader\\velocity.hlsl", skinnedDefines, L"PS", L"ps_6_5");
-	(*mGlobalResources->Shaders)[L"TaaOutputVS"] = make_unique<Shader>(L"shader\\taa.hlsl", nullDefines, L"VS", L"vs_6_5");
-	(*mGlobalResources->Shaders)[L"TaaOutputPS"] = make_unique<Shader>(L"shader\\taa.hlsl", nullDefines, L"PS", L"ps_6_5");
+	(*mGlobalResources->Shaders)[L"TaaVelocityStaticVS"] = make_unique<Shader>(L"shader\\velocity.hlsl", nullDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"TaaVelocityStaticPS"] = make_unique<Shader>(L"shader\\velocity.hlsl", nullDefines, L"PS", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"TaaVelocitySkinnedVS"] = make_unique<Shader>(L"shader\\velocity.hlsl", skinnedDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"TaaVelocitySkinnedPS"] = make_unique<Shader>(L"shader\\velocity.hlsl", skinnedDefines, L"PS", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"TaaOutputVS"] = make_unique<Shader>(L"shader\\taa.hlsl", nullDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"TaaOutputPS"] = make_unique<Shader>(L"shader\\taa.hlsl", nullDefines, L"PS", L"ps_6_6");
 }
 
 void Carol::TaaPass::InitPSOs()
@@ -137,11 +137,6 @@ void Carol::TaaPass::DrawOutput()
 	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mGlobalResources->Display->GetCurrBackBufferRtv()), true, nullptr);
 	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"TaaOutput"].Get());
 
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_0, mGlobalResources->Frame->GetDepthStencilSrv());
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_1, mGlobalResources->Frame->GetFrameSrv());
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_2, GetShaderGpuSrv(HIST_SRV));
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_3, GetShaderGpuSrv(VELOCITY_SRV));
-	
 	mGlobalResources->CommandList->IASetVertexBuffers(0, 0, nullptr);
 	mGlobalResources->CommandList->IASetIndexBuffer(nullptr);
 	mGlobalResources->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -174,6 +169,16 @@ DirectX::XMMATRIX Carol::TaaPass::GetHistViewProj()
 	return mHistViewProj;
 }
 
+uint32_t Carol::TaaPass::GetVeloctiySrvIdx()
+{
+	return mCbvSrvUavIdx + VELOCITY_SRV;
+}
+
+uint32_t Carol::TaaPass::GetHistFrameSrvIdx()
+{
+	return mCbvSrvUavIdx + HIST_SRV;
+}
+
 void Carol::TaaPass::InitResources()
 {
     D3D12_RESOURCE_DESC texDesc = {};
@@ -201,7 +206,7 @@ void Carol::TaaPass::InitResources()
 
 void Carol::TaaPass::InitDescriptors()
 {
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(TAA_SRV_COUNT, mCpuSrvAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(TAA_CBV_SRV_UAV_COUNT, mCbvSrvUavAllocInfo.get());
 	mGlobalResources->RtvAllocator->CpuAllocate(TAA_RTV_COUNT, mRtvAllocInfo.get());
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -211,10 +216,10 @@ void Carol::TaaPass::InitDescriptors()
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	mGlobalResources->Device->CreateShaderResourceView(mHistFrameMap->Get(), &srvDesc, GetCpuSrv(HIST_SRV));
+	mGlobalResources->Device->CreateShaderResourceView(mHistFrameMap->Get(), &srvDesc, GetCpuCbvSrvUav(HIST_SRV));
 
 	srvDesc.Format = mVelocityMapFormat;
-	mGlobalResources->Device->CreateShaderResourceView(mVelocityMap->Get(), &srvDesc, GetCpuSrv(VELOCITY_SRV));
+	mGlobalResources->Device->CreateShaderResourceView(mVelocityMap->Get(), &srvDesc, GetCpuCbvSrvUav(VELOCITY_SRV));
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;

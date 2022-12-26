@@ -1,18 +1,8 @@
-#define RS "RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT),"\
+#define RS "RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED),"\
 "CBV(b0, space = 0),"\
 "CBV(b1, space = 0),"\
 "CBV(b2, space = 0),"\
-"CBV(b3, space = 0),"\
-"RootConstants(num32BitConstants = 1, b4, space = 0),"\
-"DescriptorTable(UAV(u0, space = 0, numDescriptors = 3), visibility = SHADER_VISIBILITY_PIXEL),"\
-"DescriptorTable(SRV(t0, space = 0, numDescriptors = 1), visibility = SHADER_VISIBILITY_PIXEL),"\
-"DescriptorTable(SRV(t1, space = 0, numDescriptors = 1), visibility = SHADER_VISIBILITY_PIXEL),"\
-"DescriptorTable(SRV(t2, space = 0, numDescriptors = 1), visibility = SHADER_VISIBILITY_PIXEL),"\
-"DescriptorTable(SRV(t3, space = 0, numDescriptors = 1), visibility = SHADER_VISIBILITY_PIXEL),"\
-"DescriptorTable(SRV(t0, space = 1, numDescriptors = unbounded, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL),"\
-"DescriptorTable(SRV(t0, space = 2, numDescriptors = unbounded, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL),"\
-"DescriptorTable(SRV(t0, space = 3, numDescriptors = unbounded, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL),"\
-"DescriptorTable(SRV(t0, space = 4, numDescriptors = unbounded, flags = DESCRIPTORS_VOLATILE), visibility = SHADER_VISIBILITY_PIXEL),"\
+"RootConstants(num32BitConstants = 4, b3, space = 0),"\
 "StaticSampler(s0,"\
 "filter = FILTER_MIN_MAG_MIP_POINT,"\
 "addressU = TEXTURE_ADDRESS_WRAP,"\

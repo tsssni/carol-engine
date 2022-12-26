@@ -11,26 +11,30 @@
 
 namespace Carol
 {
-	struct TranslationKeyframe
+	class TranslationKeyframe
 	{
+	public:
 		float TimePos;
 		DirectX::XMFLOAT3 Translation;
 	};
 
-	struct ScaleKeyframe
+	class ScaleKeyframe
 	{
+	public:
 		float TimePos;
 		DirectX::XMFLOAT3 Scale;
 	};
 
-	struct RotationQuatKeyframe
+	class RotationQuatKeyframe
 	{
+	public:
 		float TimePos;
 		DirectX::XMFLOAT4 RotationQuat;
 	};
 
-	struct BoneAnimation
+	class BoneAnimation
 	{
+	public:
 		float GetStartTime()const;
 		float GetEndTime()const;
 
@@ -44,8 +48,9 @@ namespace Carol
 		std::vector<RotationQuatKeyframe> RotationQuatKeyframes;
 	};
 
-	struct AnimationClip
+	class AnimationClip
 	{
+	public:
 		float GetClipStartTime()const;
 		float GetClipEndTime()const;
 

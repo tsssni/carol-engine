@@ -4,6 +4,7 @@
 #include <wrl/client.h>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 
 namespace Carol
 {
@@ -24,35 +25,77 @@ namespace Carol
 		DescriptorAllocator(
 			ID3D12Device* device,
 			D3D12_DESCRIPTOR_HEAP_TYPE type, 
-			uint32_t initNumCpuDescriptors = 2048, 
-			uint32_t initNumGpuDescriptors = 2048);
+			uint32_t initNumCpuDescriptors = 2048);
+		virtual ~DescriptorAllocator();
 		
 		bool CpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
 		bool CpuDeallocate(DescriptorAllocInfo* info);
 		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(DescriptorAllocInfo* info);
-
-		bool GpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
-		bool GpuDeallocate(DescriptorAllocInfo* info);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetShaderCpuHandle(DescriptorAllocInfo* info);
-		CD3DX12_GPU_DESCRIPTOR_HANDLE GetShaderGpuHandle(DescriptorAllocInfo* info);
-
 		uint32_t GetDescriptorSize();
-		ID3D12DescriptorHeap* GetGpuDescriptorHeap();
+
 	protected:
 		void AddCpuDescriptorHeap();
-		void ExpandGpuDescriptorHeap();
 
 		std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> mCpuDescriptorHeaps;
-		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mGpuDescriptorHeap;
 		std::vector<std::unique_ptr<Buddy>> mCpuBuddies;
-		std::vector<std::unique_ptr<Buddy>> mGpuBuddies;
-
 		uint32_t mNumCpuDescriptorsPerHeap;
-		uint32_t mNumGpuDescriptorsPerSection;
-		uint32_t mNumGpuDescriptors = 0;
 
 		ID3D12Device* mDevice;
 		D3D12_DESCRIPTOR_HEAP_TYPE mType;
 		uint32_t mDescriptorSize;
+	};
+
+	class RtvDescriptorAllocator : public DescriptorAllocator
+	{
+	public:
+		RtvDescriptorAllocator(
+			ID3D12Device* device, 
+			uint32_t initNumCpuDescriptors = 2048);
+	};
+
+	class DsvDescriptorAllocator : public DescriptorAllocator
+	{
+	public:
+		DsvDescriptorAllocator(
+			ID3D12Device* device, 
+			uint32_t initNumCpuDescriptors = 2048);
+	};
+
+	class CbvSrvUavDescriptorAllocator : public DescriptorAllocator
+	{
+	public:
+		CbvSrvUavDescriptorAllocator(
+			ID3D12Device* device,
+			uint32_t numFrames,
+			uint32_t initNumCpuDescriptors = 2048, 
+			uint32_t initNumGpuDescriptors = 2048);
+		~CbvSrvUavDescriptorAllocator();
+			
+		void ClearGpuDescriptors(uint32_t currFrame);
+		uint32_t GpuAllocate(DescriptorAllocInfo* info);
+		void GpuUpload();
+
+		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuHandle();
+		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(uint32_t idx);
+		ID3D12DescriptorHeap* GetGpuDescriptorHeap();
+		uint32_t GetStartOffset();
+
+	protected:
+		bool GpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
+		bool GpuDeallocate(DescriptorAllocInfo* info);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetShaderCpuHandle(DescriptorAllocInfo* info);
+		CD3DX12_GPU_DESCRIPTOR_HANDLE GetShaderGpuHandle(DescriptorAllocInfo* info);
+		void ExpandGpuDescriptorHeap();
+		void CopyDescriptors();
+
+		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mGpuDescriptorHeap;
+		std::vector<std::unique_ptr<Buddy>> mGpuBuddies;
+		uint32_t mNumGpuDescriptorsPerSection;
+		uint32_t mNumGpuDescriptors = 0;
+		
+		uint32_t mCurrFrame;
+		std::vector<DescriptorAllocInfo*> mCpuAllocInfo;
+		std::vector<std::unique_ptr<DescriptorAllocInfo>> mGpuAllocInfo;
+		uint32_t mAllocCount;
 	};
 }

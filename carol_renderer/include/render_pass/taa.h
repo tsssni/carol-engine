@@ -31,6 +31,9 @@ namespace Carol
 		void GetHalton(float& proj0,float& proj1);
 		void SetHistViewProj(DirectX::XMMATRIX& histViewProj);
 		DirectX::XMMATRIX GetHistViewProj();
+		
+		uint32_t GetVeloctiySrvIdx();
+		uint32_t GetHistFrameSrvIdx();
 
 	protected:
 		virtual void InitShaders()override;
@@ -46,7 +49,7 @@ namespace Carol
 
 		enum
 		{
-			HIST_SRV, VELOCITY_SRV, TAA_SRV_COUNT
+			HIST_SRV, VELOCITY_SRV, TAA_CBV_SRV_UAV_COUNT
 		};
 
 		enum

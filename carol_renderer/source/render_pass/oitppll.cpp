@@ -62,6 +62,31 @@ void Carol::OitppllPass::ReleaseIntermediateBuffers()
 	}
 }
 
+uint32_t Carol::OitppllPass::GetPpllUavIdx()
+{
+	return mCbvSrvUavIdx + PPLL_UAV;
+}
+
+uint32_t Carol::OitppllPass::GetOffsetUavIdx()
+{
+	return mCbvSrvUavIdx + OFFSET_UAV;
+}
+
+uint32_t Carol::OitppllPass::GetCounterUavIdx()
+{
+	return mCbvSrvUavIdx + COUNTER_UAV;
+}
+
+uint32_t Carol::OitppllPass::GetPpllSrvIdx()
+{
+	return mCbvSrvUavIdx + PPLL_SRV;
+}
+
+uint32_t Carol::OitppllPass::GetOffsetSrvIdx()
+{
+	return mCbvSrvUavIdx + OFFSET_SRV;
+}
+
 void Carol::OitppllPass::InitShaders()
 {
 	vector<wstring> nullDefines{};
@@ -76,12 +101,12 @@ void Carol::OitppllPass::InitShaders()
 		L"TAA=1",L"SSAO=1",L"SKINNED=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"BuildStaticOitppllVS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", staticDefines, L"VS", L"vs_6_5");
-	(*mGlobalResources->Shaders)[L"BuildStaticOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", staticDefines, L"PS", L"ps_6_5");
-	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllVS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", skinnedDefines, L"VS", L"vs_6_5");
-	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", skinnedDefines, L"PS", L"ps_6_5");
-	(*mGlobalResources->Shaders)[L"DrawOitppllVS"] = make_unique<Shader>(L"shader\\oitppll.hlsl", nullDefines, L"VS", L"vs_6_5");
-	(*mGlobalResources->Shaders)[L"DrawOitppllPS"] = make_unique<Shader>(L"shader\\oitppll.hlsl", nullDefines, L"PS", L"ps_6_5");
+	(*mGlobalResources->Shaders)[L"BuildStaticOitppllVS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", staticDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"BuildStaticOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", staticDefines, L"PS", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllVS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", skinnedDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", skinnedDefines, L"PS", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"DrawOitppllVS"] = make_unique<Shader>(L"shader\\oitppll.hlsl", nullDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"DrawOitppllPS"] = make_unique<Shader>(L"shader\\oitppll.hlsl", nullDefines, L"PS", L"ps_6_6");
 }
 
 void Carol::OitppllPass::InitPSOs()
@@ -146,8 +171,7 @@ void Carol::OitppllPass::InitResources()
 
 void Carol::OitppllPass::InitDescriptors()
 {
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(OITPPLL_UAV_COUNT, mCpuUavAllocInfo.get());
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(OITPPLL_SRV_COUNT, mCpuSrvAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(OITPPLL_CBV_SRV_UAV_COUNT, mCbvSrvUavAllocInfo.get());
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -158,7 +182,7 @@ void Carol::OitppllPass::InitDescriptors()
 	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
 
-	mGlobalResources->Device->CreateUnorderedAccessView(mOitppllBuffer->Get(), mCounterBuffer->Get(), &uavDesc, GetCpuUav(PPLL_UAV));
+	mGlobalResources->Device->CreateUnorderedAccessView(mOitppllBuffer->Get(), mCounterBuffer->Get(), &uavDesc, GetCpuCbvSrvUav(PPLL_UAV));
 
 	uavDesc.Buffer.StructureByteStride = 0;
 	uavDesc.Buffer.NumElements = (*mGlobalResources->ClientWidth) * (*mGlobalResources->ClientHeight);
@@ -166,10 +190,10 @@ void Carol::OitppllPass::InitDescriptors()
 	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
 	uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 
-	mGlobalResources->Device->CreateUnorderedAccessView(mStartOffsetBuffer->Get(), nullptr, &uavDesc, GetCpuUav(OFFSET_UAV));
+	mGlobalResources->Device->CreateUnorderedAccessView(mStartOffsetBuffer->Get(), nullptr, &uavDesc, GetCpuCbvSrvUav(OFFSET_UAV));
 
 	uavDesc.Buffer.NumElements = 1;
-	mGlobalResources->Device->CreateUnorderedAccessView(mCounterBuffer->Get(), nullptr, &uavDesc, GetCpuUav(COUNTER_UAV));
+	mGlobalResources->Device->CreateUnorderedAccessView(mCounterBuffer->Get(), nullptr, &uavDesc, GetCpuCbvSrvUav(COUNTER_UAV));
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -179,12 +203,12 @@ void Carol::OitppllPass::InitDescriptors()
 	srvDesc.Buffer.NumElements = (*mGlobalResources->ClientWidth) * (*mGlobalResources->ClientHeight) * 16;
 	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 
-	mGlobalResources->Device->CreateShaderResourceView(mOitppllBuffer->Get(), &srvDesc, GetCpuSrv(PPLL_SRV));
+	mGlobalResources->Device->CreateShaderResourceView(mOitppllBuffer->Get(), &srvDesc, GetCpuCbvSrvUav(PPLL_SRV));
 
 	srvDesc.Buffer.StructureByteStride = 0;
 	srvDesc.Buffer.NumElements = (*mGlobalResources->ClientWidth) * (*mGlobalResources->ClientHeight);
 	srvDesc.Format = DXGI_FORMAT_R32_UINT;
-	mGlobalResources->Device->CreateShaderResourceView(mStartOffsetBuffer->Get(), &srvDesc, GetCpuSrv(OFFSET_SRV));
+	mGlobalResources->Device->CreateShaderResourceView(mStartOffsetBuffer->Get(), &srvDesc, GetCpuCbvSrvUav(OFFSET_SRV));
 }
 
 void Carol::OitppllPass::DrawPpll()
@@ -194,11 +218,8 @@ void Carol::OitppllPass::DrawPpll()
 
 	static const uint32_t initOffsetValue = UINT32_MAX;
 	static const uint32_t initCounterValue = 0;
-	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetShaderGpuUav(OFFSET_UAV), GetCpuUav(OFFSET_UAV), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
-	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetShaderGpuUav(COUNTER_UAV), GetCpuUav(COUNTER_UAV), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
-
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_OITPPLL_UAV, GetShaderGpuUav(PPLL_UAV));
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_2, mGlobalResources->Frame->GetDepthStencilSrv());
+	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetGpuCbvSrvUav(OFFSET_UAV), GetCpuCbvSrvUav(OFFSET_UAV), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
+	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetGpuCbvSrvUav(COUNTER_UAV), GetCpuCbvSrvUav(COUNTER_UAV), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
 
 	mGlobalResources->Meshes->DrawMainCameraContainedTransparentMeshes(
 		(*mGlobalResources->PSOs)[L"BuildStaticOitppll"].Get(),
@@ -209,8 +230,6 @@ void Carol::OitppllPass::DrawPpll()
 void Carol::OitppllPass::DrawOit()
 {
 	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mGlobalResources->Frame->GetFrameRtv()), true, nullptr);
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_0, GetShaderGpuSrv(PPLL_SRV));
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_1, GetShaderGpuSrv(OFFSET_SRV));
 
 	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"DrawOitppll"].Get());
 	mGlobalResources->CommandList->IASetVertexBuffers(0, 0, nullptr);

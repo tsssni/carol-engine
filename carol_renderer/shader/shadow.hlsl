@@ -5,7 +5,7 @@
 #include "include/skinned.hlsli"
 #endif
 
-cbuffer ShadowConstant : register(b4)
+cbuffer ShadowConstant : register(b3)
 {
     uint gLightIdx;
 }

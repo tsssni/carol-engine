@@ -71,9 +71,9 @@ void Carol::ShadowPass::ReleaseIntermediateBuffers()
 {
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::ShadowPass::GetShadowSrv()
+uint32_t Carol::ShadowPass::GetShadowSrvIdx()
 {
-	return GetShaderGpuSrv(SHADOW_SRV);
+	return mCbvSrvUavIdx + SHADOW_SRV;
 }
 
 const Carol::Light& Carol::ShadowPass::GetLight()
@@ -107,7 +107,7 @@ void Carol::ShadowPass::InitResources()
 
 void Carol::ShadowPass::InitDescriptors()
 {
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(SHADOW_SRV_COUNT, mCpuSrvAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(SHADOW_CBV_SRV_UAV_COUNT, mCbvSrvUavAllocInfo.get());
 	mGlobalResources->DsvAllocator->CpuAllocate(SHADOW_DSV_COUNT, mDsvAllocInfo.get());
 	
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -117,7 +117,7 @@ void Carol::ShadowPass::InitDescriptors()
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	mGlobalResources->Device->CreateShaderResourceView(mShadowMap->Get(), &srvDesc, GetCpuSrv(SHADOW_SRV));
+	mGlobalResources->Device->CreateShaderResourceView(mShadowMap->Get(), &srvDesc, GetCpuCbvSrvUav(SHADOW_SRV));
 	
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 	dsvDesc.Format = mShadowDsvFormat;
@@ -151,8 +151,8 @@ void Carol::ShadowPass::InitShaders()
 		L"SKINNED=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"ShadowStaticVS"] = make_unique<Shader>(L"shader\\shadow.hlsl", nullDefines, L"VS", L"vs_6_5");
-	(*mGlobalResources->Shaders)[L"ShadowSkinnedVS"] = make_unique<Shader>(L"shader\\shadow.hlsl", skinnedDefines, L"VS", L"vs_6_5");
+	(*mGlobalResources->Shaders)[L"ShadowStaticVS"] = make_unique<Shader>(L"shader\\shadow.hlsl", nullDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"ShadowSkinnedVS"] = make_unique<Shader>(L"shader\\shadow.hlsl", skinnedDefines, L"VS", L"vs_6_6");
 }
 
 void Carol::ShadowPass::InitPSOs()

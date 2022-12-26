@@ -14,6 +14,7 @@ namespace Carol
 	class Shader;
 	class CircularHeap;
 	class DescriptorAllocator;
+	class CbvSrvUavDescriptorAllocator;
 	class Display;
 	class FramePass;
 	class ShadowPass;
@@ -42,7 +43,7 @@ namespace Carol
 		Heap* TexturesHeap;
 
 		RootSignature* RootSignature;
-		DescriptorAllocator* CbvSrvUavAllocator;
+		CbvSrvUavDescriptorAllocator* CbvSrvUavAllocator;
 		DescriptorAllocator* RtvAllocator;
 		DescriptorAllocator* DsvAllocator;
 

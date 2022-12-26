@@ -29,6 +29,12 @@ namespace Carol
 		virtual void Update();
 		virtual void OnResize();
 		virtual void ReleaseIntermediateBuffers();
+		
+		uint32_t GetPpllUavIdx();
+		uint32_t GetOffsetUavIdx();
+		uint32_t GetCounterUavIdx();
+		uint32_t GetPpllSrvIdx();
+		uint32_t GetOffsetSrvIdx();
 
 	protected:
 		virtual void InitShaders()override;
@@ -41,12 +47,7 @@ namespace Carol
 		
 		enum
 		{
-			PPLL_SRV, OFFSET_SRV, OITPPLL_SRV_COUNT
-		};
-
-		enum
-		{
-			PPLL_UAV, OFFSET_UAV, COUNTER_UAV, OITPPLL_UAV_COUNT
+			PPLL_SRV, OFFSET_SRV, PPLL_UAV, OFFSET_UAV, COUNTER_UAV, OITPPLL_CBV_SRV_UAV_COUNT
 		};
 
 		std::unique_ptr<DefaultResource> mOitppllBuffer;

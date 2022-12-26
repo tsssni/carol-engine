@@ -1,4 +1,5 @@
 #include "include/root_signature.hlsli"
+#include "include/mesh.hlsli"
 
 struct VertexOut
 {
@@ -20,5 +21,6 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    return gTexCube[0].Sample(gsamLinearWrap, pin.PosL);
+	TextureCube gSkyBox = ResourceDescriptorHeap[gResourceStartOffset + gDiffuseMapIdx];
+    return gSkyBox.Sample(gsamLinearWrap, pin.PosL);
 }

@@ -25,13 +25,32 @@ cbuffer FrameCB : register(b0)
     float gFarZ;
     float2 gFramePad1;
 
+    float4 gOffsetVectors[14];
+    float4 gBlurWeights[3];
+    
+    float gOcclusionRadius;
+    float gOcclusionFadeStart;
+    float gOcclusionFadeEnd;
+    float gSurfaceEplison;
+
+    uint gResourceStartOffset;
+    uint gFrameIdx;
+    uint gDepthStencilIdx;
+    uint gNormalIdx;
+    uint gShadowIdx;
+    uint gOitW;
+    uint gOitOffsetW;
+    uint gOitCounterW;
+    uint gOitR;
+    uint gOitOffsetR;
+    uint gRandVecIdx;
+    uint gAmbientIdx;
+    uint gVelocityIdx;
+    uint gHistIdx;
+    uint2 gFramePad2;
+
     Light gLights[MAX_LIGHTS];
 }
-
-Texture1D gTex1D[] : register(t0, space1);
-Texture2D gTex2D[] : register(t0, space2);
-Texture3D gTex3D[] : register(t0, space3);
-TextureCube gTexCube[] : register(t0, space4);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);

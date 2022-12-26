@@ -33,7 +33,7 @@ namespace Carol
         virtual void OnResize()override;
         virtual void ReleaseIntermediateBuffers()override;
 
-        CD3DX12_GPU_DESCRIPTOR_HANDLE GetShadowSrv();
+        uint32_t GetShadowSrvIdx();
         const Light& GetLight();
     protected:
 		virtual void InitShaders()override;
@@ -49,7 +49,7 @@ namespace Carol
         
         enum
         {
-            SHADOW_SRV, SHADOW_SRV_COUNT
+            SHADOW_SRV, SHADOW_CBV_SRV_UAV_COUNT
         };
 
         enum

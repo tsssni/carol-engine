@@ -26,9 +26,7 @@ Carol::FramePass::FramePass(GlobalResources* globalResources, DXGI_FORMAT frameF
 	mFrameFormat(frameFormat),
 	mDepthStencilResourceFormat(depthStencilResourceFormat),
 	mDepthStencilDsvFormat(depthStencilDsvFormat),
-	mDepthStencilSrvFormat(depthStencilSrvFormat),
-	mFrameConstants(make_unique<FrameConstants>()),
-	mFrameCBAllocInfo(make_unique<HeapAllocInfo>())
+	mDepthStencilSrvFormat(depthStencilSrvFormat)
 {
     InitShaders();
     InitPSOs();
@@ -44,10 +42,7 @@ void Carol::FramePass::Draw()
 	mGlobalResources->CommandList->ClearRenderTargetView(GetRtv(FRAME_RTV), Colors::Gray, 0, nullptr);
 	mGlobalResources->CommandList->ClearDepthStencilView(GetDsv(DEPTH_STENCIL_DSV), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(FRAME_RTV)), true, GetRvaluePtr(GetDsv(DEPTH_STENCIL_DSV)));
-
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_0, mGlobalResources->MainLight->GetShadowSrv());
-	mGlobalResources->CommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_SRV_1, mGlobalResources->Ssao->GetSsaoSrv());
-
+	
 	mGlobalResources->Meshes->DrawMainCameraContainedOpaqueMeshes(
 		(*mGlobalResources->PSOs)[L"OpaqueStatic"].Get(),
 		(*mGlobalResources->PSOs)[L"OpaqueSkinned"].Get());
@@ -59,54 +54,7 @@ void Carol::FramePass::Draw()
 
 void Carol::FramePass::Update()
 {
-    mGlobalResources->Camera->UpdateViewMatrix();
-
-	XMMATRIX view = mGlobalResources->Camera->GetView();
-	XMMATRIX invView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(view)), view);
-	XMMATRIX proj = mGlobalResources->Camera->GetProj();
-	XMMATRIX invProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(proj)), proj);
-	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-	XMMATRIX invViewProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(viewProj)), viewProj);
-	
-	static XMMATRIX tex(
-		0.5f, 0.0f, 0.0f, 0.0f,
-		0.0f, -0.5f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f, 0.5f, 0.0f, 1.0f);
-	XMMATRIX projTex = XMMatrixMultiply(proj, tex);
-	XMMATRIX viewProjTex = XMMatrixMultiply(viewProj, tex);
-	
-	XMStoreFloat4x4(&mFrameConstants->View, XMMatrixTranspose(view));
-	XMStoreFloat4x4(&mFrameConstants->InvView, XMMatrixTranspose(invView));
-	XMStoreFloat4x4(&mFrameConstants->Proj, XMMatrixTranspose(proj));
-	XMStoreFloat4x4(&mFrameConstants->InvProj, XMMatrixTranspose(invProj));
-	XMStoreFloat4x4(&mFrameConstants->ViewProj, XMMatrixTranspose(viewProj));
-	XMStoreFloat4x4(&mFrameConstants->InvViewProj, XMMatrixTranspose(invViewProj));
-	XMStoreFloat4x4(&mFrameConstants->ProjTex, XMMatrixTranspose(projTex));
-	XMStoreFloat4x4(&mFrameConstants->ViewProjTex, XMMatrixTranspose(viewProjTex));
-	
-	XMFLOAT4X4 jitteredProj4x4f = mGlobalResources->Camera->GetProj4x4f();
-	mGlobalResources->Taa->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
-	mGlobalResources->Taa->SetHistViewProj(viewProj);
-
-	XMMATRIX histViewProj = mGlobalResources->Taa->GetHistViewProj();
-	XMMATRIX jitteredProj = XMLoadFloat4x4(&jitteredProj4x4f);
-	XMMATRIX jitteredViewProj = XMMatrixMultiply(view, jitteredProj);
-
-	XMStoreFloat4x4(&mFrameConstants->HistViewProj, XMMatrixTranspose(histViewProj));
-	XMStoreFloat4x4(&mFrameConstants->JitteredViewProj, XMMatrixTranspose(jitteredViewProj));
-
-	mFrameConstants->EyePosW = mGlobalResources->Camera->GetPosition3f();
-	mFrameConstants->RenderTargetSize = { static_cast<float>(*mGlobalResources->ClientWidth), static_cast<float>(*mGlobalResources->ClientHeight) };
-	mFrameConstants->InvRenderTargetSize = { 1.0f / *mGlobalResources->ClientWidth, 1.0f / *mGlobalResources->ClientHeight };
-	mFrameConstants->NearZ = mGlobalResources->Camera->GetNearZ();
-	mFrameConstants->FarZ = mGlobalResources->Camera->GetFarZ();
-
-	mFrameConstants->Lights[0] = mGlobalResources->MainLight->GetLight();
-
-	FrameCBHeap->DeleteResource(mFrameCBAllocInfo.get());
-	FrameCBHeap->CreateResource(mFrameCBAllocInfo.get());
-	FrameCBHeap->CopyData(mFrameCBAllocInfo.get(), mFrameConstants.get());
+    
 }
 
 void Carol::FramePass::OnResize()
@@ -129,24 +77,6 @@ void Carol::FramePass::ReleaseIntermediateBuffers()
 {
 }
 
-void Carol::FramePass::InitFrameCBHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
-{
-    if (!FrameCBHeap)
-    {
-        FrameCBHeap = make_unique<CircularHeap>(device, cmdList, true, 32, sizeof(FrameConstants));
-    }
-}
-
-D3D12_GPU_VIRTUAL_ADDRESS Carol::FramePass::GetFrameAddress()
-{
-	return FrameCBHeap->GetGPUVirtualAddress(mFrameCBAllocInfo.get());
-}
-
-CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::FramePass::GetFrameSrv()
-{
-    return GetShaderGpuSrv(FRAME_SRV);
-}
-
 CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::FramePass::GetFrameRtv()
 {
 	return GetRtv(FRAME_RTV);
@@ -157,9 +87,14 @@ CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::FramePass::GetDepthStencilDsv()
     return GetDsv(DEPTH_STENCIL_DSV);
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::FramePass::GetDepthStencilSrv()
+uint32_t Carol::FramePass::GetFrameSrvIdx()
 {
-    return GetShaderGpuSrv(DEPTH_STENCIL_SRV);
+	return mCbvSrvUavIdx + FRAME_SRV;
+}
+
+uint32_t Carol::FramePass::GetDepthStencilSrvIdx()
+{
+	return mCbvSrvUavIdx + DEPTH_STENCIL_SRV;
 }
 
 void Carol::FramePass::InitShaders()
@@ -174,12 +109,12 @@ void Carol::FramePass::InitShaders()
 		L"TAA=1",L"SSAO=1",L"SKINNED=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"OpaqueStaticVS"] = make_unique<Shader>(L"shader\\default.hlsl", staticDefines, L"VS", L"vs_6_5");
-	(*mGlobalResources->Shaders)[L"OpaqueStaticPS"] = make_unique<Shader>(L"shader\\default.hlsl", staticDefines, L"PS", L"ps_6_5");
-	(*mGlobalResources->Shaders)[L"OpaqueSkinnedVS"] = make_unique<Shader>(L"shader\\default.hlsl", skinnedDefines, L"VS", L"vs_6_5");
-	(*mGlobalResources->Shaders)[L"OpauqeSkinnedPS"] = make_unique<Shader>(L"shader\\default.hlsl", skinnedDefines, L"PS", L"ps_6_5");
-	(*mGlobalResources->Shaders)[L"SkyBoxVS"] = make_unique<Shader>(L"shader\\skybox.hlsl", staticDefines, L"VS", L"vs_6_5");
-	(*mGlobalResources->Shaders)[L"SkyBoxPS"] = make_unique<Shader>(L"shader\\skybox.hlsl", staticDefines, L"PS", L"ps_6_5");
+	(*mGlobalResources->Shaders)[L"OpaqueStaticVS"] = make_unique<Shader>(L"shader\\default.hlsl", staticDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"OpaqueStaticPS"] = make_unique<Shader>(L"shader\\default.hlsl", staticDefines, L"PS", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"OpaqueSkinnedVS"] = make_unique<Shader>(L"shader\\default.hlsl", skinnedDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"OpauqeSkinnedPS"] = make_unique<Shader>(L"shader\\default.hlsl", skinnedDefines, L"PS", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"SkyBoxVS"] = make_unique<Shader>(L"shader\\skybox.hlsl", staticDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"SkyBoxPS"] = make_unique<Shader>(L"shader\\skybox.hlsl", staticDefines, L"PS", L"ps_6_6");
 }
 
 void Carol::FramePass::InitPSOs()
@@ -239,7 +174,7 @@ void Carol::FramePass::InitResources()
 
 void Carol::FramePass::InitDescriptors()
 {
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(FRAME_SRV_COUNT, mCpuSrvAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(FRAME_CBV_SRV_UAV_COUNT, mCbvSrvUavAllocInfo.get());
 	mGlobalResources->RtvAllocator->CpuAllocate(FRAME_RTV_COUNT, mRtvAllocInfo.get());
 	mGlobalResources->DsvAllocator->CpuAllocate(FRAME_DSV_COUNT, mDsvAllocInfo.get());
 	
@@ -250,10 +185,10 @@ void Carol::FramePass::InitDescriptors()
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	mGlobalResources->Device->CreateShaderResourceView(mFrameMap->Get(), &srvDesc, GetCpuSrv(FRAME_SRV));
+	mGlobalResources->Device->CreateShaderResourceView(mFrameMap->Get(), &srvDesc, GetCpuCbvSrvUav(FRAME_SRV));
 
 	srvDesc.Format = mDepthStencilSrvFormat;
-	mGlobalResources->Device->CreateShaderResourceView(mDepthStencilMap->Get(), &srvDesc, GetCpuSrv(DEPTH_STENCIL_SRV));
+	mGlobalResources->Device->CreateShaderResourceView(mDepthStencilMap->Get(), &srvDesc, GetCpuCbvSrvUav(DEPTH_STENCIL_SRV));
 	
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;

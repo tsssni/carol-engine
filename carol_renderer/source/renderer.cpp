@@ -30,8 +30,6 @@ namespace Carol {
 	using namespace DirectX;
 }
 
-Carol::unique_ptr<Carol::CircularHeap> Carol::FramePass::FrameCBHeap = nullptr;
-Carol::unique_ptr<Carol::CircularHeap> Carol::SsaoPass::SsaoCBHeap = nullptr;
 Carol::unique_ptr<Carol::CircularHeap> Carol::MeshesPass::MeshCBHeap = nullptr;
 Carol::unique_ptr<Carol::CircularHeap> Carol::MeshesPass::SkinnedCBHeap = nullptr;
 
@@ -41,6 +39,7 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	ThrowIfFailed(mInitCommandAllocator->Reset());
 	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
 	
+	InitConstants();
 	InitPSOs();
 	InitFrame();
 	InitSsao();
@@ -55,6 +54,13 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 	FlushCommandQueue();
 	ReleaseIntermediateBuffers();
+}
+
+void Carol::Renderer::InitConstants()
+{
+	mFrameCBHeap = make_unique<CircularHeap>(mDevice.Get(), mCommandList.Get(), true, 32, sizeof(FrameConstants));
+	mFrameConstants = make_unique<FrameConstants>();
+	mFrameCBAllocInfo = make_unique<HeapAllocInfo>();
 }
 
 void Carol::Renderer::InitPSOs()
@@ -90,14 +96,12 @@ void Carol::Renderer::InitPSOs()
 void Carol::Renderer::InitFrame()
 {
 	mFrame = make_unique<FramePass>(mGlobalResources.get());
-	FramePass::InitFrameCBHeap(mDevice.Get(), mCommandList.Get());
 	mGlobalResources->Frame = mFrame.get();
 }
 
 void Carol::Renderer::InitSsao()
 {
 	mSsao = make_unique<SsaoPass>(mGlobalResources.get());
-	SsaoPass::InitSsaoCBHeap(mDevice.Get(), mCommandList.Get());
 	mGlobalResources->Ssao = mSsao.get();
 }
 
@@ -134,12 +138,85 @@ void Carol::Renderer::InitMeshes()
 	MeshesPass::InitMeshCBHeap(mDevice.Get(), mCommandList.Get());
 	MeshesPass::InitSkinnedCBHeap(mDevice.Get(), mCommandList.Get());
 
-	mTexManager = make_unique<TextureManager>(mDevice.Get(), mCommandList.Get(), mTexturesHeap.get(), mUploadBuffersHeap.get(), mRootSignature.get(), mCbvSrvUavAllocator.get(), mNumFrame);
+	mTexManager = make_unique<TextureManager>(mDevice.Get(), mCommandList.Get(), mTexturesHeap.get(), mUploadBuffersHeap.get(), mCbvSrvUavAllocator.get());
 	mGlobalResources->TexManager = mTexManager.get();
 	mGlobalResources->Meshes = mMeshes.get();
 	
 	mMeshes->LoadGround();
 	mMeshes->LoadSkyBox();
+}
+
+void Carol::Renderer::UpdateFrameCB()
+{
+	mCamera->UpdateViewMatrix();
+
+	XMMATRIX view = mCamera->GetView();
+	XMMATRIX invView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(view)), view);
+	XMMATRIX proj = mCamera->GetProj();
+	XMMATRIX invProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(proj)), proj);
+	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+	XMMATRIX invViewProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(viewProj)), viewProj);
+	
+	static XMMATRIX tex(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f);
+	XMMATRIX projTex = XMMatrixMultiply(proj, tex);
+	XMMATRIX viewProjTex = XMMatrixMultiply(viewProj, tex);
+	
+	XMStoreFloat4x4(&mFrameConstants->View, XMMatrixTranspose(view));
+	XMStoreFloat4x4(&mFrameConstants->InvView, XMMatrixTranspose(invView));
+	XMStoreFloat4x4(&mFrameConstants->Proj, XMMatrixTranspose(proj));
+	XMStoreFloat4x4(&mFrameConstants->InvProj, XMMatrixTranspose(invProj));
+	XMStoreFloat4x4(&mFrameConstants->ViewProj, XMMatrixTranspose(viewProj));
+	XMStoreFloat4x4(&mFrameConstants->InvViewProj, XMMatrixTranspose(invViewProj));
+	XMStoreFloat4x4(&mFrameConstants->ProjTex, XMMatrixTranspose(projTex));
+	XMStoreFloat4x4(&mFrameConstants->ViewProjTex, XMMatrixTranspose(viewProjTex));
+	
+	XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
+	mTaa->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
+	mTaa->SetHistViewProj(viewProj);
+
+	XMMATRIX histViewProj = mTaa->GetHistViewProj();
+	XMMATRIX jitteredProj = XMLoadFloat4x4(&jitteredProj4x4f);
+	XMMATRIX jitteredViewProj = XMMatrixMultiply(view, jitteredProj);
+
+	XMStoreFloat4x4(&mFrameConstants->HistViewProj, XMMatrixTranspose(histViewProj));
+	XMStoreFloat4x4(&mFrameConstants->JitteredViewProj, XMMatrixTranspose(jitteredViewProj));
+
+	mFrameConstants->EyePosW = mCamera->GetPosition3f();
+	mFrameConstants->RenderTargetSize = { static_cast<float>(mClientWidth), static_cast<float>(mClientHeight) };
+	mFrameConstants->InvRenderTargetSize = { 1.0f / mClientWidth, 1.0f / mClientHeight };
+	mFrameConstants->NearZ = mCamera->GetNearZ();
+	mFrameConstants->FarZ = mCamera->GetFarZ();
+	
+	mSsao->GetOffsetVectors(mFrameConstants->OffsetVectors);
+	auto blurWeights = mSsao->CalcGaussWeights(2.5f);
+	mFrameConstants->BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
+    mFrameConstants->BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
+    mFrameConstants->BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
+
+	mFrameConstants->ResourceStartOffset = mCbvSrvUavAllocator->GetStartOffset();
+	mFrameConstants->FrameIdx = mFrame->GetFrameSrvIdx();
+	mFrameConstants->DepthStencilIdx = mFrame->GetDepthStencilSrvIdx();
+	mFrameConstants->NormalIdx = mNormal->GetNormalSrvIdx();
+	mFrameConstants->ShadowIdx = mMainLight->GetShadowSrvIdx();
+	mFrameConstants->OitW = mOitppll->GetPpllUavIdx();
+	mFrameConstants->OitOffsetW = mOitppll->GetOffsetUavIdx();
+	mFrameConstants->OitCounterW = mOitppll->GetCounterUavIdx();
+	mFrameConstants->OitR = mOitppll->GetPpllSrvIdx();
+	mFrameConstants->OitOffsetR = mOitppll->GetOffsetSrvIdx();
+	mFrameConstants->RandVecIdx = mSsao->GetRandVecSrvIdx();
+	mFrameConstants->AmbientIdx = mSsao->GetSsaoSrvIdx();
+	mFrameConstants->VelocityIdx = mTaa->GetVeloctiySrvIdx();
+	mFrameConstants->HistIdx = mTaa->GetHistFrameSrvIdx();
+
+	mFrameConstants->Lights[0] = mMainLight->GetLight();
+
+	mFrameCBHeap->DeleteResource(mFrameCBAllocInfo.get());
+	mFrameCBHeap->CreateResource(mFrameCBAllocInfo.get());
+	mFrameCBHeap->CopyData(mFrameCBAllocInfo.get(), mFrameConstants.get());
 }
 
 void Carol::Renderer::ReleaseIntermediateBuffers()
@@ -163,11 +240,9 @@ void Carol::Renderer::Draw()
 {	
 	ID3D12DescriptorHeap* descriptorHeaps[] = {mCbvSrvUavAllocator->GetGpuDescriptorHeap()};
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-	
 	mCommandList->SetGraphicsRootSignature(mRootSignature->Get());
-	mCommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_FRAME_CB, mFrame->GetFrameAddress());
+	mCommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_FRAME_CB, mFrameCBHeap->GetGPUVirtualAddress(mFrameCBAllocInfo.get()));
 	
-	SetTextures();
 	mMainLight->Draw();
 	mNormal->Draw();
 	mFrame->Draw();
@@ -246,38 +321,16 @@ void Carol::Renderer::Update()
 	ThrowIfFailed(mFrameAllocator[mCurrFrame]->Reset());
 	ThrowIfFailed(mCommandList->Reset(mFrameAllocator[mCurrFrame].Get(), nullptr));
 	
-	mTexManager->ClearGpuTextures(mCurrFrame);
+	mCbvSrvUavAllocator->ClearGpuDescriptors(mCurrFrame);
+	mTexManager->ClearGpuTextures();
 	CopyDescriptors();
 
 	mMainLight->Update();
 	mSsao->Update();
 	mMeshes->Update();
 	mFrame->Update();
-
-	mTexManager->AllocateGpuTextures(mCurrFrame);
-}
-
-void Carol::Renderer::SetTextures()
-{
-	if (mTexManager->GetNumTex1D())
-	{
-		mCommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_TEX1D, mTexManager->GetTex1DHandle(mCurrFrame));
-	}
-
-	if (mTexManager->GetNumTex2D())
-	{
-		mCommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_TEX2D, mTexManager->GetTex2DHandle(mCurrFrame));
-	}
-
-	if (mTexManager->GetNumTex3D())
-	{
-		mCommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_TEX3D, mTexManager->GetTex3DHandle(mCurrFrame));
-	}
-
-	if (mTexManager->GetNumTexCube())
-	{
-		mCommandList->SetGraphicsRootDescriptorTable(RootSignature::ROOT_SIGNATURE_TEXCUBE, mTexManager->GetTexCubeHandle(mCurrFrame));
-	}
+	UpdateFrameCB();
+	mCbvSrvUavAllocator->GpuUpload();
 }
 
 void Carol::Renderer::OnResize(uint32_t width, uint32_t height)
@@ -290,7 +343,7 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height)
 	mOitppll->OnResize();
 }
 
-void Carol::Renderer::LoadModel(wstring path, wstring textureDir, wstring modelName, DirectX::XMMATRIX world, bool isSkinned, bool isTransparent)
+void Carol::Renderer::LoadModel(wstring path, wstring textureDir, wstring modelName, DirectX::XMMATRIX world, bool isSkinned)
 {
 	ThrowIfFailed(mInitCommandAllocator->Reset());
 	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));

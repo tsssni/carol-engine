@@ -68,9 +68,9 @@ void Carol::NormalPass::ReleaseIntermediateBuffers()
 {
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::NormalPass::GetNormalSrv()
+uint32_t Carol::NormalPass::GetNormalSrvIdx()
 {
-    return GetShaderGpuSrv(NORMAL_SRV);
+    return mCbvSrvUavIdx + NORMAL_SRV;
 }
 
 void Carol::NormalPass::InitShaders()
@@ -82,10 +82,10 @@ void Carol::NormalPass::InitShaders()
         L"SKINNED=1"
     };
 
-    (*mGlobalResources->Shaders)[L"NormalsStaticVS"] = make_unique<Shader>(L"shader\\normals.hlsl", nullDefines, L"VS", L"vs_6_5");
-    (*mGlobalResources->Shaders)[L"NormalsStaticPS"] = make_unique<Shader>(L"shader\\normals.hlsl", nullDefines, L"PS", L"ps_6_5");
-    (*mGlobalResources->Shaders)[L"NormalsSkinnedVS"] = make_unique<Shader>(L"shader\\normals.hlsl", skinnedDefines, L"VS", L"vs_6_5");
-    (*mGlobalResources->Shaders)[L"NormalsSkinnedPS"] = make_unique<Shader>(L"shader\\normals.hlsl", skinnedDefines, L"PS", L"ps_6_5");
+    (*mGlobalResources->Shaders)[L"NormalsStaticVS"] = make_unique<Shader>(L"shader\\normals.hlsl", nullDefines, L"VS", L"vs_6_6");
+    (*mGlobalResources->Shaders)[L"NormalsStaticPS"] = make_unique<Shader>(L"shader\\normals.hlsl", nullDefines, L"PS", L"ps_6_6");
+    (*mGlobalResources->Shaders)[L"NormalsSkinnedVS"] = make_unique<Shader>(L"shader\\normals.hlsl", skinnedDefines, L"VS", L"vs_6_6");
+    (*mGlobalResources->Shaders)[L"NormalsSkinnedPS"] = make_unique<Shader>(L"shader\\normals.hlsl", skinnedDefines, L"PS", L"ps_6_6");
 }
 
 void Carol::NormalPass::InitPSOs()
@@ -131,7 +131,7 @@ void Carol::NormalPass::InitResources()
 
 void Carol::NormalPass::InitDescriptors()
 {
-    mGlobalResources->CbvSrvUavAllocator->CpuAllocate(NORMAL_SRV_COUNT, mCpuSrvAllocInfo.get());
+    mGlobalResources->CbvSrvUavAllocator->CpuAllocate(NORMAL_CBV_SRV_UAV_COUNT, mCbvSrvUavAllocInfo.get());
 	mGlobalResources->RtvAllocator->CpuAllocate(NORMAL_RTV_COUNT, mRtvAllocInfo.get());
     
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -141,7 +141,7 @@ void Carol::NormalPass::InitDescriptors()
     srvDesc.Texture2D.MostDetailedMip = 0;
     srvDesc.Texture2D.MipLevels = 1;
 
-    mGlobalResources->Device->CreateShaderResourceView(mNormalMap->Get(), &srvDesc, GetCpuSrv(NORMAL_SRV));
+    mGlobalResources->Device->CreateShaderResourceView(mNormalMap->Get(), &srvDesc, GetCpuCbvSrvUav(NORMAL_SRV));
     
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
     rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;

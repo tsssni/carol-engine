@@ -22,7 +22,7 @@ namespace Carol
 		virtual void OnResize()override;
 		virtual void ReleaseIntermediateBuffers()override;
 
-		CD3DX12_GPU_DESCRIPTOR_HANDLE GetNormalSrv();
+		uint32_t GetNormalSrvIdx();
 
 	protected:
 		virtual void InitShaders()override;
@@ -32,7 +32,7 @@ namespace Carol
 
 		enum
 		{
-			NORMAL_SRV, NORMAL_SRV_COUNT
+			NORMAL_SRV, NORMAL_CBV_SRV_UAV_COUNT
 		};
 
 		enum

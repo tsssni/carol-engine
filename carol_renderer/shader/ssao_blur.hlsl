@@ -1,10 +1,12 @@
-#include "include/ssao.hlsli"
 #include "include/root_signature.hlsli"
+#include "include/screen_tex.hlsli"
 
 static const int gBlurRadius = 5;
 
-
-Texture2D gAmbientMap : register(t2);
+cbuffer BlurConstant : register(b3)
+{
+    uint gBlurDirection;
+}
 
 struct VertexOut
 {
@@ -29,6 +31,10 @@ float NdcDepthToViewDepth(float z_ndc)
 
 float4 PS(VertexOut pin) : SV_Target
 {
+    Texture2D gDepthMap = ResourceDescriptorHeap[gResourceStartOffset + gDepthStencilIdx];
+    Texture2D gNormalMap = ResourceDescriptorHeap[gResourceStartOffset + gNormalIdx];
+    Texture2D gAmbientMap = ResourceDescriptorHeap[gResourceStartOffset + gAmbientIdx + gBlurDirection];
+    
     float blurWeights[12] =
     {
         gBlurWeights[0].x, gBlurWeights[0].y, gBlurWeights[0].z, gBlurWeights[0].w,

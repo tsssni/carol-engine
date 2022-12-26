@@ -3,9 +3,6 @@
 
 #define MAX_SORTED_PIXELS 16
 
-StructuredBuffer<OitNode> gOitNodeBuffer : register(t0);
-Buffer<uint> gStartOffsetBuffer : register(t1);
-
 static const float2 gTexCoords[6] =
 {
     float2(0.0f, 1.0f),
@@ -52,6 +49,10 @@ void SortPixels(inout OitNode sortedPixels[MAX_SORTED_PIXELS])
 
 float4 PS(VertexOut pin) : SV_Target
 {
+    StructuredBuffer<OitNode> gOitNodeBuffer = ResourceDescriptorHeap[gResourceStartOffset + gOitR];
+    Buffer<uint> gStartOffsetBuffer = ResourceDescriptorHeap[gResourceStartOffset + gOitOffsetR];
+
+    
     uint2 pixelPos = uint2(pin.PosH.x - 0.5f, pin.PosH.y - 0.5f);
     uint startOffsetAddr = pixelPos.y * gRenderTargetSize.x + pixelPos.x;
     uint offset = gStartOffsetBuffer[startOffsetAddr];

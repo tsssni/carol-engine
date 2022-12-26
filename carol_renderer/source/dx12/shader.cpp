@@ -74,7 +74,6 @@ Carol::vector<LPCWSTR> Carol::Shader::SetArgs(const vector<wstring>& defines, co
     args.push_back(DXC_ARG_WARNINGS_ARE_ERRORS);
     args.push_back(L"-Qstrip_reflect");
     args.push_back(L"-Qstrip_debug");
-    args.push_back(L"/enable_unbounded_descriptor_tables");
 
     return args;
 }
