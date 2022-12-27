@@ -43,9 +43,10 @@ void Carol::FramePass::Draw()
 	mGlobalResources->CommandList->ClearDepthStencilView(GetDsv(DEPTH_STENCIL_DSV), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(FRAME_RTV)), true, GetRvaluePtr(GetDsv(DEPTH_STENCIL_DSV)));
 	
-	mGlobalResources->Meshes->DrawMainCameraContainedOpaqueMeshes(
+	mGlobalResources->Meshes->DrawMeshes({
 		(*mGlobalResources->PSOs)[L"OpaqueStatic"].Get(),
-		(*mGlobalResources->PSOs)[L"OpaqueSkinned"].Get());
+		(*mGlobalResources->PSOs)[L"OpaqueSkinned"].Get() 
+		});
 	mGlobalResources->Meshes->DrawSkyBox((*mGlobalResources->PSOs)[L"SkyBox"].Get());
 	mGlobalResources->Oitppll->Draw();
 

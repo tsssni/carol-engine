@@ -288,6 +288,7 @@ void Carol::ModelData::SetWorld(Carol::XMMATRIX world)
 void Carol::MeshesPass::LoadModel(const std::wstring& modelName, const std::wstring& path, const std::wstring texDir, bool isSkinned)	
 {
 	mModels[modelName] = make_unique<ModelData>(mGlobalResources, path, texDir, isSkinned);
+	Distribute(mModels[modelName].get());
 }
 
 void Carol::MeshesPass::SetWorld(const std::wstring& modelName, DirectX::XMMATRIX world)
@@ -299,6 +300,7 @@ void Carol::MeshesPass::LoadGround()
 {
 	mModels[L"Ground"] = make_unique<ModelData>(mGlobalResources);
 	mModels[L"Ground"]->LoadGround();
+	Distribute(mModels[L"Ground"].get());
 }
 
 void Carol::MeshesPass::LoadSkyBox()
@@ -332,17 +334,12 @@ void Carol::MeshesPass::SetAnimationClip(const wstring& modelName, const wstring
 }
 
 Carol::MeshesPass::MeshesPass(GlobalResources* globalResources)
-	:RenderPass(globalResources)
+	:RenderPass(globalResources), mMeshes(MESH_TYPE_COUNT)
 {
 }
 
 void Carol::MeshesPass::Update()
 {
-	mMainCameraContainedOpaqueStaticMeshes.clear();
-	mMainCameraContainedOpaqueSkinnedMeshes.clear();
-	mMainCameraContainedTransparentStaticMeshes.clear();
-	mMainCameraContainedTransparentSkinnedMeshes.clear();
-
 	for (auto& modelMapPair : mModels)
 	{
 		auto& model = modelMapPair.second;
@@ -354,14 +351,16 @@ void Carol::MeshesPass::Update()
 		}		
 	}
 
-	GetContainedMeshes(
-		mGlobalResources->Camera,
-		mMainCameraContainedOpaqueStaticMeshes,
-		mMainCameraContainedOpaqueSkinnedMeshes,
-		mMainCameraContainedTransparentStaticMeshes,
-		mMainCameraContainedTransparentSkinnedMeshes);
+	for (auto& meshes : mMeshes)
+	{
+		for (auto& mesh : meshes)
+		{
+			mesh->UpdateConstants();
+		}
+	}
 
-	UpdateMeshes();
+	auto* skyBoxMesh = mSkyBox->GetMeshes()[0];
+	skyBoxMesh->UpdateConstants();
 }
 
 Carol::vector<Carol::wstring> Carol::MeshesPass::GetAnimationClips(std::wstring modelName)
@@ -371,7 +370,7 @@ Carol::vector<Carol::wstring> Carol::MeshesPass::GetAnimationClips(std::wstring 
 
 uint32_t Carol::MeshesPass::NumTransparentMeshes()
 {
-	return mMainCameraContainedTransparentStaticMeshes.size()+mMainCameraContainedTransparentSkinnedMeshes.size();
+	return mMeshes[TRANSPARENT_STATIC].size() + mMeshes[TRANSPARENT_SKINNED].size();
 }
 
 void Carol::MeshesPass::InitShaders()
@@ -390,8 +389,20 @@ void Carol::MeshesPass::Draw()
 
 		for (auto& mesh : model->GetMeshes())
 		{
-			Draw(mesh);
+			if (mesh)
+			{
+				Draw(mesh);
+			}
 		}
+	}
+}
+
+void Carol::MeshesPass::Distribute(ModelData* model)
+{
+	for (auto& mesh : model->GetMeshes())
+	{
+		uint32_t type = model->IsSkinned() | (mesh->IsTransparent() << 1);
+		mMeshes[type].push_back(mesh);
 	}
 }
 
@@ -403,7 +414,7 @@ void Carol::MeshesPass::Draw(MeshData* mesh)
 
 	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_MESH_CB, MeshCBHeap->GetGPUVirtualAddress(mesh->GetMeshCBAllocInfo()));
 	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_SKINNED_CB, SkinnedCBHeap->GetGPUVirtualAddress(mesh->GetSkinnedCBAllocInfo()));
-
+	
 	mGlobalResources->CommandList->DrawIndexedInstanced(
 		mesh->GetIndexCount(),
 		1,
@@ -411,6 +422,22 @@ void Carol::MeshesPass::Draw(MeshData* mesh)
 		mesh->GetBaseVertexLocation(),
 		0
 	);
+}
+
+void Carol::MeshesPass::DrawMeshes(const std::vector<ID3D12PipelineState*>& pso)
+{
+	for (int i = 0; i < MESH_TYPE_COUNT && i < pso.size(); ++i)
+	{
+		if (pso[i])
+		{
+			mGlobalResources->CommandList->SetPipelineState(pso[i]);
+			
+			for (auto& mesh : mMeshes[i])
+			{
+				Draw(mesh);
+			}
+		}
+	}
 }
 
 void Carol::MeshesPass::OnResize()
@@ -429,223 +456,6 @@ void Carol::MeshesPass::ReleaseIntermediateBuffers()
 void Carol::MeshesPass::ReleaseIntermediateBuffers(const std::wstring& modelName)
 {
 	mModels[modelName]->ReleaseIntermediateBuffer();
-}
-
-void Carol::MeshesPass::GetContainedMeshes(Camera* camera, std::vector<MeshData*>& opaqueStaticMeshes, std::vector<MeshData*>& opaqueSkinnedMeshes, std::vector<MeshData*>& transparentStaticMeshes, std::vector<MeshData*>& transparentSkinnedMeshes)
-{
-	for (auto& modelMapPair : mModels)
-	{
-		auto& model = modelMapPair.second;
-		bool isSkinned = model->IsSkinned();
-
-		for (auto& mesh : model->GetMeshes())
-		{
-			if (camera->Contains(mesh->GetBoundingBox()))
-			{
-				if (!isSkinned && !mesh->IsTransparent())
-				{
-					opaqueStaticMeshes.push_back(mesh);
-				}
-				else if (isSkinned && !mesh->IsTransparent())
-				{
-					opaqueSkinnedMeshes.push_back(mesh);
-				}
-				else if (!isSkinned && mesh->IsTransparent())
-				{
-					transparentStaticMeshes.push_back(mesh);
-				}
-				else
-				{
-					transparentSkinnedMeshes.push_back(mesh);
-				}
-			}
-		}
-		
-	}
-}
-
-void Carol::MeshesPass::UpdateMeshes()
-{
-	for (auto* mesh : mMainCameraContainedOpaqueStaticMeshes)
-	{
-		mesh->UpdateConstants();
-	}
-
-	for (auto* mesh : mMainCameraContainedOpaqueSkinnedMeshes)
-	{
-		mesh->UpdateConstants();
-	}
-
-	for (auto* mesh : mMainCameraContainedTransparentStaticMeshes)
-	{
-		mesh->UpdateConstants();
-	}
-
-	for (auto* mesh : mMainCameraContainedTransparentSkinnedMeshes)
-	{
-		mesh->UpdateConstants();
-	}
-
-	auto* skyBoxMesh = mSkyBox->GetMeshes()[0];
-	skyBoxMesh->UpdateConstants();
-}
-
-void Carol::MeshesPass::UpdateMesh(MeshData* mesh)
-{
-	mesh->UpdateConstants();
-}
-
-void Carol::MeshesPass::DrawContainedMeshes(Camera* camera, ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO, ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO)
-{
-	vector<MeshData*> opaqueStaticMeshes;
-	vector<MeshData*> opaqueSkinnedMeshes;
-	vector<MeshData*> transparentStaticMeshes;
-	vector<MeshData*> transparentSkinnedMeshes;
-
-	GetContainedMeshes(
-		camera,
-		opaqueStaticMeshes,
-		opaqueSkinnedMeshes,
-		transparentStaticMeshes,
-		transparentSkinnedMeshes
-	);
-	
-	mGlobalResources->CommandList->SetPipelineState(opaqueStaticPSO);
-	for (auto* mesh : opaqueStaticMeshes)
-	{
-		Draw(mesh);
-	}
-
-	mGlobalResources->CommandList->SetPipelineState(opaqueSkinnedPSO);
-	for (auto* mesh : opaqueSkinnedMeshes)
-	{
-		Draw(mesh);
-	}
-
-	mGlobalResources->CommandList->SetPipelineState(transparentStaticPSO);
-	for (auto* mesh : transparentStaticMeshes)
-	{
-		Draw(mesh);
-	}
-
-	mGlobalResources->CommandList->SetPipelineState(transparentSkinnedPSO);
-	for (auto* mesh : transparentSkinnedMeshes)
-	{
-		Draw(mesh);
-	}
-}
-
-void Carol::MeshesPass::DrawContainedOpaqueMeshes(Camera* camera, ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO)
-{
-	vector<MeshData*> opaqueStaticMeshes;
-	vector<MeshData*> opaqueSkinnedMeshes;
-	vector<MeshData*> transparentStaticMeshes;
-	vector<MeshData*> transparentSkinnedMeshes;
-
-	GetContainedMeshes(
-		camera,
-		opaqueStaticMeshes,
-		opaqueSkinnedMeshes,
-		transparentStaticMeshes,
-		transparentSkinnedMeshes
-	);
-	
-	mGlobalResources->CommandList->SetPipelineState(opaqueStaticPSO);
-	for (auto* mesh : opaqueStaticMeshes)
-	{
-		Draw(mesh);
-	}
-
-	mGlobalResources->CommandList->SetPipelineState(opaqueSkinnedPSO);
-	for (auto* mesh : opaqueSkinnedMeshes)
-	{
-		Draw(mesh);
-	}
-}
-
-void Carol::MeshesPass::DrawContainedTransparentMeshes(Camera* camera, ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO)
-{
-	vector<MeshData*> opaqueStaticMeshes;
-	vector<MeshData*> opaqueSkinnedMeshes;
-	vector<MeshData*> transparentStaticMeshes;
-	vector<MeshData*> transparentSkinnedMeshes;
-
-	GetContainedMeshes(
-		camera,
-		opaqueStaticMeshes,
-		opaqueSkinnedMeshes,
-		transparentStaticMeshes,
-		transparentSkinnedMeshes
-	);
-	
-	mGlobalResources->CommandList->SetPipelineState(transparentStaticPSO);
-	for (auto* mesh : transparentStaticMeshes)
-	{
-		Draw(mesh);
-	}
-
-	mGlobalResources->CommandList->SetPipelineState(transparentSkinnedPSO);
-	for (auto* mesh : transparentSkinnedMeshes)
-	{
-		Draw(mesh);
-	}
-}
-
-void Carol::MeshesPass::DrawMainCameraContainedMeshes(ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO, ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO)
-{
-	mGlobalResources->CommandList->SetPipelineState(opaqueStaticPSO);
-	for (auto* mesh : mMainCameraContainedOpaqueStaticMeshes)
-	{
-		Draw(mesh);
-	}
-
-	mGlobalResources->CommandList->SetPipelineState(opaqueSkinnedPSO);
-	for (auto* mesh : mMainCameraContainedOpaqueSkinnedMeshes)
-	{
-		Draw(mesh);
-	}
-
-	mGlobalResources->CommandList->SetPipelineState(transparentStaticPSO);
-	for (auto* mesh : mMainCameraContainedTransparentStaticMeshes)
-	{
-		Draw(mesh);
-	}
-
-	mGlobalResources->CommandList->SetPipelineState(transparentSkinnedPSO);
-	for (auto* mesh : mMainCameraContainedTransparentSkinnedMeshes)
-	{
-		Draw(mesh);
-	}
-}
-
-void Carol::MeshesPass::DrawMainCameraContainedOpaqueMeshes(ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO)
-{
-	mGlobalResources->CommandList->SetPipelineState(opaqueStaticPSO);
-	for (auto* mesh : mMainCameraContainedOpaqueStaticMeshes)
-	{
-		Draw(mesh);
-	}
-
-	mGlobalResources->CommandList->SetPipelineState(opaqueSkinnedPSO);
-	for (auto* mesh : mMainCameraContainedOpaqueSkinnedMeshes)
-	{
-		Draw(mesh);
-	}
-}
-
-void Carol::MeshesPass::DrawMainCameraContainedTransparentMeshes(ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO)
-{
-	mGlobalResources->CommandList->SetPipelineState(transparentStaticPSO);
-	for (auto* mesh : mMainCameraContainedTransparentStaticMeshes)
-	{
-		Draw(mesh);
-	}
-
-	mGlobalResources->CommandList->SetPipelineState(transparentSkinnedPSO);
-	for (auto* mesh : mMainCameraContainedTransparentSkinnedMeshes)
-	{
-		Draw(mesh);
-	}
 }
 
 void Carol::MeshesPass::DrawSkyBox(ID3D12PipelineState* skyBoxPSO)

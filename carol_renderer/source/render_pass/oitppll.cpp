@@ -223,10 +223,12 @@ void Carol::OitppllPass::DrawPpll()
 	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetGpuCbvSrvUav(OFFSET_UAV), GetCpuCbvSrvUav(OFFSET_UAV), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
 	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetGpuCbvSrvUav(COUNTER_UAV), GetCpuCbvSrvUav(COUNTER_UAV), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
 
-	mGlobalResources->Meshes->DrawMainCameraContainedTransparentMeshes(
+	mGlobalResources->Meshes->DrawMeshes({
+		nullptr,
+		nullptr,
 		(*mGlobalResources->PSOs)[L"BuildStaticOitppll"].Get(),
 		(*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].Get()
-	);
+		});
 }
 
 void Carol::OitppllPass::DrawOit()

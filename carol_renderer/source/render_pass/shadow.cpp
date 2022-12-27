@@ -38,12 +38,11 @@ void Carol::ShadowPass::Draw()
 	mGlobalResources->CommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(GetDsv(SHADOW_DSV)));
 	mGlobalResources->CommandList->SetGraphicsRoot32BitConstant(RootSignature::ROOT_SIGNATURE_CONSTANT, 0, 0);
 
-	mGlobalResources->Meshes->DrawContainedMeshes(
-		mCamera.get(),
-		(*mGlobalResources->PSOs)[L"ShadowStatic"].Get(),
+	mGlobalResources->Meshes->DrawMeshes(
+		{ (*mGlobalResources->PSOs)[L"ShadowStatic"].Get(),
 		(*mGlobalResources->PSOs)[L"ShadowSkinned"].Get(),
 		(*mGlobalResources->PSOs)[L"ShadowStatic"].Get(),
-		(*mGlobalResources->PSOs)[L"ShadowSkinned"].Get()
+		(*mGlobalResources->PSOs)[L"ShadowSkinned"].Get() }
 	);
 }
 

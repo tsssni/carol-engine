@@ -34,12 +34,12 @@ void Carol::NormalPass::Draw()
     mGlobalResources->CommandList->ClearDepthStencilView(mGlobalResources->Frame->GetDepthStencilDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
     mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(NORMAL_RTV)), true, GetRvaluePtr(mGlobalResources->Frame->GetDepthStencilDsv()));
 
-    mGlobalResources->Meshes->DrawMainCameraContainedMeshes(
+    mGlobalResources->Meshes->DrawMeshes({
         (*mGlobalResources->PSOs)[L"NormalsStatic"].Get(),
         (*mGlobalResources->PSOs)[L"NormalsSkinned"].Get(),
         (*mGlobalResources->PSOs)[L"NormalsStatic"].Get(),
-		(*mGlobalResources->PSOs)[L"NormalsSkinned"].Get()
-    );
+        (*mGlobalResources->PSOs)[L"NormalsSkinned"].Get()
+        });
 
     mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mNormalMap->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ)));
 }

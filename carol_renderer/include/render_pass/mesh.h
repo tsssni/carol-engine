@@ -122,13 +122,7 @@ namespace Carol
 
 		void ReleaseIntermediateBuffers(const std::wstring& modelName);
 	
-		void DrawContainedMeshes(Camera* camera, ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO, ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO);
-		void DrawContainedOpaqueMeshes(Camera* camera, ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO);
-		void DrawContainedTransparentMeshes(Camera* camera, ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO);
-		
-		void DrawMainCameraContainedMeshes(ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO, ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO);
-		void DrawMainCameraContainedOpaqueMeshes(ID3D12PipelineState* opaqueStaticPSO, ID3D12PipelineState* opaqueSkinnedPSO);
-		void DrawMainCameraContainedTransparentMeshes(ID3D12PipelineState* transparentStaticPSO, ID3D12PipelineState* transparentSkinnedPSO);
+		void DrawMeshes(const std::vector<ID3D12PipelineState*>& pso);
 		void DrawSkyBox(ID3D12PipelineState* skyBoxPSO);
 
 		static void InitMeshCBHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList);
@@ -150,25 +144,18 @@ namespace Carol
 		virtual void InitPSOs()override;
 		virtual void InitResources()override;
 		virtual void InitDescriptors()override;
-
+		
+		void Distribute(ModelData* model);
 		void Draw(MeshData* mesh);
 
-		void GetContainedMeshes(
-			Camera* camera,
-			std::vector<MeshData*>& opaqueStaticMeshes,
-			std::vector<MeshData*>& opaqueSkinnedMeshes,
-			std::vector<MeshData*>& transparentStaticMeshes,
-			std::vector<MeshData*>& transparentSkinnedMeshes);
-		void UpdateMeshes();
-		void UpdateMesh(MeshData* mesh);
+		enum
+		{
+			OPAQUE_STATIC, OPAQUE_SKINNED, TRANSPARENT_STATIC, TRANSPARENT_SKINNED, MESH_TYPE_COUNT
+		};
 
 		std::unordered_map<std::wstring, std::unique_ptr<ModelData>> mModels;
 		std::unique_ptr<ModelData> mSkyBox;
-
-		std::vector<MeshData*> mMainCameraContainedOpaqueStaticMeshes;
-		std::vector<MeshData*> mMainCameraContainedOpaqueSkinnedMeshes;
-		std::vector<MeshData*> mMainCameraContainedTransparentStaticMeshes;
-		std::vector<MeshData*> mMainCameraContainedTransparentSkinnedMeshes;
+		std::vector<std::vector<MeshData*>> mMeshes;
 
 		static std::unique_ptr<CircularHeap> MeshCBHeap;
 		static std::unique_ptr<CircularHeap> SkinnedCBHeap;
