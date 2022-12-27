@@ -73,7 +73,7 @@ void Carol::ShadowPass::ReleaseIntermediateBuffers()
 
 uint32_t Carol::ShadowPass::GetShadowSrvIdx()
 {
-	return mCbvSrvUavIdx + SHADOW_SRV;
+	return mGpuCbvSrvUavAllocInfo->StartOffset + SHADOW_SRV;
 }
 
 const Carol::Light& Carol::ShadowPass::GetLight()
@@ -107,7 +107,7 @@ void Carol::ShadowPass::InitResources()
 
 void Carol::ShadowPass::InitDescriptors()
 {
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(SHADOW_CBV_SRV_UAV_COUNT, mCbvSrvUavAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(SHADOW_CBV_SRV_UAV_COUNT, mCpuCbvSrvUavAllocInfo.get());
 	mGlobalResources->DsvAllocator->CpuAllocate(SHADOW_DSV_COUNT, mDsvAllocInfo.get());
 	
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -124,6 +124,8 @@ void Carol::ShadowPass::InitDescriptors()
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 
 	mGlobalResources->Device->CreateDepthStencilView(mShadowMap->Get(), &dsvDesc, GetDsv(SHADOW_DSV));
+
+	CopyDescriptors();
 }
 
 void Carol::ShadowPass::InitLightView()

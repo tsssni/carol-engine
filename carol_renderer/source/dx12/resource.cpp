@@ -69,7 +69,7 @@ void Carol::DefaultResource::ReleaseIntermediateBuffer()
 {
 	if (mIntermediateBuffer)
 	{
-		mIntermediateBufferAllocInfo->Heap->DeleteResource(mIntermediateBufferAllocInfo.get());
+		mIntermediateBufferAllocInfo->Heap->DeleteResourceImmediate(mIntermediateBufferAllocInfo.get());
 		mIntermediateBuffer.Reset();
 	}
 }

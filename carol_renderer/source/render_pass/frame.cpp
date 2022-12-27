@@ -89,12 +89,12 @@ CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::FramePass::GetDepthStencilDsv()
 
 uint32_t Carol::FramePass::GetFrameSrvIdx()
 {
-	return mCbvSrvUavIdx + FRAME_SRV;
+	return mGpuCbvSrvUavAllocInfo->StartOffset + FRAME_SRV;
 }
 
 uint32_t Carol::FramePass::GetDepthStencilSrvIdx()
 {
-	return mCbvSrvUavIdx + DEPTH_STENCIL_SRV;
+	return mGpuCbvSrvUavAllocInfo->StartOffset + DEPTH_STENCIL_SRV;
 }
 
 void Carol::FramePass::InitShaders()
@@ -174,7 +174,7 @@ void Carol::FramePass::InitResources()
 
 void Carol::FramePass::InitDescriptors()
 {
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(FRAME_CBV_SRV_UAV_COUNT, mCbvSrvUavAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(FRAME_CBV_SRV_UAV_COUNT, mCpuCbvSrvUavAllocInfo.get());
 	mGlobalResources->RtvAllocator->CpuAllocate(FRAME_RTV_COUNT, mRtvAllocInfo.get());
 	mGlobalResources->DsvAllocator->CpuAllocate(FRAME_DSV_COUNT, mDsvAllocInfo.get());
 	
@@ -205,4 +205,6 @@ void Carol::FramePass::InitDescriptors()
 	dsvDesc.Texture2D.MipSlice = 0;
 
 	mGlobalResources->Device->CreateDepthStencilView(mDepthStencilMap->Get(), &dsvDesc, GetDsv(DEPTH_STENCIL_DSV));
+	
+	CopyDescriptors();
 }

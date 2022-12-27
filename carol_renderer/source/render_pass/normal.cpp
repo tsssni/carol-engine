@@ -70,7 +70,7 @@ void Carol::NormalPass::ReleaseIntermediateBuffers()
 
 uint32_t Carol::NormalPass::GetNormalSrvIdx()
 {
-    return mCbvSrvUavIdx + NORMAL_SRV;
+    return mGpuCbvSrvUavAllocInfo->StartOffset + NORMAL_SRV;
 }
 
 void Carol::NormalPass::InitShaders()
@@ -131,7 +131,7 @@ void Carol::NormalPass::InitResources()
 
 void Carol::NormalPass::InitDescriptors()
 {
-    mGlobalResources->CbvSrvUavAllocator->CpuAllocate(NORMAL_CBV_SRV_UAV_COUNT, mCbvSrvUavAllocInfo.get());
+    mGlobalResources->CbvSrvUavAllocator->CpuAllocate(NORMAL_CBV_SRV_UAV_COUNT, mCpuCbvSrvUavAllocInfo.get());
 	mGlobalResources->RtvAllocator->CpuAllocate(NORMAL_RTV_COUNT, mRtvAllocInfo.get());
     
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -150,4 +150,6 @@ void Carol::NormalPass::InitDescriptors()
     rtvDesc.Texture2D.PlaneSlice = 0;
 
     mGlobalResources->Device->CreateRenderTargetView(mNormalMap->Get(), &rtvDesc, GetRtv(NORMAL_RTV));
+
+    CopyDescriptors();
 }

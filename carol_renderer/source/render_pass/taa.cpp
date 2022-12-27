@@ -171,12 +171,12 @@ DirectX::XMMATRIX Carol::TaaPass::GetHistViewProj()
 
 uint32_t Carol::TaaPass::GetVeloctiySrvIdx()
 {
-	return mCbvSrvUavIdx + VELOCITY_SRV;
+	return mGpuCbvSrvUavAllocInfo->StartOffset + VELOCITY_SRV;
 }
 
 uint32_t Carol::TaaPass::GetHistFrameSrvIdx()
 {
-	return mCbvSrvUavIdx + HIST_SRV;
+	return mGpuCbvSrvUavAllocInfo->StartOffset + HIST_SRV;
 }
 
 void Carol::TaaPass::InitResources()
@@ -206,7 +206,7 @@ void Carol::TaaPass::InitResources()
 
 void Carol::TaaPass::InitDescriptors()
 {
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(TAA_CBV_SRV_UAV_COUNT, mCbvSrvUavAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(TAA_CBV_SRV_UAV_COUNT, mCpuCbvSrvUavAllocInfo.get());
 	mGlobalResources->RtvAllocator->CpuAllocate(TAA_RTV_COUNT, mRtvAllocInfo.get());
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -228,6 +228,8 @@ void Carol::TaaPass::InitDescriptors()
     rtvDesc.Texture2D.PlaneSlice = 0;
 
 	mGlobalResources->Device->CreateRenderTargetView(mVelocityMap->Get(), &rtvDesc, GetRtv(VELOCITY_RTV));
+
+	CopyDescriptors();
 }
 
 void Carol::TaaPass::InitHalton()

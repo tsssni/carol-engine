@@ -41,12 +41,12 @@ void Carol::SsaoPass::SetBlurCount(uint32_t blurCout)
 
 uint32_t Carol::SsaoPass::GetRandVecSrvIdx()
 {
-    return mCbvSrvUavIdx + RAND_VEC_SRV;
+    return mGpuCbvSrvUavAllocInfo->StartOffset + RAND_VEC_SRV;
 }
 
 uint32_t Carol::SsaoPass::GetSsaoSrvIdx()
 {
-    return mCbvSrvUavIdx + AMBIENT0_SRV;
+    return mGpuCbvSrvUavAllocInfo->StartOffset + AMBIENT0_SRV;
 }
 
 void Carol::SsaoPass::OnResize()
@@ -257,7 +257,7 @@ void Carol::SsaoPass::GetOffsetVectors(DirectX::XMFLOAT4 offsets[14])
 
 void Carol::SsaoPass::InitDescriptors()
 {
-    mGlobalResources->CbvSrvUavAllocator->CpuAllocate(SSAO_CBV_SRV_UAV_COUNT, mCbvSrvUavAllocInfo.get());
+    mGlobalResources->CbvSrvUavAllocator->CpuAllocate(SSAO_CBV_SRV_UAV_COUNT, mCpuCbvSrvUavAllocInfo.get());
 	mGlobalResources->RtvAllocator->CpuAllocate(SSAO_RTV_COUNT, mRtvAllocInfo.get());
     
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -282,6 +282,8 @@ void Carol::SsaoPass::InitDescriptors()
 
     mGlobalResources->Device->CreateRenderTargetView(mAmbientMap0->Get(), &rtvDesc, GetRtv(AMBIENT0_RTV));
     mGlobalResources->Device->CreateRenderTargetView(mAmbientMap1->Get(), &rtvDesc, GetRtv(AMBIENT1_RTV));
+
+    CopyDescriptors();
 }
 
 void Carol::SsaoPass::DrawAmbientMap()

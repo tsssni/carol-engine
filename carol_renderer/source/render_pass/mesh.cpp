@@ -38,8 +38,8 @@ Carol::MeshData::MeshData(
 	mMeshConstants->Roughness = mat.Roughness;
 	XMStoreFloat4x4(&mMeshConstants->World, XMMatrixIdentity());
 	XMStoreFloat4x4(&mMeshConstants->HistWorld, XMMatrixIdentity());
-	mGlobalResources->TexManager->LoadTexture(mMesh->GetDiffuseMapPath());
-	mGlobalResources->TexManager->LoadTexture(mMesh->GetNormalMapPath());
+	mMeshConstants->DiffuseMapIdx = mGlobalResources->TexManager->LoadTexture(mMesh->GetDiffuseMapPath());
+	mMeshConstants->NormalMapIdx = mGlobalResources->TexManager->LoadTexture(mMesh->GetNormalMapPath());
 }
 
 Carol::MeshData::~MeshData()
@@ -56,8 +56,6 @@ void Carol::MeshData::ReleaseIntermediateBuffers()
 
 void Carol::MeshData::UpdateConstants()
 {
-	mMeshConstants->MeshDiffuseMapIdx = mGlobalResources->TexManager->CollectGpuTextures(mMesh->GetDiffuseMapPath());
-	mMeshConstants->MeshNormalMapIdx = mGlobalResources->TexManager->CollectGpuTextures(mMesh->GetNormalMapPath());
 	mMeshConstants->HistWorld = mMeshConstants->World;
 
 	MeshesPass::MeshCBHeap->DeleteResource(mMeshCBAllocInfo.get());
@@ -374,11 +372,6 @@ Carol::vector<Carol::wstring> Carol::MeshesPass::GetAnimationClips(std::wstring 
 uint32_t Carol::MeshesPass::NumTransparentMeshes()
 {
 	return mMainCameraContainedTransparentStaticMeshes.size()+mMainCameraContainedTransparentSkinnedMeshes.size();
-}
-
-void Carol::MeshesPass::CopyDescriptors()
-{
-	RenderPass::CopyDescriptors();
 }
 
 void Carol::MeshesPass::InitShaders()

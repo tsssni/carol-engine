@@ -68,7 +68,7 @@ float3 Clip(float3 histColor, float3 minPixelColor, float3 maxPixelColor)
 
 void CalcPixelColorAabb(float2 pixelPos, inout float3 minPixelColor, inout float3 maxPixelColor)
 {
-    Texture2D gCurrMap = ResourceDescriptorHeap[gResourceStartOffset + gFrameIdx];
+    Texture2D gCurrMap = ResourceDescriptorHeap[gFrameIdx];
     
     minPixelColor = float3(1.0f, 0.5f, 0.5f);
     maxPixelColor = float3(0.0f, -0.5f, -0.5f);
@@ -95,10 +95,10 @@ void CalcPixelColorAabb(float2 pixelPos, inout float3 minPixelColor, inout float
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    Texture2D gDepthMap = ResourceDescriptorHeap[gResourceStartOffset + gDepthStencilIdx];
-    Texture2D gCurrMap = ResourceDescriptorHeap[gResourceStartOffset + gFrameIdx];
-    Texture2D gHistMap = ResourceDescriptorHeap[gResourceStartOffset + gHistIdx];
-    Texture2D gVelocityMap = ResourceDescriptorHeap[gResourceStartOffset + gVelocityIdx];
+    Texture2D gDepthMap = ResourceDescriptorHeap[gDepthStencilIdx];
+    Texture2D gCurrMap = ResourceDescriptorHeap[gFrameIdx];
+    Texture2D gHistMap = ResourceDescriptorHeap[gHistIdx];
+    Texture2D gVelocityMap = ResourceDescriptorHeap[gVelocityIdx];
         
     float minZ = 1.0f;
     float2 minZPos = pin.PosH.xy * gInvRenderTargetSize;

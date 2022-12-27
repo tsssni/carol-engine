@@ -21,6 +21,6 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-	TextureCube gSkyBox = ResourceDescriptorHeap[gResourceStartOffset + gDiffuseMapIdx];
+	TextureCube gSkyBox = ResourceDescriptorHeap[gDiffuseMapIdx];
     return gSkyBox.Sample(gsamLinearWrap, pin.PosL);
 }

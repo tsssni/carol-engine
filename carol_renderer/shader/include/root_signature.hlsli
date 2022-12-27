@@ -33,7 +33,6 @@ cbuffer FrameCB : register(b0)
     float gOcclusionFadeEnd;
     float gSurfaceEplison;
 
-    uint gResourceStartOffset;
     uint gFrameIdx;
     uint gDepthStencilIdx;
     uint gNormalIdx;
@@ -47,7 +46,7 @@ cbuffer FrameCB : register(b0)
     uint gAmbientIdx;
     uint gVelocityIdx;
     uint gHistIdx;
-    uint2 gFramePad2;
+    uint3 gFramePad2;
 
     Light gLights[MAX_LIGHTS];
 }

@@ -42,9 +42,9 @@ float OcclusionFunction(float distZ)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    Texture2D gDepthMap = ResourceDescriptorHeap[gResourceStartOffset + gDepthStencilIdx];
-    Texture2D gNormalMap = ResourceDescriptorHeap[gResourceStartOffset + gNormalIdx];
-    Texture2D gRandVec = ResourceDescriptorHeap[gResourceStartOffset + gRandVecIdx];
+    Texture2D gDepthMap = ResourceDescriptorHeap[gDepthStencilIdx];
+    Texture2D gNormalMap = ResourceDescriptorHeap[gNormalIdx];
+    Texture2D gRandVec = ResourceDescriptorHeap[gRandVecIdx];
     
     float3 normal = normalize(gNormalMap.SampleLevel(gsamLinearClamp, pin.TexC, 0.0f).xyz);
     float viewDepth = NdcDepthToViewDepth(gDepthMap.SampleLevel(gsamLinearClamp, pin.TexC, 0.0f).r);

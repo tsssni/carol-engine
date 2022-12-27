@@ -116,6 +116,12 @@ bool Carol::CbvSrvUavDescriptorAllocator::GpuAllocate(uint32_t numDescriptors, D
 
 bool Carol::CbvSrvUavDescriptorAllocator::GpuDeallocate(DescriptorAllocInfo* info)
 {
+	mGpuDeletionInfo[mCurrFrame].push_back(info);
+	return true;
+}
+
+bool Carol::CbvSrvUavDescriptorAllocator::GpuDelete(DescriptorAllocInfo* info)
+{
 	if (info->NumDescriptors == 0)
 	{
 		return true;
@@ -157,76 +163,48 @@ Carol::DsvDescriptorAllocator::DsvDescriptorAllocator(ID3D12Device* device, uint
 {
 }
 
-Carol::CbvSrvUavDescriptorAllocator::CbvSrvUavDescriptorAllocator(ID3D12Device* device, uint32_t numFrames, uint32_t initNumCpuDescriptors, uint32_t initNumGpuDescriptors)
+Carol::CbvSrvUavDescriptorAllocator::CbvSrvUavDescriptorAllocator(ID3D12Device* device, uint32_t initNumCpuDescriptors, uint32_t initNumGpuDescriptors)
 	:DescriptorAllocator(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initNumCpuDescriptors), 
-	mNumGpuDescriptorsPerSection(initNumGpuDescriptors),
-	mCpuAllocInfo(0),
-	mGpuAllocInfo(numFrames),
-	mAllocCount(0)
+	mNumGpuDescriptorsPerSection(initNumGpuDescriptors)
 {
-	for (int i = 0; i < numFrames; ++i)
-	{
-		mGpuAllocInfo[i] = make_unique<DescriptorAllocInfo>();
-	}
-
 	ExpandGpuDescriptorHeap();
 }
 
 Carol::CbvSrvUavDescriptorAllocator::~CbvSrvUavDescriptorAllocator()
 {
-	for (auto& info : mGpuAllocInfo)
+	for (auto& vec : mGpuDeletionInfo)
 	{
-		if (info->Allocator == this)
+		for (auto& info : vec)
 		{
-			GpuDeallocate(info.get());
+			if (info->Allocator == this)
+			{
+				GpuDeallocate(info);
+			}
 		}
 	}
 }
 
-void Carol::CbvSrvUavDescriptorAllocator::ClearGpuDescriptors(uint32_t currFrame)
+void Carol::CbvSrvUavDescriptorAllocator::SetCurrFrame(uint32_t currFrame)
 {
 	mCurrFrame = currFrame;
 
-	mCpuAllocInfo.clear();
-	mAllocCount = 0;
-
-	for (auto& gpuInfo : mGpuAllocInfo)
+	if (mCurrFrame >= mGpuDeletionInfo.size())
 	{
-		if (gpuInfo->Allocator == this)
+		mGpuDeletionInfo.emplace_back();
+	}
+}
+
+void Carol::CbvSrvUavDescriptorAllocator::DelayedDelete()
+{
+	for (auto& info : mGpuDeletionInfo[mCurrFrame])
+	{
+		if (info->Allocator == this)
 		{
-			GpuDeallocate(gpuInfo.get());
+			GpuDelete(info);
 		}
 	}
-}
 
-uint32_t Carol::CbvSrvUavDescriptorAllocator::GpuAllocate(DescriptorAllocInfo* info)
-{
-	mCpuAllocInfo.push_back(info);
-	uint32_t temp = mAllocCount;
-	mAllocCount += info->NumDescriptors;
-	return temp;
-}
-
-void Carol::CbvSrvUavDescriptorAllocator::GpuUpload()
-{
-	if (mAllocCount > 0)
-	{
-		GpuAllocate(mAllocCount, mGpuAllocInfo[mCurrFrame].get());
-		CopyDescriptors();
-	}
-}
-
-CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::CbvSrvUavDescriptorAllocator::GetGpuHandle()
-{
-	return GetShaderGpuHandle(mGpuAllocInfo[mCurrFrame].get());
-}
-
-CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::CbvSrvUavDescriptorAllocator::GetGpuHandle(uint32_t idx)
-{
-	auto handle = GetShaderGpuHandle(mGpuAllocInfo[mCurrFrame].get());
-	handle.Offset(idx, GetDescriptorSize());
-
-	return handle;
+	mGpuDeletionInfo[mCurrFrame].clear();
 }
 
 uint32_t Carol::DescriptorAllocator::GetDescriptorSize()
@@ -237,11 +215,6 @@ uint32_t Carol::DescriptorAllocator::GetDescriptorSize()
 ID3D12DescriptorHeap* Carol::CbvSrvUavDescriptorAllocator::GetGpuDescriptorHeap()
 {
 	return mGpuDescriptorHeap.Get();
-}
-
-uint32_t Carol::CbvSrvUavDescriptorAllocator::GetStartOffset()
-{
-	return mGpuAllocInfo[mCurrFrame]->StartOffset;
 }
 
 void Carol::DescriptorAllocator::AddCpuDescriptorHeap()
@@ -274,17 +247,5 @@ void Carol::CbvSrvUavDescriptorAllocator::ExpandGpuDescriptorHeap()
 	for (int i = 0; i < mNumGpuDescriptors / mNumGpuDescriptorsPerSection; ++i)
 	{
 		mGpuBuddies.emplace_back(make_unique<Buddy>(mNumGpuDescriptorsPerSection, 1u));
-	}
-}
-
-void Carol::CbvSrvUavDescriptorAllocator::CopyDescriptors()
-{
-	auto gpuHandle = GetShaderCpuHandle(mGpuAllocInfo[mCurrFrame].get());
-	
-	for (auto& info : mCpuAllocInfo)
-	{
-		auto cpuHandle = GetCpuHandle(info);
-		mDevice->CopyDescriptorsSimple(info->NumDescriptors, gpuHandle, cpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		gpuHandle.Offset(info->NumDescriptors, GetDescriptorSize());
 	}
 }

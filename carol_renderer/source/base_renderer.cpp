@@ -182,7 +182,7 @@ void Carol::BaseRenderer::InitHeaps()
 
 void Carol::BaseRenderer::InitAllocators()
 {
-	mCbvSrvUavAllocator = make_unique<CbvSrvUavDescriptorAllocator>(mDevice.Get(), mNumFrame);
+	mCbvSrvUavAllocator = make_unique<CbvSrvUavDescriptorAllocator>(mDevice.Get());
 	mRtvAllocator = make_unique<RtvDescriptorAllocator>(mDevice.Get());
 	mDsvAllocator = make_unique<DsvDescriptorAllocator>(mDevice.Get());
 

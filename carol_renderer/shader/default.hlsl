@@ -47,11 +47,11 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    Texture2D gDiffuseMap = ResourceDescriptorHeap[gResourceStartOffset + gDiffuseMapIdx];
-    Texture2D gNormalMap = ResourceDescriptorHeap[gResourceStartOffset + gNormalMapIdx];
+    Texture2D gDiffuseMap = ResourceDescriptorHeap[gDiffuseMapIdx];
+    Texture2D gNormalMap = ResourceDescriptorHeap[gNormalMapIdx];
 
 #ifdef SSAO
-    Texture2D gSsaoMap = ResourceDescriptorHeap[gResourceStartOffset + gAmbientIdx];
+    Texture2D gSsaoMap = ResourceDescriptorHeap[gAmbientIdx];
 #endif
     
     float4 texDiffuse = gDiffuseMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);

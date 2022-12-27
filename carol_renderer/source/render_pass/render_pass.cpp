@@ -17,15 +17,16 @@ Carol::RenderPass::RenderPass(GlobalResources* globalResources)
 	mGlobalResources(globalResources),
 	mRtvAllocInfo(make_unique<DescriptorAllocInfo>()),
 	mDsvAllocInfo(make_unique<DescriptorAllocInfo>()),
-	mCbvSrvUavAllocInfo(make_unique<DescriptorAllocInfo>())
+	mCpuCbvSrvUavAllocInfo(make_unique<DescriptorAllocInfo>()),
+	mGpuCbvSrvUavAllocInfo(make_unique<DescriptorAllocInfo>())
 {
 }
 
 Carol::RenderPass::~RenderPass()
 {
-	if (mCbvSrvUavAllocInfo->Allocator)
+	if (mCpuCbvSrvUavAllocInfo->Allocator)
 	{
-		mCbvSrvUavAllocInfo->Allocator->CpuDeallocate(mCbvSrvUavAllocInfo.get());
+		mCpuCbvSrvUavAllocInfo->Allocator->CpuDeallocate(mCpuCbvSrvUavAllocInfo.get());
 	}	
 	
 	if (mRtvAllocInfo->Allocator)
@@ -51,15 +52,21 @@ void Carol::RenderPass::OnResize()
 		mGlobalResources->DsvAllocator->CpuDeallocate(mDsvAllocInfo.get());
 	}
 
-	if (mCbvSrvUavAllocInfo->Allocator)
+	if (mCpuCbvSrvUavAllocInfo->Allocator)
 	{
-		mGlobalResources->CbvSrvUavAllocator->CpuDeallocate(mCbvSrvUavAllocInfo.get());
+		mGlobalResources->CbvSrvUavAllocator->CpuDeallocate(mCpuCbvSrvUavAllocInfo.get());
 	}
 }
 
 void Carol::RenderPass::CopyDescriptors()
 {
-	mCbvSrvUavIdx = mGlobalResources->CbvSrvUavAllocator->GpuAllocate(mCbvSrvUavAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->GpuAllocate(mCpuCbvSrvUavAllocInfo->NumDescriptors, mGpuCbvSrvUavAllocInfo.get());
+
+	uint32_t num = mCpuCbvSrvUavAllocInfo->NumDescriptors;
+	auto cpuHandle = mGlobalResources->CbvSrvUavAllocator->GetCpuHandle(mCpuCbvSrvUavAllocInfo.get());
+	auto shaderCpuHandle = mGlobalResources->CbvSrvUavAllocator->GetShaderCpuHandle(mGpuCbvSrvUavAllocInfo.get());
+	
+	mGlobalResources->Device->CopyDescriptorsSimple(num, shaderCpuHandle, cpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::RenderPass::GetRtv(int idx)
@@ -80,13 +87,16 @@ CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::RenderPass::GetDsv(int idx)
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::RenderPass::GetCpuCbvSrvUav(int idx)
 {
-	auto cbvSrvUav = mGlobalResources->CbvSrvUavAllocator->GetCpuHandle(mCbvSrvUavAllocInfo.get());
-	cbvSrvUav.Offset(idx * mGlobalResources->CbvSrvUavAllocator->GetDescriptorSize());
+	auto cpuCbvSrvUav = mGlobalResources->CbvSrvUavAllocator->GetCpuHandle(mCpuCbvSrvUavAllocInfo.get());
+	cpuCbvSrvUav.Offset(idx * mGlobalResources->CbvSrvUavAllocator->GetDescriptorSize());
 
-	return cbvSrvUav;
+	return cpuCbvSrvUav;
 }
 
 CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::RenderPass::GetGpuCbvSrvUav(int idx)
 {
-	return mGlobalResources->CbvSrvUavAllocator->GetGpuHandle(mCbvSrvUavIdx + idx);
+	auto gpuCbvSrvUav = mGlobalResources->CbvSrvUavAllocator->GetShaderGpuHandle(mGpuCbvSrvUavAllocInfo.get());
+	gpuCbvSrvUav.Offset(idx * mGlobalResources->CbvSrvUavAllocator->GetDescriptorSize());
+
+	return gpuCbvSrvUav;
 }

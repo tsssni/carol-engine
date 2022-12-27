@@ -197,7 +197,6 @@ void Carol::Renderer::UpdateFrameCB()
     mFrameConstants->BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
     mFrameConstants->BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
 
-	mFrameConstants->ResourceStartOffset = mCbvSrvUavAllocator->GetStartOffset();
 	mFrameConstants->FrameIdx = mFrame->GetFrameSrvIdx();
 	mFrameConstants->DepthStencilIdx = mFrame->GetDepthStencilSrvIdx();
 	mFrameConstants->NormalIdx = mNormal->GetNormalSrvIdx();
@@ -219,21 +218,31 @@ void Carol::Renderer::UpdateFrameCB()
 	mFrameCBHeap->CopyData(mFrameCBAllocInfo.get(), mFrameConstants.get());
 }
 
+void Carol::Renderer::SetCurrFrame()
+{
+	mCbvSrvUavAllocator->SetCurrFrame(mCurrFrame);
+	mTexManager->SetCurrFrame(mCurrFrame);
+	mDefaultBuffersHeap->SetCurrFrame(mCurrFrame);
+	mUploadBuffersHeap->SetCurrFrame(mCurrFrame);
+	mReadbackBuffersHeap->SetCurrFrame(mCurrFrame);
+	mTexturesHeap->SetCurrFrame(mCurrFrame);
+}
+
+void Carol::Renderer::DelayedDelete()
+{
+	mCbvSrvUavAllocator->DelayedDelete();
+	mTexManager->DelayedDelete();
+	mDefaultBuffersHeap->DelayedDelete();
+	mUploadBuffersHeap->DelayedDelete();
+	mReadbackBuffersHeap->DelayedDelete();
+	mTexturesHeap->DelayedDelete();
+}
+
 void Carol::Renderer::ReleaseIntermediateBuffers()
 {
 	mSsao->ReleaseIntermediateBuffers();
 	mOitppll->ReleaseIntermediateBuffers();
 	mMeshes->ReleaseIntermediateBuffers();
-}
-
-void Carol::Renderer::CopyDescriptors()
-{
-	mFrame->CopyDescriptors();
-	mMainLight->CopyDescriptors();
-	mNormal->CopyDescriptors();
-	mSsao->CopyDescriptors();
-	mOitppll->CopyDescriptors();
-	mTaa->CopyDescriptors();
 }
 
 void Carol::Renderer::Draw()
@@ -321,16 +330,13 @@ void Carol::Renderer::Update()
 	ThrowIfFailed(mFrameAllocator[mCurrFrame]->Reset());
 	ThrowIfFailed(mCommandList->Reset(mFrameAllocator[mCurrFrame].Get(), nullptr));
 	
-	mCbvSrvUavAllocator->ClearGpuDescriptors(mCurrFrame);
-	mTexManager->ClearGpuTextures();
-	CopyDescriptors();
-
+	SetCurrFrame();
+	DelayedDelete();
 	mMainLight->Update();
 	mSsao->Update();
 	mMeshes->Update();
 	mFrame->Update();
 	UpdateFrameCB();
-	mCbvSrvUavAllocator->GpuUpload();
 }
 
 void Carol::Renderer::OnResize(uint32_t width, uint32_t height)

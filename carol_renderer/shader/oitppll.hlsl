@@ -49,8 +49,8 @@ void SortPixels(inout OitNode sortedPixels[MAX_SORTED_PIXELS])
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    StructuredBuffer<OitNode> gOitNodeBuffer = ResourceDescriptorHeap[gResourceStartOffset + gOitR];
-    Buffer<uint> gStartOffsetBuffer = ResourceDescriptorHeap[gResourceStartOffset + gOitOffsetR];
+    StructuredBuffer<OitNode> gOitNodeBuffer = ResourceDescriptorHeap[gOitR];
+    Buffer<uint> gStartOffsetBuffer = ResourceDescriptorHeap[gOitOffsetR];
 
     
     uint2 pixelPos = uint2(pin.PosH.x - 0.5f, pin.PosH.y - 0.5f);

@@ -51,7 +51,6 @@ namespace Carol
 		float SurfaceEplison = 0.05f;
 
 		// Resources
-		uint32_t ResourceStartOffset;
 		uint32_t FrameIdx;
 		uint32_t DepthStencilIdx;
 		uint32_t NormalIdx;
@@ -65,7 +64,7 @@ namespace Carol
 		uint32_t AmbientIdx;
 		uint32_t VelocityIdx;
 		uint32_t HistIdx;
-		DirectX::XMUINT2 FramePad2;
+		DirectX::XMUINT3 FramePad2;
 
 		Light Lights[MAX_LIGHTS];
 	};
@@ -101,9 +100,9 @@ namespace Carol
         void InitMeshes();
 		
 		void UpdateFrameCB();
+		void SetCurrFrame();
+		void DelayedDelete();
         void ReleaseIntermediateBuffers();
-        void CopyDescriptors();
-        void SetTextures();
 
     protected:
         std::unique_ptr<FramePass> mFrame;

@@ -64,27 +64,27 @@ void Carol::OitppllPass::ReleaseIntermediateBuffers()
 
 uint32_t Carol::OitppllPass::GetPpllUavIdx()
 {
-	return mCbvSrvUavIdx + PPLL_UAV;
+	return mGpuCbvSrvUavAllocInfo->StartOffset + PPLL_UAV;
 }
 
 uint32_t Carol::OitppllPass::GetOffsetUavIdx()
 {
-	return mCbvSrvUavIdx + OFFSET_UAV;
+	return mGpuCbvSrvUavAllocInfo->StartOffset + OFFSET_UAV;
 }
 
 uint32_t Carol::OitppllPass::GetCounterUavIdx()
 {
-	return mCbvSrvUavIdx + COUNTER_UAV;
+	return mGpuCbvSrvUavAllocInfo->StartOffset + COUNTER_UAV;
 }
 
 uint32_t Carol::OitppllPass::GetPpllSrvIdx()
 {
-	return mCbvSrvUavIdx + PPLL_SRV;
+	return mGpuCbvSrvUavAllocInfo->StartOffset + PPLL_SRV;
 }
 
 uint32_t Carol::OitppllPass::GetOffsetSrvIdx()
 {
-	return mCbvSrvUavIdx + OFFSET_SRV;
+	return mGpuCbvSrvUavAllocInfo->StartOffset + OFFSET_SRV;
 }
 
 void Carol::OitppllPass::InitShaders()
@@ -171,7 +171,7 @@ void Carol::OitppllPass::InitResources()
 
 void Carol::OitppllPass::InitDescriptors()
 {
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(OITPPLL_CBV_SRV_UAV_COUNT, mCbvSrvUavAllocInfo.get());
+	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(OITPPLL_CBV_SRV_UAV_COUNT, mCpuCbvSrvUavAllocInfo.get());
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -209,6 +209,8 @@ void Carol::OitppllPass::InitDescriptors()
 	srvDesc.Buffer.NumElements = (*mGlobalResources->ClientWidth) * (*mGlobalResources->ClientHeight);
 	srvDesc.Format = DXGI_FORMAT_R32_UINT;
 	mGlobalResources->Device->CreateShaderResourceView(mStartOffsetBuffer->Get(), &srvDesc, GetCpuCbvSrvUav(OFFSET_SRV));
+
+	CopyDescriptors();
 }
 
 void Carol::OitppllPass::DrawPpll()

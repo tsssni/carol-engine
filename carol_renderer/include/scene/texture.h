@@ -33,9 +33,11 @@ namespace Carol
 	class AllocatedTexture
 	{
 	public:
+		AllocatedTexture();
 		std::unique_ptr<Texture> Texture;
-		std::unique_ptr<DescriptorAllocInfo> CpuDescriptorAllocInfo;
-		uint32_t NumRef = 1;
+		std::unique_ptr<DescriptorAllocInfo> CpuAllocInfo;
+		std::unique_ptr<DescriptorAllocInfo> GpuAllocInfo;
+		uint32_t NumRef;
 	};
 
 	class TextureManager
@@ -43,12 +45,13 @@ namespace Carol
 	public:
 		TextureManager(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator);
 
-		void LoadTexture(const std::wstring& fileName, bool isSrgb = false);
+		uint32_t LoadTexture(const std::wstring& fileName, bool isSrgb = false);
 		void UnloadTexture(const std::wstring& fileName);
 		void ReleaseIntermediateBuffers(const std::wstring& fileName);
 
-		void ClearGpuTextures();
-		uint32_t CollectGpuTextures(const std::wstring& fileName);
+		void SetCurrFrame(uint32_t currFrame);
+		void DelayedDelete();
+
 	protected:
 
 		Heap* mTexturesHeap;
@@ -60,7 +63,8 @@ namespace Carol
 		RootSignature* mRootSignature;
 		
 		std::unordered_map<std::wstring, std::unique_ptr<AllocatedTexture>> mTextures;
-		std::unordered_map<std::wstring, uint32_t> mGpuTexIdx;
+		std::vector<std::vector<std::wstring>> mDeletedTextures;
+		uint32_t mCurrFrame;
 	};
 }
 

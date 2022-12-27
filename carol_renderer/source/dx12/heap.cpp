@@ -17,6 +17,37 @@ Carol::Heap::Heap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS f
   
 }
 
+void Carol::Heap::SetCurrFrame(uint32_t currFrame)
+{
+    mCurrFrame = currFrame;
+
+    if (mCurrFrame >= mDeletedResources.size())
+    {
+        // Frame index is added by one per frame, so just emplace back.
+        mDeletedResources.emplace_back();
+    }
+}
+
+void Carol::Heap::DeleteResource(HeapAllocInfo* info)
+{
+    mDeletedResources[mCurrFrame].push_back(info);
+}
+
+void Carol::Heap::DeleteResourceImmediate(HeapAllocInfo* info)
+{
+    Deallocate(info);
+}
+
+void Carol::Heap::DelayedDelete()
+{
+    for (auto& info : mDeletedResources[mCurrFrame])
+    {
+        Deallocate(info);
+    }
+
+    mDeletedResources[mCurrFrame].clear();
+}
+
 
 Carol::BuddyHeap::BuddyHeap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag, uint32_t heapSize, uint32_t pageSize)
     :Heap(device,type,flag), mHeapSize(heapSize), mPageSize(pageSize)
@@ -97,11 +128,6 @@ void Carol::BuddyHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_RE
         optimizedClearValue,
         IID_PPV_ARGS(resource->GetAddressOf())
     ));
-}
-
-void Carol::BuddyHeap::DeleteResource(HeapAllocInfo* info)
-{
-    Deallocate(info);
 }
 
 void Carol::BuddyHeap::Align()
@@ -282,11 +308,6 @@ void Carol::SegListHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_
         optimizedClearValue,
         IID_PPV_ARGS(resource->GetAddressOf())
     ));
-}
-
-void Carol::SegListHeap::DeleteResource(HeapAllocInfo* info)
-{
-    Deallocate(info);
 }
 
 bool Carol::SegListHeap::Allocate(uint32_t size, HeapAllocInfo* info)

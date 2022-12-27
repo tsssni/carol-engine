@@ -51,15 +51,15 @@ VertexOut VS(VertexIn vin)
 
 void PS(VertexOut pin)
 {
-    RWStructuredBuffer<OitNode> gOitNodeBuffer = ResourceDescriptorHeap[gResourceStartOffset + gOitW];
-    RWByteAddressBuffer gStartOffsetBuffer = ResourceDescriptorHeap[gResourceStartOffset + gOitOffsetW];
-    RWByteAddressBuffer gCounter = ResourceDescriptorHeap[gResourceStartOffset + gOitCounterW];
+    RWStructuredBuffer<OitNode> gOitNodeBuffer = ResourceDescriptorHeap[gOitW];
+    RWByteAddressBuffer gStartOffsetBuffer = ResourceDescriptorHeap[gOitOffsetW];
+    RWByteAddressBuffer gCounter = ResourceDescriptorHeap[gOitCounterW];
     
-    Texture2D gDiffuseMap = ResourceDescriptorHeap[gResourceStartOffset + gDiffuseMapIdx];
-    Texture2D gNormalMap = ResourceDescriptorHeap[gResourceStartOffset + gNormalMapIdx];
-    Texture2D gDepthMap = ResourceDescriptorHeap[gResourceStartOffset + gDepthStencilIdx];
+    Texture2D gDiffuseMap = ResourceDescriptorHeap[gDiffuseMapIdx];
+    Texture2D gNormalMap = ResourceDescriptorHeap[gNormalMapIdx];
+    Texture2D gDepthMap = ResourceDescriptorHeap[gDepthStencilIdx];
 #ifdef SSAO
-    Texture2D gSsaoMap = ResourceDescriptorHeap[gResourceStartOffset + gAmbientIdx];
+    Texture2D gSsaoMap = ResourceDescriptorHeap[gAmbientIdx];
 #endif
     
     float2 ndcPos = pin.PosH.xy * gInvRenderTargetSize;

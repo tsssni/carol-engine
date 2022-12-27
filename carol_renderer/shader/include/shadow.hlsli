@@ -4,7 +4,7 @@
 
 float CalcShadowFactor(float4 shadowPosH)
 {
-    Texture2D gShadowMap = ResourceDescriptorHeap[gResourceStartOffset + gShadowIdx];
+    Texture2D gShadowMap = ResourceDescriptorHeap[gShadowIdx];
     
     // Complete projection by doing division by w.
     shadowPosH.xyz /= shadowPosH.w;

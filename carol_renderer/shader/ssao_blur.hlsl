@@ -31,9 +31,9 @@ float NdcDepthToViewDepth(float z_ndc)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-    Texture2D gDepthMap = ResourceDescriptorHeap[gResourceStartOffset + gDepthStencilIdx];
-    Texture2D gNormalMap = ResourceDescriptorHeap[gResourceStartOffset + gNormalIdx];
-    Texture2D gAmbientMap = ResourceDescriptorHeap[gResourceStartOffset + gAmbientIdx + gBlurDirection];
+    Texture2D gDepthMap = ResourceDescriptorHeap[gDepthStencilIdx];
+    Texture2D gNormalMap = ResourceDescriptorHeap[gNormalIdx];
+    Texture2D gAmbientMap = ResourceDescriptorHeap[gAmbientIdx + gBlurDirection];
     
     float blurWeights[12] =
     {

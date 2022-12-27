@@ -15,7 +15,6 @@ namespace Carol {
 	using std::make_unique;
 	using std::make_shared;
 	using namespace DirectX;
-	
 }
 
 Carol::DefaultResource* Carol::Texture::GetResource()
@@ -133,6 +132,11 @@ void Carol::Texture::ReleaseIntermediateBuffer()
 	mTexture->ReleaseIntermediateBuffer();
 }
 
+Carol::AllocatedTexture::AllocatedTexture()
+	:Texture(make_unique<Carol::Texture>()), CpuAllocInfo(make_unique<DescriptorAllocInfo>()), GpuAllocInfo(make_unique<DescriptorAllocInfo>()), NumRef(1)
+{
+}
+
 Carol::TextureManager::TextureManager(
 	ID3D12Device* device,
 	ID3D12GraphicsCommandList* cmdList,
@@ -146,36 +150,53 @@ Carol::TextureManager::TextureManager(
 {
 }
 
-void Carol::TextureManager::LoadTexture(const wstring& fileName, bool isSrgb)
+uint32_t Carol::TextureManager::LoadTexture(const wstring& fileName, bool isSrgb)
 {
 	if (fileName.size() == 0)
 	{
-		return;
+		return -1;
 	}
 
 	if (mTextures.count(fileName) == 0)
 	{
-		mTextures[fileName] = make_unique<AllocatedTexture>(make_unique<Texture>(),make_unique<DescriptorAllocInfo>());
+		mTextures[fileName] = make_unique<AllocatedTexture>();
 		auto& tex = mTextures[fileName]->Texture;
-		auto& info = mTextures[fileName]->CpuDescriptorAllocInfo;
+		auto& cpuInfo = mTextures[fileName]->CpuAllocInfo;
+		auto& gpuInfo = mTextures[fileName]->GpuAllocInfo;
 		
 		tex->LoadTexture(mCommandList, mTexturesHeap, mUploadBuffersHeap, fileName);
-		mDescriptorAllocator->CpuAllocate(1, info.get()); auto a = mDescriptorAllocator->GetCpuHandle(info.get());
-		mDevice->CreateShaderResourceView(tex->GetResource()->Get(), GetRvaluePtr(tex->GetDesc()), mDescriptorAllocator->GetCpuHandle(info.get()));
+		mDescriptorAllocator->CpuAllocate(1, cpuInfo.get()); 
+		mDescriptorAllocator->GpuAllocate(1, gpuInfo.get());
+		
+		mDevice->CreateShaderResourceView(tex->GetResource()->Get(), GetRvaluePtr(tex->GetDesc()), mDescriptorAllocator->GetCpuHandle(cpuInfo.get()));
+		mDevice->CopyDescriptorsSimple(1, mDescriptorAllocator->GetShaderCpuHandle(gpuInfo.get()), mDescriptorAllocator->GetCpuHandle(cpuInfo.get()), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		return gpuInfo->StartOffset;
 	}
 	else
 	{
 		++mTextures[fileName]->NumRef;
+		return mTextures[fileName]->GpuAllocInfo->StartOffset;
 	}
 }
 
 void Carol::TextureManager::UnloadTexture(const wstring& fileName)
 {
-	--mTextures[fileName]->NumRef;
-	if (mTextures[fileName]->NumRef == 0)
+	mDeletedTextures[mCurrFrame].push_back(fileName);
+}
+
+void Carol::TextureManager::DelayedDelete()
+{
+	for (auto& fileName : mDeletedTextures[mCurrFrame])
 	{
-		mTextures.erase(fileName);
+		--mTextures[fileName]->NumRef;
+		if (mTextures[fileName]->NumRef == 0)
+		{
+			mTextures.erase(fileName);
+		}
 	}
+
+	mDeletedTextures[mCurrFrame].clear();
 }
 
 void Carol::TextureManager::ReleaseIntermediateBuffers(const std::wstring& fileName)
@@ -188,23 +209,15 @@ void Carol::TextureManager::ReleaseIntermediateBuffers(const std::wstring& fileN
 	mTextures[fileName]->Texture->ReleaseIntermediateBuffer();
 }
 
-void Carol::TextureManager::ClearGpuTextures()
+void Carol::TextureManager::SetCurrFrame(uint32_t currFrame)
 {
-	mGpuTexIdx.clear();
+	mCurrFrame = currFrame;
+
+	if (mCurrFrame >= mDeletedTextures.size())
+	{
+		mDeletedTextures.emplace_back();
+	}
 }
 
-uint32_t Carol::TextureManager::CollectGpuTextures(const wstring& fileName)
-{
-	if (mTextures.count(fileName) == 0)
-	{
-		return -1;
-	}
 
-	if (mGpuTexIdx.count(fileName) == 0)
-	{
-		mGpuTexIdx[fileName] = mDescriptorAllocator->GpuAllocate(
-			mTextures[fileName]->CpuDescriptorAllocInfo.get());
-	}
 
-	return mGpuTexIdx[fileName];
-}

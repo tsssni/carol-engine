@@ -27,8 +27,8 @@ namespace Carol
 		DirectX::XMFLOAT3 FresnelR0 = { 0.6f,0.6f,0.6f };
 		float Roughness = 0.1f;
 
-		uint32_t MeshDiffuseMapIdx = 0;
-		uint32_t MeshNormalMapIdx = 0;
+		uint32_t DiffuseMapIdx = 0;
+		uint32_t NormalMapIdx = 0;
 		DirectX::XMUINT2 MeshPad0;
 	};
 
@@ -146,7 +146,6 @@ namespace Carol
 
 		uint32_t NumTransparentMeshes();
 	protected:
-		virtual void CopyDescriptors()override;
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
 		virtual void InitResources()override;
