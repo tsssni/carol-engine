@@ -122,6 +122,12 @@
     <ClInclude Include="include\render_pass\frame.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="include\scene\scene.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene\material.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\dx12\descriptor_allocator.cpp">
@@ -200,6 +206,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\render_pass\frame.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\scene\scene.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

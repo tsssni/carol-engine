@@ -1,10 +1,6 @@
 #include "include/root_signature.hlsli"
 #include "include/mesh.hlsli"
 
-#ifdef SKINNED
-#include "include/skinned.hlsli"
-#endif
-
 struct VertexOut
 {
     float4 PosH : SV_POSITION;

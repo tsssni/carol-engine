@@ -27,11 +27,8 @@ Carol::OitppllPass::OitppllPass(GlobalResources* globalResources, DXGI_FORMAT ou
 
 void Carol::OitppllPass::Draw()
 {
-	if (mGlobalResources->Meshes->NumTransparentMeshes())
-	{
-		DrawPpll();
-		DrawOit();
-	}
+	DrawPpll();
+	DrawOit();
 }
 
 void Carol::OitppllPass::Update()
@@ -228,7 +225,7 @@ void Carol::OitppllPass::DrawPpll()
 		nullptr,
 		(*mGlobalResources->PSOs)[L"BuildStaticOitppll"].Get(),
 		(*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].Get()
-		});
+		}, true);
 }
 
 void Carol::OitppllPass::DrawOit()

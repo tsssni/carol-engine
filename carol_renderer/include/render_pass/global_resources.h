@@ -23,8 +23,8 @@ namespace Carol
 	class TaaPass;
 	class OitppllPass;
 	class MeshesPass;
-	class TextureManager;
 	class BoundingRect;
+	class Scene;
 	class Camera;
 	class Timer;
 	class AssimpModel;
@@ -55,11 +55,11 @@ namespace Carol
 		TaaPass* Taa;
 		OitppllPass* Oitppll;
 		MeshesPass* Meshes;
-		TextureManager* TexManager;
 
 		D3D12_VIEWPORT* ScreenViewport;
 		D3D12_RECT* ScissorRect;
-
+		
+		Scene* Scene;
 		Camera* Camera;
 		Timer* Timer;
 		uint32_t NumFrame;

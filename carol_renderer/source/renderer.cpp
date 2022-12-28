@@ -13,6 +13,7 @@
 #include <dx12/descriptor_allocator.h>
 #include <dx12/root_signature.h>
 #include <dx12/shader.h>
+#include <scene/scene.h>
 #include <scene/assimp.h>
 #include <scene/texture.h>
 #include <scene/timer.h>
@@ -135,15 +136,13 @@ void Carol::Renderer::InitOitppll()
 void Carol::Renderer::InitMeshes()
 {
 	mMeshes = make_unique<MeshesPass>(mGlobalResources.get());
-	MeshesPass::InitMeshCBHeap(mDevice.Get(), mCommandList.Get());
-	MeshesPass::InitSkinnedCBHeap(mDevice.Get(), mCommandList.Get());
-
-	mTexManager = make_unique<TextureManager>(mDevice.Get(), mCommandList.Get(), mTexturesHeap.get(), mUploadBuffersHeap.get(), mCbvSrvUavAllocator.get());
-	mGlobalResources->TexManager = mTexManager.get();
-	mGlobalResources->Meshes = mMeshes.get();
+	mScene = make_unique<Scene>(L"Test", mDevice.Get(), mCommandList.Get(), mTexturesHeap.get(), mUploadBuffersHeap.get(), mCbvSrvUavAllocator.get());
 	
-	mMeshes->LoadGround();
-	mMeshes->LoadSkyBox();
+	mScene->LoadGround(mCommandList.Get(), mDefaultBuffersHeap.get(), mUploadBuffersHeap.get());
+	mScene->LoadSkyBox(mCommandList.Get(), mDefaultBuffersHeap.get(), mUploadBuffersHeap.get());
+
+	mGlobalResources->Meshes = mMeshes.get();
+	mGlobalResources->Scene = mScene.get();
 }
 
 void Carol::Renderer::UpdateFrameCB()
@@ -221,7 +220,7 @@ void Carol::Renderer::UpdateFrameCB()
 void Carol::Renderer::SetCurrFrame()
 {
 	mCbvSrvUavAllocator->SetCurrFrame(mCurrFrame);
-	mTexManager->SetCurrFrame(mCurrFrame);
+	mScene->SetCurrFrame(mCurrFrame);
 	mDefaultBuffersHeap->SetCurrFrame(mCurrFrame);
 	mUploadBuffersHeap->SetCurrFrame(mCurrFrame);
 	mReadbackBuffersHeap->SetCurrFrame(mCurrFrame);
@@ -231,7 +230,7 @@ void Carol::Renderer::SetCurrFrame()
 void Carol::Renderer::DelayedDelete()
 {
 	mCbvSrvUavAllocator->DelayedDelete();
-	mTexManager->DelayedDelete();
+	mScene->DelayedDelete();
 	mDefaultBuffersHeap->DelayedDelete();
 	mUploadBuffersHeap->DelayedDelete();
 	mReadbackBuffersHeap->DelayedDelete();
@@ -332,6 +331,7 @@ void Carol::Renderer::Update()
 	
 	SetCurrFrame();
 	DelayedDelete();
+	mScene->Update(*mTimer);
 	mMainLight->Update();
 	mSsao->Update();
 	mMeshes->Update();
@@ -354,34 +354,34 @@ void Carol::Renderer::LoadModel(wstring path, wstring textureDir, wstring modelN
 	ThrowIfFailed(mInitCommandAllocator->Reset());
 	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
 
-	mMeshes->LoadModel(modelName, path, textureDir, isSkinned);
-	mMeshes->SetWorld(modelName, world);
+	mScene->LoadModel(mCommandList.Get(), mDefaultBuffersHeap.get(), mUploadBuffersHeap.get(), modelName, path, textureDir, isSkinned);
+	mScene->SetWorld(modelName, world);
 
 	mCommandList->Close();
 	vector<ID3D12CommandList*> cmdLists = { mCommandList.Get() };
 	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 	FlushCommandQueue();
 	
-	mMeshes->ReleaseIntermediateBuffers(modelName);
+	mScene->ReleaseIntermediateBuffers(modelName);
 }
 
 void Carol::Renderer::UnloadModel(wstring modelName)
 {
 	FlushCommandQueue();
-	mMeshes->UnloadModel(modelName);
+	mScene->UnloadModel(modelName);
 }
 
 Carol::vector<wstring> Carol::Renderer::GetAnimationNames(wstring modelName)
 {
-	return mMeshes->GetAnimationClips(modelName);
+	return mScene->GetAnimationClips(modelName);
 }
 
 void Carol::Renderer::SetAnimation(wstring modelName, wstring animationName)
 {
-	mMeshes->SetAnimationClip(modelName, animationName);
+	mScene->SetAnimationClip(modelName, animationName);
 }
 
 Carol::vector<wstring> Carol::Renderer::GetModelNames()
 {
-	return mMeshes->GetModels();
+	return mScene->GetModelNames();
 }

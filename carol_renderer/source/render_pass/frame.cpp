@@ -45,8 +45,10 @@ void Carol::FramePass::Draw()
 	
 	mGlobalResources->Meshes->DrawMeshes({
 		(*mGlobalResources->PSOs)[L"OpaqueStatic"].Get(),
-		(*mGlobalResources->PSOs)[L"OpaqueSkinned"].Get() 
-		});
+		(*mGlobalResources->PSOs)[L"OpaqueSkinned"].Get(),
+		nullptr,
+		nullptr
+		}, true);
 	mGlobalResources->Meshes->DrawSkyBox((*mGlobalResources->PSOs)[L"SkyBox"].Get());
 	mGlobalResources->Oitppll->Draw();
 

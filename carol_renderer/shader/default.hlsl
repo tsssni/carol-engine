@@ -2,10 +2,6 @@
 #include "include/mesh.hlsli"
 #include "include/shadow.hlsli"
 
-#ifdef SKINNED
-#include "include/skinned.hlsli"
-#endif
-
 struct VertexOut
 {
     float4 PosH : SV_POSITION;
@@ -57,9 +53,9 @@ float4 PS(VertexOut pin) : SV_Target
     float4 texDiffuse = gDiffuseMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
     
     LightMaterialData lightMat;
-    lightMat.fresnelR0 = gFresnelR0;
+    lightMat.fresnelR0 = float3(0.5f, 0.5f, 0.5f);
     lightMat.diffuseAlbedo = texDiffuse.rgb;
-    lightMat.roughness = gRoughness;
+    lightMat.roughness = 0.5f;
 
     float3 texNormal = gNormalMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
     texNormal = TexNormalToWorldSpace(texNormal, pin.NormalW, pin.TangentW);

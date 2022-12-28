@@ -9,6 +9,7 @@
 
 namespace Carol
 {
+	class Scene;
     class FramePass;
     class SsaoPass;
     class NormalPass;
@@ -105,6 +106,7 @@ namespace Carol
         void ReleaseIntermediateBuffers();
 
     protected:
+		std::unique_ptr<Scene> mScene;
         std::unique_ptr<FramePass> mFrame;
         std::unique_ptr<SsaoPass> mSsao;
         std::unique_ptr<NormalPass> mNormal;
@@ -112,7 +114,6 @@ namespace Carol
         std::unique_ptr<ShadowPass> mMainLight;
         std::unique_ptr<OitppllPass> mOitppll;
         std::unique_ptr<MeshesPass> mMeshes;
-        std::unique_ptr<TextureManager> mTexManager;
 
 		std::unique_ptr<FrameConstants> mFrameConstants;
         std::unique_ptr<HeapAllocInfo> mFrameCBAllocInfo;

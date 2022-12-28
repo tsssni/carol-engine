@@ -1,5 +1,6 @@
 #pragma once
 #include <scene/model.h>
+#include <scene/light.h>
 #include <assimp/scene.h>
 #include <DirectXMath.h>
 #include <memory>
@@ -9,19 +10,21 @@
 namespace Carol
 {
 	class Heap;
+	class SceneNode;
+	class TextureManager;
 
 	class AssimpModel : public Model
 	{
 	public:
 		AssimpModel();
-	    AssimpModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, std::wstring path, std::wstring textureDir, bool isSkinned);
+	    AssimpModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, TextureManager* texManager, SceneNode* rootNode, std::wstring path, std::wstring textureDir, bool isSkinned);
 		AssimpModel(const AssimpModel&) = delete;
 		AssimpModel(AssimpModel&&) = delete;
 		AssimpModel& operator=(const AssimpModel&) = delete;
 
 	protected:
-		void ProcessNode(aiNode* node, const aiScene* scene);
-		void ProcessMesh(aiMesh* mesh, const aiScene* scene);
+		void ProcessNode(aiNode* node, SceneNode* sceneNode, const aiScene* scene);
+		Mesh* ProcessMesh(aiMesh* mesh, const aiScene* scene);
 		void ReadMeshBones(uint32_t vertexOffset, aiMesh* mesh);
 		void InsertBoneWeightToVertex(Vertex& vertex, uint32_t boneIndex, float boneWeight);
 		
@@ -32,7 +35,6 @@ namespace Carol
 		void InitBoneData(const aiScene* scene);
 		void ReadBoneHierarchy(aiNode* node);
 		void ReadBoneOffsets(aiNode* node, const aiScene* scene);
-		void ReadSkinnedNodeTransforms(aiNode* node);
 		void ReadAnimations(const aiScene* scene);
 
 		void ReadMeshVerticesAndIndices(aiMesh* mesh);
@@ -43,14 +45,12 @@ namespace Carol
 		DirectX::XMMATRIX aiMatrix4x4ToXM(aiMatrix4x4 aiM);
 		aiMatrix4x4 XMToaiMatrix4x4(DirectX::XMMATRIX xm);
 	protected:
-		ID3D12GraphicsCommandList* mCommandList;
+		TextureManager* mTexManager;
 
 		std::unordered_map<std::wstring, bool> mSkinnedMark;
-		std::vector<DirectX::XMFLOAT4X4> mSkinnedNodeTransforms;
 		uint32_t mSkinnedCount = 0;
 
 		std::unordered_map<std::wstring, uint32_t> mBoneIndices;
 		std::vector<int> mBoneMark;
 	};
-
 }

@@ -119,8 +119,8 @@ float4 PS(VertexOut pin) : SV_Target
     float2 currPos = pin.PosH.xy * gInvRenderTargetSize;
     float2 histPos = currPos + gVelocityMap.Sample(gsamPointClamp, minZPos).xy;
         
-    float4 currPixelColor = gHistMap.Sample(gsamPointClamp, currPos);
-    float4 histPixelColor = gCurrMap.Sample(gsamPointClamp, histPos);
+    float4 currPixelColor = gCurrMap.Sample(gsamPointClamp, currPos);
+    float4 histPixelColor = gHistMap.Sample(gsamPointClamp, histPos);
     
     float3 minPixelColor;
     float3 maxPixelColor;

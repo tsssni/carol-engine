@@ -2,6 +2,8 @@
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <scene/skinned_data.h>
+#include <scene/timer.h>
+#include <scene/texture.h>
 #include <utils/common.h>
 
 namespace Carol
@@ -14,13 +16,32 @@ namespace Carol
 	using namespace DirectX;
 }
 
-Carol::Mesh::Mesh(
-	bool isTransparent, uint32_t baseVertexLocation, uint32_t startIndexLocation, uint32_t indexCount)
-	:mTransparent(isTransparent),
-	 mBaseVertexLocation(baseVertexLocation),
-	 mStartIndexLocation(startIndexLocation),
-	 mIndexCount(indexCount)
+Carol::Mesh::Mesh(Model* model, D3D12_VERTEX_BUFFER_VIEW* vertexBufferView, D3D12_INDEX_BUFFER_VIEW* indexBufferView, uint32_t baseVertexLocation, uint32_t startIndexLocation, uint32_t indexCount, bool isSkinned, bool isTransparent)
+	:mModel(model),
+	mVertexBufferView(vertexBufferView),
+	mIndexBufferView(indexBufferView),
+	mBaseVertexLocation(baseVertexLocation),
+	mStartIndexLocation(startIndexLocation),
+	mIndexCount(indexCount),
+	mSkinned(isSkinned),
+	mTransparent(isTransparent),
+	mTexIdx(TEX_IDX_COUNT)
 {
+}
+
+D3D12_VERTEX_BUFFER_VIEW Carol::Mesh::GetVertexBufferView()
+{
+	return *mVertexBufferView;
+}
+
+D3D12_INDEX_BUFFER_VIEW Carol::Mesh::GetIndexBufferView()
+{
+	return *mIndexBufferView;
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetSkinnedCBGPUVirtualAddress()
+{
+	return mModel->GetSkinnedCBGPUVirtualAddress();
 }
 
 uint32_t Carol::Mesh::GetBaseVertexLocation()
@@ -43,14 +64,9 @@ Carol::Material Carol::Mesh::GetMaterial()
 	return mMaterial;
 }
 
-std::wstring Carol::Mesh::GetDiffuseMapPath()
+Carol::vector<uint32_t> Carol::Mesh::GetTexIdx()
 {
-	return mDiffuseMapPath;
-}
-
-std::wstring Carol::Mesh::GetNormalMapPath()
-{
-	return mNormalMapPath;
+	return mTexIdx;
 }
 
 void Carol::Mesh::SetMaterial(const Material& mat)
@@ -58,14 +74,9 @@ void Carol::Mesh::SetMaterial(const Material& mat)
 	mMaterial = mat;
 }
 
-void Carol::Mesh::SetDiffuseMapPath(const wstring& path)
+void Carol::Mesh::SetTexIdx(uint32_t type, uint32_t idx)
 {
-	mDiffuseMapPath = path;
-}
-
-void Carol::Mesh::SetNormalMapPath(const wstring& path)
-{
-	mNormalMapPath = path;
+	mTexIdx[type] = idx;
 }
 
 void Carol::Mesh::SetBoundingBox(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax)
@@ -100,13 +111,18 @@ Carol::BoundingBox Carol::Mesh::GetBoundingBox()
 	return mBoundingBox;
 }
 
+bool Carol::Mesh::IsSkinned()
+{
+	return mSkinned;
+}
+
 bool Carol::Mesh::IsTransparent()
 {
 	return mTransparent;
 }
 
-Carol::Model::Model(bool isSkinned)
-	:mSkinned(isSkinned)
+Carol::Model::Model()
+	:mSkinnedConstants(make_unique<SkinnedConstants>()), mSkinnedCBAllocInfo(make_unique<HeapAllocInfo>())
 {
 }
 
@@ -120,24 +136,14 @@ void Carol::Model::ReleaseIntermediateBuffers()
 	mIndexBufferGpu->ReleaseIntermediateBuffer();
 }
 
-D3D12_VERTEX_BUFFER_VIEW* Carol::Model::GetVertexBufferView()
+Carol::Mesh* Carol::Model::GetMesh(std::wstring meshName)
 {
-	return &mVertexBufferView;
-}
-
-D3D12_INDEX_BUFFER_VIEW* Carol::Model::GetIndexBufferView()
-{
-	return &mIndexBufferView;
+	return mMeshes[meshName].get();
 }
 
 const Carol::unordered_map<Carol::wstring, Carol::unique_ptr<Carol::Mesh>>& Carol::Model::GetMeshes()
 {
 	return mMeshes;
-}
-
-Carol::AnimationClip* Carol::Model::GetAnimationClip(wstring clipName)
-{
-	return mAnimationClips[clipName].get();
 }
 
 Carol::vector<int>& Carol::Model::GetBoneHierarchy()
@@ -162,6 +168,61 @@ Carol::vector<Carol::wstring> Carol::Model::GetAnimationClips()
 	return animations;
 }
 
+void Carol::Model::SetAnimationClip(std::wstring clipName)
+{
+	mClipName = clipName;
+	mTimePos = 0.0f;
+}
+
+void Carol::Model::UpdateAnimationClip(Timer& timer, CircularHeap* skinnedCBHeap)
+{
+	mTimePos += timer.DeltaTime();
+
+	if (mTimePos > mAnimationClips[mClipName]->GetClipEndTime())
+	{
+		mTimePos = 0;
+	};
+
+	auto& clip = mAnimationClips[mClipName];
+	uint32_t boneCount = mBoneHierarchy.size();
+
+	vector<XMFLOAT4X4> toParentTransforms(boneCount);
+	vector<XMFLOAT4X4> toRootTransforms(boneCount);
+	vector<XMFLOAT4X4> finalTransforms(boneCount);
+	clip->Interpolate(mTimePos, toParentTransforms);
+
+	for (int i = 0; i < boneCount; ++i)
+	{
+		XMMATRIX toParent = XMLoadFloat4x4(&toParentTransforms[i]);
+		XMMATRIX parentToRoot = mBoneHierarchy[i] != -1 ? XMLoadFloat4x4(&toRootTransforms[mBoneHierarchy[i]]) : XMMatrixIdentity();
+
+		XMMATRIX toRoot = toParent * parentToRoot;
+		XMStoreFloat4x4(&toRootTransforms[i], toRoot);
+	}
+
+	for (int i = 0; i < boneCount; ++i)
+	{
+		XMMATRIX offset = XMLoadFloat4x4(&mBoneOffsets[i]);
+		XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[i]);
+
+		XMStoreFloat4x4(&finalTransforms[i], XMMatrixTranspose(offset * toRoot));
+	}
+
+	std::copy(std::begin(mSkinnedConstants->FinalTransforms), std::end(mSkinnedConstants->FinalTransforms), mSkinnedConstants->HistFinalTransforms);
+	std::copy(std::begin(finalTransforms), std::end(finalTransforms), mSkinnedConstants->FinalTransforms);
+
+	skinnedCBHeap->DeleteResource(mSkinnedCBAllocInfo.get());
+	skinnedCBHeap->CreateResource(mSkinnedCBAllocInfo.get());
+	skinnedCBHeap->CopyData(mSkinnedCBAllocInfo.get(), mSkinnedConstants.get());
+
+	mSkinnedCBGPUVirtualAddress = skinnedCBHeap->GetGPUVirtualAddress(mSkinnedCBAllocInfo.get());
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Carol::Model::GetSkinnedCBGPUVirtualAddress()
+{
+	return mSkinnedCBGPUVirtualAddress;
+}
+
 void Carol::Model::LoadVerticesAndIndices(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap)
 {
 	uint32_t vbByteSize = sizeof(Vertex) * mVertices.size();
@@ -184,7 +245,7 @@ bool Carol::Model::IsSkinned()
 	return mSkinned;
 }
 
-void Carol::Model::LoadGround(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap)
+void Carol::Model::LoadGround(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, TextureManager* texManager)
 {
 	XMFLOAT3 pos[4] =
 	{
@@ -213,13 +274,13 @@ void Carol::Model::LoadGround(ID3D12GraphicsCommandList* cmdList, Heap* heap, He
 	mIndices = { 0,1,2,0,2,3 };
 	LoadVerticesAndIndices(cmdList, heap, uploadHeap);
 
-	mMeshes[L"Ground"] = make_unique<Mesh>(false, 0, 0, 6);
-	mMeshes[L"Ground"]->SetDiffuseMapPath(L"texture\\tile.dds");
-	mMeshes[L"Ground"]->SetNormalMapPath(L"texture\\tile_nmap.dds");
+	mMeshes[L"Ground"] = make_unique<Mesh>(this, &mVertexBufferView, &mIndexBufferView, 0, 0, 6, false, false);
+	mMeshes[L"Ground"]->SetTexIdx(Mesh::DIFFUSE_IDX, texManager->LoadTexture(L"texture\\tile.dds"));
+	mMeshes[L"Ground"]->SetTexIdx(Mesh::NORMAL_IDX, texManager->LoadTexture(L"texture\\tile_nmap.dds"));
 	mMeshes[L"Ground"]->SetBoundingBox({ -50.0f,-0.1f,-50.0f }, { 50.0f,0.1f,50.0f });
 }
 
-void Carol::Model::LoadSkyBox(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap)
+void Carol::Model::LoadSkyBox(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, TextureManager* texManager)
 {
 	XMFLOAT3 pos[8] =
 	{
@@ -242,6 +303,6 @@ void Carol::Model::LoadSkyBox(ID3D12GraphicsCommandList* cmdList, Heap* heap, He
 	mIndices = { 0,1,2,0,2,3,4,5,1,4,1,0,7,6,5,7,5,4,3,2,6,3,6,7,1,5,6,1,6,2,4,0,3,4,3,7 };
 	LoadVerticesAndIndices(cmdList, heap, uploadHeap);
 
-	mMeshes[L"SkyBox"] = make_unique<Mesh>(false, 0, 0, 36);
-	mMeshes[L"SkyBox"]->SetDiffuseMapPath(L"texture\\snowcube1024.dds");
+	mMeshes[L"SkyBox"] = make_unique<Mesh>(this, &mVertexBufferView, &mIndexBufferView, 0, 0, 36, false, false);
+	mMeshes[L"SkyBox"]->SetTexIdx(Mesh::DIFFUSE_IDX, texManager->LoadTexture(L"texture\\snowcube1024.dds"));
 }

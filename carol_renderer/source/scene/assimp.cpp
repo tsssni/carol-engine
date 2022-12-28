@@ -1,5 +1,7 @@
 #include <scene/assimp.h>
 #include <render_pass/global_resources.h>
+#include <dx12/heap.h>
+#include <scene/scene.h>
 #include <scene/skinned_data.h>
 #include <scene/texture.h>
 #include <utils/common.h>
@@ -24,7 +26,8 @@ Carol::AssimpModel::AssimpModel()
 {
 }
 
-Carol::AssimpModel::AssimpModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, wstring path, wstring textureDir, bool isSkinned)
+Carol::AssimpModel::AssimpModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, TextureManager* texManager, SceneNode* rootNode, wstring path, wstring textureDir, bool isSkinned)
+	:mTexManager(texManager)
 {
 	Assimp::Importer mImporter;
 	const aiScene* scene = mImporter.ReadFile(WStringToString(path), isSkinned ? aiProcess_Skinned : aiProcess_Static);
@@ -45,7 +48,7 @@ Carol::AssimpModel::AssimpModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, 
 	mIndices.reserve(indexCount);
 
 	LoadAssimpSkinnedData(scene);
-	ProcessNode(scene->mRootNode, scene);
+	ProcessNode(scene->mRootNode, rootNode, scene);
 	LoadVerticesAndIndices(cmdList, heap, uploadHeap);
 
 	mVertices.clear();
@@ -54,40 +57,43 @@ Carol::AssimpModel::AssimpModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, 
 	mIndices.shrink_to_fit();
 }
 
-void Carol::AssimpModel::ProcessNode(aiNode* node, const aiScene* scene)
+void Carol::AssimpModel::ProcessNode(aiNode* node, SceneNode* sceneNode, const aiScene* scene)
 {
+	sceneNode->Name = StringToWString(node->mName.C_Str());
+	XMStoreFloat4x4(&sceneNode->Transformation, aiMatrix4x4ToXM(node->mTransformation));
+
 	for (int i = 0; i < node->mNumMeshes; ++i)
 	{
 		aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-		ProcessMesh(mesh, scene);
+		sceneNode->Meshes.push_back(ProcessMesh(mesh, scene));
 	}
 
 	for (int i = 0; i < node->mNumChildren; ++i)
 	{
-		ProcessNode(node->mChildren[i], scene);
+		sceneNode->Children.push_back(make_unique<SceneNode>());
+		ProcessNode(node->mChildren[i], sceneNode->Children[i].get(), scene);
 	}
 }
 
-void Carol::AssimpModel::ProcessMesh(aiMesh* mesh, const aiScene* scene)
+Carol::Mesh* Carol::AssimpModel::ProcessMesh(aiMesh* mesh, const aiScene* scene)
 {	
 	uint32_t initVertexOffset = mVertices.size();
 	wstring meshName = StringToWString(mesh->mName.C_Str());
 	static uint32_t count = 0;
 
-	if (mMeshes.count(meshName))
+	if (mMeshes.count(meshName) == 0)
 	{
-		meshName += std::to_wstring(count);
-		++count;
+		mMeshes[meshName] = make_unique<Mesh>(this, &mVertexBufferView, &mIndexBufferView, 0, mIndices.size(), mesh->mNumFaces * 3, mSkinned, false);
+		mMeshes[meshName]->SetBoundingBox(
+			{ mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z },
+			{ mesh->mAABB.mMax.x,mesh->mAABB.mMax.y,mesh->mAABB.mMax.z });
+
+		ReadMeshVerticesAndIndices(mesh);
+		ReadMeshMaterialAndTextures(mMeshes[meshName].get(), mesh, scene);
+		ReadMeshBones(initVertexOffset, mesh);
 	}
 
-	mMeshes[meshName] = make_unique<Mesh>(false, 0, mIndices.size(), mesh->mNumFaces * 3);
-	mMeshes[meshName]->SetBoundingBox(
-		{ mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z },
-		{ mesh->mAABB.mMax.x,mesh->mAABB.mMax.y,mesh->mAABB.mMax.z });
-
-	ReadMeshVerticesAndIndices(mesh);
-	ReadMeshMaterialAndTextures(mMeshes[meshName].get(), mesh, scene);
-	ReadMeshBones(initVertexOffset, mesh);
+	return mMeshes[meshName].get();
 }
 
 void Carol::AssimpModel::LoadAssimpSkinnedData(const aiScene* scene)
@@ -97,7 +103,6 @@ void Carol::AssimpModel::LoadAssimpSkinnedData(const aiScene* scene)
 
 	ReadBoneHierarchy(scene->mRootNode);
 	ReadBoneOffsets(scene->mRootNode, scene);
-	ReadSkinnedNodeTransforms(scene->mRootNode);
 	ReadAnimations(scene);
 }
 
@@ -147,7 +152,6 @@ void Carol::AssimpModel::MarkSkinnedNodes(aiNode* node, aiNode* meshNode, wstrin
 
 void Carol::AssimpModel::InitBoneData(const aiScene* scene)
 {
-	mSkinnedNodeTransforms.resize(mSkinnedMark.size());
 	mBoneMark.resize(mSkinnedMark.size(), 0);
 	mBoneHierarchy.resize(mSkinnedMark.size(), -1);
 	mBoneOffsets.resize(mSkinnedMark.size());
@@ -206,22 +210,6 @@ void Carol::AssimpModel::ReadBoneOffsets(aiNode* node, const aiScene* scene)
 	for (int i = 0; i < node->mNumChildren; ++i)
 	{
 		ReadBoneOffsets(node->mChildren[i], scene);
-	}
-}
-
-void Carol::AssimpModel::ReadSkinnedNodeTransforms(aiNode* node)
-{
-	wstring nodeName = StringToWString(node->mName.C_Str());
-
-	if (mSkinnedMark.count(nodeName))
-	{
-		XMMATRIX transform = aiMatrix4x4ToXM(node->mTransformation);
-		XMStoreFloat4x4(&mSkinnedNodeTransforms[mBoneIndices[nodeName]], transform);
-	}
-
-	for (int i = 0; i < node->mNumChildren; ++i)
-	{
-		ReadSkinnedNodeTransforms(node->mChildren[i]);
 	}
 }
 
@@ -467,10 +455,12 @@ void Carol::AssimpModel::LoadTexture(Mesh* mesh, aiString aiPath, aiTextureType 
 	switch (type)
 	{
 	case aiTextureType_DIFFUSE:
-		mesh->SetDiffuseMapPath(path);
+		mesh->SetTexIdx(Mesh::DIFFUSE_IDX, mTexManager->LoadTexture(path));
 		break;
 	case aiTextureType_NORMALS:
-		mesh->SetNormalMapPath(path);
+		mesh->SetTexIdx(Mesh::NORMAL_IDX, mTexManager->LoadTexture(path));
 		break;
 	}
 }
+
+

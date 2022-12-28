@@ -51,7 +51,6 @@ float4 PS(VertexOut pin) : SV_Target
 {
     StructuredBuffer<OitNode> gOitNodeBuffer = ResourceDescriptorHeap[gOitR];
     Buffer<uint> gStartOffsetBuffer = ResourceDescriptorHeap[gOitOffsetR];
-
     
     uint2 pixelPos = uint2(pin.PosH.x - 0.5f, pin.PosH.y - 0.5f);
     uint startOffsetAddr = pixelPos.y * gRenderTargetSize.x + pixelPos.x;

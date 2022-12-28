@@ -3,7 +3,7 @@
 
 static const int gBlurRadius = 5;
 
-cbuffer BlurConstant : register(b3)
+cbuffer BlurDirection : register(b4)
 {
     uint gBlurDirection;
 }
