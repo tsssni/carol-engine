@@ -36,7 +36,7 @@ void Carol::ShadowPass::Draw()
 
 	mGlobalResources->CommandList->ClearDepthStencilView(GetDsv(SHADOW_DSV), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 	mGlobalResources->CommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(GetDsv(SHADOW_DSV)));
-	mGlobalResources->CommandList->SetGraphicsRoot32BitConstant(RootSignature::ROOT_SIGNATURE_CONSTANT, 0, 0);
+	mGlobalResources->CommandList->SetGraphicsRoot32BitConstant(RootSignature::PASS_CONSTANTS, 0, 0);
 
 	mGlobalResources->Meshes->DrawMeshes(
 		{ (*mGlobalResources->PSOs)[L"ShadowStatic"].Get(),

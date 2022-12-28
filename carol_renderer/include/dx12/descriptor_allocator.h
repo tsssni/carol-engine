@@ -70,8 +70,7 @@ namespace Carol
 			uint32_t initNumGpuDescriptors = 2048);
 		~CbvSrvUavDescriptorAllocator();
 			
-		void SetCurrFrame(uint32_t currFrame);
-		void DelayedDelete();
+		void DelayedDelete(uint32_t currFrame);
 		bool GpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
 		bool GpuDeallocate(DescriptorAllocInfo* info);
 		ID3D12DescriptorHeap* GetGpuDescriptorHeap();

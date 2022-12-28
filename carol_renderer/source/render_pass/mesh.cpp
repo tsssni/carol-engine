@@ -81,13 +81,16 @@ void Carol::MeshesPass::Draw(RenderNode* renderNode, bool color)
 	mGlobalResources->CommandList->IASetIndexBuffer(GetRvaluePtr(renderNode->Mesh->GetIndexBufferView()));
 	mGlobalResources->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_WORLD_CB, renderNode->WorldGPUVirtualAddress);
-	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_HIST_CB, renderNode->HistWorldGPUVirtualAddress);
-	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_SKINNED_CB, renderNode->Mesh->GetSkinnedCBGPUVirtualAddress());
+	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::WORLD_CB, renderNode->WorldGPUVirtualAddress);
 
 	if (color) 
 	{
-		mGlobalResources->CommandList->SetGraphicsRoot32BitConstants(RootSignature::ROOT_SIGNATURE_CONSTANT, Mesh::TEX_IDX_COUNT, renderNode->Mesh->GetTexIdx().data(), 0);
+		mGlobalResources->CommandList->SetGraphicsRoot32BitConstants(RootSignature::MESH_CONSTANTS, Mesh::TEX_IDX_COUNT, renderNode->Mesh->GetTexIdx().data(), 0);
+	}
+
+	if (renderNode->Mesh->IsSkinned())
+	{
+		mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::SKINNED_CB, renderNode->Mesh->GetSkinnedCBGPUVirtualAddress());
 	}
 
 	mGlobalResources->CommandList->DrawIndexedInstanced(

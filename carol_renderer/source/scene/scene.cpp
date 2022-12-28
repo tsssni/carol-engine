@@ -19,27 +19,23 @@ Carol::SceneNode::SceneNode()
 	XMStoreFloat4x4(&Transformation, XMMatrixIdentity());
 	XMStoreFloat4x4(&HistTransformation, XMMatrixIdentity());
 	WorldAllocInfo = make_unique<HeapAllocInfo>();
-	HistWorldAllocInfo = make_unique<HeapAllocInfo>();
 }
 
 Carol::Scene::Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator)
 	:mRootNode(make_unique<SceneNode>()),
 	mMeshes(MESH_TYPE_COUNT),
 	mTexManager(make_unique<TextureManager>(device, cmdList, texHeap, uploadHeap, allocator)),
-	mTransformationCBHeap(make_unique<CircularHeap>(device, cmdList, true, 2048, sizeof(XMFLOAT4X4))), 
+	mMeshCBHeap(make_unique<CircularHeap>(device, cmdList, true, 2048, sizeof(MeshConstants))), 
 	mSkinnedCBHeap(make_unique<CircularHeap>(device, cmdList, true, 2048, sizeof(SkinnedConstants)))
 {
 	mRootNode->Name = name;
 }
 
-void Carol::Scene::SetCurrFrame(uint32_t currFrame)
+void Carol::Scene::DelayedDelete(uint32_t currFrame)
 {
-	mTexManager->SetCurrFrame(currFrame);
-}
-
-void Carol::Scene::DelayedDelete()
-{
-	mTexManager->DelayedDelete();
+	mTexManager->DelayedDelete(currFrame);
+	mMeshCBHeap->DelayedDelete(currFrame);
+	mSkinnedCBHeap->DelayedDelete(currFrame);
 }
 
 Carol::vector<Carol::wstring> Carol::Scene::GetAnimationClips(std::wstring modelName)
@@ -177,24 +173,18 @@ void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot, 
 
 	for(auto& mesh : node->Meshes)
 	{
-		XMFLOAT4X4 w;
-		XMFLOAT4X4 h;
+		MeshConstants meshConstants;
 
-		XMStoreFloat4x4(&w, XMMatrixTranspose(world));
-		XMStoreFloat4x4(&h, XMMatrixTranspose(histWorld));
+		XMStoreFloat4x4(&meshConstants.World, XMMatrixTranspose(world));
+		XMStoreFloat4x4(&meshConstants.HistWorld, XMMatrixTranspose(histWorld));
 
-		mTransformationCBHeap->DeleteResource(node->WorldAllocInfo.get());
-		mTransformationCBHeap->CreateResource(node->WorldAllocInfo.get());
-		mTransformationCBHeap->CopyData(node->WorldAllocInfo.get(), &w);
-
-		mTransformationCBHeap->DeleteResource(node->HistWorldAllocInfo.get());
-		mTransformationCBHeap->CreateResource(node->HistWorldAllocInfo.get());
-		mTransformationCBHeap->CopyData(node->HistWorldAllocInfo.get(), &h);
+		mMeshCBHeap->DeleteResource(node->WorldAllocInfo.get());
+		mMeshCBHeap->CreateResource(node->WorldAllocInfo.get());
+		mMeshCBHeap->CopyData(node->WorldAllocInfo.get(), &meshConstants);
 
 		RenderNode renderNode;
 		renderNode.Mesh = mesh;
-		renderNode.WorldGPUVirtualAddress = mTransformationCBHeap->GetGPUVirtualAddress(node->WorldAllocInfo.get());
-		renderNode.HistWorldGPUVirtualAddress = mTransformationCBHeap->GetGPUVirtualAddress(node->HistWorldAllocInfo.get());
+		renderNode.WorldGPUVirtualAddress = mMeshCBHeap->GetGPUVirtualAddress(node->WorldAllocInfo.get());
 
 		uint32_t type = mesh->IsSkinned() | (mesh->IsTransparent() << 1);
 		mMeshes[type].push_back(renderNode);
@@ -213,10 +203,10 @@ void Carol::Scene::UpdateSkyBox()
 	static HeapAllocInfo skyBoxInfo;
 	static SceneNode skyBoxNode;
 
-	mTransformationCBHeap->DeleteResource(&skyBoxInfo);
-	mTransformationCBHeap->CreateResource(&skyBoxInfo);
-	mTransformationCBHeap->CopyData(&skyBoxInfo, &skyBoxNode.Transformation);
+	mMeshCBHeap->DeleteResource(&skyBoxInfo);
+	mMeshCBHeap->CreateResource(&skyBoxInfo);
+	mMeshCBHeap->CopyData(&skyBoxInfo, &skyBoxNode.Transformation);
 
 	mSkyBoxNode.Mesh = mSkyBox->GetMesh(L"SkyBox");
-	mSkyBoxNode.WorldGPUVirtualAddress = mTransformationCBHeap->GetGPUVirtualAddress(&skyBoxInfo);
+	mSkyBoxNode.WorldGPUVirtualAddress = mMeshCBHeap->GetGPUVirtualAddress(&skyBoxInfo);
 }

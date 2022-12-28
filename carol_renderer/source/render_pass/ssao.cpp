@@ -316,7 +316,7 @@ void Carol::SsaoPass::DrawAmbientMap(bool vertBlur)
     mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(output->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET)));
     mGlobalResources->CommandList->ClearRenderTargetView(outputRtv, DirectX::Colors::Red, 0, nullptr);
     mGlobalResources->CommandList->OMSetRenderTargets(1, &outputRtv, true, nullptr);
-    mGlobalResources->CommandList->SetGraphicsRoot32BitConstant(RootSignature::ROOT_SIGNATURE_CONSTANT, vertBlur, 0);
+    mGlobalResources->CommandList->SetGraphicsRoot32BitConstant(RootSignature::PASS_CONSTANTS, vertBlur, 0);
 
     mGlobalResources->CommandList->IASetVertexBuffers(0, 0, nullptr);
     mGlobalResources->CommandList->IASetIndexBuffer(nullptr);

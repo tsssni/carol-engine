@@ -101,7 +101,6 @@ namespace Carol
         void InitMeshes();
 		
 		void UpdateFrameCB();
-		void SetCurrFrame();
 		void DelayedDelete();
         void ReleaseIntermediateBuffers();
 

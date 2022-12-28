@@ -3,7 +3,7 @@
 
 #include "light.hlsli"
 
-cbuffer FrameCB : register(b0)
+cbuffer FrameCB : register(b4)
 {
     float4x4 gView;
     float4x4 gInvView;

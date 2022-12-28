@@ -1,29 +1,26 @@
 #ifndef MESH_HEADER
 #define MESH_HEADER
 
-cbuffer WorldCB : register(b1)
+cbuffer WorldCB : register(b0)
 {
     float4x4 gWorld;
-}
-
-cbuffer HistWorldCB : register(b2)
-{
     float4x4 gHistWorld;
 }
 
+cbuffer MeshCB : register(b1)
+{
+    uint gDiffuseMapIdx;
+    uint gNormalMapIdx;
+}
+
 #ifdef SKINNED
-cbuffer SkinnedCB : register(b3)
+cbuffer SkinnedCB : register(b2)
 {
     float4x4 gBoneTransforms[256];
     float4x4 gHistBoneTransforms[256];
 }
 #endif
 
-cbuffer DiffuseMap : register(b4)
-{
-    uint gDiffuseMapIdx;
-    uint gNormalMapIdx;
-}
 
 #ifdef SKINNED
 VertexIn SkinnedTransform(VertexIn vin)

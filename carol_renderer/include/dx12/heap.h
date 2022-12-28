@@ -23,10 +23,9 @@ namespace Carol
 	public:
 		Heap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag);
 		virtual void CreateResource(Microsoft::WRL::ComPtr<ID3D12Resource>* resource, D3D12_RESOURCE_DESC* desc, HeapAllocInfo* info, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue = nullptr) = 0;
-		virtual void SetCurrFrame(uint32_t currFrame);
 		virtual void DeleteResource(HeapAllocInfo* info);
 		virtual void DeleteResourceImmediate(HeapAllocInfo* info);
-		virtual void DelayedDelete();
+		virtual void DelayedDelete(uint32_t currFrame);
 
 	protected:
 		virtual bool Allocate(uint32_t size, HeapAllocInfo* info) = 0;
@@ -79,13 +78,14 @@ namespace Carol
 			ID3D12Device* device,
 			ID3D12GraphicsCommandList* cmdList,
 			bool isConstant,
-			uint32_t elementCount = 32,
-			uint32_t elementSize = 256);
+			uint32_t elementCount,
+			uint32_t elementSize);
 		~CircularHeap();
 
 		virtual void CreateResource(HeapAllocInfo* info);
-		virtual void DeleteResource(HeapAllocInfo* info);
+		virtual void DeleteResource(HeapAllocInfo* info)override;
 
+		virtual void DelayedDelete(uint32_t currFrame)override;
 		void CopyData(HeapAllocInfo* info, const void* data);
 		D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress(HeapAllocInfo* info);
 
@@ -111,12 +111,14 @@ namespace Carol
 		uint32_t mElementCount = 0;
 		uint32_t mElementSize = 0;
 		uint32_t mBufferSize = 0;
-		
 		uint32_t mHeapSize = 0;
 
 		uint32_t mBegin;
 		uint32_t mEnd;
 		uint32_t mQueueSize = 0;
+
+		uint32_t mCurrFrame;
+		std::vector<uint32_t> mDelayedDeletionCount;
 	};
 
 	class SegListHeap : public Heap
@@ -135,8 +137,8 @@ namespace Carol
 			D3D12_CLEAR_VALUE* optimizedClearValue = nullptr)override;
 
 	protected:
-		virtual bool Allocate(uint32_t size, HeapAllocInfo* info);
-		virtual bool Deallocate(HeapAllocInfo* info);
+		virtual bool Allocate(uint32_t size, HeapAllocInfo* info)override;
+		virtual bool Deallocate(HeapAllocInfo* info)override;
 
 		uint32_t GetOrder(uint32_t size);
 		void AddHeap(uint32_t order);

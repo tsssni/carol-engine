@@ -6,7 +6,7 @@ struct VertexOut
     float4 PosH : SV_POSITION;
 };
 
-cbuffer LightIdx : register(b4)
+cbuffer LightIdx : register(b3)
 {
     uint gLightIdx;
 }

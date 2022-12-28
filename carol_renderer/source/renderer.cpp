@@ -217,24 +217,15 @@ void Carol::Renderer::UpdateFrameCB()
 	mFrameCBHeap->CopyData(mFrameCBAllocInfo.get(), mFrameConstants.get());
 }
 
-void Carol::Renderer::SetCurrFrame()
-{
-	mCbvSrvUavAllocator->SetCurrFrame(mCurrFrame);
-	mScene->SetCurrFrame(mCurrFrame);
-	mDefaultBuffersHeap->SetCurrFrame(mCurrFrame);
-	mUploadBuffersHeap->SetCurrFrame(mCurrFrame);
-	mReadbackBuffersHeap->SetCurrFrame(mCurrFrame);
-	mTexturesHeap->SetCurrFrame(mCurrFrame);
-}
-
 void Carol::Renderer::DelayedDelete()
 {
-	mCbvSrvUavAllocator->DelayedDelete();
-	mScene->DelayedDelete();
-	mDefaultBuffersHeap->DelayedDelete();
-	mUploadBuffersHeap->DelayedDelete();
-	mReadbackBuffersHeap->DelayedDelete();
-	mTexturesHeap->DelayedDelete();
+	mCbvSrvUavAllocator->DelayedDelete(mCurrFrame);
+	mScene->DelayedDelete(mCurrFrame);
+	mFrameCBHeap->DelayedDelete(mCurrFrame);
+	mDefaultBuffersHeap->DelayedDelete(mCurrFrame);
+	mUploadBuffersHeap->DelayedDelete(mCurrFrame);
+	mReadbackBuffersHeap->DelayedDelete(mCurrFrame);
+	mTexturesHeap->DelayedDelete(mCurrFrame);
 }
 
 void Carol::Renderer::ReleaseIntermediateBuffers()
@@ -249,7 +240,7 @@ void Carol::Renderer::Draw()
 	ID3D12DescriptorHeap* descriptorHeaps[] = {mCbvSrvUavAllocator->GetGpuDescriptorHeap()};
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 	mCommandList->SetGraphicsRootSignature(mRootSignature->Get());
-	mCommandList->SetGraphicsRootConstantBufferView(RootSignature::ROOT_SIGNATURE_FRAME_CB, mFrameCBHeap->GetGPUVirtualAddress(mFrameCBAllocInfo.get()));
+	mCommandList->SetGraphicsRootConstantBufferView(RootSignature::FRAME_CB, mFrameCBHeap->GetGPUVirtualAddress(mFrameCBAllocInfo.get()));
 	
 	mMainLight->Draw();
 	mNormal->Draw();
@@ -329,7 +320,6 @@ void Carol::Renderer::Update()
 	ThrowIfFailed(mFrameAllocator[mCurrFrame]->Reset());
 	ThrowIfFailed(mCommandList->Reset(mFrameAllocator[mCurrFrame].Get(), nullptr));
 	
-	SetCurrFrame();
 	DelayedDelete();
 	mScene->Update(*mTimer);
 	mMainLight->Update();

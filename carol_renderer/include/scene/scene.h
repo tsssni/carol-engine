@@ -30,7 +30,6 @@ namespace Carol {
 		DirectX::XMFLOAT4X4 HistTransformation;
 	
 		std::unique_ptr<HeapAllocInfo> WorldAllocInfo;
-		std::unique_ptr<HeapAllocInfo> HistWorldAllocInfo;
 	};
 
 	class RenderNode
@@ -38,7 +37,6 @@ namespace Carol {
 	public:
 		Mesh* Mesh;
 		D3D12_GPU_VIRTUAL_ADDRESS WorldGPUVirtualAddress;
-		D3D12_GPU_VIRTUAL_ADDRESS HistWorldGPUVirtualAddress;
 	};
 
 	class Scene
@@ -49,8 +47,7 @@ namespace Carol {
 		Scene(Scene&&) = delete;
 		Scene& operator=(const Scene&) = delete;
 
-		void SetCurrFrame(uint32_t currFrame);
-		void DelayedDelete();
+		void DelayedDelete(uint32_t currFrame);
 		std::vector<std::wstring> GetAnimationClips(std::wstring modelName);
 		std::vector<std::wstring> GetModelNames();
 
@@ -84,7 +81,7 @@ namespace Carol {
 		std::unique_ptr<SceneNode> mRootNode;
 
 		std::unique_ptr<TextureManager> mTexManager;
-		std::unique_ptr<CircularHeap> mTransformationCBHeap;
+		std::unique_ptr<CircularHeap> mMeshCBHeap;
 		std::unique_ptr<CircularHeap> mSkinnedCBHeap;
 		std::vector<std::vector<RenderNode>> mMeshes;
 

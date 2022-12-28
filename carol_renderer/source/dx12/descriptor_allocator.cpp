@@ -184,7 +184,7 @@ Carol::CbvSrvUavDescriptorAllocator::~CbvSrvUavDescriptorAllocator()
 	}
 }
 
-void Carol::CbvSrvUavDescriptorAllocator::SetCurrFrame(uint32_t currFrame)
+void Carol::CbvSrvUavDescriptorAllocator::DelayedDelete(uint32_t currFrame)
 {
 	mCurrFrame = currFrame;
 
@@ -192,10 +192,7 @@ void Carol::CbvSrvUavDescriptorAllocator::SetCurrFrame(uint32_t currFrame)
 	{
 		mGpuDeletionInfo.emplace_back();
 	}
-}
 
-void Carol::CbvSrvUavDescriptorAllocator::DelayedDelete()
-{
 	for (auto& info : mGpuDeletionInfo[mCurrFrame])
 	{
 		if (info->Allocator == this)

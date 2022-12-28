@@ -17,17 +17,6 @@ Carol::Heap::Heap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS f
   
 }
 
-void Carol::Heap::SetCurrFrame(uint32_t currFrame)
-{
-    mCurrFrame = currFrame;
-
-    if (mCurrFrame >= mDeletedResources.size())
-    {
-        // Frame index is added by one per frame, so just emplace back.
-        mDeletedResources.emplace_back();
-    }
-}
-
 void Carol::Heap::DeleteResource(HeapAllocInfo* info)
 {
     mDeletedResources[mCurrFrame].push_back(info);
@@ -38,8 +27,16 @@ void Carol::Heap::DeleteResourceImmediate(HeapAllocInfo* info)
     Deallocate(info);
 }
 
-void Carol::Heap::DelayedDelete()
+void Carol::Heap::DelayedDelete(uint32_t currFrame)
 {
+     mCurrFrame = currFrame;
+
+    if (mCurrFrame >= mDeletedResources.size())
+    {
+        // Frame index is added by one per frame, so just emplace back.
+        mDeletedResources.emplace_back();
+    }
+
     for (auto& info : mDeletedResources[mCurrFrame])
     {
         Deallocate(info);
@@ -187,7 +184,23 @@ void Carol::CircularHeap::CreateResource(HeapAllocInfo* info)
 
 void Carol::CircularHeap::DeleteResource(HeapAllocInfo* info)
 {
-    Deallocate(info);
+    info->Heap = nullptr;
+    info->Addr = 0;
+    info->Bytes = 0;
+    ++mDelayedDeletionCount[mCurrFrame];
+}
+
+void Carol::CircularHeap::DelayedDelete(uint32_t currFrame)
+{
+    mCurrFrame = currFrame;
+    if (mCurrFrame >= mDelayedDeletionCount.size())
+    {
+        mDelayedDeletionCount.emplace_back(0);
+    }
+
+    mBegin = (mBegin + mDelayedDeletionCount[currFrame]) % mElementCount;
+    mQueueSize -= mDelayedDeletionCount[currFrame];
+    mDelayedDeletionCount[currFrame] = 0;
 }
 
 void Carol::CircularHeap::CopyData(HeapAllocInfo* info, const void* data)
@@ -223,16 +236,6 @@ bool Carol::CircularHeap::Allocate(uint32_t size, HeapAllocInfo* info)
 
 bool Carol::CircularHeap::Deallocate(HeapAllocInfo* info)
 {
-    if (mQueueSize == 0)
-    {
-        return false;
-    }
-
-    info->Bytes = 0;
-    info->Addr = 0;
-
-    mBegin = (mBegin + 1) % mElementCount;
-    --mQueueSize;
     return true;
 }
 

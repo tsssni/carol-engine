@@ -49,8 +49,7 @@ namespace Carol
 		void UnloadTexture(const std::wstring& fileName);
 		void ReleaseIntermediateBuffers(const std::wstring& fileName);
 
-		void SetCurrFrame(uint32_t currFrame);
-		void DelayedDelete();
+		void DelayedDelete(uint32_t currFrame);
 
 	protected:
 

@@ -185,8 +185,15 @@ void Carol::TextureManager::UnloadTexture(const wstring& fileName)
 	mDeletedTextures[mCurrFrame].push_back(fileName);
 }
 
-void Carol::TextureManager::DelayedDelete()
+void Carol::TextureManager::DelayedDelete(uint32_t currFrame)
 {
+	mCurrFrame = currFrame;
+
+	if (mCurrFrame >= mDeletedTextures.size())
+	{
+		mDeletedTextures.emplace_back();
+	}
+
 	for (auto& fileName : mDeletedTextures[mCurrFrame])
 	{
 		--mTextures[fileName]->NumRef;
@@ -208,16 +215,5 @@ void Carol::TextureManager::ReleaseIntermediateBuffers(const std::wstring& fileN
 
 	mTextures[fileName]->Texture->ReleaseIntermediateBuffer();
 }
-
-void Carol::TextureManager::SetCurrFrame(uint32_t currFrame)
-{
-	mCurrFrame = currFrame;
-
-	if (mCurrFrame >= mDeletedTextures.size())
-	{
-		mDeletedTextures.emplace_back();
-	}
-}
-
 
 
