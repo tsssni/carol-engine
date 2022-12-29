@@ -1,10 +1,12 @@
 #ifndef MESH_HEADER
 #define MESH_HEADER
 
-cbuffer WorldCB : register(b0)
+cbuffer MeshCB : register(b0)
 {
     float4x4 gWorld;
     float4x4 gHistWorld;
+    float3 gFresnelR0;
+    float gRoughness;
 }
 
 cbuffer MeshCB : register(b1)

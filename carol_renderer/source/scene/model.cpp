@@ -1,6 +1,7 @@
 #include <scene/model.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
+#include <scene/scene.h>
 #include <scene/skinned_data.h>
 #include <scene/timer.h>
 #include <scene/texture.h>
@@ -27,6 +28,18 @@ Carol::Mesh::Mesh(Model* model, D3D12_VERTEX_BUFFER_VIEW* vertexBufferView, D3D1
 	mTransparent(isTransparent),
 	mTexIdx(TEX_IDX_COUNT)
 {
+}
+
+Carol::Mesh::~Mesh()
+{
+	auto itr = mOctreeNode->Meshes.begin();
+
+	for (int i = 0; i < mOctreeNodeIdx; ++i)
+	{
+		++itr;
+	}
+
+	mOctreeNode->Meshes.erase(itr);
 }
 
 D3D12_VERTEX_BUFFER_VIEW Carol::Mesh::GetVertexBufferView()
@@ -79,31 +92,24 @@ void Carol::Mesh::SetTexIdx(uint32_t type, uint32_t idx)
 	mTexIdx[type] = idx;
 }
 
+void Carol::Mesh::SetOctreeNode(OctreeNode* node, uint32_t idx)
+{
+	mOctreeNode = node;
+	mOctreeNodeIdx = idx;
+}
+
 void Carol::Mesh::SetBoundingBox(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax)
 {
-	XMFLOAT3 boxCenter;
-	XMFLOAT3 boxExtent;
-	
 	XMStoreFloat3(&mBoxMin, boxMin);
 	XMStoreFloat3(&mBoxMax, boxMax);
-	XMStoreFloat3(&boxCenter, (boxMin + boxMax) / 2.0f);
-	XMStoreFloat3(&boxExtent, (boxMax - boxMin) / 2.0f);
-
-	mBoundingBox = { boxCenter, boxExtent };
+	BoundingBox::CreateFromPoints(mBoundingBox, boxMin, boxMax);
 }
 
 void Carol::Mesh::TransformBoundingBox(DirectX::XMMATRIX transform)
 {
 	auto boxMin = XMVector3Transform(DirectX::XMLoadFloat3(&mBoxMin), transform);
 	auto boxMax = XMVector3Transform(DirectX::XMLoadFloat3(&mBoxMax), transform);
-	
-	XMFLOAT3 boxCenter;
-	XMFLOAT3 boxExtent;
-
-	XMStoreFloat3(&boxCenter, (boxMin + boxMax) / 2.0f);
-	XMStoreFloat3(&boxExtent, (boxMax - boxMin) / 2.0f);
-
-	mBoundingBox = { boxCenter, boxExtent };
+	BoundingBox::CreateFromPoints(mBoundingBox, boxMin, boxMax);
 }
 
 Carol::BoundingBox Carol::Mesh::GetBoundingBox()

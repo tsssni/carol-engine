@@ -63,9 +63,9 @@ void PS(VertexOut pin)
     float4 texDiffuse = gDiffuseMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
 
     LightMaterialData lightMat;
-    lightMat.fresnelR0 = float3(0.5f, 0.5f, 0.5f);
+    lightMat.fresnelR0 = gFresnelR0;
     lightMat.diffuseAlbedo = texDiffuse.rgb;
-    lightMat.roughness = 0.5f;
+    lightMat.roughness = gRoughness;
 
     float3 texNormal = gNormalMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
     texNormal = TexNormalToWorldSpace(texNormal, pin.NormalW, pin.TangentW);

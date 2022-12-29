@@ -276,5 +276,12 @@
       <Filter>着色器文件</Filter>
     </None>
     <None Include="packages.config" />
+    <None Include="bin\assimp-vc143-mtd.dll" />
+    <None Include="bin\dxcompiler.dll" />
+    <None Include="bin\dxil.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="lib\dxcompiler.lib" />
+    <Library Include="lib\assimp-vc143-mtd.lib" />
   </ItemGroup>
 </Project>

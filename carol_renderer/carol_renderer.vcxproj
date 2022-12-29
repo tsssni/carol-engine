@@ -92,6 +92,9 @@
     <Image Include="win32\carol.ico" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="bin\assimp-vc143-mtd.dll" />
+    <None Include="bin\dxcompiler.dll" />
+    <None Include="bin\dxil.dll" />
     <None Include="packages.config" />
     <None Include="shader\default.hlsl">
       <FileType>Document</FileType>
@@ -134,6 +137,10 @@
     <None Include="shader\include\shadow.hlsli" />
     <None Include="shader\include\skinned.hlsli" />
     <None Include="shader\include\vertex_in.hlsli" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="lib\assimp-vc143-mtd.lib" />
+    <Library Include="lib\dxcompiler.lib" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -223,13 +230,13 @@
       <PreprocessorDefinitions>_DEBUG;NOMINMAX;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\carol_engine\carol_renderer\include;C:\dxc_2022_12_16\inc;C:\assimp-5.2.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDIr)include;C:\dxc_2022_12_16\inc;C:\assimp-5.2.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\dxc_2022_12_16\lib\x64;C:\assimp-5.2.5\build\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>d3d12.lib;dxgi.lib;dxcompiler.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>

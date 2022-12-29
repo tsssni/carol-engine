@@ -401,7 +401,7 @@ void Carol::AssimpModel::ReadMeshMaterialAndTextures(Mesh* mesh, aiMesh* aimesh,
 	auto* matData = scene->mMaterials[aimesh->mMaterialIndex];
 	aiColor4D color4D;
 
-	aiGetMaterialColor(matData, AI_MATKEY_COLOR_REFLECTIVE, &color4D);
+	aiGetMaterialColor(matData, AI_MATKEY_COLOR_SPECULAR, &color4D);
 	mat.FresnelR0 = { color4D.r,color4D.g,color4D.b };
 
 	aiGetMaterialFloat(matData, AI_MATKEY_SHININESS, &mat.Roughness);

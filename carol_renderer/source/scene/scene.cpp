@@ -12,6 +12,88 @@ namespace Carol
 	using std::wstring;
 	using std::make_unique;
 	using namespace DirectX;
+	
+}
+
+Carol::Octree::Octree(BoundingBox sceneBoundingBox, float looseFactor)
+	:mLooseFactor(looseFactor)
+{
+	mRootNode = make_unique<OctreeNode>();
+	mRootNode->BoundingBox = sceneBoundingBox;
+}
+
+Carol::Octree::Octree(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax, float looseFactor)
+{
+	BoundingBox box;
+	BoundingBox::CreateFromPoints(box, boxMin, boxMax);
+	 
+	this->Octree::Octree(box, looseFactor);
+}
+
+void Carol::Octree::Insert(Mesh* mesh)
+{
+	ProcessNode(mRootNode.get(), mesh);
+}
+
+bool Carol::Octree::ProcessNode(OctreeNode* node, Mesh* mesh)
+{
+	if (ExtendBoundingBox(node->BoundingBox).Contains(mesh->GetBoundingBox()) == ContainmentType::CONTAINS)
+	{
+		if (node->Meshes.size() == 0)
+		{
+			DevideBoundingBox(node);
+		}
+
+		for (int i = 0; i < 8; ++i)
+		{
+			if (ProcessNode(node->Children[i].get(), mesh))
+			{
+				return true;
+			}
+		}
+
+		node->Meshes.push_back(mesh);
+		mesh->SetOctreeNode(node, node->Meshes.size() - 1);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+Carol::BoundingBox Carol::Octree::ExtendBoundingBox(const DirectX::BoundingBox& box)
+{
+	BoundingBox extendedBox = box;
+	auto extent = XMLoadFloat3(&extendedBox.Extents);
+
+	extent *= mLooseFactor;
+	XMStoreFloat3(&extendedBox.Extents, extent);
+
+	return extendedBox;
+}
+
+void Carol::Octree::DevideBoundingBox(OctreeNode* node)
+{
+	node->Children.resize(8);
+	auto center = XMLoadFloat3(&node->BoundingBox.Center);
+	XMVECTOR extents;
+
+	static float dx[8] = { -1,1,-1,1,-1,1,-1,1 };
+	static float dy[8] = { -1,-1,1,1,-1,-1,1,1 };
+	static float dz[8] = { -1,-1,-1,-1,1,1,1,1 };
+
+	for (int i = 0; i < 8; ++i)
+	{
+		extents = XMLoadFloat3(GetRvaluePtr(XMFLOAT3{
+			node->BoundingBox.Extents.x * dx[i],
+			node->BoundingBox.Extents.y * dy[i],
+			node->BoundingBox.Extents.z * dz[i]
+			}));
+
+		node->Children[i] = make_unique<OctreeNode>();
+		BoundingBox::CreateFromPoints(node->Children[i]->BoundingBox, center, center + extents);
+	}	
 }
 
 Carol::SceneNode::SceneNode()
@@ -23,6 +105,7 @@ Carol::SceneNode::SceneNode()
 
 Carol::Scene::Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator)
 	:mRootNode(make_unique<SceneNode>()),
+	mOctree(make_unique<Octree>(XMVECTOR{-100.0f,-100.0f,-100.0f},XMVECTOR{100.0f,100.0f,100.0f})),
 	mMeshes(MESH_TYPE_COUNT),
 	mTexManager(make_unique<TextureManager>(device, cmdList, texHeap, uploadHeap, allocator)),
 	mMeshCBHeap(make_unique<CircularHeap>(device, cmdList, true, 2048, sizeof(MeshConstants))), 
@@ -62,6 +145,12 @@ void Carol::Scene::LoadModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, Hea
 
 	node->Name = name;
 	mModels[name] = make_unique<AssimpModel>(cmdList, heap, uploadHeap, mTexManager.get(), node->Children[0].get(), path, textureDir, isSkinned);
+
+	for (auto& meshMapPair : mModels[name]->GetMeshes())
+	{
+		auto& mesh = meshMapPair.second;
+		mOctree->Insert(mesh.get());
+	}
 }
 
 void Carol::Scene::LoadGround(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap)
@@ -75,6 +164,12 @@ void Carol::Scene::LoadGround(ID3D12GraphicsCommandList* cmdList, Heap* heap, He
 	node->Name = L"Ground";
 	node->Children.push_back(make_unique<SceneNode>());
 	node->Children[0]->Meshes.push_back(mModels[L"Ground"]->GetMesh(L"Ground"));
+
+	for (auto& meshMapPair : mModels[L"Ground"]->GetMeshes())
+	{
+		auto& mesh = meshMapPair.second;
+		mOctree->Insert(mesh.get());
+	}
 }
 
 void Carol::Scene::LoadSkyBox(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap)
@@ -174,9 +269,12 @@ void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot, 
 	for(auto& mesh : node->Meshes)
 	{
 		MeshConstants meshConstants;
+		Material mat = mesh->GetMaterial();
 
 		XMStoreFloat4x4(&meshConstants.World, XMMatrixTranspose(world));
 		XMStoreFloat4x4(&meshConstants.HistWorld, XMMatrixTranspose(histWorld));
+		meshConstants.FresnelR0 = mat.FresnelR0;
+		meshConstants.Roughness = mat.Roughness;
 
 		mMeshCBHeap->DeleteResource(node->WorldAllocInfo.get());
 		mMeshCBHeap->CreateResource(node->WorldAllocInfo.get());

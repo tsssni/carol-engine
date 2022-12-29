@@ -2,6 +2,7 @@
 #include <scene/light.h>
 #include <d3d12.h>
 #include <DirectXMath.h>
+#include <DirectXCollision.h>
 #include <vector>
 #include <memory>
 #include <unordered_map>
@@ -30,6 +31,30 @@ namespace Carol {
 		DirectX::XMFLOAT4X4 HistTransformation;
 	
 		std::unique_ptr<HeapAllocInfo> WorldAllocInfo;
+	};
+
+	class OctreeNode
+	{
+	public:
+		std::vector<Mesh*> Meshes;
+		std::vector<std::unique_ptr<OctreeNode>> Children;
+		DirectX::BoundingBox BoundingBox;
+	};
+
+	class Octree
+	{
+	public:
+		Octree(DirectX::BoundingBox sceneBoundingBox, float looseFactor = 1.5f);
+		Octree(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax, float looseFactor = 1.5f);
+
+		void Insert(Mesh* mesh);
+	protected:
+		bool ProcessNode(OctreeNode* node, Mesh* mesh);
+		DirectX::BoundingBox ExtendBoundingBox(const DirectX::BoundingBox& box);
+		void DevideBoundingBox(OctreeNode* node);
+
+		std::unique_ptr<OctreeNode> mRootNode;
+		float mLooseFactor;
 	};
 
 	class RenderNode
@@ -78,7 +103,9 @@ namespace Carol {
 		std::unordered_map<std::wstring, std::unique_ptr<Model>> mModels;
 		std::unique_ptr<Model> mSkyBox;
 		std::vector<Light> mLights;
+
 		std::unique_ptr<SceneNode> mRootNode;
+		std::unique_ptr<Octree> mOctree;
 
 		std::unique_ptr<TextureManager> mTexManager;
 		std::unique_ptr<CircularHeap> mMeshCBHeap;

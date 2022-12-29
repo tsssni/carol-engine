@@ -23,7 +23,7 @@ namespace Carol
 		DirectX::XMFLOAT3 Emissive = {0.0f, 0.0f, 0.0f};
 		DirectX::XMFLOAT3 Ambient = {0.0f, 0.0f, 0.0f};
 		DirectX::XMFLOAT3 Diffuse = {0.0f, 0.0f, 0.0f};
-		DirectX::XMFLOAT3 Specular = {0.0f, 0.0f, 0.0f};
+		DirectX::XMFLOAT3 Reflective = {0.0f, 0.0f, 0.0f};
 		DirectX::XMFLOAT3 FresnelR0 = {0.2f, 0.2f, 0.2f};
 		float Roughness = 0.5f;
 	};
@@ -33,6 +33,8 @@ namespace Carol
 	public:
 		DirectX::XMFLOAT4X4 World;
 		DirectX::XMFLOAT4X4 HistWorld;
+		DirectX::XMFLOAT3 FresnelR0 = { 0.5f,0.5f,0.5f };
+		float Roughness = 0.5f;
 	};
 
 	class SkinnedConstants
@@ -43,6 +45,7 @@ namespace Carol
 	};
 
 	class Model;
+	class OctreeNode;
 
 	class Mesh
 	{
@@ -56,6 +59,7 @@ namespace Carol
 			uint32_t indexCount,
 			bool isSkinned,
 			bool isTransparent);
+		~Mesh();
 		
 		D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView();
 		D3D12_INDEX_BUFFER_VIEW GetIndexBufferView();
@@ -70,6 +74,7 @@ namespace Carol
 
 		void SetMaterial(const Material& mat);
 		void SetTexIdx(uint32_t type, uint32_t idx);
+		void SetOctreeNode(OctreeNode* node, uint32_t idx);
 
 		void SetBoundingBox(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax);
 		void TransformBoundingBox(DirectX::XMMATRIX transform);
@@ -97,6 +102,9 @@ namespace Carol
 		DirectX::BoundingBox mBoundingBox;
 		DirectX::XMFLOAT3 mBoxMin;
 		DirectX::XMFLOAT3 mBoxMax;
+
+		OctreeNode* mOctreeNode;
+		uint32_t mOctreeNodeIdx;
 		
 		bool mSkinned;
 		bool mTransparent;
