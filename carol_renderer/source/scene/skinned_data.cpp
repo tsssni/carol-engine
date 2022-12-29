@@ -135,6 +135,21 @@ void Carol::BoneAnimation::Interpolate(float t, DirectX::XMFLOAT4X4& M) const
 	XMStoreFloat4x4(&M, XMMatrixAffineTransformation(S, origin, Q, T));
 }
 
+void Carol::BoneAnimation::GetFrames(std::vector<DirectX::XMFLOAT4X4>& M)const
+{
+	int size = ScaleKeyframes.size();
+	M.resize(size);
+
+	for (int i = 0; i < size; ++i)
+	{
+		auto S = XMLoadFloat3(&ScaleKeyframes[i].Scale);
+		auto Q = XMLoadFloat4(&RotationQuatKeyframes[i].RotationQuat);
+		auto T = XMLoadFloat3(&TranslationKeyframes[i].Translation);
+		XMVECTOR origin = { 0.0f,0.0f,0.0f,0.0f };
+		XMStoreFloat4x4(&M[i], XMMatrixAffineTransformation(S, origin, Q, T));
+	}
+}
+
 float Carol::AnimationClip::GetClipStartTime() const
 {
 	float startTime = UINT32_MAX;
@@ -160,5 +175,42 @@ void Carol::AnimationClip::Interpolate(float t, vector<DirectX::XMFLOAT4X4>& bon
 	for (int i = 0; i < boneTransforms.size(); ++i)
 	{	
 		BoneAnimations[i].Interpolate(t, boneTransforms[i]);
+	}
+}
+
+void Carol::AnimationClip::GetFrames(std::vector<std::vector<DirectX::XMFLOAT4X4>>& frames) const
+{
+	int size = BoneAnimations.size();
+	int maxFrame = 0;
+	vector<vector<XMFLOAT4X4>> M(size);
+
+	for (int i = 0; i < size; ++i)
+	{
+		BoneAnimations[i].GetFrames(M[i]);
+		if (M[i].size() > maxFrame)
+		{
+			maxFrame = M[i].size();
+		}
+	}
+	
+	frames.resize(maxFrame);
+	XMFLOAT4X4 identity;
+	XMStoreFloat4x4(&identity, XMMatrixIdentity());
+
+	for (int i = 0; i < maxFrame; ++i)
+	{
+		for (int j = 0; j < size; ++j)
+		{
+			frames[i].resize(size);
+
+			if (i >= M[j].size())
+			{
+				frames[i][j] = identity;
+			}
+			else
+			{
+				frames[i][j] = M[j][i];
+			}
+		}
 	}
 }

@@ -74,10 +74,11 @@ namespace Carol
 
 		void SetMaterial(const Material& mat);
 		void SetTexIdx(uint32_t type, uint32_t idx);
-		void SetOctreeNode(OctreeNode* node, uint32_t idx);
+		void SetOctreeNode(OctreeNode* node);
+		OctreeNode* GetOctreeNode();
 
 		void SetBoundingBox(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax);
-		void TransformBoundingBox(DirectX::XMMATRIX transform);
+		bool TransformBoundingBox(DirectX::XMMATRIX transform);
 		DirectX::BoundingBox GetBoundingBox();
 
 		bool IsSkinned();
@@ -104,7 +105,6 @@ namespace Carol
 		DirectX::XMFLOAT3 mBoxMax;
 
 		OctreeNode* mOctreeNode;
-		uint32_t mOctreeNodeIdx;
 		
 		bool mSkinned;
 		bool mTransparent;
@@ -140,6 +140,7 @@ namespace Carol
 		std::vector<int>& GetBoneHierarchy();
 		std::vector<DirectX::XMFLOAT4X4>& GetBoneOffsets();
 
+		void ComputeSkinnedBoundingBox();
 		std::vector<std::wstring> GetAnimationClips();
 		void SetAnimationClip(std::wstring clipName);
 		void UpdateAnimationClip(Timer& timer, CircularHeap* skinnedCBHeap);

@@ -6,6 +6,7 @@
 #include <scene/timer.h>
 #include <scene/texture.h>
 #include <utils/common.h>
+#include <cmath>
 
 namespace Carol
 {
@@ -32,14 +33,14 @@ Carol::Mesh::Mesh(Model* model, D3D12_VERTEX_BUFFER_VIEW* vertexBufferView, D3D1
 
 Carol::Mesh::~Mesh()
 {
-	auto itr = mOctreeNode->Meshes.begin();
-
-	for (int i = 0; i < mOctreeNodeIdx; ++i)
+	for (auto itr = mOctreeNode->Meshes.begin(); itr != mOctreeNode->Meshes.end(); ++itr)
 	{
-		++itr;
+		if (*itr == this)
+		{
+			mOctreeNode->Meshes.erase(itr);
+			break;
+		}
 	}
-
-	mOctreeNode->Meshes.erase(itr);
 }
 
 D3D12_VERTEX_BUFFER_VIEW Carol::Mesh::GetVertexBufferView()
@@ -92,10 +93,14 @@ void Carol::Mesh::SetTexIdx(uint32_t type, uint32_t idx)
 	mTexIdx[type] = idx;
 }
 
-void Carol::Mesh::SetOctreeNode(OctreeNode* node, uint32_t idx)
+void Carol::Mesh::SetOctreeNode(OctreeNode* node)
 {
 	mOctreeNode = node;
-	mOctreeNodeIdx = idx;
+}
+
+Carol::OctreeNode* Carol::Mesh::GetOctreeNode()
+{
+	return mOctreeNode;
 }
 
 void Carol::Mesh::SetBoundingBox(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax)
@@ -105,11 +110,13 @@ void Carol::Mesh::SetBoundingBox(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR box
 	BoundingBox::CreateFromPoints(mBoundingBox, boxMin, boxMax);
 }
 
-void Carol::Mesh::TransformBoundingBox(DirectX::XMMATRIX transform)
+bool Carol::Mesh::TransformBoundingBox(DirectX::XMMATRIX transform)
 {
 	auto boxMin = XMVector3Transform(DirectX::XMLoadFloat3(&mBoxMin), transform);
 	auto boxMax = XMVector3Transform(DirectX::XMLoadFloat3(&mBoxMax), transform);
 	BoundingBox::CreateFromPoints(mBoundingBox, boxMin, boxMax);
+
+	return mOctreeNode->BoundingBox.Contains(mBoundingBox) != ContainmentType::CONTAINS;
 }
 
 Carol::BoundingBox Carol::Mesh::GetBoundingBox()
@@ -160,6 +167,94 @@ Carol::vector<int>& Carol::Model::GetBoneHierarchy()
 Carol::vector<Carol::XMFLOAT4X4>& Carol::Model::GetBoneOffsets()
 {
 	return mBoneOffsets;
+}
+
+void Carol::Model::ComputeSkinnedBoundingBox()
+{
+	if (mSkinned == false)
+	{
+		return;
+	}
+
+	vector<vector<vector<XMFLOAT4X4>>> animationFrames;
+
+	for (auto& animationClipMapPair : mAnimationClips)
+	{
+		auto& clip = animationClipMapPair.second;
+		animationFrames.emplace_back();
+		clip->GetFrames(animationFrames.back());
+	}
+
+	for (auto& meshMapPair : mMeshes)
+	{
+		XMFLOAT3 boxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
+		XMFLOAT3 boxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
+		
+		auto compare = [&](XMVECTOR skinnedPos)
+		{
+			XMFLOAT3 pos;
+			XMStoreFloat3(&pos, skinnedPos);
+
+			boxMin.x = std::min(boxMin.x, pos.x);
+			boxMin.y = std::min(boxMin.y, pos.y);
+			boxMin.z = std::min(boxMin.z, pos.z);
+
+			boxMax.x = std::max(boxMax.x, pos.x);
+			boxMax.y = std::max(boxMax.y, pos.y);
+			boxMax.z = std::max(boxMax.z, pos.z);
+		};
+
+		auto& mesh = meshMapPair.second;
+		vector<bool> mark(mVertices.size(), false);
+
+		for (int i = mesh->GetStartIndexLocation(); i < mesh->GetStartIndexLocation() +  mesh->GetIndexCount(); ++i)
+		{
+			if (mark[mIndices[i]])
+			{
+				continue;
+			}
+
+			mark[mIndices[i]] = true;
+			auto& vertex = mVertices[mIndices[i]];
+
+			XMVECTOR pos = { vertex.Pos.x,vertex.Pos.y,vertex.Pos.z,1.0f };
+
+			float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+			weights[0] = vertex.Weights.x;
+			weights[1] = vertex.Weights.y;
+			weights[2] = vertex.Weights.z;
+			weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+
+			if (weights[0] == 0.0f)
+			{
+				compare(pos);
+				continue;
+			}
+
+			uint32_t boneIndices[4] = {
+				vertex.BoneIndices.x,
+				vertex.BoneIndices.y,
+				vertex.BoneIndices.z,
+				vertex.BoneIndices.w };
+
+			for (auto& frames : animationFrames)
+			{
+				for (auto& frame : frames)
+				{
+					XMVECTOR skinnedPos = { 0.0f,0.0f,0.0f,0.0f };
+
+					for (int j = 0; j < 4 && weights[j] > 0.0f; ++j)
+					{
+						skinnedPos += weights[j] * XMVector4Transform(pos, XMLoadFloat4x4(&frame[boneIndices[j]]));
+					}
+
+					compare(skinnedPos);
+				}
+			}
+		}
+
+		mesh->SetBoundingBox(XMLoadFloat3(&boxMin), XMLoadFloat3(&boxMax));
+	}
 }
 
 Carol::vector<Carol::wstring> Carol::Model::GetAnimationClips()

@@ -50,6 +50,7 @@ Carol::AssimpModel::AssimpModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, 
 	LoadAssimpSkinnedData(scene);
 	ProcessNode(scene->mRootNode, rootNode, scene);
 	LoadVerticesAndIndices(cmdList, heap, uploadHeap);
+	ComputeSkinnedBoundingBox();
 
 	mVertices.clear();
 	mVertices.shrink_to_fit();
@@ -462,5 +463,4 @@ void Carol::AssimpModel::LoadTexture(Mesh* mesh, aiString aiPath, aiTextureType 
 		break;
 	}
 }
-
 

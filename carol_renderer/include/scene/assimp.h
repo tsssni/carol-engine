@@ -42,6 +42,7 @@ namespace Carol
 		void ReadTexture(Mesh* mesh, aiMaterial* matData);
 		void LoadTexture(Mesh* mesh, aiString aiPath, aiTextureType type);
 
+
 		DirectX::XMMATRIX aiMatrix4x4ToXM(aiMatrix4x4 aiM);
 		aiMatrix4x4 XMToaiMatrix4x4(DirectX::XMMATRIX xm);
 	protected:

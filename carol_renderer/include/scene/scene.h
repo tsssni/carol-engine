@@ -31,6 +31,7 @@ namespace Carol {
 		DirectX::XMFLOAT4X4 HistTransformation;
 	
 		std::unique_ptr<HeapAllocInfo> WorldAllocInfo;
+		bool Modified = false;
 	};
 
 	class OctreeNode
@@ -48,6 +49,7 @@ namespace Carol {
 		Octree(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax, float looseFactor = 1.5f);
 
 		void Insert(Mesh* mesh);
+		void Delete(Mesh* mesh);
 	protected:
 		bool ProcessNode(OctreeNode* node, Mesh* mesh);
 		DirectX::BoundingBox ExtendBoundingBox(const DirectX::BoundingBox& box);
@@ -90,7 +92,6 @@ namespace Carol {
 		void SetWorld(std::wstring modelName, DirectX::XMMATRIX world);
 		void SetAnimationClip(std::wstring modelName, std::wstring clipName);
 		void Update(Timer& timer);
-		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot, DirectX::XMMATRIX histParentToRoot);
 
 		enum
 		{
@@ -98,6 +99,7 @@ namespace Carol {
 		};
 
 	protected:
+		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot, DirectX::XMMATRIX histParentToRoot, bool modified);
 		void UpdateSkyBox();
 
 		std::unordered_map<std::wstring, std::unique_ptr<Model>> mModels;

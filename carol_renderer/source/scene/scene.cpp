@@ -35,11 +35,26 @@ void Carol::Octree::Insert(Mesh* mesh)
 	ProcessNode(mRootNode.get(), mesh);
 }
 
+void Carol::Octree::Delete(Mesh* mesh)
+{
+	auto node = mesh->GetOctreeNode();
+
+	for (auto itr=node->Meshes.begin(); itr != node->Meshes.end(); ++itr)
+	{
+		if (*itr == mesh)
+		{
+			node->Meshes.erase(itr);
+			break;
+		}
+	}
+}
+
 bool Carol::Octree::ProcessNode(OctreeNode* node, Mesh* mesh)
 {
+	auto b = mesh->GetBoundingBox();
 	if (ExtendBoundingBox(node->BoundingBox).Contains(mesh->GetBoundingBox()) == ContainmentType::CONTAINS)
 	{
-		if (node->Meshes.size() == 0)
+		if (node->Children.size() == 0)
 		{
 			DevideBoundingBox(node);
 		}
@@ -53,7 +68,7 @@ bool Carol::Octree::ProcessNode(OctreeNode* node, Mesh* mesh)
 		}
 
 		node->Meshes.push_back(mesh);
-		mesh->SetOctreeNode(node, node->Meshes.size() - 1);
+		mesh->SetOctreeNode(node);
 		return true;
 	}
 	else
@@ -105,7 +120,7 @@ Carol::SceneNode::SceneNode()
 
 Carol::Scene::Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator)
 	:mRootNode(make_unique<SceneNode>()),
-	mOctree(make_unique<Octree>(XMVECTOR{-100.0f,-100.0f,-100.0f},XMVECTOR{100.0f,100.0f,100.0f})),
+	mOctree(make_unique<Octree>(XMVECTOR{-1000.0f,-1000.0f,-1000.0f},XMVECTOR{1000.0f,1000.0f,1000.0f})),
 	mMeshes(MESH_TYPE_COUNT),
 	mTexManager(make_unique<TextureManager>(device, cmdList, texHeap, uploadHeap, allocator)),
 	mMeshCBHeap(make_unique<CircularHeap>(device, cmdList, true, 2048, sizeof(MeshConstants))), 
@@ -230,6 +245,7 @@ void Carol::Scene::SetWorld(std::wstring modelName, DirectX::XMMATRIX world)
 		if (node->Name == modelName)
 		{
 			XMStoreFloat4x4(&node->Transformation, world);
+			node->Modified = true;
 		}
 	}
 }
@@ -255,16 +271,21 @@ void Carol::Scene::Update(Timer& timer)
 		}
 	}
 
-	ProcessNode(mRootNode.get(), XMMatrixIdentity(), XMMatrixIdentity());
+	ProcessNode(mRootNode.get(), XMMatrixIdentity(), XMMatrixIdentity(), false);
 	UpdateSkyBox();
 }
 
-void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot, DirectX::XMMATRIX histParentToRoot)
+void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot, DirectX::XMMATRIX histParentToRoot, bool modified)
 {
 	XMMATRIX toParent = XMLoadFloat4x4(&node->Transformation);
 	XMMATRIX histToParent = XMLoadFloat4x4(&node->HistTransformation);
 	XMMATRIX world = toParent * parentToRoot;
 	XMMATRIX histWorld = histToParent * histParentToRoot;
+
+	if (node->Modified == true)
+	{
+		modified = true;
+	}
 
 	for(auto& mesh : node->Meshes)
 	{
@@ -286,14 +307,25 @@ void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot, 
 
 		uint32_t type = mesh->IsSkinned() | (mesh->IsTransparent() << 1);
 		mMeshes[type].push_back(renderNode);
+
+		if (modified)
+		{
+			if (!mesh->TransformBoundingBox(world))
+			{
+				mOctree->Delete(mesh);
+				mOctree->Insert(mesh);
+			}
+		}
 	}
 
 	node->HistTransformation = node->Transformation;
 
 	for (auto& child : node->Children)
 	{
-		ProcessNode(child.get(), world, histWorld);
+		ProcessNode(child.get(), world, histWorld, modified);
 	}
+
+	node->Modified = false;
 }
 
 void Carol::Scene::UpdateSkyBox()

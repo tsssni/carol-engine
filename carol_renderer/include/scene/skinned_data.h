@@ -42,6 +42,7 @@ namespace Carol
 	    DirectX::XMVECTOR InterpolateScale(float t) const;
 		DirectX::XMVECTOR InterpolateQuat(float t) const;
 		void Interpolate(float t, DirectX::XMFLOAT4X4& M)const;
+		void GetFrames(std::vector<DirectX::XMFLOAT4X4>& M)const;
 
 		std::vector<TranslationKeyframe> TranslationKeyframes;
 		std::vector<ScaleKeyframe> ScaleKeyframes;
@@ -55,6 +56,7 @@ namespace Carol
 		float GetClipEndTime()const;
 
 		void Interpolate(float t, std::vector<DirectX::XMFLOAT4X4>& boneTransforms)const;
+		void GetFrames(std::vector<std::vector<DirectX::XMFLOAT4X4>>& frames)const;
 		std::vector<BoneAnimation> BoneAnimations; 	
 	};
 
