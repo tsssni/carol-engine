@@ -38,7 +38,7 @@ void Carol::MeshesPass::ReleaseIntermediateBuffers()
 {
 }
 
-void Carol::MeshesPass::DrawMeshes(const std::vector<ID3D12PipelineState*>& pso, bool color)
+void Carol::MeshesPass::DrawMeshes(const std::vector<ID3D12PipelineState*>& pso)
 {
 	for (int i = 0; i < Scene::MESH_TYPE_COUNT; ++i)
 	{
@@ -47,7 +47,7 @@ void Carol::MeshesPass::DrawMeshes(const std::vector<ID3D12PipelineState*>& pso,
 			mGlobalResources->CommandList->SetPipelineState(pso[i]);
 			for (auto& renderNode : mGlobalResources->Scene->GetMeshes(i))
 			{
-				Draw(&renderNode, color);
+				Draw(&renderNode);
 			}
 		}
 	}
@@ -56,7 +56,7 @@ void Carol::MeshesPass::DrawMeshes(const std::vector<ID3D12PipelineState*>& pso,
 void Carol::MeshesPass::DrawSkyBox(ID3D12PipelineState* skyBoxPSO)
 {
 	mGlobalResources->CommandList->SetPipelineState(skyBoxPSO);
-	Draw(GetRvaluePtr(mGlobalResources->Scene->GetSkyBox()), true);
+	Draw(GetRvaluePtr(mGlobalResources->Scene->GetSkyBox()));
 }
 
 void Carol::MeshesPass::InitShaders()
@@ -75,29 +75,15 @@ void Carol::MeshesPass::InitDescriptors()
 {
 }
 
-void Carol::MeshesPass::Draw(RenderNode* renderNode, bool color)
+void Carol::MeshesPass::Draw(RenderNode* renderNode)
 {
-	mGlobalResources->CommandList->IASetVertexBuffers(0, 1, GetRvaluePtr(renderNode->Mesh->GetVertexBufferView()));
-	mGlobalResources->CommandList->IASetIndexBuffer(GetRvaluePtr(renderNode->Mesh->GetIndexBufferView()));
-	mGlobalResources->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
 	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::WORLD_CB, renderNode->WorldGPUVirtualAddress);
-
-	if (color) 
-	{
-		mGlobalResources->CommandList->SetGraphicsRoot32BitConstants(RootSignature::MESH_CONSTANTS, Mesh::TEX_IDX_COUNT, renderNode->Mesh->GetTexIdx().data(), 0);
-	}
+	mGlobalResources->CommandList->SetGraphicsRoot32BitConstants(RootSignature::MESH_CONSTANTS, Mesh::TEX_IDX_COUNT, renderNode->Mesh->GetTexIdx().data(), 0);
 
 	if (renderNode->Mesh->IsSkinned())
 	{
 		mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::SKINNED_CB, renderNode->Mesh->GetSkinnedCBGPUVirtualAddress());
 	}
 
-	mGlobalResources->CommandList->DrawIndexedInstanced(
-		renderNode->Mesh->GetIndexCount(),
-		1,
-		renderNode->Mesh->GetStartIndexLocation(),
-		renderNode->Mesh->GetBaseVertexLocation(),
-		0
-	);
+	mGlobalResources->CommandList->DispatchMesh(renderNode->Mesh->GetMeshletSize(), 1, 1);
 }

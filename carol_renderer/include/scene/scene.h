@@ -31,32 +31,6 @@ namespace Carol {
 		DirectX::XMFLOAT4X4 HistTransformation;
 	
 		std::unique_ptr<HeapAllocInfo> WorldAllocInfo;
-		bool Modified = false;
-	};
-
-	class OctreeNode
-	{
-	public:
-		std::vector<Mesh*> Meshes;
-		std::vector<std::unique_ptr<OctreeNode>> Children;
-		DirectX::BoundingBox BoundingBox;
-	};
-
-	class Octree
-	{
-	public:
-		Octree(DirectX::BoundingBox sceneBoundingBox, float looseFactor = 1.5f);
-		Octree(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax, float looseFactor = 1.5f);
-
-		void Insert(Mesh* mesh);
-		void Delete(Mesh* mesh);
-	protected:
-		bool ProcessNode(OctreeNode* node, Mesh* mesh);
-		DirectX::BoundingBox ExtendBoundingBox(const DirectX::BoundingBox& box);
-		void DevideBoundingBox(OctreeNode* node);
-
-		std::unique_ptr<OctreeNode> mRootNode;
-		float mLooseFactor;
 	};
 
 	class RenderNode
@@ -69,7 +43,7 @@ namespace Carol {
 	class Scene
 	{
 	public:
-		Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator);
+		Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* texHeap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator);
 		Scene(const Scene&) = delete;
 		Scene(Scene&&) = delete;
 		Scene& operator=(const Scene&) = delete;
@@ -77,10 +51,11 @@ namespace Carol {
 		void DelayedDelete(uint32_t currFrame);
 		std::vector<std::wstring> GetAnimationClips(std::wstring modelName);
 		std::vector<std::wstring> GetModelNames();
+		bool IsAnyTransparentMeshes();
 
-		void LoadModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, std::wstring name, std::wstring path, std::wstring textureDir, bool isSkinned);
-		void LoadGround(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap);
-		void LoadSkyBox(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap);
+		void LoadModel(std::wstring name, std::wstring path, std::wstring textureDir, bool isSkinned);
+		void LoadGround();
+		void LoadSkyBox();
 
 		void UnloadModel(std::wstring modelName);
 		void ReleaseIntermediateBuffers();
@@ -99,15 +74,20 @@ namespace Carol {
 		};
 
 	protected:
-		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot, DirectX::XMMATRIX histParentToRoot, bool modified);
+		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot, DirectX::XMMATRIX histParentToRoot);
 		void UpdateSkyBox();
+
+		ID3D12Device* mDevice;
+		ID3D12GraphicsCommandList* mCommandList;
+		Heap* mHeap;
+		Heap* mUploadHeap;
+		CbvSrvUavDescriptorAllocator* mAllocator;
 
 		std::unordered_map<std::wstring, std::unique_ptr<Model>> mModels;
 		std::unique_ptr<Model> mSkyBox;
 		std::vector<Light> mLights;
 
 		std::unique_ptr<SceneNode> mRootNode;
-		std::unique_ptr<Octree> mOctree;
 
 		std::unique_ptr<TextureManager> mTexManager;
 		std::unique_ptr<CircularHeap> mMeshCBHeap;

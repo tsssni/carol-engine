@@ -9,6 +9,7 @@
 #include <dx12/descriptor_allocator.h>
 #include <dx12/root_signature.h>
 #include <dx12/shader.h>
+#include <scene/scene.h>
 
 namespace Carol {
 	using std::vector;
@@ -27,8 +28,11 @@ Carol::OitppllPass::OitppllPass(GlobalResources* globalResources, DXGI_FORMAT ou
 
 void Carol::OitppllPass::Draw()
 {
-	DrawPpll();
-	DrawOit();
+	if (mGlobalResources->Scene->IsAnyTransparentMeshes())
+	{
+		DrawPpll();
+		DrawOit();
+	}
 }
 
 void Carol::OitppllPass::Update()
@@ -98,20 +102,20 @@ void Carol::OitppllPass::InitShaders()
 		L"TAA=1",L"SSAO=1",L"SKINNED=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"BuildStaticOitppllVS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", staticDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"BuildStaticOitppllMS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", staticDefines, L"MS", L"ms_6_6");
 	(*mGlobalResources->Shaders)[L"BuildStaticOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", staticDefines, L"PS", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllVS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", skinnedDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllMS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", skinnedDefines, L"MS", L"ms_6_6");
 	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", skinnedDefines, L"PS", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"DrawOitppllVS"] = make_unique<Shader>(L"shader\\oitppll.hlsl", nullDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"DrawOitppllMS"] = make_unique<Shader>(L"shader\\oitppll.hlsl", nullDefines, L"MS", L"ms_6_6");
 	(*mGlobalResources->Shaders)[L"DrawOitppllPS"] = make_unique<Shader>(L"shader\\oitppll.hlsl", nullDefines, L"PS", L"ps_6_6");
 }
 
 void Carol::OitppllPass::InitPSOs()
 {
 	auto buildStaticOitppllPsoDesc = *mGlobalResources->BasePsoDesc;
-	auto buildStaicOitppllVS = (*mGlobalResources->Shaders)[L"BuildStaticOitppllVS"].get();
+	auto buildStaicOitppllMS = (*mGlobalResources->Shaders)[L"BuildStaticOitppllMS"].get();
 	auto buildStaticOitppllPS = (*mGlobalResources->Shaders)[L"BuildStaticOitppllPS"].get();
-	buildStaticOitppllPsoDesc.VS = { reinterpret_cast<byte*>(buildStaicOitppllVS->GetBufferPointer()),buildStaicOitppllVS->GetBufferSize() };
+	buildStaticOitppllPsoDesc.MS = { reinterpret_cast<byte*>(buildStaicOitppllMS->GetBufferPointer()),buildStaicOitppllMS->GetBufferSize() };
 	buildStaticOitppllPsoDesc.PS = { reinterpret_cast<byte*>(buildStaticOitppllPS->GetBufferPointer()),buildStaticOitppllPS->GetBufferSize() };
 	buildStaticOitppllPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	buildStaticOitppllPsoDesc.DepthStencilState.DepthEnable = false;
@@ -120,19 +124,27 @@ void Carol::OitppllPass::InitPSOs()
 	buildStaticOitppllPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
 	buildStaticOitppllPsoDesc.DepthStencilState.DepthEnable = false;
 	buildStaticOitppllPsoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
-	ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&buildStaticOitppllPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"BuildStaticOitppll"].GetAddressOf())));
+	auto buildStaticOitppllPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(buildStaticOitppllPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC buildStaticOitppllStreamDesc;
+    buildStaticOitppllStreamDesc.pPipelineStateSubobjectStream = &buildStaticOitppllPsoStream;
+    buildStaticOitppllStreamDesc.SizeInBytes = sizeof(buildStaticOitppllPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&buildStaticOitppllStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"BuildStaticOitppll"].GetAddressOf())));
 
 	auto buildSkinnedOitppllPsoDesc = buildStaticOitppllPsoDesc;
-	auto buildSkinnedOitppllVS = (*mGlobalResources->Shaders)[L"BuildSkinnedOitppllVS"].get();
+	auto buildSkinnedOitppllMS = (*mGlobalResources->Shaders)[L"BuildSkinnedOitppllMS"].get();
 	auto buildSkinnedOitppllPS = (*mGlobalResources->Shaders)[L"BuildSkinnedOitppllPS"].get();
-	buildSkinnedOitppllPsoDesc.VS = { reinterpret_cast<byte*>(buildSkinnedOitppllVS->GetBufferPointer()),buildSkinnedOitppllVS->GetBufferSize() };
+	buildSkinnedOitppllPsoDesc.MS = { reinterpret_cast<byte*>(buildSkinnedOitppllMS->GetBufferPointer()),buildSkinnedOitppllMS->GetBufferSize() };
 	buildSkinnedOitppllPsoDesc.PS = { reinterpret_cast<byte*>(buildSkinnedOitppllPS->GetBufferPointer()),buildSkinnedOitppllPS->GetBufferSize() };
-	ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&buildSkinnedOitppllPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].GetAddressOf())));
+	auto buildSkinnedOitppllPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(buildSkinnedOitppllPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC buildSkinnedOitppllStreamDesc;
+    buildSkinnedOitppllStreamDesc.pPipelineStateSubobjectStream = &buildSkinnedOitppllPsoStream;
+    buildSkinnedOitppllStreamDesc.SizeInBytes = sizeof(buildSkinnedOitppllPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&buildSkinnedOitppllStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].GetAddressOf())));
 
 	auto drawOitppllPsoDesc = *mGlobalResources->BasePsoDesc;
-	auto drawStaicOitppllVS = (*mGlobalResources->Shaders)[L"DrawOitppllVS"].get();
+	auto drawStaicOitppllMS = (*mGlobalResources->Shaders)[L"DrawOitppllMS"].get();
 	auto drawOitppllPS = (*mGlobalResources->Shaders)[L"DrawOitppllPS"].get();
-	drawOitppllPsoDesc.VS = { reinterpret_cast<byte*>(drawStaicOitppllVS->GetBufferPointer()),drawStaicOitppllVS->GetBufferSize() };
+	drawOitppllPsoDesc.MS = { reinterpret_cast<byte*>(drawStaicOitppllMS->GetBufferPointer()),drawStaicOitppllMS->GetBufferSize() };
 	drawOitppllPsoDesc.PS = { reinterpret_cast<byte*>(drawOitppllPS->GetBufferPointer()),drawOitppllPS->GetBufferSize() };
 	drawOitppllPsoDesc.BlendState.RenderTarget[0].BlendEnable = true;
 	drawOitppllPsoDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
@@ -146,7 +158,11 @@ void Carol::OitppllPass::InitPSOs()
 	drawOitppllPsoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	drawOitppllPsoDesc.DepthStencilState.DepthEnable = false;
 	drawOitppllPsoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
-	ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&drawOitppllPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"DrawOitppll"].GetAddressOf())));
+	auto drawOitppllPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(drawOitppllPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC drawOitppllStreamDesc;
+    drawOitppllStreamDesc.pPipelineStateSubobjectStream = &drawOitppllPsoStream;
+    drawOitppllStreamDesc.SizeInBytes = sizeof(drawOitppllPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&drawOitppllStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"DrawOitppll"].GetAddressOf())));
 }
 
 void Carol::OitppllPass::InitResources()
@@ -224,17 +240,12 @@ void Carol::OitppllPass::DrawPpll()
 		nullptr,
 		nullptr,
 		(*mGlobalResources->PSOs)[L"BuildStaticOitppll"].Get(),
-		(*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].Get()
-		}, true);
+		(*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].Get() });
 }
 
 void Carol::OitppllPass::DrawOit()
 {
 	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mGlobalResources->Frame->GetFrameRtv()), true, nullptr);
-
 	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"DrawOitppll"].Get());
-	mGlobalResources->CommandList->IASetVertexBuffers(0, 0, nullptr);
-	mGlobalResources->CommandList->IASetIndexBuffer(nullptr);
-	mGlobalResources->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	mGlobalResources->CommandList->DrawInstanced(6, 1, 0, 0);
+	mGlobalResources->CommandList->DispatchMesh(1, 1, 1);
 }

@@ -279,6 +279,9 @@
     <None Include="bin\assimp-vc143-mtd.dll" />
     <None Include="bin\dxcompiler.dll" />
     <None Include="bin\dxil.dll" />
+    <None Include="assimp-vc143-mtd.dll" />
+    <None Include="dxcompiler.dll" />
+    <None Include="dxil.dll" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="lib\dxcompiler.lib" />

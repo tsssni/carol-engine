@@ -1,5 +1,5 @@
 #pragma once
-#include <d3d12.h>
+#include <utils/d3dx12.h>
 #include <comdef.h>
 #include <wrl/client.h>
 #include <vector>
@@ -33,9 +33,9 @@ namespace Carol
 	class GlobalResources
 	{
 	public:
-		ID3D12Device* Device;
+		ID3D12Device2* Device;
 		ID3D12CommandQueue* CommandQueue;
-		ID3D12GraphicsCommandList* CommandList;
+		ID3D12GraphicsCommandList6* CommandList;
 
 		Heap* DefaultBuffersHeap;
 		Heap* UploadBuffersHeap;
@@ -70,6 +70,6 @@ namespace Carol
 
 		std::unordered_map<std::wstring, std::unique_ptr<Shader>>* Shaders;
 		std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<ID3D12PipelineState>>* PSOs;
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC* BasePsoDesc;
+		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC* BasePsoDesc;
 	};
 }

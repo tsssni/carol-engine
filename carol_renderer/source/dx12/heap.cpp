@@ -246,8 +246,6 @@ void Carol::CircularHeap::Align()
 
 void Carol::CircularHeap::ExpandHeap()
 {
-    ComPtr<ID3D12Resource> expiringHeap;
-
     if (!mHeapSize)
     {
         mHeapSize = mElementCount * mElementSize;

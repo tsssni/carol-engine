@@ -11,8 +11,8 @@
 #include <algorithm>
 #include <fstream>
 
-#define aiProcess_Static aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_GenBoundingBoxes | aiProcess_JoinIdenticalVertices | aiProcess_FixInfacingNormals | aiProcess_PreTransformVertices | aiProcess_ConvertToLeftHanded
-#define aiProcess_Skinned aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_GenBoundingBoxes | aiProcess_JoinIdenticalVertices | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights | aiProcess_ConvertToLeftHanded
+#define aiProcess_Static aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_FixInfacingNormals | aiProcess_PreTransformVertices | aiProcess_ConvertToLeftHanded
+#define aiProcess_Skinned aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights | aiProcess_ConvertToLeftHanded
 
 namespace Carol {
 	using std::vector;
@@ -22,12 +22,8 @@ namespace Carol {
 	using namespace DirectX;
 }
 
-Carol::AssimpModel::AssimpModel()
-{
-}
-
-Carol::AssimpModel::AssimpModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, TextureManager* texManager, SceneNode* rootNode, wstring path, wstring textureDir, bool isSkinned)
-	:mTexManager(texManager)
+Carol::AssimpModel::AssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator, TextureManager* texManager, SceneNode* rootNode, wstring path, wstring textureDir, bool isSkinned)
+	:Model(device, cmdList, heap, uploadHeap, allocator), mTexManager(texManager)
 {
 	Assimp::Importer mImporter;
 	const aiScene* scene = mImporter.ReadFile(WStringToString(path), isSkinned ? aiProcess_Skinned : aiProcess_Static);
@@ -44,18 +40,8 @@ Carol::AssimpModel::AssimpModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, 
 		indexCount += scene->mMeshes[i]->mNumFaces * 3;
 	}
 
-	mVertices.reserve(vertexCount);
-	mIndices.reserve(indexCount);
-
 	LoadAssimpSkinnedData(scene);
 	ProcessNode(scene->mRootNode, rootNode, scene);
-	LoadVerticesAndIndices(cmdList, heap, uploadHeap);
-	ComputeSkinnedBoundingBox();
-
-	mVertices.clear();
-	mVertices.shrink_to_fit();
-	mIndices.clear();
-	mIndices.shrink_to_fit();
 }
 
 void Carol::AssimpModel::ProcessNode(aiNode* node, SceneNode* sceneNode, const aiScene* scene)
@@ -78,20 +64,21 @@ void Carol::AssimpModel::ProcessNode(aiNode* node, SceneNode* sceneNode, const a
 
 Carol::Mesh* Carol::AssimpModel::ProcessMesh(aiMesh* mesh, const aiScene* scene)
 {	
-	uint32_t initVertexOffset = mVertices.size();
 	wstring meshName = StringToWString(mesh->mName.C_Str());
-	static uint32_t count = 0;
 
 	if (mMeshes.count(meshName) == 0)
 	{
-		mMeshes[meshName] = make_unique<Mesh>(this, &mVertexBufferView, &mIndexBufferView, 0, mIndices.size(), mesh->mNumFaces * 3, mSkinned, false);
-		mMeshes[meshName]->SetBoundingBox(
-			{ mesh->mAABB.mMin.x, mesh->mAABB.mMin.y, mesh->mAABB.mMin.z },
-			{ mesh->mAABB.mMax.x,mesh->mAABB.mMax.y,mesh->mAABB.mMax.z });
+		vector<Vertex> vertices;
+		vector<uint32_t> indices;
 
-		ReadMeshVerticesAndIndices(mesh);
+		ReadMeshVerticesAndIndices(vertices, indices, mesh);
+		ReadMeshBones(vertices, mesh);
+		mMeshes[meshName] = make_unique<Mesh>(
+			this, mDevice, mCommandList,
+			mHeap, mUploadHeap, mAllocator,
+			vertices, indices, mSkinned, false);
+
 		ReadMeshMaterialAndTextures(mMeshes[meshName].get(), mesh, scene);
-		ReadMeshBones(initVertexOffset, mesh);
 	}
 
 	return mMeshes[meshName].get();
@@ -214,7 +201,7 @@ void Carol::AssimpModel::ReadBoneOffsets(aiNode* node, const aiScene* scene)
 	}
 }
 
-void Carol::AssimpModel::ReadMeshBones(uint32_t vertexOffset, aiMesh* mesh)
+void Carol::AssimpModel::ReadMeshBones(vector<Vertex>& vertices, aiMesh* mesh)
 {
 	uint32_t boneIndex = 0;
 
@@ -227,7 +214,7 @@ void Carol::AssimpModel::ReadMeshBones(uint32_t vertexOffset, aiMesh* mesh)
 		{
 			uint32_t vId = mesh->mBones[i]->mWeights[j].mVertexId;
 			float weight = mesh->mBones[i]->mWeights[j].mWeight;
-			InsertBoneWeightToVertex(mVertices[vertexOffset + vId], boneIndex, weight);
+			InsertBoneWeightToVertex(vertices[vId], boneIndex, weight);
 		}
 	}
 }
@@ -317,7 +304,9 @@ void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 			}
 			
 		}
-	
+
+		mAnimationFrames.emplace_back();
+		animationClip->GetFrames(mAnimationFrames.back());
 		mAnimationClips[StringToWString(animation->mName.C_Str())] = std::move(animationClip);
 	}
 }
@@ -351,47 +340,42 @@ aiMatrix4x4 Carol::AssimpModel::XMToaiMatrix4x4(XMMATRIX xm)
 	return aiM;
 }
 
-void Carol::AssimpModel::ReadMeshVerticesAndIndices(aiMesh* mesh)
+void Carol::AssimpModel::ReadMeshVerticesAndIndices(vector<Vertex>& vertices, vector<uint32_t>& indices, aiMesh* mesh)
 {
-	uint32_t vertexOffset = mVertices.size();
-	uint32_t indexOffset = mIndices.size() / 3;
+	vertices.resize(mesh->mNumVertices);
+	indices.resize(mesh->mNumFaces * 3);
 
-	mVertices.resize(vertexOffset + mesh->mNumVertices);
-	mIndices.resize(indexOffset * 3 + mesh->mNumFaces * 3);
-
-	for (int i = vertexOffset; i < vertexOffset + mesh->mNumVertices; ++i)
-	{
-		int j = i - vertexOffset;
-		
-		auto vPos = mesh->mVertices[j];
-		mVertices[i].Pos = { vPos.x,vPos.y,vPos.z };
+	for (int i = 0; i < mesh->mNumVertices; ++i)
+	{		
+		auto& vPos = mesh->mVertices[i];
+		vertices[i].Pos = { vPos.x,vPos.y,vPos.z };
 
 		if (mesh->HasNormals())
 		{
-			auto vNormal = mesh->mNormals[j];
-			mVertices[i].Normal = { vNormal.x,vNormal.y,vNormal.z };
+			auto& vNormal = mesh->mNormals[i];
+			vertices[i].Normal = { vNormal.x,vNormal.y,vNormal.z };
 		}
 
 		if (mesh->HasTangentsAndBitangents())
 		{
-			auto vTangent = mesh->mTangents[j];
-			mVertices[i].Tangent = { vTangent.x,vTangent.y,vTangent.z };
+			auto& vTangent = mesh->mTangents[i];
+			vertices[i].Tangent = { vTangent.x,vTangent.y,vTangent.z };
 		}
 
 		if (mesh->HasTextureCoords(0))
 		{
-			auto vTexC = mesh->mTextureCoords[0][j];
-			mVertices[i].TexC = { vTexC.x, vTexC.y };
+			auto& vTexC = mesh->mTextureCoords[0][i];
+			vertices[i].TexC = { vTexC.x, vTexC.y };
 		}
 
 	}
 
-	for (int i = indexOffset; i < indexOffset + mesh->mNumFaces; ++i)
+	for (int i = 0; i < mesh->mNumFaces; ++i)
 	{
-		auto face = mesh->mFaces[i - indexOffset];
-		mIndices[i * 3 + 0] = vertexOffset + face.mIndices[0];
-		mIndices[i * 3 + 1] = vertexOffset + face.mIndices[1];
-		mIndices[i * 3 + 2] = vertexOffset + face.mIndices[2];
+		auto& face = mesh->mFaces[i];
+		indices[i * 3 + 0] = face.mIndices[0];
+		indices[i * 3 + 1] = face.mIndices[1];
+		indices[i * 3 + 2] = face.mIndices[2];
 	}
 
 }

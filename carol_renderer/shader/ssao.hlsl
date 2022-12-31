@@ -10,17 +10,37 @@ struct VertexOut
     float2 TexC : TEXCOORD;
 };
 
-VertexOut VS(uint vid : SV_VertexID)
-{
-    VertexOut vout;
+[numthreads(6, 1, 1)]
+[OutputTopology("triangle")]
+void MS(
+    uint gtid : SV_GroupThreadID,
+    uint gid : SV_GroupID,
+    out indices uint3 tris[2],
+    out vertices VertexOut verts[6])
+{     
+    SetMeshOutputCounts(6, 2);
     
-    vout.TexC = gTexCoords[vid];
-    vout.PosH = float4(2.0f * vout.TexC.x - 1.0f, 1.0f - 2.0f * vout.TexC.y, 0.0f, 1.0f);
+    if (gtid == 0)
+    {
+        tris[gtid] = uint3(0, 1, 2);
+    }
+    else if (gtid == 1)
+    {
+        tris[gtid] = uint3(3, 4, 5);
+    }
     
-    float4 posVH = mul(vout.PosH, gInvProj);
-    vout.PosV = posVH.xyz / posVH.w;
+    if (gtid < 6)
+    {
+        VertexOut vout;
     
-    return vout;
+        vout.TexC = gTexCoords[gtid];
+        vout.PosH = float4(2.0f * vout.TexC.x - 1.0f, 1.0f - 2.0f * vout.TexC.y, 0.0f, 1.0f);
+        
+        float4 posVH = mul(vout.PosH, gInvProj);
+        vout.PosV = posVH.xyz / posVH.w;
+
+        verts[gtid] = vout;
+    }
 }
 
 float NdcDepthToViewDepth(float depth)

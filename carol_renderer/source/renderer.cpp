@@ -22,6 +22,7 @@
 #include <utils/bitset.h>
 #include <utils/buddy.h>
 #include <utils/common.h>
+#include <utils/d3dx12.h>
 #include <DirectXColors.h>
 
 namespace Carol {
@@ -43,11 +44,11 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitConstants();
 	InitPSOs();
 	InitFrame();
-	InitSsao();
 	InitNormal();
-	InitTaa();
 	InitMainLight();
 	InitOitppll();
+	InitSsao();
+	InitTaa();
 	InitMeshes();
 
 	mCommandList->Close();
@@ -68,28 +69,17 @@ void Carol::Renderer::InitPSOs()
 {
 	BaseRenderer::InitPSOs();
 
-	mInputLayout =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 36, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "WEIGHTS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 44, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-		{ "BONEINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT, 0, 56, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}
-	};
-
-	mBasePsoDesc.InputLayout = { mInputLayout.data(),(uint32_t)mInputLayout.size() };
 	mBasePsoDesc.pRootSignature = mRootSignature->Get();
 	mBasePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-    mBasePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	mBasePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	mBasePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-    mBasePsoDesc.SampleMask = UINT_MAX;
-    mBasePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-    mBasePsoDesc.NumRenderTargets = 1;
-    mBasePsoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-    mBasePsoDesc.SampleDesc.Count = 1;
-    mBasePsoDesc.SampleDesc.Quality = 0;
-    mBasePsoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	mBasePsoDesc.SampleMask = UINT_MAX;
+	mBasePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	mBasePsoDesc.NumRenderTargets = 1;
+	mBasePsoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	mBasePsoDesc.SampleDesc.Count = 1;
+	mBasePsoDesc.SampleDesc.Quality = 0;
+	mBasePsoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
 	mGlobalResources->BasePsoDesc = &mBasePsoDesc;
 }
@@ -136,10 +126,10 @@ void Carol::Renderer::InitOitppll()
 void Carol::Renderer::InitMeshes()
 {
 	mMeshes = make_unique<MeshesPass>(mGlobalResources.get());
-	mScene = make_unique<Scene>(L"Test", mDevice.Get(), mCommandList.Get(), mTexturesHeap.get(), mUploadBuffersHeap.get(), mCbvSrvUavAllocator.get());
+	mScene = make_unique<Scene>(L"Test", mDevice.Get(), mCommandList.Get(), mDefaultBuffersHeap.get(), mTexturesHeap.get(), mUploadBuffersHeap.get(), mCbvSrvUavAllocator.get());
 	
-	mScene->LoadGround(mCommandList.Get(), mDefaultBuffersHeap.get(), mUploadBuffersHeap.get());
-	mScene->LoadSkyBox(mCommandList.Get(), mDefaultBuffersHeap.get(), mUploadBuffersHeap.get());
+	mScene->LoadGround();
+	mScene->LoadSkyBox();
 
 	mGlobalResources->Meshes = mMeshes.get();
 	mGlobalResources->Scene = mScene.get();
@@ -244,8 +234,8 @@ void Carol::Renderer::Draw()
 	
 	mMainLight->Draw();
 	mNormal->Draw();
-	mFrame->Draw();
 	mSsao->Draw();
+	mFrame->Draw();
 	mTaa->Draw();
 	
 	mCommandList->Close();
@@ -344,7 +334,7 @@ void Carol::Renderer::LoadModel(wstring path, wstring textureDir, wstring modelN
 	ThrowIfFailed(mInitCommandAllocator->Reset());
 	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
 
-	mScene->LoadModel(mCommandList.Get(), mDefaultBuffersHeap.get(), mUploadBuffersHeap.get(), modelName, path, textureDir, isSkinned);
+	mScene->LoadModel(modelName, path, textureDir, isSkinned);
 	mScene->SetWorld(modelName, world);
 
 	mCommandList->Close();

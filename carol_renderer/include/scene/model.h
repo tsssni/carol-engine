@@ -3,6 +3,7 @@
 #include <utils/d3dx12.h>
 #include <d3d12.h>
 #include <DirectXCollision.h>
+#include <vector>
 #include <string>
 #include <memory>
 #include <unordered_map>
@@ -14,6 +15,8 @@ namespace Carol
 	class Heap;
 	class CircularHeap;
 	class DefaultResource;
+	class CbvSrvUavDescriptorAllocator;
+	class DescriptorAllocInfo;
 	class Timer;
 	class TextureManager;
 
@@ -45,70 +48,6 @@ namespace Carol
 	};
 
 	class Model;
-	class OctreeNode;
-
-	class Mesh
-	{
-	public:
-		Mesh(
-			Model* model,
-			D3D12_VERTEX_BUFFER_VIEW* vertexBufferView,
-			D3D12_INDEX_BUFFER_VIEW* indexBufferView,
-			uint32_t baseVertexLocation,
-			uint32_t startIndexLocation,
-			uint32_t indexCount,
-			bool isSkinned,
-			bool isTransparent);
-		~Mesh();
-		
-		D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView();
-		D3D12_INDEX_BUFFER_VIEW GetIndexBufferView();
-		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBGPUVirtualAddress();
-
-		uint32_t GetBaseVertexLocation();
-		uint32_t GetStartIndexLocation();
-		uint32_t GetIndexCount();
-
-		Material GetMaterial();
-		std::vector<uint32_t> GetTexIdx();
-
-		void SetMaterial(const Material& mat);
-		void SetTexIdx(uint32_t type, uint32_t idx);
-		void SetOctreeNode(OctreeNode* node);
-		OctreeNode* GetOctreeNode();
-
-		void SetBoundingBox(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax);
-		bool TransformBoundingBox(DirectX::XMMATRIX transform);
-		DirectX::BoundingBox GetBoundingBox();
-
-		bool IsSkinned();
-		bool IsTransparent();
-
-		enum
-		{
-			DIFFUSE_IDX, NORMAL_IDX, TEX_IDX_COUNT
-		};
-	protected:
-
-		D3D12_VERTEX_BUFFER_VIEW* mVertexBufferView;
-		D3D12_INDEX_BUFFER_VIEW* mIndexBufferView;
-		uint32_t mBaseVertexLocation;
-		uint32_t mStartIndexLocation;
-		uint32_t mIndexCount;
-		
-		Model* mModel;
-		Material mMaterial;
-		std::vector<uint32_t> mTexIdx;
-
-		DirectX::BoundingBox mBoundingBox;
-		DirectX::XMFLOAT3 mBoxMin;
-		DirectX::XMFLOAT3 mBoxMax;
-
-		OctreeNode* mOctreeNode;
-		
-		bool mSkinned;
-		bool mTransparent;
-	};
 
 	class Vertex
 	{
@@ -121,16 +60,114 @@ namespace Carol
 		DirectX::XMUINT4 BoneIndices = {0,0,0,0};
 	};
 
+	class Meshlet
+	{
+	public:
+		uint32_t Vertices[64];
+		uint32_t Prims[126];
+		uint32_t VertexCount = 0;
+		uint32_t PrimCount = 0;
+	};
+
+	class CullData
+	{
+	public:
+		DirectX::XMFLOAT3 Center;
+		DirectX::XMFLOAT3 Extent;
+	};
+
+	class Mesh
+	{
+	public:
+		Mesh(
+			Model* model,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* heap,
+			Heap* uploadHeap,
+			CbvSrvUavDescriptorAllocator* allocator,
+			std::vector<Vertex>& vertices,
+			std::vector<uint32_t>& indices,
+			bool isSkinned,
+			bool isTransparent);
+		~Mesh();
+
+		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBGPUVirtualAddress();
+		void ReleaseIntermediateBuffer();
+
+		Material GetMaterial();
+		std::vector<uint32_t> GetTexIdx();
+		uint32_t GetMeshletSize();
+
+		void SetMaterial(const Material& mat);
+		void SetTexIdx(uint32_t type, uint32_t idx);
+
+		bool IsSkinned();
+		bool IsTransparent();
+
+		enum
+		{
+			VERTEX_IDX, MESHLET_IDX, CULLDATA_IDX, DIFFUSE_IDX, NORMAL_IDX, TEX_IDX_COUNT
+		};
+
+	protected:
+		void LoadVertices();
+		void LoadMeshlets();
+		void LoadCullData();
+		void LoadResource(
+			std::unique_ptr<DefaultResource>& resource,
+			void* data,
+			uint32_t size,
+			uint32_t numElements,
+			uint32_t stride,
+			DescriptorAllocInfo* gpuInfo,
+			uint32_t srvIdx);
+
+		ID3D12Device* mDevice;
+		ID3D12GraphicsCommandList* mCommandList;
+		Heap* mHeap;
+		Heap* mUploadHeap;
+		CbvSrvUavDescriptorAllocator* mAllocator;
+
+		std::vector<Vertex> mVertices;
+		std::vector<uint32_t> mIndices;
+		std::vector<Meshlet> mMeshlets;
+		std::vector<CullData> mCullData;
+
+		std::unique_ptr<DescriptorAllocInfo> mVertexSrvAllocInfo;
+		std::unique_ptr<DescriptorAllocInfo> mMeshletSrvAllocInfo;
+		std::unique_ptr<DescriptorAllocInfo> mCullDataSrvAllocInfo;
+
+		std::unique_ptr<DefaultResource> mVertexBuffer;
+		std::unique_ptr<DefaultResource> mMeshletBuffer;
+		std::unique_ptr<DefaultResource> mCullDataBuffer;
+		uint32_t mMeshletSize;
+		
+		Model* mModel;
+		Material mMaterial;
+		std::vector<uint32_t> mMeshIdx;
+
+		DirectX::BoundingBox mBoundingBox;
+		DirectX::XMFLOAT3 mBoxMin;
+		DirectX::XMFLOAT3 mBoxMax;
+		
+		bool mSkinned;
+		bool mTransparent;
+	};
+
 	class Model
 	{
 	public:
-		Model();
+		Model(ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* heap,
+			Heap* uploadHeap,
+			CbvSrvUavDescriptorAllocator* allocator);
 		~Model();
-		void LoadVerticesAndIndices(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap);
 		
 		bool IsSkinned();
-		void LoadGround(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, TextureManager* texManager);
-		void LoadSkyBox(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, TextureManager* texManager);
+		void LoadGround(TextureManager* texManager);
+		void LoadSkyBox(TextureManager* texManager);
 		
 		void ReleaseIntermediateBuffers();
 
@@ -139,21 +176,19 @@ namespace Carol
 
 		std::vector<int>& GetBoneHierarchy();
 		std::vector<DirectX::XMFLOAT4X4>& GetBoneOffsets();
-
-		void ComputeSkinnedBoundingBox();
+		
+		const std::vector<std::vector<std::vector<DirectX::XMFLOAT4X4>>>& GetAnimationFrames();
 		std::vector<std::wstring> GetAnimationClips();
 		void SetAnimationClip(std::wstring clipName);
 		void UpdateAnimationClip(Timer& timer, CircularHeap* skinnedCBHeap);
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBGPUVirtualAddress();
 
 	protected:
-		std::vector<Vertex> mVertices;
-		std::vector<uint32_t> mIndices;
-		std::unique_ptr<DefaultResource> mVertexBufferGpu;
-		std::unique_ptr<DefaultResource> mIndexBufferGpu;
-
-		D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
-		D3D12_INDEX_BUFFER_VIEW mIndexBufferView;
+		ID3D12Device* mDevice;
+		ID3D12GraphicsCommandList* mCommandList;
+		Heap* mHeap;
+		Heap* mUploadHeap;
+		CbvSrvUavDescriptorAllocator* mAllocator;
 		
 		std::wstring mTexDir;
 
@@ -168,6 +203,7 @@ namespace Carol
 		std::vector<DirectX::XMFLOAT4X4> mBoneOffsets;
 
 		std::unordered_map<std::wstring, std::unique_ptr<AnimationClip>> mAnimationClips;
+		std::vector<std::vector<std::vector<DirectX::XMFLOAT4X4>>> mAnimationFrames;
 
 		std::unique_ptr<SkinnedConstants> mSkinnedConstants;
 		std::unique_ptr<HeapAllocInfo> mSkinnedCBAllocInfo;

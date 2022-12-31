@@ -116,10 +116,11 @@ void Carol::BaseRenderer::InitDxgiFactory()
 
 void Carol::BaseRenderer::InitDevice()
 {
-	ComPtr<ID3D12Device> device;
+	ComPtr<ID3D12Device2> device;
 	ThrowIfFailed(D3D12CreateDevice(device.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(device.GetAddressOf())));
+
+	mGlobalResources->Device = device.Get();
 	mDevice = device;
-	mGlobalResources->Device = mDevice.Get();
 }
 
 void Carol::BaseRenderer::InitFence()
@@ -155,9 +156,13 @@ void Carol::BaseRenderer::InitCommandAllocator()
 
 void Carol::BaseRenderer::InitCommandList()
 {
-	ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mInitCommandAllocator.Get(), nullptr, IID_PPV_ARGS(mCommandList.GetAddressOf())));
-	mCommandList->Close();
-	mGlobalResources->CommandList = mCommandList.Get();
+	ComPtr<ID3D12GraphicsCommandList6> cmdList;
+
+	ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mInitCommandAllocator.Get(), nullptr, IID_PPV_ARGS(cmdList.GetAddressOf())));
+	cmdList->Close();
+
+	mGlobalResources->CommandList = cmdList.Get();
+	mCommandList = cmdList;
 }
 
 void Carol::BaseRenderer::InitRootSignature()

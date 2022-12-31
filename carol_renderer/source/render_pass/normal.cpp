@@ -2,6 +2,7 @@
 #include <render_pass/global_resources.h>
 #include <render_pass/frame.h>
 #include <render_pass/mesh.h>
+#include <render_pass/display.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <dx12/descriptor_allocator.h>
@@ -82,30 +83,36 @@ void Carol::NormalPass::InitShaders()
         L"SKINNED=1"
     };
 
-    (*mGlobalResources->Shaders)[L"NormalsStaticVS"] = make_unique<Shader>(L"shader\\normals.hlsl", nullDefines, L"VS", L"vs_6_6");
+    (*mGlobalResources->Shaders)[L"NormalsStaticMS"] = make_unique<Shader>(L"shader\\normals.hlsl", nullDefines, L"MS", L"ms_6_6");
     (*mGlobalResources->Shaders)[L"NormalsStaticPS"] = make_unique<Shader>(L"shader\\normals.hlsl", nullDefines, L"PS", L"ps_6_6");
-    (*mGlobalResources->Shaders)[L"NormalsSkinnedVS"] = make_unique<Shader>(L"shader\\normals.hlsl", skinnedDefines, L"VS", L"vs_6_6");
+    (*mGlobalResources->Shaders)[L"NormalsSkinnedMS"] = make_unique<Shader>(L"shader\\normals.hlsl", skinnedDefines, L"MS", L"ms_6_6");
     (*mGlobalResources->Shaders)[L"NormalsSkinnedPS"] = make_unique<Shader>(L"shader\\normals.hlsl", skinnedDefines, L"PS", L"ps_6_6");
 }
 
 void Carol::NormalPass::InitPSOs()
 {
-    vector<D3D12_INPUT_ELEMENT_DESC> nullInputLayout(0);
-
     auto normalsStaticPsoDesc = *mGlobalResources->BasePsoDesc;
-    auto normalsStaticVS = (*mGlobalResources->Shaders)[L"NormalsStaticVS"].get();
+    auto normalsStaticMS = (*mGlobalResources->Shaders)[L"NormalsStaticMS"].get();
     auto normalsStaticPS = (*mGlobalResources->Shaders)[L"NormalsStaticPS"].get();
-    normalsStaticPsoDesc.VS = { reinterpret_cast<byte*>(normalsStaticVS->GetBufferPointer()),normalsStaticVS->GetBufferSize() };
+    normalsStaticPsoDesc.MS = { reinterpret_cast<byte*>(normalsStaticMS->GetBufferPointer()),normalsStaticMS->GetBufferSize() };
     normalsStaticPsoDesc.PS = { reinterpret_cast<byte*>(normalsStaticPS->GetBufferPointer()),normalsStaticPS->GetBufferSize() };
     normalsStaticPsoDesc.RTVFormats[0] = mNormalMapFormat;
-    ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&normalsStaticPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"NormalsStatic"].GetAddressOf())));
-
+    auto normalsStaticPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(normalsStaticPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC normalsStaticStreamDesc;
+    normalsStaticStreamDesc.pPipelineStateSubobjectStream = &normalsStaticPsoStream;
+    normalsStaticStreamDesc.SizeInBytes = sizeof(normalsStaticPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&normalsStaticStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"NormalsStatic"].GetAddressOf())));
+    
     auto normalsSkinnedPsoDesc = normalsStaticPsoDesc;
-    auto normalsSkinnedVS = (*mGlobalResources->Shaders)[L"NormalsSkinnedVS"].get();
+    auto normalsSkinnedMS = (*mGlobalResources->Shaders)[L"NormalsSkinnedMS"].get();
     auto normalsSkinnedPS = (*mGlobalResources->Shaders)[L"NormalsSkinnedPS"].get();
-    normalsSkinnedPsoDesc.VS = { reinterpret_cast<byte*>(normalsSkinnedVS->GetBufferPointer()),normalsSkinnedVS->GetBufferSize() };
+    normalsSkinnedPsoDesc.MS = { reinterpret_cast<byte*>(normalsSkinnedMS->GetBufferPointer()),normalsSkinnedMS->GetBufferSize() };
     normalsSkinnedPsoDesc.PS = { reinterpret_cast<byte*>(normalsSkinnedPS->GetBufferPointer()),normalsSkinnedPS->GetBufferSize() };
-    ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&normalsSkinnedPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"NormalsSkinned"].GetAddressOf())));
+    auto normalsSkinnedPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(normalsSkinnedPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC normalsSkinnedStreamDesc;
+    normalsSkinnedStreamDesc.pPipelineStateSubobjectStream = &normalsSkinnedPsoStream;
+    normalsSkinnedStreamDesc.SizeInBytes = sizeof(normalsSkinnedPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&normalsSkinnedStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"NormalsSkinned"].GetAddressOf())));
 }
 
 void Carol::NormalPass::InitResources()

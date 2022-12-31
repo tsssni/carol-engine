@@ -90,10 +90,7 @@ void Carol::SsaoPass::DrawSsao()
     mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(AMBIENT0_RTV)), true, nullptr);
     
     mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"Ssao"].Get());
-    mGlobalResources->CommandList->IASetVertexBuffers(0, 0, nullptr);
-    mGlobalResources->CommandList->IASetIndexBuffer(nullptr);
-    mGlobalResources->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    mGlobalResources->CommandList->DrawInstanced(6, 1, 0, 0);
+    mGlobalResources->CommandList->DispatchMesh(1, 1, 1);
 
     mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap0->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ)));
 }
@@ -221,33 +218,38 @@ void Carol::SsaoPass::InitShaders()
         L"SKINNED=1"
     };
 
-    (*mGlobalResources->Shaders)[L"SsaoVS"] = make_unique<Shader>(L"shader\\ssao.hlsl", nullDefines, L"VS", L"vs_6_6");
+    (*mGlobalResources->Shaders)[L"SsaoMS"] = make_unique<Shader>(L"shader\\ssao.hlsl", nullDefines, L"MS", L"ms_6_6");
     (*mGlobalResources->Shaders)[L"SsaoPS"] = make_unique<Shader>(L"shader\\ssao.hlsl", nullDefines, L"PS", L"ps_6_6");
-    (*mGlobalResources->Shaders)[L"SsaoBlurVS"] = make_unique<Shader>(L"shader\\ssao_blur.hlsl", nullDefines, L"VS", L"vs_6_6");
+    (*mGlobalResources->Shaders)[L"SsaoBlurMS"] = make_unique<Shader>(L"shader\\ssao_blur.hlsl", nullDefines, L"MS", L"ms_6_6");
     (*mGlobalResources->Shaders)[L"SsaoBlurPS"] = make_unique<Shader>(L"shader\\ssao_blur.hlsl", nullDefines, L"PS", L"ps_6_6");
 }
 
 void Carol::SsaoPass::InitPSOs()
 {
-    vector<D3D12_INPUT_ELEMENT_DESC> nullInputLayout(0);
-
     auto ssaoPsoDesc = *mGlobalResources->BasePsoDesc;
-    auto ssaoVS = (*mGlobalResources->Shaders)[L"SsaoVS"].get();
+    auto ssaoMS = (*mGlobalResources->Shaders)[L"SsaoMS"].get();
     auto ssaoPS = (*mGlobalResources->Shaders)[L"SsaoPS"].get();
-    ssaoPsoDesc.VS = { reinterpret_cast<byte*>(ssaoVS->GetBufferPointer()),ssaoVS->GetBufferSize() };
+    ssaoPsoDesc.MS = { reinterpret_cast<byte*>(ssaoMS->GetBufferPointer()),ssaoMS->GetBufferSize() };
     ssaoPsoDesc.PS = { reinterpret_cast<byte*>(ssaoPS->GetBufferPointer()),ssaoPS->GetBufferSize() };
-    ssaoPsoDesc.InputLayout = { nullInputLayout.data(),(uint32_t)nullInputLayout.size() };
     ssaoPsoDesc.RTVFormats[0] = mAmbientMapFormat;
     ssaoPsoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
     ssaoPsoDesc.DepthStencilState.DepthEnable = false;
-    ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&ssaoPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"Ssao"].GetAddressOf())));
+    auto ssaoPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(ssaoPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC ssaoStreamDesc;
+    ssaoStreamDesc.pPipelineStateSubobjectStream = &ssaoPsoStream;
+    ssaoStreamDesc.SizeInBytes = sizeof(ssaoPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&ssaoStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"Ssao"].GetAddressOf())));
 
     auto blurPsoDesc = ssaoPsoDesc;
-    auto blurVS = (*mGlobalResources->Shaders)[L"SsaoBlurVS"].get();
+    auto blurMS = (*mGlobalResources->Shaders)[L"SsaoBlurMS"].get();
     auto blurPS = (*mGlobalResources->Shaders)[L"SsaoBlurPS"].get();
-    blurPsoDesc.VS = { reinterpret_cast<byte*>(blurVS->GetBufferPointer()),blurVS->GetBufferSize() };
+    blurPsoDesc.MS = { reinterpret_cast<byte*>(blurMS->GetBufferPointer()),blurMS->GetBufferSize() };
     blurPsoDesc.PS = { reinterpret_cast<byte*>(blurPS->GetBufferPointer()),blurPS->GetBufferSize() };
-    ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&blurPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"SsaoBlur"].GetAddressOf())));
+    auto blurPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(blurPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC blurStreamDesc;
+    blurStreamDesc.pPipelineStateSubobjectStream = &blurPsoStream;
+    blurStreamDesc.SizeInBytes = sizeof(blurPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&blurStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"SsaoBlur"].GetAddressOf())));
 }
 
 void Carol::SsaoPass::GetOffsetVectors(DirectX::XMFLOAT4 offsets[14])
@@ -318,10 +320,6 @@ void Carol::SsaoPass::DrawAmbientMap(bool vertBlur)
     mGlobalResources->CommandList->OMSetRenderTargets(1, &outputRtv, true, nullptr);
     mGlobalResources->CommandList->SetGraphicsRoot32BitConstant(RootSignature::PASS_CONSTANTS, vertBlur, 0);
 
-    mGlobalResources->CommandList->IASetVertexBuffers(0, 0, nullptr);
-    mGlobalResources->CommandList->IASetIndexBuffer(nullptr);
-    mGlobalResources->CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    mGlobalResources->CommandList->DrawInstanced(6, 1, 0, 0);
-
+    mGlobalResources->CommandList->DispatchMesh(1, 1, 1);
     mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(output->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ)));
 }

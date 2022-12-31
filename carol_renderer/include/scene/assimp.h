@@ -10,6 +10,7 @@
 namespace Carol
 {
 	class Heap;
+	class CbvSrvUavDescriptorAllocator;
 	class SceneNode;
 	class TextureManager;
 
@@ -17,7 +18,7 @@ namespace Carol
 	{
 	public:
 		AssimpModel();
-	    AssimpModel(ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, TextureManager* texManager, SceneNode* rootNode, std::wstring path, std::wstring textureDir, bool isSkinned);
+	    AssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator, TextureManager* texManager, SceneNode* rootNode, std::wstring path, std::wstring textureDir, bool isSkinned);
 		AssimpModel(const AssimpModel&) = delete;
 		AssimpModel(AssimpModel&&) = delete;
 		AssimpModel& operator=(const AssimpModel&) = delete;
@@ -25,8 +26,6 @@ namespace Carol
 	protected:
 		void ProcessNode(aiNode* node, SceneNode* sceneNode, const aiScene* scene);
 		Mesh* ProcessMesh(aiMesh* mesh, const aiScene* scene);
-		void ReadMeshBones(uint32_t vertexOffset, aiMesh* mesh);
-		void InsertBoneWeightToVertex(Vertex& vertex, uint32_t boneIndex, float boneWeight);
 		
 		void LoadAssimpSkinnedData(const aiScene* scene);
 		void ReadBones(aiNode* node, const aiScene* scene);
@@ -37,8 +36,11 @@ namespace Carol
 		void ReadBoneOffsets(aiNode* node, const aiScene* scene);
 		void ReadAnimations(const aiScene* scene);
 
-		void ReadMeshVerticesAndIndices(aiMesh* mesh);
+		void ReadMeshVerticesAndIndices(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, aiMesh* mesh);
 		void ReadMeshMaterialAndTextures(Mesh* submesh, aiMesh* mesh, const aiScene* scene);
+		void ReadMeshBones(std::vector<Vertex>& vertices, aiMesh* mesh);
+		void InsertBoneWeightToVertex(Vertex& vertex, uint32_t boneIndex, float boneWeight);
+
 		void ReadTexture(Mesh* mesh, aiMaterial* matData);
 		void LoadTexture(Mesh* mesh, aiString aiPath, aiTextureType type);
 
@@ -46,6 +48,7 @@ namespace Carol
 		DirectX::XMMATRIX aiMatrix4x4ToXM(aiMatrix4x4 aiM);
 		aiMatrix4x4 XMToaiMatrix4x4(DirectX::XMMATRIX xm);
 	protected:
+		
 		TextureManager* mTexManager;
 
 		std::unordered_map<std::wstring, bool> mSkinnedMark;

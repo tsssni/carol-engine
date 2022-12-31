@@ -47,8 +47,7 @@ void Carol::FramePass::Draw()
 		(*mGlobalResources->PSOs)[L"OpaqueStatic"].Get(),
 		(*mGlobalResources->PSOs)[L"OpaqueSkinned"].Get(),
 		nullptr,
-		nullptr
-		}, true);
+		nullptr });
 	mGlobalResources->Meshes->DrawSkyBox((*mGlobalResources->PSOs)[L"SkyBox"].Get());
 	mGlobalResources->Oitppll->Draw();
 
@@ -112,37 +111,49 @@ void Carol::FramePass::InitShaders()
 		L"TAA=1",L"SSAO=1",L"SKINNED=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"OpaqueStaticVS"] = make_unique<Shader>(L"shader\\default.hlsl", staticDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"OpaqueStaticMS"] = make_unique<Shader>(L"shader\\default.hlsl", staticDefines, L"MS", L"ms_6_6");
 	(*mGlobalResources->Shaders)[L"OpaqueStaticPS"] = make_unique<Shader>(L"shader\\default.hlsl", staticDefines, L"PS", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"OpaqueSkinnedVS"] = make_unique<Shader>(L"shader\\default.hlsl", skinnedDefines, L"VS", L"vs_6_6");
-	(*mGlobalResources->Shaders)[L"OpauqeSkinnedPS"] = make_unique<Shader>(L"shader\\default.hlsl", skinnedDefines, L"PS", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"SkyBoxVS"] = make_unique<Shader>(L"shader\\skybox.hlsl", staticDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"OpaqueSkinnedMS"] = make_unique<Shader>(L"shader\\default.hlsl", skinnedDefines, L"MS", L"ms_6_6");
+	(*mGlobalResources->Shaders)[L"OpaqueSkinnedPS"] = make_unique<Shader>(L"shader\\default.hlsl", skinnedDefines, L"PS", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"SkyBoxMS"] = make_unique<Shader>(L"shader\\skybox.hlsl", staticDefines, L"MS", L"ms_6_6");
 	(*mGlobalResources->Shaders)[L"SkyBoxPS"] = make_unique<Shader>(L"shader\\skybox.hlsl", staticDefines, L"PS", L"ps_6_6");
 }
 
 void Carol::FramePass::InitPSOs()
 {
 	auto opaqueStaticPsoDesc = *mGlobalResources->BasePsoDesc;
-	auto opaqueStaticVS = (*mGlobalResources->Shaders)[L"OpaqueStaticVS"].get();
+	auto opaqueStaticMS = (*mGlobalResources->Shaders)[L"OpaqueStaticMS"].get();
 	auto opaqueStaticPS = (*mGlobalResources->Shaders)[L"OpaqueStaticPS"].get();
-	opaqueStaticPsoDesc.VS = { reinterpret_cast<byte*>(opaqueStaticVS->GetBufferPointer()),opaqueStaticVS->GetBufferSize() };
+	opaqueStaticPsoDesc.MS = { reinterpret_cast<byte*>(opaqueStaticMS->GetBufferPointer()),opaqueStaticMS->GetBufferSize() };
 	opaqueStaticPsoDesc.PS = { reinterpret_cast<byte*>(opaqueStaticPS->GetBufferPointer()),opaqueStaticPS->GetBufferSize() };
-	ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&opaqueStaticPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"OpaqueStatic"].GetAddressOf())));
+	auto opaqueStaticPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(opaqueStaticPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC opaqueStaticStreamDesc;
+    opaqueStaticStreamDesc.pPipelineStateSubobjectStream = &opaqueStaticPsoStream;
+    opaqueStaticStreamDesc.SizeInBytes = sizeof(opaqueStaticPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&opaqueStaticStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"OpaqueStatic"].GetAddressOf())));
 
-	auto opaqueSkinnedPsoDesc = opaqueStaticPsoDesc;
-	auto opaqueSkinnedVS = (*mGlobalResources->Shaders)[L"OpaqueSkinnedVS"].get();
-	auto opaqueSkinnedPS = (*mGlobalResources->Shaders)[L"OpauqeSkinnedPS"].get();
-	opaqueSkinnedPsoDesc.VS = { reinterpret_cast<byte*>(opaqueSkinnedVS->GetBufferPointer()),opaqueSkinnedVS->GetBufferSize() };
-	opaqueSkinnedPsoDesc.PS = { reinterpret_cast<byte*>(opaqueSkinnedPS->GetBufferPointer()),opaqueSkinnedPS->GetBufferSize() };	
-	ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&opaqueSkinnedPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"OpaqueSkinned"].GetAddressOf())));
+	auto opaqueSkinnedPsoDesc = *mGlobalResources->BasePsoDesc;
+	auto opaqueSkinnedMS = (*mGlobalResources->Shaders)[L"OpaqueSkinnedMS"].get();
+	auto opaqueSkinnedPS = (*mGlobalResources->Shaders)[L"OpaqueSkinnedPS"].get();
+	opaqueSkinnedPsoDesc.MS = { reinterpret_cast<byte*>(opaqueSkinnedMS->GetBufferPointer()),opaqueSkinnedMS->GetBufferSize() };
+	opaqueSkinnedPsoDesc.PS = { reinterpret_cast<byte*>(opaqueSkinnedPS->GetBufferPointer()),opaqueSkinnedPS->GetBufferSize() };
+	auto opaqueSkinnedPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(opaqueSkinnedPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC opaqueSkinnedStreamDesc;
+    opaqueSkinnedStreamDesc.pPipelineStateSubobjectStream = &opaqueSkinnedPsoStream;
+    opaqueSkinnedStreamDesc.SizeInBytes = sizeof(opaqueSkinnedPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&opaqueSkinnedStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"OpaqueSkinned"].GetAddressOf())));
 
 	auto skyBoxPsoDesc = *mGlobalResources->BasePsoDesc;
-	auto skyBoxVS = (*mGlobalResources->Shaders)[L"SkyBoxVS"].get();
+	auto skyBoxMS = (*mGlobalResources->Shaders)[L"SkyBoxMS"].get();
 	auto skyBoxPS = (*mGlobalResources->Shaders)[L"SkyBoxPS"].get();
-	skyBoxPsoDesc.VS = { reinterpret_cast<byte*>(skyBoxVS->GetBufferPointer()),skyBoxVS->GetBufferSize() };
+	skyBoxPsoDesc.MS = { reinterpret_cast<byte*>(skyBoxMS->GetBufferPointer()),skyBoxMS->GetBufferSize() };
 	skyBoxPsoDesc.PS = { reinterpret_cast<byte*>(skyBoxPS->GetBufferPointer()),skyBoxPS->GetBufferSize() };
 	skyBoxPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&skyBoxPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"SkyBox"].GetAddressOf())));
+	auto skyBoxPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(skyBoxPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC skyBoxStreamDesc;
+    skyBoxStreamDesc.pPipelineStateSubobjectStream = &skyBoxPsoStream;
+    skyBoxStreamDesc.SizeInBytes = sizeof(skyBoxPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&skyBoxStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"SkyBox"].GetAddressOf())));
 }
 
 void Carol::FramePass::InitResources()

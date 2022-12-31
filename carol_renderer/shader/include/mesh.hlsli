@@ -11,6 +11,9 @@ cbuffer MeshCB : register(b0)
 
 cbuffer MeshCB : register(b1)
 {
+    uint gVertexIdx;
+    uint gMeshletIdx;
+    uint gCullDataIdx;
     uint gDiffuseMapIdx;
     uint gNormalMapIdx;
 }
@@ -23,6 +26,18 @@ cbuffer SkinnedCB : register(b2)
 }
 #endif
 
+struct Meshlet
+{
+    uint Vertices[64];
+    uint Prims[126];
+    uint VertexCount;
+    uint PrimCount;
+};
+
+uint3 UnpackPrim(uint prim)
+{
+    return uint3(prim & 0x3FF, (prim >> 10) & 0x3FF, (prim >> 20) & 0x3FF);
+}
 
 #ifdef SKINNED
 VertexIn SkinnedTransform(VertexIn vin)

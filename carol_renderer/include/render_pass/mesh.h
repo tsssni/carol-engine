@@ -24,7 +24,7 @@ namespace Carol
 		virtual void OnResize()override;
 		virtual void ReleaseIntermediateBuffers()override;
 	
-		void DrawMeshes(const std::vector<ID3D12PipelineState*>& pso, bool color = false);
+		void DrawMeshes(const std::vector<ID3D12PipelineState*>& pso);
 		void DrawSkyBox(ID3D12PipelineState* skyBoxPSO);
 
 	protected:
@@ -33,7 +33,7 @@ namespace Carol
 		virtual void InitResources()override;
 		virtual void InitDescriptors()override;
 		
-		void Draw(RenderNode* renderNode, bool color);
+		void Draw(RenderNode* renderNode);
 
 		enum
 		{

@@ -152,25 +152,33 @@ void Carol::ShadowPass::InitShaders()
 		L"SKINNED=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"ShadowStaticVS"] = make_unique<Shader>(L"shader\\shadow.hlsl", nullDefines, L"VS", L"vs_6_6");
-	(*mGlobalResources->Shaders)[L"ShadowSkinnedVS"] = make_unique<Shader>(L"shader\\shadow.hlsl", skinnedDefines, L"VS", L"vs_6_6");
+	(*mGlobalResources->Shaders)[L"ShadowStaticMS"] = make_unique<Shader>(L"shader\\shadow.hlsl", nullDefines, L"MS", L"ms_6_6");
+	(*mGlobalResources->Shaders)[L"ShadowSkinnedMS"] = make_unique<Shader>(L"shader\\shadow.hlsl", skinnedDefines, L"MS", L"ms_6_6");
 }
 
 void Carol::ShadowPass::InitPSOs()
 {
 	auto shadowStaticPsoDesc = *mGlobalResources->BasePsoDesc;
-	auto shadowStaticVS = (*mGlobalResources->Shaders)[L"ShadowStaticVS"].get();
-	shadowStaticPsoDesc.VS = { reinterpret_cast<byte*>(shadowStaticVS->GetBufferPointer()),shadowStaticVS->GetBufferSize() };
+	auto shadowStaticMS = (*mGlobalResources->Shaders)[L"ShadowStaticMS"].get();
+	shadowStaticPsoDesc.MS = { reinterpret_cast<byte*>(shadowStaticMS->GetBufferPointer()),shadowStaticMS->GetBufferSize() };
 	shadowStaticPsoDesc.NumRenderTargets = 0;
 	shadowStaticPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
 	shadowStaticPsoDesc.DSVFormat = mShadowDsvFormat;
 	shadowStaticPsoDesc.RasterizerState.DepthBias = 60000;
 	shadowStaticPsoDesc.RasterizerState.DepthBiasClamp = 0.01f;
 	shadowStaticPsoDesc.RasterizerState.SlopeScaledDepthBias = 4.0f;
-	ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&shadowStaticPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"ShadowStatic"].GetAddressOf())));
+	auto shadowStaticPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(shadowStaticPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC shadowStaticStreamDesc;
+    shadowStaticStreamDesc.pPipelineStateSubobjectStream = &shadowStaticPsoStream;
+    shadowStaticStreamDesc.SizeInBytes = sizeof(shadowStaticPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&shadowStaticStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"ShadowStatic"].GetAddressOf())));
 
 	auto shadowSkinnedPsoDesc = shadowStaticPsoDesc;
-	auto shadowSkinnedVS = (*mGlobalResources->Shaders)[L"ShadowSkinnedVS"].get();
-	shadowSkinnedPsoDesc.VS = { reinterpret_cast<byte*>(shadowSkinnedVS->GetBufferPointer()),shadowSkinnedVS->GetBufferSize() };
-	ThrowIfFailed(mGlobalResources->Device->CreateGraphicsPipelineState(&shadowSkinnedPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"ShadowSkinned"].GetAddressOf())));
+	auto shadowSkinnedMS = (*mGlobalResources->Shaders)[L"ShadowSkinnedMS"].get();
+	shadowSkinnedPsoDesc.MS = { reinterpret_cast<byte*>(shadowSkinnedMS->GetBufferPointer()),shadowSkinnedMS->GetBufferSize() };
+	auto shadowSkinnedPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(shadowSkinnedPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC shadowSkinnedStreamDesc;
+    shadowSkinnedStreamDesc.pPipelineStateSubobjectStream = &shadowSkinnedPsoStream;
+    shadowSkinnedStreamDesc.SizeInBytes = sizeof(shadowSkinnedPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&shadowSkinnedStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"ShadowSkinned"].GetAddressOf())));
 }

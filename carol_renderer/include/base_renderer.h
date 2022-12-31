@@ -1,5 +1,5 @@
 #pragma once
-#include <d3d12.h>
+#include <utils/d3dx12.h>
 #include <DirectXCollision.h>
 #include <dxgi1_6.h>
 #include <wrl/client.h>
@@ -101,9 +101,7 @@ namespace Carol
 		std::unique_ptr<DsvDescriptorAllocator> mDsvAllocator;
 		std::unique_ptr<RootSignature> mRootSignature;
 
-		std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC mBasePsoDesc;
-
+		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC mBasePsoDesc;
         std::unordered_map<std::wstring, std::unique_ptr<Shader>> mShaders;
         std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
 

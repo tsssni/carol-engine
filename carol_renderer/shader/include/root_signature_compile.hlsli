@@ -1,6 +1,6 @@
 #define RS "RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED),"\
 "CBV(b0, space = 0),"\
-"RootConstants(num32BitConstants = 4, b1, space = 0),"\
+"RootConstants(num32BitConstants = 10, b1, space = 0),"\
 "CBV(b2, space = 0),"\
 "RootConstants(num32BitConstants = 4, b3, space = 0),"\
 "CBV(b4, space = 0),"\

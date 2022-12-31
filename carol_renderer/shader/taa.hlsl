@@ -3,6 +3,7 @@
 struct VertexOut
 {
     float4 PosH : SV_POSITION;
+    float2 TexC : TEXCOORD;
 };
 
 static const float2 gTexCoords[6] =
@@ -19,13 +20,34 @@ static int sampleCount = 9;
 static int dx[9] = { -1, -1, -1, 0, 0, 0, 1, 1, 1 };
 static int dy[9] = { -1, 0, 1, -1, 0, 1, -1, 0, 1 };
 
-VertexOut VS(uint vid : SV_VertexID)
-{
-    VertexOut vout;
-    float2 texC = gTexCoords[vid];
+[numthreads(6, 1, 1)]
+[OutputTopology("triangle")]
+void MS(
+    uint gtid : SV_GroupThreadID,
+    uint gid : SV_GroupID,
+    out indices uint3 tris[2],
+    out vertices VertexOut verts[6])
+{   
     
-    vout.PosH = float4(2.0f * texC.x - 1.0f, 1.0f - 2.0f * texC.y, 0.0f, 1.0f);
-    return vout;
+    SetMeshOutputCounts(6, 2);
+    
+    if (gtid == 0)
+    {
+        tris[gtid] = uint3(0, 1, 2);
+    }
+    else if (gtid == 1)
+    {
+        tris[gtid] = uint3(3, 4, 5);
+    }
+    
+    if (gtid < 6)
+    {
+        VertexOut vout;
+
+        vout.TexC = gTexCoords[gtid];
+        vout.PosH = float4(2.0f * vout.TexC.x - 1.0f, 1.0f - 2.0f * vout.TexC.y, 0.0f, 1.0f);
+        verts[gtid] = vout;
+    }
 }
 
 float3 Rgb2Ycocg(float3 rgbColor)
@@ -66,7 +88,7 @@ float3 Clip(float3 histColor, float3 minPixelColor, float3 maxPixelColor)
 }
 
 
-void CalcPixelColorAabb(float2 pixelPos, inout float3 minPixelColor, inout float3 maxPixelColor)
+void CalcPixelColorAabb(float2 texC, inout float3 minPixelColor, inout float3 maxPixelColor)
 {
     Texture2D gCurrMap = ResourceDescriptorHeap[gFrameIdx];
     
@@ -80,8 +102,7 @@ void CalcPixelColorAabb(float2 pixelPos, inout float3 minPixelColor, inout float
     [unroll]
     for (int i = 0; i < sampleCount; i++)
     {
-        float2 pos = float2(pixelPos.x + dx[i], pixelPos.y + dy[i]) * gInvRenderTargetSize;
-        float3 pixelColor = Rgb2Ycocg(gCurrMap.Sample(gsamPointClamp, pos).rgb);
+        float3 pixelColor = Rgb2Ycocg(gCurrMap.Sample(gsamPointClamp, texC).rgb);
         meanColor += pixelColor;
         varColor += pixelColor * pixelColor;
     }
@@ -101,12 +122,12 @@ float4 PS(VertexOut pin) : SV_Target
     Texture2D gVelocityMap = ResourceDescriptorHeap[gVelocityIdx];
         
     float minZ = 1.0f;
-    float2 minZPos = pin.PosH.xy * gInvRenderTargetSize;
+    float2 minZPos = pin.TexC;
     
     [unroll]
     for (int i = 0; i < 9; ++i)
     {
-        float2 adjacentPos = int2(pin.PosH.x + dx[i], pin.PosH.y + dy[i]) * gInvRenderTargetSize;
+        float2 adjacentPos = pin.TexC + float2(dx[i], dy[i]) * gInvRenderTargetSize;
         float adjacentZ = gDepthMap.Sample(gsamPointClamp, adjacentPos).r;
         
         if (adjacentZ < minZ)
@@ -116,7 +137,7 @@ float4 PS(VertexOut pin) : SV_Target
         }
     }
     
-    float2 currPos = pin.PosH.xy * gInvRenderTargetSize;
+    float2 currPos = pin.TexC;
     float2 histPos = currPos + gVelocityMap.Sample(gsamPointClamp, minZPos).xy;
         
     float4 currPixelColor = gCurrMap.Sample(gsamPointClamp, currPos);
@@ -124,7 +145,7 @@ float4 PS(VertexOut pin) : SV_Target
     
     float3 minPixelColor;
     float3 maxPixelColor;
-    CalcPixelColorAabb(pin.PosH.xy, minPixelColor, maxPixelColor);
+    CalcPixelColorAabb(currPos, minPixelColor, maxPixelColor);
     
     histPixelColor.rgb = Ycocg2Rgb(Clip(Rgb2Ycocg(histPixelColor.rgb), minPixelColor, maxPixelColor));
     

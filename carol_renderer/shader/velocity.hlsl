@@ -28,26 +28,48 @@ struct VertexOut
     float4 PosHist : POSITION;
 };
 
-VertexOut VS(VertexIn vin)
+[numthreads(128, 1, 1)]
+[OutputTopology("triangle")]
+void MS(
+    uint gtid : SV_GroupThreadID,
+    uint gid : SV_GroupID,
+    out indices uint3 tris[126],
+    out vertices VertexOut verts[64])
 {
-    VertexOut vout;
-    float3 posL = vin.PosL;
+    StructuredBuffer<Meshlet> meshlets = ResourceDescriptorHeap[gMeshletIdx];
+    Meshlet m = meshlets[gid];
     
+    SetMeshOutputCounts(m.VertexCount, m.PrimCount);
+    
+    if (gtid < m.PrimCount)
+    {
+        tris[gtid] = UnpackPrim(m.Prims[gtid]);
+    }
+    
+    if (gtid < m.VertexCount)
+    {
+        StructuredBuffer<VertexIn> vertices = ResourceDescriptorHeap[gVertexIdx];
+        VertexIn vin = vertices[m.Vertices[gtid]];
+        float3 posL = vin.PosL;
+            
 #ifdef SKINNED
-    vin = SkinnedTransform(vin);
+        vin = SkinnedTransform(vin);
 #endif
 
-    float3 posW = mul(float4(vin.PosL, 1.0f), gWorld).xyz;
-    vout.PosH = mul(float4(posW, 1.0f), gViewProj);
+        VertexOut vout;
+
+        float3 posW = mul(float4(vin.PosL, 1.0f), gWorld).xyz;
+        vout.PosH = mul(float4(posW, 1.0f), gViewProj);
 
 #ifdef SKINNED
-    vin.PosL = HistPosL(posL, vin);
+        vin.PosL = HistPosL(posL, vin);
 #endif
     
-    float3 posWHist = mul(float4(vin.PosL, 1.0f), gHistWorld).xyz;
-    vout.PosHist = mul(float4(posWHist, 1.0f), gHistViewProj);
-    
-    return vout;
+        float3 posWHist = mul(float4(vin.PosL, 1.0f), gHistWorld).xyz;
+        vout.PosHist = mul(float4(posWHist, 1.0f), gHistViewProj);
+        
+        verts[gtid] = vout;
+    }
 }
 
 float2 PS(VertexOut pin) : SV_Target

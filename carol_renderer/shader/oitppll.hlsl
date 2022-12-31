@@ -18,14 +18,34 @@ struct VertexOut
     float4 PosH : SV_POSITION;
 };
 
+[numthreads(6, 1, 1)]
+[OutputTopology("triangle")]
+void MS(
+    uint gtid : SV_GroupThreadID,
+    uint gid : SV_GroupID,
+    out indices uint3 tris[2],
+    out vertices VertexOut verts[6])
+{   
+    
+    SetMeshOutputCounts(6, 2);
+    
+    if (gtid == 0)
+    {
+        tris[gtid] = uint3(0, 1, 2);
+    }
+    else if (gtid == 1)
+    {
+        tris[gtid] = uint3(3, 4, 5);
+    }
+    
+    if (gtid < 6)
+    {
+        VertexOut vout;
+        float2 texC = gTexCoords[gtid];
 
-VertexOut VS(uint vid : SV_VertexID)
-{
-    VertexOut vout;
-    float2 texC = gTexCoords[vid];
-
-    vout.PosH = float4(2.0f * texC.x - 1.0f, 1.0f - 2.0f * texC.y, 0.0f, 1.0f);
-    return vout;
+        vout.PosH = float4(2.0f * texC.x - 1.0f, 1.0f - 2.0f * texC.y, 0.0f, 1.0f);
+        verts[gtid] = vout;
+    }
 }
 
 void SortPixels(inout OitNode sortedPixels[MAX_SORTED_PIXELS])
