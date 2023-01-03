@@ -4,6 +4,14 @@
 #define OUTSIDE 1
 #define INTERSECTING 2
 
+struct CullData
+{
+    float3 Center;
+    float3 Extents;
+    uint NormalCone;
+    float ApexOffset;
+};
+
 struct Payload
 {
     uint MeshletIndices[AS_GROUP_SIZE];
@@ -86,4 +94,42 @@ uint AabbFrustumTest(float3 center, float3 extents, float4x4 M)
     {
         return INTERSECTING;
     }
+}
+
+bool IsConeDegenerate(CullData c)
+{
+    return (c.NormalCone >> 24) == 0xff;
+}
+
+float4 UnpackCone(uint packed)
+{
+    float4 v;
+    v.x = float((packed >> 0) & 0xFF);
+    v.y = float((packed >> 8) & 0xFF);
+    v.z = float((packed >> 16) & 0xFF);
+    v.w = float((packed >> 24) & 0xFF);
+
+    v = v / 255.0;
+    v.xyz = v.xyz * 2.0 - 1.0;
+
+    return v;
+}
+
+bool NormalConeTest(CullData c, float4x4 world, float3 viewPos)
+{
+    if (IsConeDegenerate(c))
+        return true;
+
+    float4 normalCone = UnpackCone(c.NormalCone);
+    float3 axis = normalize(mul(float4(normalCone.xyz, 0.f), world)).xyz;
+
+    float3 apex = mul(float4(c.Center - normalCone.xyz * c.ApexOffset, 1.f), world).xyz;
+    float3 view = normalize(viewPos - apex);
+
+    if (dot(view, -axis) > normalCone.w)
+    {
+        return false;
+    }
+
+    return true;
 }

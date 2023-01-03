@@ -40,12 +40,6 @@ struct Meshlet
     uint PrimCount;
 };
 
-struct CullData
-{
-    float3 Center;
-    float3 Extents;
-};
-
 struct MeshIn
 {
     float3 PosL : POSITION;

@@ -143,6 +143,7 @@ void Carol::ShadowPass::InitLightView()
 
 void Carol::ShadowPass::InitCamera()
 {
+	mLight->Position = XMFLOAT3(-mLight->Direction.x * 140.f, -mLight->Direction.y * 140.f, -mLight->Direction.z * 140.f);
 	mCamera = make_unique<OrthographicCamera>(mLight->Direction, DirectX::XMFLOAT3{0.0f,0.0f,0.0f}, 70.0f);
 }
 

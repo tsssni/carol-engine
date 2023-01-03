@@ -3,6 +3,7 @@
 #include <utils/d3dx12.h>
 #include <d3d12.h>
 #include <DirectXCollision.h>
+#include <DirectXPackedVector.h>
 #include <vector>
 #include <string>
 #include <memory>
@@ -78,6 +79,8 @@ namespace Carol
 	public:
 		DirectX::XMFLOAT3 Center;
 		DirectX::XMFLOAT3 Extent;
+		DirectX::PackedVector::XMCOLOR NormalCone;
+		float ApexOffset;
 	};
 
 	class Model;
@@ -113,7 +116,6 @@ namespace Carol
 		OctreeNode* GetOctreeNode();
 
 		void Update(DirectX::XMMATRIX& world, CircularHeap* meshCBHeap);
-		void TransformBoundingBox(DirectX::XMMATRIX& world);
 		D3D12_GPU_VIRTUAL_ADDRESS GetMeshCBGPUVirtualAddress();
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBGPUVirtualAddress();
 
@@ -137,6 +139,17 @@ namespace Carol
 			uint32_t stride,
 			DescriptorAllocInfo* gpuInfo,
 			uint32_t srvIdx);
+
+		void LoadMeshletBoundingBox();
+		void LoadMeshletNormalCone();
+
+		DirectX::XMVECTOR LoadConeCenter(const Meshlet& meshlet);
+		float LoadConeSpread(const Meshlet& meshlet, const DirectX::XMVECTOR& normalCone);
+		float LoadConeBottomDist(const Meshlet& meshlet, const DirectX::XMVECTOR& normalCone);
+		float LoadBottomRadius(const Meshlet& meshlet, const DirectX::XMVECTOR& center, const DirectX::XMVECTOR& normalCone, const float& tanConeSpread);
+
+		void BoundingBoxCompare(const DirectX::XMVECTOR& vPos, DirectX::XMFLOAT3& boxMin, DirectX::XMFLOAT3& boxMax);
+		void RadiusCompare(const DirectX::XMVECTOR& pos, const DirectX::XMVECTOR& center, const DirectX::XMVECTOR& normalCone, float tanConeSpread, float& radius);
 
 		ID3D12Device* mDevice;
 		ID3D12GraphicsCommandList* mCommandList;

@@ -223,95 +223,9 @@ void Carol::Mesh::LoadMeshlets()
 
 void Carol::Mesh::LoadCullData()
 {
-	mCullData.reserve(mMeshlets.size());
-	auto& animationFrames = mModel->GetAnimationTransforms();
-
-	XMFLOAT3 meshBoxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
-	XMFLOAT3 meshBoxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
-
-	static auto compare = [](XMVECTOR& skinnedPos, XMFLOAT3& boxMin, XMFLOAT3& boxMax)
-	{
-		XMFLOAT3 pos;
-		XMStoreFloat3(&pos, skinnedPos);
-
-		boxMin.x = std::min(boxMin.x, pos.x);
-		boxMin.y = std::min(boxMin.y, pos.y);
-		boxMin.z = std::min(boxMin.z, pos.z);
-
-		boxMax.x = std::max(boxMax.x, pos.x);
-		boxMax.y = std::max(boxMax.y, pos.y);
-		boxMax.z = std::max(boxMax.z, pos.z);
-	};
-
-	for (auto& meshlet : mMeshlets)
-	{
-		XMFLOAT3 boxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
-		XMFLOAT3 boxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
-	
-		if (mSkinned)
-		{
-			for (int i = 0; i < meshlet.VertexCount; ++i) {
-
-				auto& vertex = mVertices[meshlet.Vertices[i]];
-				XMVECTOR pos = { vertex.Pos.x,vertex.Pos.y,vertex.Pos.z,1.0f };
-
-				float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				weights[0] = vertex.Weights.x;
-				weights[1] = vertex.Weights.y;
-				weights[2] = vertex.Weights.z;
-				weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
-
-				if (weights[0] == 0.0f)
-				{
-					compare(pos, meshBoxMin, meshBoxMax);
-					compare(pos, boxMin, boxMax);
-					continue;
-				}
-
-				uint32_t boneIndices[4] = {
-					vertex.BoneIndices.x,
-					vertex.BoneIndices.y,
-					vertex.BoneIndices.z,
-					vertex.BoneIndices.w };
-
-				for (auto& frames : animationFrames)
-				{
-					for (auto& frame : frames)
-					{
-						XMVECTOR skinnedPos = { 0.0f,0.0f,0.0f,0.0f };
-
-						for (int j = 0; j < 4 && weights[j] > 0.0f; ++j)
-						{
-							skinnedPos += weights[j] * XMVector4Transform(pos, XMLoadFloat4x4(&frame[boneIndices[j]]));
-						}
-
-						compare(skinnedPos, meshBoxMin, meshBoxMax);
-						compare(skinnedPos, boxMin, boxMax);
-					}
-				}
-			}
-		}
-		else
-		{
-			for (int i = 0; i < meshlet.VertexCount; ++i)
-			{
-				auto& vertex = mVertices[meshlet.Vertices[i]];
-				XMVECTOR pos = { vertex.Pos.x,vertex.Pos.y,vertex.Pos.z };
-				compare(pos, meshBoxMin, meshBoxMax);
-				compare(pos, boxMin, boxMax);
-			}
-		}
-
-		mCullData.emplace_back();
-		BoundingBox::CreateFromPoints(mBoundingBox, XMLoadFloat3(&boxMin), XMLoadFloat3(&boxMax));
-		mCullData.back().Center = mBoundingBox.Center;
-		mCullData.back().Extent = mBoundingBox.Extents;
-	}
-
-	BoundingBox::CreateFromPoints(mOriginalBoundingBox, XMLoadFloat3(&meshBoxMin), XMLoadFloat3(&meshBoxMax));
-	mBoundingBox = mOriginalBoundingBox;
-	mMeshConstants->Center = mBoundingBox.Center;
-	mMeshConstants->Extents = mBoundingBox.Extents;
+	mCullData.resize(mMeshlets.size());
+	LoadMeshletBoundingBox();
+	LoadMeshletNormalCone();
 
 	uint32_t cullDataStride = sizeof(CullData);
 	uint32_t cullDataByteSize = mCullData.size() * cullDataStride;
@@ -354,9 +268,398 @@ void Carol::Mesh::LoadResource(
 	mMeshIdx[srvIdx] = gpuInfo->StartOffset;
 }
 
+void Carol::Mesh::LoadMeshletBoundingBox()
+{
+	auto& animationTransforms = mModel->GetAnimationTransforms();
+	XMFLOAT3 meshBoxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
+	XMFLOAT3 meshBoxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
+
+	for (int i = 0; i < mMeshlets.size(); ++i)
+	{
+		auto& meshlet = mMeshlets[i];
+		XMFLOAT3 boxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
+		XMFLOAT3 boxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
+	
+		if (mSkinned)
+		{
+			for (int i = 0; i < meshlet.VertexCount; ++i) {
+
+				Vertex& vertex = mVertices[meshlet.Vertices[i]];
+				XMVECTOR pos = { vertex.Pos.x,vertex.Pos.y,vertex.Pos.z,1.0f };
+
+				float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+				weights[0] = vertex.Weights.x;
+				weights[1] = vertex.Weights.y;
+				weights[2] = vertex.Weights.z;
+				weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+
+				if (weights[0] == 0.0f)
+				{
+					BoundingBoxCompare(pos, meshBoxMin, meshBoxMax);
+					BoundingBoxCompare(pos, boxMin, boxMax);
+					continue;
+				}
+
+				uint32_t boneIndices[4] = {
+					vertex.BoneIndices.x,
+					vertex.BoneIndices.y,
+					vertex.BoneIndices.z,
+					vertex.BoneIndices.w };
+
+				for (auto& frames : animationTransforms)
+				{
+					for (auto& frame : frames)
+					{
+						XMVECTOR skinnedPos = { 0.0f,0.0f,0.0f,0.0f };
+
+						for (int j = 0; j < 4 && weights[j] > 0.0f; ++j)
+						{
+							skinnedPos += weights[j] * XMVector4Transform(pos, XMLoadFloat4x4(&frame[boneIndices[j]]));
+						}
+
+						BoundingBoxCompare(skinnedPos, meshBoxMin, meshBoxMax);
+						BoundingBoxCompare(skinnedPos, boxMin, boxMax);
+					}
+				}
+			}
+		}
+		else
+		{
+			for (int i = 0; i < meshlet.VertexCount; ++i)
+			{
+				auto& vertex = mVertices[meshlet.Vertices[i]];
+				XMVECTOR pos = { vertex.Pos.x,vertex.Pos.y,vertex.Pos.z };
+				BoundingBoxCompare(pos, meshBoxMin, meshBoxMax);
+				BoundingBoxCompare(pos, boxMin, boxMax);
+			}
+		}
+
+		BoundingBox::CreateFromPoints(mBoundingBox, XMLoadFloat3(&boxMin), XMLoadFloat3(&boxMax));
+		mCullData[i].Center = mBoundingBox.Center;
+		mCullData[i].Extent = mBoundingBox.Extents;
+	}
+
+	BoundingBox::CreateFromPoints(mOriginalBoundingBox, XMLoadFloat3(&meshBoxMin), XMLoadFloat3(&meshBoxMax));
+	mBoundingBox = mOriginalBoundingBox;
+	mMeshConstants->Center = mBoundingBox.Center;
+	mMeshConstants->Extents = mBoundingBox.Extents;
+}
+
+void Carol::Mesh::LoadMeshletNormalCone()
+{
+	auto& animationTransforms = mModel->GetAnimationTransforms();
+
+	for (int i = 0; i < mMeshlets.size(); ++i)
+	{
+		auto& meshlet = mMeshlets[i];
+		XMVECTOR normalCone = LoadConeCenter(meshlet);
+		float cosConeSpread = LoadConeSpread(meshlet, normalCone);
+
+		if (cosConeSpread <= 0.f)
+		{
+			mCullData[i].NormalCone = { 0.f,0.f,0.f,1.f };
+		}
+		else
+		{
+			float sinConeSpread = std::sqrt(1.f - cosConeSpread * cosConeSpread);
+			float tanConeSpread = sinConeSpread / cosConeSpread;
+
+			mCullData[i].NormalCone = {
+				(normalCone.m128_f32[2] + 1.f) * 0.5f,
+				(normalCone.m128_f32[1] + 1.f) * 0.5f,
+				(normalCone.m128_f32[0] + 1.f) * 0.5f,
+				sinConeSpread
+			};
+			
+			float bottomDist = LoadConeBottomDist(meshlet, normalCone);
+			XMVECTOR center = XMLoadFloat3(&mCullData[i].Center);
+
+			float centerToBottomDist = XMVector3Dot(center, normalCone).m128_f32[0] - bottomDist;
+			XMVECTOR bottomCenter = center - centerToBottomDist * normalCone;
+			float radius = LoadBottomRadius(meshlet, bottomCenter, normalCone, tanConeSpread);
+			
+			mCullData[i].ApexOffset = centerToBottomDist + radius / tanConeSpread;
+		}
+	}
+
+}
+
+DirectX::XMVECTOR Carol::Mesh::LoadConeCenter(const Meshlet& meshlet)
+{
+	auto& animationTransforms = mModel->GetAnimationTransforms();
+	XMFLOAT3 boxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
+	XMFLOAT3 boxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
+
+	if (mSkinned)
+	{
+		for (int i = 0; i < meshlet.VertexCount; ++i)
+		{
+			Vertex& vertex = mVertices[meshlet.Vertices[i]];
+			XMVECTOR normal = XMVector3Normalize(XMLoadFloat3(&vertex.Normal));
+
+			float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+			weights[0] = vertex.Weights.x;
+			weights[1] = vertex.Weights.y;
+			weights[2] = vertex.Weights.z;
+			weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+
+			if (weights[0] == 0.0f)
+			{
+				BoundingBoxCompare(normal, boxMin, boxMax);
+			}
+
+			uint32_t boneIndices[4] = {
+				vertex.BoneIndices.x,
+				vertex.BoneIndices.y,
+				vertex.BoneIndices.z,
+				vertex.BoneIndices.w };
+
+			for (auto& frames : animationTransforms)
+			{
+				for (auto& frame : frames)
+				{
+					XMVECTOR skinnedNormal = { 0.0f,0.0f,0.0f,0.0f };
+
+					for (int j = 0; j < 4 && weights[j] > 0.0f; ++j)
+					{
+						skinnedNormal += weights[j] * XMVector3TransformNormal(normal, XMLoadFloat4x4(&frame[boneIndices[j]]));
+					}
+
+					BoundingBoxCompare(XMVector3Normalize(skinnedNormal), boxMin, boxMax);
+				}
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < meshlet.VertexCount; ++i)
+		{
+			Vertex& vertex = mVertices[meshlet.Vertices[i]];
+			XMVECTOR normal = XMVector3Normalize(XMLoadFloat3(&vertex.Normal));
+			BoundingBoxCompare(normal, boxMin, boxMax);
+		}
+	}
+
+	BoundingBox::CreateFromPoints(mBoundingBox, XMLoadFloat3(&boxMin), XMLoadFloat3(&boxMax));
+	return XMLoadFloat3(&mBoundingBox.Center);
+}
+
+float Carol::Mesh::LoadConeSpread(const Meshlet& meshlet, const XMVECTOR& normalCone)
+{
+	auto& animationTransforms = mModel->GetAnimationTransforms();
+	float cosConeSpread = 1.f;
+
+	if (mSkinned)
+	{
+		for (int i = 0; i < meshlet.VertexCount; ++i)
+		{
+			Vertex& vertex = mVertices[meshlet.Vertices[i]];
+			XMVECTOR normal = XMVector3Normalize(XMLoadFloat3(&vertex.Normal));
+
+			float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+			weights[0] = vertex.Weights.x;
+			weights[1] = vertex.Weights.y;
+			weights[2] = vertex.Weights.z;
+			weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+
+			if (weights[0] == 0.0f)
+			{
+				cosConeSpread = std::min(cosConeSpread, XMVector3Dot(normalCone, normal).m128_f32[0]);
+			}
+
+			uint32_t boneIndices[4] = {
+				vertex.BoneIndices.x,
+				vertex.BoneIndices.y,
+				vertex.BoneIndices.z,
+				vertex.BoneIndices.w };
+
+			for (auto& frames : animationTransforms)
+			{
+				for (auto& frame : frames)
+				{
+					XMVECTOR skinnedNormal = { 0.0f,0.0f,0.0f,0.0f };
+
+					for (int j = 0; j < 4 && weights[j] > 0.0f; ++j)
+					{
+						skinnedNormal += weights[j] * XMVector3TransformNormal(normal, XMLoadFloat4x4(&frame[boneIndices[j]]));
+					}
+
+					cosConeSpread = std::min(cosConeSpread, XMVector3Dot(normalCone, XMVector3Normalize(skinnedNormal)).m128_f32[0]);
+				}
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < meshlet.VertexCount; ++i)
+		{
+			Vertex& vertex = mVertices[meshlet.Vertices[i]];
+			XMVECTOR normal = XMVector3Normalize(XMLoadFloat3(&vertex.Normal));
+			cosConeSpread = std::min(cosConeSpread, XMVector3Dot(normalCone, normal).m128_f32[0]);
+		}
+	}
+
+	return cosConeSpread;
+}
+
+float Carol::Mesh::LoadConeBottomDist(const Meshlet& meshlet, const DirectX::XMVECTOR& normalCone)
+{
+	auto& animationTransforms = mModel->GetAnimationTransforms();
+	float bd = D3D12_FLOAT32_MAX;
+
+	if (mSkinned)
+	{
+		for (int i = 0; i < meshlet.VertexCount; ++i)
+		{
+			Vertex& vertex = mVertices[meshlet.Vertices[i]];
+			XMVECTOR pos = { vertex.Pos.x,vertex.Pos.y,vertex.Pos.z,1.f };
+
+			float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+			weights[0] = vertex.Weights.x;
+			weights[1] = vertex.Weights.y;
+			weights[2] = vertex.Weights.z;
+			weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+
+			if (weights[0] == 0.0f)
+			{
+				float dot = XMVector3Dot(normalCone, pos).m128_f32[0];
+				if (dot < bd)
+				{
+					bd = dot;
+				}
+			}
+
+			uint32_t boneIndices[4] = {
+				vertex.BoneIndices.x,
+				vertex.BoneIndices.y,
+				vertex.BoneIndices.z,
+				vertex.BoneIndices.w };
+
+			for (auto& frames : animationTransforms)
+			{
+				for (auto& frame : frames)
+				{
+					XMVECTOR skinnedPos = { 0.0f,0.0f,0.0f,0.0f };
+
+					for (int j = 0; j < 4 && weights[j] > 0.0f; ++j)
+					{
+						skinnedPos += weights[j] * XMVector4Transform(pos, XMLoadFloat4x4(&frame[boneIndices[j]]));
+					}
+
+					float dot = XMVector3Dot(normalCone, skinnedPos).m128_f32[0];
+					if (dot < bd)
+					{
+						bd = dot;
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < meshlet.VertexCount; ++i)
+		{
+			Vertex& vertex = mVertices[meshlet.Vertices[i]];
+			XMVECTOR pos = { vertex.Pos.x,vertex.Pos.y,vertex.Pos.z,1.f };
+		
+			float dot = XMVector3Dot(normalCone, pos).m128_f32[0];
+			if (dot < bd)
+			{
+				bd = dot;
+			}
+		}
+	}
+
+	return bd;
+}
+
+float Carol::Mesh::LoadBottomRadius(const Meshlet& meshlet, const DirectX::XMVECTOR& center, const DirectX::XMVECTOR& normalCone, const float& tanConeSpread)
+{
+	auto& animationTransforms = mModel->GetAnimationTransforms();
+	float radius = 0.f;
+
+	if (mSkinned)
+	{
+		for (int i = 0; i < meshlet.VertexCount; ++i)
+		{
+			Vertex& vertex = mVertices[meshlet.Vertices[i]];
+			XMVECTOR pos = { vertex.Pos.x,vertex.Pos.y,vertex.Pos.z,1.f };
+
+			float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+			weights[0] = vertex.Weights.x;
+			weights[1] = vertex.Weights.y;
+			weights[2] = vertex.Weights.z;
+			weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+
+			if (weights[0] == 0.0f)
+			{
+				RadiusCompare(pos, center, normalCone, tanConeSpread, radius);
+			}
+
+			uint32_t boneIndices[4] = {
+				vertex.BoneIndices.x,
+				vertex.BoneIndices.y,
+				vertex.BoneIndices.z,
+				vertex.BoneIndices.w };
+
+			for (auto& frames : animationTransforms)
+			{
+				for (auto& frame : frames)
+				{
+					XMVECTOR skinnedPos = { 0.0f,0.0f,0.0f,0.0f };
+
+					for (int j = 0; j < 4 && weights[j] > 0.0f; ++j)
+					{
+						skinnedPos += weights[j] * XMVector4Transform(pos, XMLoadFloat4x4(&frame[boneIndices[j]]));
+					}
+
+					RadiusCompare(skinnedPos, center, normalCone, tanConeSpread, radius);
+				}
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < meshlet.VertexCount; ++i)
+		{
+			Vertex& vertex = mVertices[meshlet.Vertices[i]];
+			XMVECTOR pos = { vertex.Pos.x,vertex.Pos.y,vertex.Pos.z,1.f };
+			RadiusCompare(pos, center, normalCone, tanConeSpread, radius);
+		}
+	}
+
+	return radius;
+}
+
+void Carol::Mesh::BoundingBoxCompare(const DirectX::XMVECTOR& vPos, DirectX::XMFLOAT3& boxMin, DirectX::XMFLOAT3& boxMax)
+{
+	XMFLOAT3 pos;
+	XMStoreFloat3(&pos, vPos);
+
+	boxMin.x = std::min(boxMin.x, pos.x);
+	boxMin.y = std::min(boxMin.y, pos.y);
+	boxMin.z = std::min(boxMin.z, pos.z);
+
+	boxMax.x = std::max(boxMax.x, pos.x);
+	boxMax.y = std::max(boxMax.y, pos.y);
+	boxMax.z = std::max(boxMax.z, pos.z);
+}
+
+void Carol::Mesh::RadiusCompare(const DirectX::XMVECTOR& pos, const DirectX::XMVECTOR& center, const DirectX::XMVECTOR& normalCone, float tanConeSpread, float& radius)
+{
+	float height = XMVector3Dot(pos - center, normalCone).m128_f32[0];
+	float posRadius = XMVector3Length(pos - center - normalCone * height).m128_f32[0] - height * tanConeSpread;
+	
+	if (posRadius > radius)
+	{
+		radius = posRadius;
+	}
+}
+
 Carol::Model::Model(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator)
 	:mDevice(device), mCommandList(cmdList), mHeap(heap), mUploadHeap(uploadHeap), mAllocator(allocator), mSkinnedConstants(make_unique<SkinnedConstants>()), mSkinnedCBAllocInfo(make_unique<HeapAllocInfo>())
 {
+	
 }
 
 Carol::Model::~Model()

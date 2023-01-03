@@ -16,20 +16,22 @@ void main(
     {
         float4x4 worldViewProj = mul(gWorld, gViewProj);
         uint test = AabbFrustumTest(gCenter, gExtents, worldViewProj);
+
+        StructuredBuffer<CullData> cullData = ResourceDescriptorHeap[gCullDataIdx];
+        CullData cd = cullData[dtid];
         
         if (test == INSIDE)
         {
-            visible = true;
+            visible = NormalConeTest(cd, gWorld, gEyePosW);
         }
         else if (test == INTERSECTING)
         {
-            StructuredBuffer<CullData> cullData = ResourceDescriptorHeap[gCullDataIdx];
-            CullData cd = cullData[dtid];
-            visible = (AabbFrustumTest(cd.Center, cd.Extents, worldViewProj) != OUTSIDE);
-        }
+            
+            visible = (AabbFrustumTest(cd.Center, cd.Extents, worldViewProj) != OUTSIDE) && NormalConeTest(cd, gWorld, gEyePosW);
+        }        
     }
     
-    if(visible)
+    if (visible)
     {
         uint idx = WavePrefixCountBits(visible);
         sharedPayload.MeshletIndices[idx] = dtid;
