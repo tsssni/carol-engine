@@ -83,17 +83,19 @@ void Carol::NormalPass::InitShaders()
         L"SKINNED=1"
     };
 
-    (*mGlobalResources->Shaders)[L"NormalsStaticMS"] = make_unique<Shader>(L"shader\\normals.hlsl", nullDefines, L"MS", L"ms_6_6");
-    (*mGlobalResources->Shaders)[L"NormalsStaticPS"] = make_unique<Shader>(L"shader\\normals.hlsl", nullDefines, L"PS", L"ps_6_6");
-    (*mGlobalResources->Shaders)[L"NormalsSkinnedMS"] = make_unique<Shader>(L"shader\\normals.hlsl", skinnedDefines, L"MS", L"ms_6_6");
-    (*mGlobalResources->Shaders)[L"NormalsSkinnedPS"] = make_unique<Shader>(L"shader\\normals.hlsl", skinnedDefines, L"PS", L"ps_6_6");
+    (*mGlobalResources->Shaders)[L"NormalsStaticMS"] = make_unique<Shader>(L"shader\\normals_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+    (*mGlobalResources->Shaders)[L"NormalsStaticPS"] = make_unique<Shader>(L"shader\\normals_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+    (*mGlobalResources->Shaders)[L"NormalsSkinnedMS"] = make_unique<Shader>(L"shader\\normals_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+    (*mGlobalResources->Shaders)[L"NormalsSkinnedPS"] = make_unique<Shader>(L"shader\\normals_ps.hlsl", skinnedDefines, L"main", L"ps_6_6");
 }
 
 void Carol::NormalPass::InitPSOs()
 {
     auto normalsStaticPsoDesc = *mGlobalResources->BasePsoDesc;
+    auto normalsStaticAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
     auto normalsStaticMS = (*mGlobalResources->Shaders)[L"NormalsStaticMS"].get();
     auto normalsStaticPS = (*mGlobalResources->Shaders)[L"NormalsStaticPS"].get();
+    normalsStaticPsoDesc.AS = { reinterpret_cast<byte*>(normalsStaticAS->GetBufferPointer()),normalsStaticAS->GetBufferSize() };
     normalsStaticPsoDesc.MS = { reinterpret_cast<byte*>(normalsStaticMS->GetBufferPointer()),normalsStaticMS->GetBufferSize() };
     normalsStaticPsoDesc.PS = { reinterpret_cast<byte*>(normalsStaticPS->GetBufferPointer()),normalsStaticPS->GetBufferSize() };
     normalsStaticPsoDesc.RTVFormats[0] = mNormalMapFormat;

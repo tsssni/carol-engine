@@ -101,6 +101,8 @@ uint32_t Carol::FramePass::GetDepthStencilSrvIdx()
 
 void Carol::FramePass::InitShaders()
 {
+	vector<wstring> nullDefines = {};
+
 	vector<wstring> staticDefines =
 	{
 		L"TAA=1",L"SSAO=1"
@@ -110,20 +112,24 @@ void Carol::FramePass::InitShaders()
 	{
 		L"TAA=1",L"SSAO=1",L"SKINNED=1"
 	};
-
-	(*mGlobalResources->Shaders)[L"OpaqueStaticMS"] = make_unique<Shader>(L"shader\\default.hlsl", staticDefines, L"MS", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"OpaqueStaticPS"] = make_unique<Shader>(L"shader\\default.hlsl", staticDefines, L"PS", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"OpaqueSkinnedMS"] = make_unique<Shader>(L"shader\\default.hlsl", skinnedDefines, L"MS", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"OpaqueSkinnedPS"] = make_unique<Shader>(L"shader\\default.hlsl", skinnedDefines, L"PS", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"SkyBoxMS"] = make_unique<Shader>(L"shader\\skybox.hlsl", staticDefines, L"MS", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"SkyBoxPS"] = make_unique<Shader>(L"shader\\skybox.hlsl", staticDefines, L"PS", L"ps_6_6");
+	
+	(*mGlobalResources->Shaders)[L"CullAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", nullDefines, L"main", L"as_6_6");
+	(*mGlobalResources->Shaders)[L"OpaqueStaticMS"] = make_unique<Shader>(L"shader\\default_ms.hlsl", staticDefines, L"main", L"ms_6_6");
+	(*mGlobalResources->Shaders)[L"OpaqueStaticPS"] = make_unique<Shader>(L"shader\\default_ps.hlsl", staticDefines, L"main", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"OpaqueSkinnedMS"] = make_unique<Shader>(L"shader\\default_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+	(*mGlobalResources->Shaders)[L"OpaqueSkinnedPS"] = make_unique<Shader>(L"shader\\default_ps.hlsl", skinnedDefines, L"main", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"ScreenMS"] = make_unique<Shader>(L"shader\\screen_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+	(*mGlobalResources->Shaders)[L"SkyBoxMS"] = make_unique<Shader>(L"shader\\skybox_ms.hlsl", staticDefines, L"main", L"ms_6_6");
+	(*mGlobalResources->Shaders)[L"SkyBoxPS"] = make_unique<Shader>(L"shader\\skybox_ps.hlsl", staticDefines, L"main", L"ps_6_6");
 }
 
 void Carol::FramePass::InitPSOs()
 {
 	auto opaqueStaticPsoDesc = *mGlobalResources->BasePsoDesc;
+	auto opaqueStaticAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
 	auto opaqueStaticMS = (*mGlobalResources->Shaders)[L"OpaqueStaticMS"].get();
 	auto opaqueStaticPS = (*mGlobalResources->Shaders)[L"OpaqueStaticPS"].get();
+	opaqueStaticPsoDesc.AS = { reinterpret_cast<byte*>(opaqueStaticAS->GetBufferPointer()),opaqueStaticAS->GetBufferSize() };
 	opaqueStaticPsoDesc.MS = { reinterpret_cast<byte*>(opaqueStaticMS->GetBufferPointer()),opaqueStaticMS->GetBufferSize() };
 	opaqueStaticPsoDesc.PS = { reinterpret_cast<byte*>(opaqueStaticPS->GetBufferPointer()),opaqueStaticPS->GetBufferSize() };
 	auto opaqueStaticPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(opaqueStaticPsoDesc);
@@ -132,7 +138,7 @@ void Carol::FramePass::InitPSOs()
     opaqueStaticStreamDesc.SizeInBytes = sizeof(opaqueStaticPsoStream);
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&opaqueStaticStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"OpaqueStatic"].GetAddressOf())));
 
-	auto opaqueSkinnedPsoDesc = *mGlobalResources->BasePsoDesc;
+	auto opaqueSkinnedPsoDesc = opaqueStaticPsoDesc;
 	auto opaqueSkinnedMS = (*mGlobalResources->Shaders)[L"OpaqueSkinnedMS"].get();
 	auto opaqueSkinnedPS = (*mGlobalResources->Shaders)[L"OpaqueSkinnedPS"].get();
 	opaqueSkinnedPsoDesc.MS = { reinterpret_cast<byte*>(opaqueSkinnedMS->GetBufferPointer()),opaqueSkinnedMS->GetBufferSize() };
@@ -181,7 +187,7 @@ void Carol::FramePass::InitResources()
 	optClear.DepthStencil.Depth = 1.0f;
 	optClear.DepthStencil.Stencil = 0;
 
-	mDepthStencilMap = make_unique<DefaultResource>(&texDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &optClear);
+	mDepthStencilMap = make_unique<DefaultResource>(&texDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_DEPTH_WRITE, &optClear);
 
 	InitDescriptors();
 }

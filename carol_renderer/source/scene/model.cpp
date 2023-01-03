@@ -30,6 +30,7 @@ Carol::Mesh::Mesh(Model* model,
 	bool isSkinned,
 	bool isTransparent)
 	:mModel(model),
+	mMeshIdx(MESH_IDX_COUNT),
 	mDevice(device),
 	mCommandList(cmdList),
 	mHeap(heap),
@@ -40,9 +41,10 @@ Carol::Mesh::Mesh(Model* model,
 	mVertexSrvAllocInfo(make_unique<DescriptorAllocInfo>()),
 	mMeshletSrvAllocInfo(make_unique<DescriptorAllocInfo>()),
 	mCullDataSrvAllocInfo(make_unique<DescriptorAllocInfo>()),
+	mMeshConstants(make_unique<MeshConstants>()),
+	mMeshCBAllocInfo(make_unique<HeapAllocInfo>()),
 	mSkinned(isSkinned),
-	mTransparent(isTransparent),
-	mMeshIdx(TEX_IDX_COUNT)
+	mTransparent(isTransparent)
 {
 	LoadVertices();
 	LoadMeshlets();
@@ -52,11 +54,6 @@ Carol::Mesh::Mesh(Model* model,
 Carol::Mesh::~Mesh()
 {
 	
-}
-
-D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetSkinnedCBGPUVirtualAddress()
-{
-	return mModel->GetSkinnedCBGPUVirtualAddress();
 }
 
 void Carol::Mesh::ReleaseIntermediateBuffer()
@@ -79,14 +76,14 @@ Carol::Material Carol::Mesh::GetMaterial()
 	return mMaterial;
 }
 
-Carol::vector<uint32_t> Carol::Mesh::GetTexIdx()
+const uint32_t* Carol::Mesh::GetMeshIdxData()
 {
-	return mMeshIdx;
+	return mMeshIdx.data();
 }
 
 uint32_t Carol::Mesh::GetMeshletSize()
 {
-	return mMeshletSize;
+	return mMeshConstants->MeshletCount;
 }
 
 void Carol::Mesh::SetMaterial(const Material& mat)
@@ -97,6 +94,44 @@ void Carol::Mesh::SetMaterial(const Material& mat)
 void Carol::Mesh::SetTexIdx(uint32_t type, uint32_t idx)
 {
 	mMeshIdx[type] = idx;
+}
+
+Carol::BoundingBox Carol::Mesh::GetBoundingBox()
+{
+	return mBoundingBox;
+}
+
+void Carol::Mesh::SetOctreeNode(OctreeNode* node)
+{
+	mOctreeNode = node;
+}
+
+Carol::OctreeNode* Carol::Mesh::GetOctreeNode()
+{
+	return mOctreeNode;
+}
+
+void Carol::Mesh::Update(XMMATRIX& world, CircularHeap* meshCBHeap)
+{
+	mMeshConstants->FresnelR0 = mMaterial.FresnelR0;
+	mMeshConstants->Roughness = mMaterial.Roughness;
+	mMeshConstants->HistWorld = mMeshConstants->World;
+	XMStoreFloat4x4(&mMeshConstants->World, XMMatrixTranspose(world));
+
+	meshCBHeap->DeleteResource(mMeshCBAllocInfo.get());
+	meshCBHeap->CreateResource(mMeshCBAllocInfo.get());
+	meshCBHeap->CopyData(mMeshCBAllocInfo.get(), mMeshConstants.get());
+	mMeshCBGPUVirtualAddress = meshCBHeap->GetGPUVirtualAddress(mMeshCBAllocInfo.get());
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetMeshCBGPUVirtualAddress()
+{
+	return mMeshCBGPUVirtualAddress;
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetSkinnedCBGPUVirtualAddress()
+{
+	return mModel->GetSkinnedCBGPUVirtualAddress();
 }
 
 bool Carol::Mesh::IsSkinned()
@@ -183,33 +218,36 @@ void Carol::Mesh::LoadMeshlets()
 		meshletStride, mMeshletSrvAllocInfo.get(),
 		MESHLET_IDX);
 
-	mMeshletSize = mMeshlets.size();
+	mMeshConstants->MeshletCount = mMeshlets.size();
 }
 
 void Carol::Mesh::LoadCullData()
 {
 	mCullData.reserve(mMeshlets.size());
-	auto& animationFrames = mModel->GetAnimationFrames();
+	auto& animationFrames = mModel->GetAnimationTransforms();
+
+	XMFLOAT3 meshBoxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
+	XMFLOAT3 meshBoxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
+
+	static auto compare = [](XMVECTOR& skinnedPos, XMFLOAT3& boxMin, XMFLOAT3& boxMax)
+	{
+		XMFLOAT3 pos;
+		XMStoreFloat3(&pos, skinnedPos);
+
+		boxMin.x = std::min(boxMin.x, pos.x);
+		boxMin.y = std::min(boxMin.y, pos.y);
+		boxMin.z = std::min(boxMin.z, pos.z);
+
+		boxMax.x = std::max(boxMax.x, pos.x);
+		boxMax.y = std::max(boxMax.y, pos.y);
+		boxMax.z = std::max(boxMax.z, pos.z);
+	};
 
 	for (auto& meshlet : mMeshlets)
 	{
 		XMFLOAT3 boxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
 		XMFLOAT3 boxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
 	
-		auto compare = [&](XMVECTOR skinnedPos)
-		{
-			XMFLOAT3 pos;
-			XMStoreFloat3(&pos, skinnedPos);
-
-			boxMin.x = std::min(boxMin.x, pos.x);
-			boxMin.y = std::min(boxMin.y, pos.y);
-			boxMin.z = std::min(boxMin.z, pos.z);
-
-			boxMax.x = std::max(boxMax.x, pos.x);
-			boxMax.y = std::max(boxMax.y, pos.y);
-			boxMax.z = std::max(boxMax.z, pos.z);
-		};
-
 		if (mSkinned)
 		{
 			for (int i = 0; i < meshlet.VertexCount; ++i) {
@@ -225,7 +263,8 @@ void Carol::Mesh::LoadCullData()
 
 				if (weights[0] == 0.0f)
 				{
-					compare(pos);
+					compare(pos, meshBoxMin, meshBoxMax);
+					compare(pos, boxMin, boxMax);
 					continue;
 				}
 
@@ -246,7 +285,8 @@ void Carol::Mesh::LoadCullData()
 							skinnedPos += weights[j] * XMVector4Transform(pos, XMLoadFloat4x4(&frame[boneIndices[j]]));
 						}
 
-						compare(skinnedPos);
+						compare(skinnedPos, meshBoxMin, meshBoxMax);
+						compare(skinnedPos, boxMin, boxMax);
 					}
 				}
 			}
@@ -256,15 +296,22 @@ void Carol::Mesh::LoadCullData()
 			for (int i = 0; i < meshlet.VertexCount; ++i)
 			{
 				auto& vertex = mVertices[meshlet.Vertices[i]];
-				XMVECTOR pos = { vertex.Pos.x,vertex.Pos.y,vertex.Pos.z,1.0f };
-				compare(pos);
+				XMVECTOR pos = { vertex.Pos.x,vertex.Pos.y,vertex.Pos.z };
+				compare(pos, meshBoxMin, meshBoxMax);
+				compare(pos, boxMin, boxMax);
 			}
 		}
 
 		mCullData.emplace_back();
-		mCullData.back().Center = {(boxMin.x + boxMax.x) / 2,(boxMin.y + boxMax.y) / 2,(boxMin.z + boxMin.z) / 2};
-		mCullData.back().Extent = {std::abs(boxMax.x - boxMin.x) / 2,std::abs(boxMax.y - boxMin.y) / 2,std::abs(boxMax.z - boxMin.z) / 2};
+		BoundingBox::CreateFromPoints(mBoundingBox, XMLoadFloat3(&boxMin), XMLoadFloat3(&boxMax));
+		mCullData.back().Center = mBoundingBox.Center;
+		mCullData.back().Extent = mBoundingBox.Extents;
 	}
+
+	BoundingBox::CreateFromPoints(mOriginalBoundingBox, XMLoadFloat3(&meshBoxMin), XMLoadFloat3(&meshBoxMax));
+	mBoundingBox = mOriginalBoundingBox;
+	mMeshConstants->Center = mBoundingBox.Center;
+	mMeshConstants->Extents = mBoundingBox.Extents;
 
 	uint32_t cullDataStride = sizeof(CullData);
 	uint32_t cullDataByteSize = mCullData.size() * cullDataStride;
@@ -345,7 +392,7 @@ Carol::vector<Carol::XMFLOAT4X4>& Carol::Model::GetBoneOffsets()
 	return mBoneOffsets;
 }
 
-const Carol::vector<Carol::vector<Carol::vector<Carol::XMFLOAT4X4>>>& Carol::Model::GetAnimationFrames()
+const Carol::vector<Carol::vector<Carol::vector<Carol::XMFLOAT4X4>>>& Carol::Model::GetAnimationTransforms()
 {
 	return mAnimationFrames;
 }
@@ -368,9 +415,9 @@ void Carol::Model::SetAnimationClip(std::wstring clipName)
 	mTimePos = 0.0f;
 }
 
-void Carol::Model::UpdateAnimationClip(Timer& timer, CircularHeap* skinnedCBHeap)
+void Carol::Model::Update(Timer* timer, CircularHeap* skinnedCBHeap)
 {
-	mTimePos += timer.DeltaTime();
+	mTimePos += timer->DeltaTime();
 
 	if (mTimePos > mAnimationClips[mClipName]->GetClipEndTime())
 	{
@@ -399,7 +446,7 @@ void Carol::Model::UpdateAnimationClip(Timer& timer, CircularHeap* skinnedCBHeap
 		XMMATRIX offset = XMLoadFloat4x4(&mBoneOffsets[i]);
 		XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[i]);
 
-		XMStoreFloat4x4(&finalTransforms[i], XMMatrixTranspose(offset * toRoot));
+		XMStoreFloat4x4(&finalTransforms[i], XMMatrixTranspose(XMMatrixMultiply(offset, toRoot)));
 	}
 
 	std::copy(std::begin(mSkinnedConstants->FinalTransforms), std::end(mSkinnedConstants->FinalTransforms), mSkinnedConstants->HistFinalTransforms);

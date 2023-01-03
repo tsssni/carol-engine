@@ -1,5 +1,4 @@
 #include "include/root_signature.hlsli"
-#include "include/screen_tex.hlsli"
 
 static const int gBlurRadius = 5;
 
@@ -8,41 +7,11 @@ cbuffer BlurDirection : register(b3)
     uint gBlurDirection;
 }
 
-struct VertexOut
+struct PixelIn
 {
     float4 PosH : SV_POSITION;
     float2 TexC : TEXCOORD;
 };
-
-[numthreads(6, 1, 1)]
-[OutputTopology("triangle")]
-void MS(
-    uint gtid : SV_GroupThreadID,
-    uint gid : SV_GroupID,
-    out indices uint3 tris[2],
-    out vertices VertexOut verts[6])
-{     
-    SetMeshOutputCounts(6, 2);
-    
-    if (gtid == 0)
-    {
-        tris[gtid] = uint3(0, 1, 2);
-    }
-    else if (gtid == 1)
-    {
-        tris[gtid] = uint3(3, 4, 5);
-    }
-    
-    if (gtid < 6)
-    {
-        VertexOut vout;
-    
-        vout.TexC = gTexCoords[gtid];
-        vout.PosH = float4(2.0f * vout.TexC.x - 1.0f, 1.0f - 2.0f * vout.TexC.y, 0.0f, 1.0f);
-
-        verts[gtid] = vout;
-    }
-}
 
 float NdcDepthToViewDepth(float z_ndc)
 {
@@ -50,7 +19,7 @@ float NdcDepthToViewDepth(float z_ndc)
     return viewZ;
 }
 
-float4 PS(VertexOut pin) : SV_Target
+float4 main(PixelIn pin) : SV_Target
 {
     Texture2D gDepthMap = ResourceDescriptorHeap[gDepthStencilIdx];
     Texture2D gNormalMap = ResourceDescriptorHeap[gNormalIdx];

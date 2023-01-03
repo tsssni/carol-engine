@@ -69,19 +69,20 @@ void Carol::TaaPass::InitShaders()
 		L"SKINNED=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"TaaVelocityStaticMS"] = make_unique<Shader>(L"shader\\velocity.hlsl", nullDefines, L"MS", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"TaaVelocityStaticPS"] = make_unique<Shader>(L"shader\\velocity.hlsl", nullDefines, L"PS", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"TaaVelocitySkinnedMS"] = make_unique<Shader>(L"shader\\velocity.hlsl", skinnedDefines, L"MS", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"TaaVelocitySkinnedPS"] = make_unique<Shader>(L"shader\\velocity.hlsl", skinnedDefines, L"PS", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"TaaOutputMS"] = make_unique<Shader>(L"shader\\taa.hlsl", nullDefines, L"MS", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"TaaOutputPS"] = make_unique<Shader>(L"shader\\taa.hlsl", nullDefines, L"PS", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"TaaVelocityStaticMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+	(*mGlobalResources->Shaders)[L"TaaVelocityStaticPS"] = make_unique<Shader>(L"shader\\velocity_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"TaaVelocitySkinnedMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+	(*mGlobalResources->Shaders)[L"TaaVelocitySkinnedPS"] = make_unique<Shader>(L"shader\\velocity_ps.hlsl", skinnedDefines, L"main", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"TaaOutputPS"] = make_unique<Shader>(L"shader\\taa_ps.hlsl", nullDefines, L"main", L"ps_6_6");
 }
 
 void Carol::TaaPass::InitPSOs()
 {
 	auto velocityStaticPsoDesc = *mGlobalResources->BasePsoDesc;
+	auto velocityStaticAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
 	auto velocityStaticMS = (*mGlobalResources->Shaders)[L"TaaVelocityStaticMS"].get();
 	auto velocityStaticPS = (*mGlobalResources->Shaders)[L"TaaVelocityStaticPS"].get();
+	velocityStaticPsoDesc.AS = { reinterpret_cast<byte*>(velocityStaticAS->GetBufferPointer()),velocityStaticAS->GetBufferSize() };
 	velocityStaticPsoDesc.MS = { reinterpret_cast<byte*>(velocityStaticMS->GetBufferPointer()),velocityStaticMS->GetBufferSize() };
 	velocityStaticPsoDesc.PS = { reinterpret_cast<byte*>(velocityStaticPS->GetBufferPointer()),velocityStaticPS->GetBufferSize() };
 	velocityStaticPsoDesc.RTVFormats[0] = mVelocityMapFormat;
@@ -103,7 +104,7 @@ void Carol::TaaPass::InitPSOs()
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&velocitySkinnedStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"VelocitySkinned"].GetAddressOf())));
 
 	auto outputPsoDesc = *mGlobalResources->BasePsoDesc;
-	auto outputMS = (*mGlobalResources->Shaders)[L"TaaOutputMS"].get();
+	auto outputMS = (*mGlobalResources->Shaders)[L"ScreenMS"].get();
 	auto outputPS = (*mGlobalResources->Shaders)[L"TaaOutputPS"].get();
 	outputPsoDesc.MS = { reinterpret_cast<byte*>(outputMS->GetBufferPointer()),outputMS->GetBufferSize() };
 	outputPsoDesc.PS = { reinterpret_cast<byte*>(outputPS->GetBufferPointer()),outputPS->GetBufferSize() };

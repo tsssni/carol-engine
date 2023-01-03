@@ -17,6 +17,7 @@ namespace Carol {
 	using std::vector;
 	using std::wstring;
 	using std::make_unique;
+	using namespace DirectX;
 }
 
 Carol::ShadowPass::ShadowPass(GlobalResources* globalResources, Light light, uint32_t width, uint32_t height, DXGI_FORMAT shadowFormat, DXGI_FORMAT shadowDsvFormat, DXGI_FORMAT shadowSrvFormat)
@@ -48,18 +49,20 @@ void Carol::ShadowPass::Draw()
 
 void Carol::ShadowPass::Update()
 {
-	DirectX::XMMATRIX view = mCamera->GetView();
-	DirectX::XMMATRIX proj = mCamera->GetProj();
-	DirectX::XMMATRIX viewProj = DirectX::XMMatrixMultiply(view, proj);
-	static DirectX::XMMATRIX tex(
+	XMMATRIX view = mCamera->GetView();
+	XMMATRIX proj = mCamera->GetProj();
+	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+	static XMMATRIX tex(
 		0.5f, 0.0f, 0.0f, 0.0f,
 		0.0f, -0.5f, 0.0f, 0.0f,
 		0.0f, 0.0f, 1.0f, 0.0f,
 		0.5f, 0.5f, 0.0f, 1.0f
 	);
-
-	DirectX::XMStoreFloat4x4(&mLight->ViewProj, DirectX::XMMatrixTranspose(viewProj));
-	DirectX::XMStoreFloat4x4(&mLight->ViewProjTex, DirectX::XMMatrixTranspose(DirectX::XMMatrixMultiply(viewProj, tex)));
+	
+	XMStoreFloat4x4(&mLight->View, XMMatrixTranspose(view));
+	XMStoreFloat4x4(&mLight->Proj, XMMatrixTranspose(proj));
+	XMStoreFloat4x4(&mLight->ViewProj, XMMatrixTranspose(viewProj));
+	XMStoreFloat4x4(&mLight->ViewProjTex, XMMatrixTranspose(DirectX::XMMatrixMultiply(viewProj, tex)));
 }
 
 void Carol::ShadowPass::OnResize()
@@ -152,14 +155,17 @@ void Carol::ShadowPass::InitShaders()
 		L"SKINNED=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"ShadowStaticMS"] = make_unique<Shader>(L"shader\\shadow.hlsl", nullDefines, L"MS", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"ShadowSkinnedMS"] = make_unique<Shader>(L"shader\\shadow.hlsl", skinnedDefines, L"MS", L"ms_6_6");
+	(*mGlobalResources->Shaders)[L"ShadowAS"] = make_unique<Shader>(L"shader\\shadow_as.hlsl", nullDefines, L"main", L"as_6_6");
+	(*mGlobalResources->Shaders)[L"ShadowStaticMS"] = make_unique<Shader>(L"shader\\shadow_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+	(*mGlobalResources->Shaders)[L"ShadowSkinnedMS"] = make_unique<Shader>(L"shader\\shadow_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
 }
 
 void Carol::ShadowPass::InitPSOs()
 {
 	auto shadowStaticPsoDesc = *mGlobalResources->BasePsoDesc;
+	auto shadowStaticAS = (*mGlobalResources->Shaders)[L"ShadowAS"].get();
 	auto shadowStaticMS = (*mGlobalResources->Shaders)[L"ShadowStaticMS"].get();
+	shadowStaticPsoDesc.AS = { reinterpret_cast<byte*>(shadowStaticAS->GetBufferPointer()),shadowStaticAS->GetBufferSize() };
 	shadowStaticPsoDesc.MS = { reinterpret_cast<byte*>(shadowStaticMS->GetBufferPointer()),shadowStaticMS->GetBufferSize() };
 	shadowStaticPsoDesc.NumRenderTargets = 0;
 	shadowStaticPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;

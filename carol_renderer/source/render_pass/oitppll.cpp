@@ -102,18 +102,16 @@ void Carol::OitppllPass::InitShaders()
 		L"TAA=1",L"SSAO=1",L"SKINNED=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"BuildStaticOitppllMS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", staticDefines, L"MS", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"BuildStaticOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", staticDefines, L"PS", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllMS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", skinnedDefines, L"MS", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build.hlsl", skinnedDefines, L"PS", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"DrawOitppllMS"] = make_unique<Shader>(L"shader\\oitppll.hlsl", nullDefines, L"MS", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"DrawOitppllPS"] = make_unique<Shader>(L"shader\\oitppll.hlsl", nullDefines, L"PS", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"BuildStaticOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", staticDefines, L"main", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", skinnedDefines, L"main", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"DrawOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_ps.hlsl", nullDefines, L"main", L"ps_6_6");
 }
 
 void Carol::OitppllPass::InitPSOs()
 {
 	auto buildStaticOitppllPsoDesc = *mGlobalResources->BasePsoDesc;
-	auto buildStaicOitppllMS = (*mGlobalResources->Shaders)[L"BuildStaticOitppllMS"].get();
+	auto buildStaticOitppllAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
+	auto buildStaicOitppllMS = (*mGlobalResources->Shaders)[L"OpaqueStaticMS"].get();
 	auto buildStaticOitppllPS = (*mGlobalResources->Shaders)[L"BuildStaticOitppllPS"].get();
 	buildStaticOitppllPsoDesc.MS = { reinterpret_cast<byte*>(buildStaicOitppllMS->GetBufferPointer()),buildStaicOitppllMS->GetBufferSize() };
 	buildStaticOitppllPsoDesc.PS = { reinterpret_cast<byte*>(buildStaticOitppllPS->GetBufferPointer()),buildStaticOitppllPS->GetBufferSize() };
@@ -131,7 +129,7 @@ void Carol::OitppllPass::InitPSOs()
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&buildStaticOitppllStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"BuildStaticOitppll"].GetAddressOf())));
 
 	auto buildSkinnedOitppllPsoDesc = buildStaticOitppllPsoDesc;
-	auto buildSkinnedOitppllMS = (*mGlobalResources->Shaders)[L"BuildSkinnedOitppllMS"].get();
+	auto buildSkinnedOitppllMS = (*mGlobalResources->Shaders)[L"OpaqueSkinnedMS"].get();
 	auto buildSkinnedOitppllPS = (*mGlobalResources->Shaders)[L"BuildSkinnedOitppllPS"].get();
 	buildSkinnedOitppllPsoDesc.MS = { reinterpret_cast<byte*>(buildSkinnedOitppllMS->GetBufferPointer()),buildSkinnedOitppllMS->GetBufferSize() };
 	buildSkinnedOitppllPsoDesc.PS = { reinterpret_cast<byte*>(buildSkinnedOitppllPS->GetBufferPointer()),buildSkinnedOitppllPS->GetBufferSize() };
@@ -142,7 +140,7 @@ void Carol::OitppllPass::InitPSOs()
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&buildSkinnedOitppllStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].GetAddressOf())));
 
 	auto drawOitppllPsoDesc = *mGlobalResources->BasePsoDesc;
-	auto drawStaicOitppllMS = (*mGlobalResources->Shaders)[L"DrawOitppllMS"].get();
+	auto drawStaicOitppllMS = (*mGlobalResources->Shaders)[L"ScreenMS"].get();
 	auto drawOitppllPS = (*mGlobalResources->Shaders)[L"DrawOitppllPS"].get();
 	drawOitppllPsoDesc.MS = { reinterpret_cast<byte*>(drawStaicOitppllMS->GetBufferPointer()),drawStaicOitppllMS->GetBufferSize() };
 	drawOitppllPsoDesc.PS = { reinterpret_cast<byte*>(drawOitppllPS->GetBufferPointer()),drawOitppllPS->GetBufferSize() };

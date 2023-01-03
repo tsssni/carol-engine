@@ -5,11 +5,17 @@ cbuffer MeshCB : register(b0)
 {
     float4x4 gWorld;
     float4x4 gHistWorld;
+    
+    float3 gCenter;
+    uint gMeshletCount;
+    float3 gExtents;
+    float gMeshPad0;
+    
     float3 gFresnelR0;
     float gRoughness;
 }
 
-cbuffer MeshCB : register(b1)
+cbuffer MeshConstants : register(b1)
 {
     uint gVertexIdx;
     uint gMeshletIdx;
@@ -34,18 +40,34 @@ struct Meshlet
     uint PrimCount;
 };
 
+struct CullData
+{
+    float3 Center;
+    float3 Extents;
+};
+
+struct MeshIn
+{
+    float3 PosL : POSITION;
+    float3 NormalL : NORMAL;
+    float3 TangentL : TANGENT;
+    float2 TexC : TEXCOORD;
+    float3 BoneWeights : WEIGHTS;
+    uint4 BoneIndices : BONEINDICES;
+};
+
 uint3 UnpackPrim(uint prim)
 {
     return uint3(prim & 0x3FF, (prim >> 10) & 0x3FF, (prim >> 20) & 0x3FF);
 }
 
 #ifdef SKINNED
-VertexIn SkinnedTransform(VertexIn vin)
+MeshIn SkinnedTransform(MeshIn min)
 {
     float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    weights[0] = vin.BoneWeights.x;
-    weights[1] = vin.BoneWeights.y;
-    weights[2] = vin.BoneWeights.z;
+    weights[0] = min.BoneWeights.x;
+    weights[1] = min.BoneWeights.y;
+    weights[2] = min.BoneWeights.z;
     weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
     
     float3 posL = float3(0.0f, 0.0f, 0.0f);
@@ -55,16 +77,16 @@ VertexIn SkinnedTransform(VertexIn vin)
     [unroll]
     for(int i = 0; i < 4; ++i)
     {
-        posL += weights[i] * mul(float4(vin.PosL, 1.0f), gBoneTransforms[vin.BoneIndices[i]]).xyz;
-        normalL += weights[i] * mul(float4(vin.NormalL, 0.0f), gBoneTransforms[vin.BoneIndices[i]]).xyz;
-        tangentL += weights[i] * mul(float4(vin.TangentL, 0.0f), gBoneTransforms[vin.BoneIndices[i]]).xyz;    
+        posL += weights[i] * mul(float4(min.PosL, 1.0f), gBoneTransforms[min.BoneIndices[i]]).xyz;
+        normalL += weights[i] * mul(float4(min.NormalL, 0.0f), gBoneTransforms[min.BoneIndices[i]]).xyz;
+        tangentL += weights[i] * mul(float4(min.TangentL, 0.0f), gBoneTransforms[min.BoneIndices[i]]).xyz;    
     }
     
-    vin.PosL = posL;
-    vin.NormalL = normalL;
-    vin.TangentL = tangentL;
+    min.PosL = posL;
+    min.NormalL = normalL;
+    min.TangentL = tangentL;
     
-    return vin;
+    return min;
 }
 #endif
 

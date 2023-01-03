@@ -4,22 +4,130 @@
 #include <dx12/descriptor_allocator.h>
 #include <scene/assimp.h>
 #include <scene/timer.h>
+#include <scene/camera.h>
 #include <scene/texture.h>
 
 namespace Carol
 {
 	using std::vector;
 	using std::wstring;
+	using std::unordered_map;
 	using std::make_unique;
 	using namespace DirectX;
 	
 }
 
+Carol::Octree::Octree(BoundingBox sceneBoundingBox, float looseFactor)
+	:mLooseFactor(looseFactor)
+{
+	mRootNode = make_unique<OctreeNode>();
+	mRootNode->BoundingBox = sceneBoundingBox;
+	mRootNode->LooseBoundingBox = ExtendBoundingBox(mRootNode->BoundingBox);
+}
+Carol::Octree::Octree(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax, float looseFactor)
+{
+	BoundingBox box;
+	BoundingBox::CreateFromPoints(box, boxMin, boxMax);
+
+	this->Octree::Octree(box, looseFactor);
+}
+void Carol::Octree::Insert(Mesh* mesh)
+{
+	ProcessNode(mRootNode.get(), mesh);
+}
+
+void Carol::Octree::Delete(Mesh* mesh)
+{
+	auto node = mesh->GetOctreeNode();
+
+	for (auto itr = node->Meshes.begin(); itr != node->Meshes.end(); ++itr)
+	{
+		if (*itr == mesh)
+		{
+			node->Meshes.erase(itr);
+			break;
+		}
+	}
+}
+
+void Carol::Octree::Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes)
+{
+	ProcessContainment(mRootNode.get(), camera, meshes);
+}
+
+bool Carol::Octree::ProcessNode(OctreeNode* node, Mesh* mesh)
+{
+	auto b = mesh->GetBoundingBox();
+	if (node->LooseBoundingBox.Contains(mesh->GetBoundingBox()) == ContainmentType::CONTAINS)
+	{
+		if (node->Children.size() == 0)
+		{
+			DevideBoundingBox(node);
+		}
+
+		node->Meshes.push_back(mesh);
+		mesh->SetOctreeNode(node);
+		return true;
+	}
+	else
+	{
+	return false;
+	}
+}
+
+void Carol::Octree::ProcessContainment(OctreeNode* node, Camera* camera, vector<vector<Mesh*>>& meshes)
+{
+	if (camera->Contains(node->LooseBoundingBox))
+	{
+		for (auto& mesh : node->Meshes)
+		{
+			if (camera->Contains(mesh->GetBoundingBox()))
+			{
+				uint32_t type = mesh->IsSkinned() | (mesh->IsTransparent() << 1);
+				meshes[type].push_back(mesh);
+			}
+		}
+
+		for (int i = 0; i < node->Children.size(); ++i)
+		{
+			ProcessContainment(node->Children[i].get(), camera, meshes);
+		}
+	}
+}
+
+Carol::BoundingBox Carol::Octree::ExtendBoundingBox(const DirectX::BoundingBox& box)
+{
+	BoundingBox extendedBox = box;
+	auto extent = XMLoadFloat3(&extendedBox.Extents);
+	extent *= mLooseFactor;
+	XMStoreFloat3(&extendedBox.Extents, extent);
+	return extendedBox;
+}
+
+void Carol::Octree::DevideBoundingBox(OctreeNode* node)
+{
+	node->Children.resize(8);
+	auto center = XMLoadFloat3(&node->BoundingBox.Center);
+	XMVECTOR extents;
+	static float dx[8] = { -1,1,-1,1,-1,1,-1,1 };
+	static float dy[8] = { -1,-1,1,1,-1,-1,1,1 };
+	static float dz[8] = { -1,-1,-1,-1,1,1,1,1 };
+	for (int i = 0; i < 8; ++i)
+	{
+		extents = XMLoadFloat3(GetRvaluePtr(XMFLOAT3{
+			node->BoundingBox.Extents.x * dx[i],
+			node->BoundingBox.Extents.y * dy[i],
+			node->BoundingBox.Extents.z * dz[i]
+			}));
+		node->Children[i] = make_unique<OctreeNode>();
+		BoundingBox::CreateFromPoints(node->Children[i]->BoundingBox, center, center + extents);
+		node->Children[i]->LooseBoundingBox = ExtendBoundingBox(node->Children[i]->BoundingBox);
+	}
+}
+
 Carol::SceneNode::SceneNode()
 {
 	XMStoreFloat4x4(&Transformation, XMMatrixIdentity());
-	XMStoreFloat4x4(&HistTransformation, XMMatrixIdentity());
-	WorldAllocInfo = make_unique<HeapAllocInfo>();
 }
 
 Carol::Scene::Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* texHeap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator)
@@ -76,7 +184,11 @@ void Carol::Scene::LoadModel(std::wstring name, std::wstring path, std::wstring 
 
 	for (auto& meshMapPair : mModels[name]->GetMeshes())
 	{
+		wstring meshName = name + L'_' + meshMapPair.first;
 		auto& mesh = meshMapPair.second;
+
+		uint32_t type = mesh->IsSkinned() | (mesh->IsTransparent() << 1);
+		mMeshes[type][meshName] = mesh.get();
 	}
 }
 
@@ -94,7 +206,9 @@ void Carol::Scene::LoadGround()
 
 	for (auto& meshMapPair : mModels[L"Ground"]->GetMeshes())
 	{
+		wstring meshName = L"Ground_" + meshMapPair.first;
 		auto& mesh = meshMapPair.second;
+		mMeshes[OPAQUE_STATIC][meshName] = mesh.get();
 	}
 }
 
@@ -115,6 +229,15 @@ void Carol::Scene::UnloadModel(std::wstring modelName)
 		}
 	}
 
+	for (auto& meshMapPair : mModels[modelName]->GetMeshes())
+	{
+		wstring meshName = modelName + L"_" + meshMapPair.first;
+		auto& mesh = meshMapPair.second;
+
+		uint32_t type = mesh->IsSkinned() | (mesh->IsTransparent() << 1);
+		mMeshes[type].erase(meshName);
+	}
+
 	mModels.erase(modelName);
 }
 
@@ -132,21 +255,14 @@ void Carol::Scene::ReleaseIntermediateBuffers(std::wstring modelName)
 	mModels[modelName]->ReleaseIntermediateBuffers();
 }
 
-Carol::vector<Carol::RenderNode>& Carol::Scene::GetMeshes(uint32_t type)
+const Carol::unordered_map<Carol::wstring, Carol::Mesh*>& Carol::Scene::GetMeshes(uint32_t type)
 {
-	if (type >= 0 && type < MESH_TYPE_COUNT)
-	{
-		return mMeshes[type];
-	}
-	else
-	{
-		return mMeshes[0];
-	}
+	return mMeshes[type];
 }
 
-Carol::RenderNode Carol::Scene::GetSkyBox()
+Carol::Mesh* Carol::Scene::GetSkyBox()
 {
-	return mSkyBoxNode;
+	return mSkyBox->GetMesh(L"SkyBox");
 }
 
 void Carol::Scene::SetWorld(std::wstring modelName, DirectX::XMMATRIX world)
@@ -165,72 +281,36 @@ void Carol::Scene::SetAnimationClip(std::wstring modelName, std::wstring clipNam
 	mModels[modelName]->SetAnimationClip(clipName);
 }
 
-void Carol::Scene::Update(Timer& timer)
+void Carol::Scene::Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes)
 {
-	for (auto& meshes : mMeshes)
-	{
-		meshes.clear();
-	}
+}
 
+void Carol::Scene::Update(Camera* camera, Timer* timer)
+{
 	for (auto& modelMapPair : mModels)
 	{
 		auto& model = modelMapPair.second;
 		if (model->IsSkinned())
 		{
-			model->UpdateAnimationClip(timer, mSkinnedCBHeap.get());
+			model->Update(timer, mSkinnedCBHeap.get());
 		}
 	}
 
-	ProcessNode(mRootNode.get(), XMMatrixIdentity(), XMMatrixIdentity());
-	UpdateSkyBox();
+	ProcessNode(mRootNode.get(), XMMatrixIdentity());
 }
 
-void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot, DirectX::XMMATRIX histParentToRoot)
+void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot)
 {
 	XMMATRIX toParent = XMLoadFloat4x4(&node->Transformation);
-	XMMATRIX histToParent = XMLoadFloat4x4(&node->HistTransformation);
 	XMMATRIX world = toParent * parentToRoot;
-	XMMATRIX histWorld = histToParent * histParentToRoot;
 
 	for(auto& mesh : node->Meshes)
 	{
-		MeshConstants meshConstants;
-		Material mat = mesh->GetMaterial();
-
-		XMStoreFloat4x4(&meshConstants.World, XMMatrixTranspose(world));
-		XMStoreFloat4x4(&meshConstants.HistWorld, XMMatrixTranspose(histWorld));
-		meshConstants.FresnelR0 = mat.FresnelR0;
-		meshConstants.Roughness = mat.Roughness;
-
-		mMeshCBHeap->DeleteResource(node->WorldAllocInfo.get());
-		mMeshCBHeap->CreateResource(node->WorldAllocInfo.get());
-		mMeshCBHeap->CopyData(node->WorldAllocInfo.get(), &meshConstants);
-
-		RenderNode renderNode;
-		renderNode.Mesh = mesh;
-		renderNode.WorldGPUVirtualAddress = mMeshCBHeap->GetGPUVirtualAddress(node->WorldAllocInfo.get());
-
-		uint32_t type = mesh->IsSkinned() | (mesh->IsTransparent() << 1);
-		mMeshes[type].push_back(renderNode);
+		mesh->Update(world, mMeshCBHeap.get());
 	}
-
-	node->HistTransformation = node->Transformation;
 
 	for (auto& child : node->Children)
 	{
-		ProcessNode(child.get(), world, histWorld);
+		ProcessNode(child.get(), world);
 	}
-}
-
-void Carol::Scene::UpdateSkyBox()
-{
-	static HeapAllocInfo skyBoxInfo;
-	static SceneNode skyBoxNode;
-
-	mMeshCBHeap->DeleteResource(&skyBoxInfo);
-	mMeshCBHeap->CreateResource(&skyBoxInfo);
-	mMeshCBHeap->CopyData(&skyBoxInfo, &skyBoxNode.Transformation);
-
-	mSkyBoxNode.Mesh = mSkyBox->GetMesh(L"SkyBox");
-	mSkyBoxNode.WorldGPUVirtualAddress = mMeshCBHeap->GetGPUVirtualAddress(&skyBoxInfo);
 }

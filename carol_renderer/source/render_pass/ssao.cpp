@@ -218,10 +218,9 @@ void Carol::SsaoPass::InitShaders()
         L"SKINNED=1"
     };
 
-    (*mGlobalResources->Shaders)[L"SsaoMS"] = make_unique<Shader>(L"shader\\ssao.hlsl", nullDefines, L"MS", L"ms_6_6");
-    (*mGlobalResources->Shaders)[L"SsaoPS"] = make_unique<Shader>(L"shader\\ssao.hlsl", nullDefines, L"PS", L"ps_6_6");
-    (*mGlobalResources->Shaders)[L"SsaoBlurMS"] = make_unique<Shader>(L"shader\\ssao_blur.hlsl", nullDefines, L"MS", L"ms_6_6");
-    (*mGlobalResources->Shaders)[L"SsaoBlurPS"] = make_unique<Shader>(L"shader\\ssao_blur.hlsl", nullDefines, L"PS", L"ps_6_6");
+    (*mGlobalResources->Shaders)[L"SsaoMS"] = make_unique<Shader>(L"shader\\ssao_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+    (*mGlobalResources->Shaders)[L"SsaoPS"] = make_unique<Shader>(L"shader\\ssao_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+    (*mGlobalResources->Shaders)[L"SsaoBlurPS"] = make_unique<Shader>(L"shader\\ssao_blur_ps.hlsl", nullDefines, L"main", L"ps_6_6");
 }
 
 void Carol::SsaoPass::InitPSOs()
@@ -241,7 +240,7 @@ void Carol::SsaoPass::InitPSOs()
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&ssaoStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"Ssao"].GetAddressOf())));
 
     auto blurPsoDesc = ssaoPsoDesc;
-    auto blurMS = (*mGlobalResources->Shaders)[L"SsaoBlurMS"].get();
+    auto blurMS = (*mGlobalResources->Shaders)[L"ScreenMS"].get();
     auto blurPS = (*mGlobalResources->Shaders)[L"SsaoBlurPS"].get();
     blurPsoDesc.MS = { reinterpret_cast<byte*>(blurMS->GetBufferPointer()),blurMS->GetBufferSize() };
     blurPsoDesc.PS = { reinterpret_cast<byte*>(blurPS->GetBufferPointer()),blurPS->GetBufferSize() };

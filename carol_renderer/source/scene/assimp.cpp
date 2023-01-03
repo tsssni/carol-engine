@@ -42,6 +42,8 @@ Carol::AssimpModel::AssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList*
 
 	LoadAssimpSkinnedData(scene);
 	ProcessNode(scene->mRootNode, rootNode, scene);
+	mAnimationFrames.clear();
+	mAnimationFrames.shrink_to_fit();
 }
 
 void Carol::AssimpModel::ProcessNode(aiNode* node, SceneNode* sceneNode, const aiScene* scene)
@@ -244,13 +246,16 @@ void Carol::AssimpModel::InsertBoneWeightToVertex(Vertex& vertex, uint32_t boneI
 
 void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 {
+	vector<vector<vector<XMFLOAT4X4>>> animationFrames;
+	uint32_t boneCount = mBoneHierarchy.size();
+
 	for (int i = 0; i < scene->mNumAnimations; ++i)
 	{
 		auto* animation = scene->mAnimations[i];
 
 		unique_ptr<AnimationClip> animationClip = make_unique<AnimationClip>();
 		vector<BoneAnimation>& boneAnimations=animationClip->BoneAnimations;
-		boneAnimations.resize(mBoneIndices.size());
+		boneAnimations.resize(boneCount);
 
 		float ticksPerSecond = animation->mTicksPerSecond != 0 ? animation->mTicksPerSecond : 25.0f;
 		float timePerTick = 1.0f / ticksPerSecond;
@@ -305,9 +310,41 @@ void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 			
 		}
 
-		mAnimationFrames.emplace_back();
-		animationClip->GetFrames(mAnimationFrames.back());
+		animationFrames.emplace_back();
+		animationClip->GetFrames(animationFrames.back());
 		mAnimationClips[StringToWString(animation->mName.C_Str())] = std::move(animationClip);
+	}
+
+	for (auto& frames : animationFrames)
+	{
+		vector<vector<XMFLOAT4X4>> frameTransforms;
+
+		for (auto& toParentTransforms : frames)
+		{
+			vector<XMFLOAT4X4> toRootTransforms(boneCount);
+			vector<XMFLOAT4X4> finalTransforms(boneCount);
+
+			for (int i = 0; i < boneCount; ++i)
+			{
+				XMMATRIX toParent = XMLoadFloat4x4(&toParentTransforms[i]);
+				XMMATRIX parentToRoot = mBoneHierarchy[i] != -1 ? XMLoadFloat4x4(&toRootTransforms[mBoneHierarchy[i]]) : XMMatrixIdentity();
+
+				XMMATRIX toRoot = toParent * parentToRoot;
+				XMStoreFloat4x4(&toRootTransforms[i], toRoot);
+			}
+
+			for (int i = 0; i < boneCount; ++i)
+			{
+				XMMATRIX offset = XMLoadFloat4x4(&mBoneOffsets[i]);
+				XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[i]);
+
+				XMStoreFloat4x4(&finalTransforms[i], XMMatrixMultiply(offset, toRoot));
+			}
+			
+			frameTransforms.emplace_back(std::move(finalTransforms));
+		}
+
+		mAnimationFrames.emplace_back(std::move(frameTransforms));
 	}
 }
 

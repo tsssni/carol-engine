@@ -142,10 +142,10 @@ void Carol::BoneAnimation::GetFrames(std::vector<DirectX::XMFLOAT4X4>& M)const
 
 	for (int i = 0; i < size; ++i)
 	{
-		auto S = XMLoadFloat3(&ScaleKeyframes[i].Scale);
-		auto Q = XMLoadFloat4(&RotationQuatKeyframes[i].RotationQuat);
-		auto T = XMLoadFloat3(&TranslationKeyframes[i].Translation);
-		XMVECTOR origin = { 0.0f,0.0f,0.0f,0.0f };
+		XMVECTOR S = XMLoadFloat3(&ScaleKeyframes[i].Scale);
+		XMVECTOR Q = XMLoadFloat4(&RotationQuatKeyframes[i].RotationQuat);
+		XMVECTOR T = XMLoadFloat3(&TranslationKeyframes[i].Translation);
+		XMVECTOR origin = { 0.0f,0.0f,0.0f,1.0f };
 		XMStoreFloat4x4(&M[i], XMMatrixAffineTransformation(S, origin, Q, T));
 	}
 }
@@ -199,10 +199,10 @@ void Carol::AnimationClip::GetFrames(std::vector<std::vector<DirectX::XMFLOAT4X4
 
 	for (int i = 0; i < maxFrame; ++i)
 	{
+		frames[i].resize(size);
+
 		for (int j = 0; j < size; ++j)
 		{
-			frames[i].resize(size);
-
 			if (i >= M[j].size())
 			{
 				frames[i][j] = identity;

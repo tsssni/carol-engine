@@ -51,22 +51,6 @@ namespace Carol
 		float OcclusionFadeEnd = 1.0f;
 		float SurfaceEplison = 0.05f;
 
-		// Resources
-		uint32_t FrameIdx;
-		uint32_t DepthStencilIdx;
-		uint32_t NormalIdx;
-		uint32_t ShadowIdx;
-		uint32_t OitW;
-		uint32_t OitOffsetW;
-		uint32_t OitCounterW;
-		uint32_t OitR;
-		uint32_t OitOffsetR;
-		uint32_t RandVecIdx;
-		uint32_t AmbientIdx;
-		uint32_t VelocityIdx;
-		uint32_t HistIdx;
-		DirectX::XMUINT3 FramePad2;
-
 		Light Lights[MAX_LIGHTS];
 	};
  
@@ -105,6 +89,24 @@ namespace Carol
         void ReleaseIntermediateBuffers();
 
     protected:
+		enum
+		{
+			FRAME_IDX,
+			DEPTH_STENCIL_IDX,
+			NORMAL_IDX,
+			SHADOW_IDX,
+			OIT_W_IDX,
+			OIT_OFFSET_W_IDX,
+			OIT_COUNTER_IDX,
+			OIT_R_IDX,
+			OIT_OFFSET_R_IDX,
+			RAND_VEC_IDX,
+			AMBIENT_IDX,
+			VELOCITY_IDX,
+			HIST_IDX,
+			FRAME_IDX_COUNT
+		};
+
 		std::unique_ptr<Scene> mScene;
         std::unique_ptr<FramePass> mFrame;
         std::unique_ptr<SsaoPass> mSsao;
@@ -114,6 +116,7 @@ namespace Carol
         std::unique_ptr<OitppllPass> mOitppll;
         std::unique_ptr<MeshesPass> mMeshes;
 
+		std::vector<uint32_t> mFrameIdx;
 		std::unique_ptr<FrameConstants> mFrameConstants;
         std::unique_ptr<HeapAllocInfo> mFrameCBAllocInfo;
         std::unique_ptr<CircularHeap> mFrameCBHeap;

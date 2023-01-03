@@ -26,6 +26,8 @@ struct Light
     float3 Ambient;
     float LightPad0;
     
+    float4x4 View;
+    float4x4 Proj;
     float4x4 ViewProj;
     float4x4 ViewProjTex;
 };

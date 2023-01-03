@@ -19,11 +19,12 @@ namespace Carol
 		ID3D12RootSignature* Get();
 
 		enum {
-			WORLD_CB,
+			MESH_CB,
 			MESH_CONSTANTS,
 			SKINNED_CB,
 			PASS_CONSTANTS,
 			FRAME_CB,
+			FRAME_CONSTANTS,
 			ROOT_SIGNATURE_COUNT
 		};
 

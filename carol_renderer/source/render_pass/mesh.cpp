@@ -1,12 +1,16 @@
 #include <render_pass/mesh.h>
 #include <render_pass/global_resources.h>
 #include <render_pass/shadow.h>
-#include <scene/scene.h>
-#include <scene/model.h>
 #include <dx12/heap.h>
 #include <dx12/descriptor_allocator.h>
 #include <dx12/root_signature.h>
+#include <scene/scene.h>
+#include <scene/model.h>
+#include <scene/camera.h>
 #include <utils/common.h>
+#include <cmath>
+
+#define AS_GROUP_SIZE 32
 
 namespace Carol {
 	using std::vector;
@@ -45,9 +49,10 @@ void Carol::MeshesPass::DrawMeshes(const std::vector<ID3D12PipelineState*>& pso)
 		if (pso[i])
 		{
 			mGlobalResources->CommandList->SetPipelineState(pso[i]);
-			for (auto& renderNode : mGlobalResources->Scene->GetMeshes(i))
+			for (auto& meshMapPair : mGlobalResources->Scene->GetMeshes(i))
 			{
-				Draw(&renderNode);
+				auto& mesh = meshMapPair.second;
+				Draw(mesh);
 			}
 		}
 	}
@@ -56,7 +61,7 @@ void Carol::MeshesPass::DrawMeshes(const std::vector<ID3D12PipelineState*>& pso)
 void Carol::MeshesPass::DrawSkyBox(ID3D12PipelineState* skyBoxPSO)
 {
 	mGlobalResources->CommandList->SetPipelineState(skyBoxPSO);
-	Draw(GetRvaluePtr(mGlobalResources->Scene->GetSkyBox()));
+	Draw(mGlobalResources->Scene->GetSkyBox());
 }
 
 void Carol::MeshesPass::InitShaders()
@@ -75,15 +80,15 @@ void Carol::MeshesPass::InitDescriptors()
 {
 }
 
-void Carol::MeshesPass::Draw(RenderNode* renderNode)
+void Carol::MeshesPass::Draw(Mesh* mesh)
 {
-	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::WORLD_CB, renderNode->WorldGPUVirtualAddress);
-	mGlobalResources->CommandList->SetGraphicsRoot32BitConstants(RootSignature::MESH_CONSTANTS, Mesh::TEX_IDX_COUNT, renderNode->Mesh->GetTexIdx().data(), 0);
+	mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::MESH_CB, mesh->GetMeshCBGPUVirtualAddress());
+	mGlobalResources->CommandList->SetGraphicsRoot32BitConstants(RootSignature::MESH_CONSTANTS, Mesh::MESH_IDX_COUNT, mesh->GetMeshIdxData(), 0);
 
-	if (renderNode->Mesh->IsSkinned())
+	if (mesh->IsSkinned())
 	{
-		mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::SKINNED_CB, renderNode->Mesh->GetSkinnedCBGPUVirtualAddress());
+		mGlobalResources->CommandList->SetGraphicsRootConstantBufferView(RootSignature::SKINNED_CB, mesh->GetSkinnedCBGPUVirtualAddress());
 	}
 
-	mGlobalResources->CommandList->DispatchMesh(renderNode->Mesh->GetMeshletSize(), 1, 1);
+	mGlobalResources->CommandList->DispatchMesh(ceilf(mesh->GetMeshletSize() * 1.f / AS_GROUP_SIZE), 1, 1);
 }

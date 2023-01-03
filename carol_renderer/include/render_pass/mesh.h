@@ -9,9 +9,10 @@
 
 namespace Carol
 {
+	class Mesh;
+	class Camera;
 	class GlobalResources;
 	class CircularHeap;
-	class RenderNode;
 
 	class MeshesPass : public RenderPass
 	{
@@ -23,7 +24,7 @@ namespace Carol
 		virtual void Update()override;
 		virtual void OnResize()override;
 		virtual void ReleaseIntermediateBuffers()override;
-	
+		
 		void DrawMeshes(const std::vector<ID3D12PipelineState*>& pso);
 		void DrawSkyBox(ID3D12PipelineState* skyBoxPSO);
 
@@ -33,7 +34,7 @@ namespace Carol
 		virtual void InitResources()override;
 		virtual void InitDescriptors()override;
 		
-		void Draw(RenderNode* renderNode);
+		void Draw(Mesh* renderNode);
 
 		enum
 		{

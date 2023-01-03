@@ -33,6 +33,11 @@ cbuffer FrameCB : register(b4)
     float gOcclusionFadeEnd;
     float gSurfaceEplison;
 
+    Light gLights[MAX_LIGHTS];
+}
+
+cbuffer FrameConstants : register(b5)
+{
     uint gFrameIdx;
     uint gDepthStencilIdx;
     uint gNormalIdx;
@@ -46,9 +51,6 @@ cbuffer FrameCB : register(b4)
     uint gAmbientIdx;
     uint gVelocityIdx;
     uint gHistIdx;
-    uint3 gFramePad2;
-
-    Light gLights[MAX_LIGHTS];
 }
 
 SamplerState gsamPointWrap : register(s0);
@@ -58,15 +60,5 @@ SamplerState gsamLinearClamp : register(s3);
 SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
 SamplerComparisonState gsamShadow : register(s6);
-
-struct VertexIn
-{
-    float3 PosL : POSITION;
-    float3 NormalL : NORMAL;
-    float3 TangentL : TANGENT;
-    float2 TexC : TEXCOORD;
-    float3 BoneWeights : WEIGHTS;
-    uint4 BoneIndices : BONEINDICES;
-};
 
 #endif

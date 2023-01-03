@@ -1,52 +1,13 @@
-#include "include/oitppll.hlsli"
 #include "include/root_signature.hlsli"
+#include "include/oitppll.hlsli"
 
 #define MAX_SORTED_PIXELS 16
 
-static const float2 gTexCoords[6] =
-{
-    float2(0.0f, 1.0f),
-    float2(0.0f, 0.0f),
-    float2(1.0f, 0.0f),
-    float2(0.0f, 1.0f),
-    float2(1.0f, 0.0f),
-    float2(1.0f, 1.0f)
-};
-
-struct VertexOut
+struct PixelIn
 {
     float4 PosH : SV_POSITION;
+    float2 TexC : TEXCOORD;
 };
-
-[numthreads(6, 1, 1)]
-[OutputTopology("triangle")]
-void MS(
-    uint gtid : SV_GroupThreadID,
-    uint gid : SV_GroupID,
-    out indices uint3 tris[2],
-    out vertices VertexOut verts[6])
-{   
-    
-    SetMeshOutputCounts(6, 2);
-    
-    if (gtid == 0)
-    {
-        tris[gtid] = uint3(0, 1, 2);
-    }
-    else if (gtid == 1)
-    {
-        tris[gtid] = uint3(3, 4, 5);
-    }
-    
-    if (gtid < 6)
-    {
-        VertexOut vout;
-        float2 texC = gTexCoords[gtid];
-
-        vout.PosH = float4(2.0f * texC.x - 1.0f, 1.0f - 2.0f * texC.y, 0.0f, 1.0f);
-        verts[gtid] = vout;
-    }
-}
 
 void SortPixels(inout OitNode sortedPixels[MAX_SORTED_PIXELS])
 {
@@ -67,7 +28,7 @@ void SortPixels(inout OitNode sortedPixels[MAX_SORTED_PIXELS])
 
 }
 
-float4 PS(VertexOut pin) : SV_Target
+float4 main(PixelIn pin) : SV_Target
 {
     StructuredBuffer<OitNode> gOitNodeBuffer = ResourceDescriptorHeap[gOitR];
     Buffer<uint> gStartOffsetBuffer = ResourceDescriptorHeap[gOitOffsetR];

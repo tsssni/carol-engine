@@ -19,6 +19,8 @@ namespace Carol {
         DirectX::XMFLOAT3 Ambient = { 0.4f,0.4f,0.4f };
         float LightPad0;
         
+        DirectX::XMFLOAT4X4 View;
+        DirectX::XMFLOAT4X4 Proj;
         DirectX::XMFLOAT4X4 ViewProj;
         DirectX::XMFLOAT4X4 ViewProjTex;
     };

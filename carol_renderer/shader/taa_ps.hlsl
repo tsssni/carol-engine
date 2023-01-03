@@ -1,54 +1,14 @@
 #include "include/root_signature.hlsli"
 
-struct VertexOut
+struct PixelIn
 {
     float4 PosH : SV_POSITION;
     float2 TexC : TEXCOORD;
 };
 
-static const float2 gTexCoords[6] =
-{
-    float2(0.0f, 1.0f),
-    float2(0.0f, 0.0f),
-    float2(1.0f, 0.0f),
-    float2(0.0f, 1.0f),
-    float2(1.0f, 0.0f),
-    float2(1.0f, 1.0f)
-};
-
 static int sampleCount = 9;
 static int dx[9] = { -1, -1, -1, 0, 0, 0, 1, 1, 1 };
 static int dy[9] = { -1, 0, 1, -1, 0, 1, -1, 0, 1 };
-
-[numthreads(6, 1, 1)]
-[OutputTopology("triangle")]
-void MS(
-    uint gtid : SV_GroupThreadID,
-    uint gid : SV_GroupID,
-    out indices uint3 tris[2],
-    out vertices VertexOut verts[6])
-{   
-    
-    SetMeshOutputCounts(6, 2);
-    
-    if (gtid == 0)
-    {
-        tris[gtid] = uint3(0, 1, 2);
-    }
-    else if (gtid == 1)
-    {
-        tris[gtid] = uint3(3, 4, 5);
-    }
-    
-    if (gtid < 6)
-    {
-        VertexOut vout;
-
-        vout.TexC = gTexCoords[gtid];
-        vout.PosH = float4(2.0f * vout.TexC.x - 1.0f, 1.0f - 2.0f * vout.TexC.y, 0.0f, 1.0f);
-        verts[gtid] = vout;
-    }
-}
 
 float3 Rgb2Ycocg(float3 rgbColor)
 {
@@ -102,7 +62,7 @@ void CalcPixelColorAabb(float2 texC, inout float3 minPixelColor, inout float3 ma
     [unroll]
     for (int i = 0; i < sampleCount; i++)
     {
-        float3 pixelColor = Rgb2Ycocg(gCurrMap.Sample(gsamPointClamp, texC).rgb);
+        float3 pixelColor = Rgb2Ycocg(gCurrMap.Sample(gsamPointClamp, texC + float2(dx[i], dy[i]) * gInvRenderTargetSize).rgb);
         meanColor += pixelColor;
         varColor += pixelColor * pixelColor;
     }
@@ -114,7 +74,7 @@ void CalcPixelColorAabb(float2 texC, inout float3 minPixelColor, inout float3 ma
     maxPixelColor = meanColor + gamma * varColor;
 }
 
-float4 PS(VertexOut pin) : SV_Target
+float4 main(PixelIn pin) : SV_Target
 {
     Texture2D gDepthMap = ResourceDescriptorHeap[gDepthStencilIdx];
     Texture2D gCurrMap = ResourceDescriptorHeap[gFrameIdx];
@@ -146,7 +106,6 @@ float4 PS(VertexOut pin) : SV_Target
     float3 minPixelColor;
     float3 maxPixelColor;
     CalcPixelColorAabb(currPos, minPixelColor, maxPixelColor);
-    
     histPixelColor.rgb = Ycocg2Rgb(Clip(Rgb2Ycocg(histPixelColor.rgb), minPixelColor, maxPixelColor));
     
     float4 taaPixel = 0.05f * currPixelColor + 0.95f * histPixelColor;

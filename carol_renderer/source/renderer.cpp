@@ -36,7 +36,7 @@ Carol::unique_ptr<Carol::CircularHeap> Carol::MeshesPass::MeshCBHeap = nullptr;
 Carol::unique_ptr<Carol::CircularHeap> Carol::MeshesPass::SkinnedCBHeap = nullptr;
 
 Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
-	:BaseRenderer(hWnd, width, height)
+	:BaseRenderer(hWnd, width, height), mFrameIdx(FRAME_IDX_COUNT, 0)
 {
 	ThrowIfFailed(mInitCommandAllocator->Reset());
 	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
@@ -87,24 +87,31 @@ void Carol::Renderer::InitPSOs()
 void Carol::Renderer::InitFrame()
 {
 	mFrame = make_unique<FramePass>(mGlobalResources.get());
+	mFrameIdx[FRAME_IDX] = mFrame->GetFrameSrvIdx();
+	mFrameIdx[DEPTH_STENCIL_IDX] = mFrame->GetDepthStencilSrvIdx();
 	mGlobalResources->Frame = mFrame.get();
 }
 
 void Carol::Renderer::InitSsao()
 {
 	mSsao = make_unique<SsaoPass>(mGlobalResources.get());
+	mFrameIdx[RAND_VEC_IDX] = mSsao->GetRandVecSrvIdx();
+	mFrameIdx[AMBIENT_IDX] = mSsao->GetSsaoSrvIdx();
 	mGlobalResources->Ssao = mSsao.get();
 }
 
 void Carol::Renderer::InitNormal()
 {
 	mNormal = make_unique<NormalPass>(mGlobalResources.get());
+	mFrameIdx[NORMAL_IDX] = mNormal->GetNormalSrvIdx();
 	mGlobalResources->Normal = mNormal.get();
 }
 
 void Carol::Renderer::InitTaa()
 {
 	mTaa = make_unique<TaaPass>(mGlobalResources.get());
+	mFrameIdx[VELOCITY_IDX] = mTaa->GetVeloctiySrvIdx();
+	mFrameIdx[HIST_IDX] = mTaa->GetHistFrameSrvIdx();
 	mGlobalResources->Taa = mTaa.get();
 }
 
@@ -114,12 +121,18 @@ void Carol::Renderer::InitMainLight()
 	light.Direction = { 0.8f,-1.0f,1.0f };
 	light.Strength = { 0.8f,0.8f,0.8f };
 	mMainLight = make_unique<ShadowPass>(mGlobalResources.get(), light, 2048, 2048);
+	mFrameIdx[SHADOW_IDX] = mMainLight->GetShadowSrvIdx();
 	mGlobalResources->MainLight = mMainLight.get();
 }
 
 void Carol::Renderer::InitOitppll()
 {
 	mOitppll = make_unique<OitppllPass>(mGlobalResources.get());
+	mFrameIdx[OIT_W_IDX] = mOitppll->GetPpllUavIdx();
+	mFrameIdx[OIT_OFFSET_W_IDX] = mOitppll->GetOffsetUavIdx();
+	mFrameIdx[OIT_COUNTER_IDX] = mOitppll->GetCounterUavIdx();
+	mFrameIdx[OIT_R_IDX] = mOitppll->GetPpllSrvIdx();
+	mFrameIdx[OIT_OFFSET_R_IDX] = mOitppll->GetOffsetSrvIdx();
 	mGlobalResources->Oitppll = mOitppll.get();
 }
 
@@ -186,20 +199,6 @@ void Carol::Renderer::UpdateFrameCB()
     mFrameConstants->BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
     mFrameConstants->BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
 
-	mFrameConstants->FrameIdx = mFrame->GetFrameSrvIdx();
-	mFrameConstants->DepthStencilIdx = mFrame->GetDepthStencilSrvIdx();
-	mFrameConstants->NormalIdx = mNormal->GetNormalSrvIdx();
-	mFrameConstants->ShadowIdx = mMainLight->GetShadowSrvIdx();
-	mFrameConstants->OitW = mOitppll->GetPpllUavIdx();
-	mFrameConstants->OitOffsetW = mOitppll->GetOffsetUavIdx();
-	mFrameConstants->OitCounterW = mOitppll->GetCounterUavIdx();
-	mFrameConstants->OitR = mOitppll->GetPpllSrvIdx();
-	mFrameConstants->OitOffsetR = mOitppll->GetOffsetSrvIdx();
-	mFrameConstants->RandVecIdx = mSsao->GetRandVecSrvIdx();
-	mFrameConstants->AmbientIdx = mSsao->GetSsaoSrvIdx();
-	mFrameConstants->VelocityIdx = mTaa->GetVeloctiySrvIdx();
-	mFrameConstants->HistIdx = mTaa->GetHistFrameSrvIdx();
-
 	mFrameConstants->Lights[0] = mMainLight->GetLight();
 
 	mFrameCBHeap->DeleteResource(mFrameCBAllocInfo.get());
@@ -231,7 +230,8 @@ void Carol::Renderer::Draw()
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 	mCommandList->SetGraphicsRootSignature(mRootSignature->Get());
 	mCommandList->SetGraphicsRootConstantBufferView(RootSignature::FRAME_CB, mFrameCBHeap->GetGPUVirtualAddress(mFrameCBAllocInfo.get()));
-	
+	mCommandList->SetGraphicsRoot32BitConstants(RootSignature::FRAME_CONSTANTS, FRAME_IDX_COUNT, mFrameIdx.data(), 0);
+
 	mMainLight->Draw();
 	mNormal->Draw();
 	mSsao->Draw();
@@ -311,10 +311,9 @@ void Carol::Renderer::Update()
 	ThrowIfFailed(mCommandList->Reset(mFrameAllocator[mCurrFrame].Get(), nullptr));
 	
 	DelayedDelete();
-	mScene->Update(*mTimer);
+	mScene->Update(mCamera.get(), mTimer.get());
 	mMainLight->Update();
 	mSsao->Update();
-	mMeshes->Update();
 	mFrame->Update();
 	UpdateFrameCB();
 }
@@ -327,6 +326,18 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height)
 	mSsao->OnResize();
 	mTaa->OnResize();
 	mOitppll->OnResize();
+
+	mFrameIdx[FRAME_IDX] = mFrame->GetFrameSrvIdx();
+	mFrameIdx[DEPTH_STENCIL_IDX] = mFrame->GetDepthStencilSrvIdx();
+	mFrameIdx[NORMAL_IDX] = mNormal->GetNormalSrvIdx();
+	mFrameIdx[AMBIENT_IDX] = mSsao->GetSsaoSrvIdx();
+	mFrameIdx[VELOCITY_IDX] = mTaa->GetVeloctiySrvIdx();
+	mFrameIdx[HIST_IDX] = mTaa->GetHistFrameSrvIdx();
+	mFrameIdx[OIT_W_IDX] = mOitppll->GetPpllUavIdx();
+	mFrameIdx[OIT_OFFSET_W_IDX] = mOitppll->GetOffsetUavIdx();
+	mFrameIdx[OIT_COUNTER_IDX] = mOitppll->GetCounterUavIdx();
+	mFrameIdx[OIT_R_IDX] = mOitppll->GetPpllSrvIdx();
+	mFrameIdx[OIT_OFFSET_R_IDX] = mOitppll->GetOffsetSrvIdx();
 }
 
 void Carol::Renderer::LoadModel(wstring path, wstring textureDir, wstring modelName, DirectX::XMMATRIX world, bool isSkinned)

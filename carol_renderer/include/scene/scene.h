@@ -18,6 +18,36 @@ namespace Carol {
 	class TextureManager;
 	class Model;
 	class Timer;
+	class Camera;
+
+	class OctreeNode
+	{
+	public:
+		std::vector<Mesh*> Meshes;
+		std::vector<std::unique_ptr<OctreeNode>> Children;
+		DirectX::BoundingBox BoundingBox;
+		DirectX::BoundingBox LooseBoundingBox;
+	};
+
+	class Octree
+	{
+	public:
+		Octree(DirectX::BoundingBox sceneBoundingBox, float looseFactor = 1.5f);
+		Octree(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax, float looseFactor = 1.5f);
+
+		void Insert(Mesh* mesh);
+		void Delete(Mesh* mesh);
+		void Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
+	protected:
+		bool ProcessNode(OctreeNode* node, Mesh* mesh);
+		void ProcessContainment(OctreeNode* node, Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
+
+		DirectX::BoundingBox ExtendBoundingBox(const DirectX::BoundingBox& box);
+		void DevideBoundingBox(OctreeNode* node);
+		
+		std::unique_ptr<OctreeNode> mRootNode;
+		float mLooseFactor;
+	};
 
 	class SceneNode
 	{
@@ -26,11 +56,7 @@ namespace Carol {
 		std::wstring Name;
 		std::vector<Mesh*> Meshes;
 		std::vector<std::unique_ptr<SceneNode>> Children;
-
 		DirectX::XMFLOAT4X4 Transformation;
-		DirectX::XMFLOAT4X4 HistTransformation;
-	
-		std::unique_ptr<HeapAllocInfo> WorldAllocInfo;
 	};
 
 	class RenderNode
@@ -61,12 +87,13 @@ namespace Carol {
 		void ReleaseIntermediateBuffers();
 		void ReleaseIntermediateBuffers(std::wstring modelName);
 
-		std::vector<RenderNode>& GetMeshes(uint32_t type);
-		RenderNode GetSkyBox();
+		const std::unordered_map<std::wstring, Mesh*>& GetMeshes(uint32_t type);
+		Mesh* GetSkyBox();
 
 		void SetWorld(std::wstring modelName, DirectX::XMMATRIX world);
 		void SetAnimationClip(std::wstring modelName, std::wstring clipName);
-		void Update(Timer& timer);
+		void Update(Camera* camera, Timer* timer);
+		void Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
 
 		enum
 		{
@@ -74,8 +101,7 @@ namespace Carol {
 		};
 
 	protected:
-		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot, DirectX::XMMATRIX histParentToRoot);
-		void UpdateSkyBox();
+		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot);
 
 		ID3D12Device* mDevice;
 		ID3D12GraphicsCommandList* mCommandList;
@@ -92,8 +118,6 @@ namespace Carol {
 		std::unique_ptr<TextureManager> mTexManager;
 		std::unique_ptr<CircularHeap> mMeshCBHeap;
 		std::unique_ptr<CircularHeap> mSkinnedCBHeap;
-		std::vector<std::vector<RenderNode>> mMeshes;
-
-		RenderNode mSkyBoxNode;
+		std::vector<std::unordered_map<std::wstring, Mesh*>> mMeshes;
 	};
 }
