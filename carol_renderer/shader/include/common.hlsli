@@ -40,6 +40,8 @@ cbuffer FrameConstants : register(b5)
 {
     uint gFrameIdx;
     uint gDepthStencilIdx;
+    uint gHiZRIdx;
+    uint gHiZWIdx;
     uint gNormalIdx;
     uint gShadowIdx;
     uint gOitW;

@@ -44,7 +44,7 @@ namespace Carol
 		virtual void OnMouseUp(WPARAM btnState, int x, int y) = 0;
 		virtual void OnMouseMove(WPARAM btnState, int x, int y) = 0;
 		virtual void OnKeyboardInput() = 0;
-		virtual void OnResize(uint32_t width, uint32_t height);
+		virtual void OnResize(uint32_t width, uint32_t height, bool init = false);
 		
 		virtual void SetPaused(bool state);
 		virtual bool Paused();
@@ -101,9 +101,10 @@ namespace Carol
 		std::unique_ptr<DsvDescriptorAllocator> mDsvAllocator;
 		std::unique_ptr<RootSignature> mRootSignature;
 
-		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC mBasePsoDesc;
         std::unordered_map<std::wstring, std::unique_ptr<Shader>> mShaders;
         std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
+		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC mBaseGraphicsPsoDesc;
+		D3D12_COMPUTE_PIPELINE_STATE_DESC mBaseComputePsoDesc;
 
         uint32_t mNumFrame = 3;
         uint32_t mCurrFrame = 0;

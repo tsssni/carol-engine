@@ -1,6 +1,6 @@
 #ifndef SHADOW_HEADER
 #define SHADOW_HEADER
-#include "root_signature.hlsli"
+#include "common.hlsli"
 
 float CalcShadowFactor(float4 shadowPosH)
 {

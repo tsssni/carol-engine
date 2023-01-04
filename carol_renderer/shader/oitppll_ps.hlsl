@@ -1,4 +1,4 @@
-#include "include/root_signature.hlsli"
+#include "include/common.hlsli"
 #include "include/oitppll.hlsli"
 
 #define MAX_SORTED_PIXELS 16
@@ -30,12 +30,12 @@ void SortPixels(inout OitNode sortedPixels[MAX_SORTED_PIXELS])
 
 float4 main(PixelIn pin) : SV_Target
 {
-    StructuredBuffer<OitNode> gOitNodeBuffer = ResourceDescriptorHeap[gOitR];
-    Buffer<uint> gStartOffsetBuffer = ResourceDescriptorHeap[gOitOffsetR];
+    StructuredBuffer<OitNode> oitNodeBuffer = ResourceDescriptorHeap[gOitR];
+    Buffer<uint> startOffsetBuffer = ResourceDescriptorHeap[gOitOffsetR];
     
     uint2 pixelPos = uint2(pin.PosH.x - 0.5f, pin.PosH.y - 0.5f);
     uint startOffsetAddr = pixelPos.y * gRenderTargetSize.x + pixelPos.x;
-    uint offset = gStartOffsetBuffer[startOffsetAddr];
+    uint offset = startOffsetBuffer[startOffsetAddr];
 
     static OitNode sortedPixels[MAX_SORTED_PIXELS];
 
@@ -54,7 +54,7 @@ float4 main(PixelIn pin) : SV_Target
         [flatten]
         if (offset != 0xffffffff)
         {
-            sortedPixels[i] = gOitNodeBuffer[offset];
+            sortedPixels[i] = oitNodeBuffer[offset];
             offset = sortedPixels[i].NextU;
         }
         else

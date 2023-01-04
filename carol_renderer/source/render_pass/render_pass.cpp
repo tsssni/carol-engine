@@ -24,23 +24,26 @@ Carol::RenderPass::RenderPass(GlobalResources* globalResources)
 
 Carol::RenderPass::~RenderPass()
 {
-	if (mCpuCbvSrvUavAllocInfo->Allocator)
-	{
-		mCpuCbvSrvUavAllocInfo->Allocator->CpuDeallocate(mCpuCbvSrvUavAllocInfo.get());
-	}	
-	
-	if (mRtvAllocInfo->Allocator)
-	{
-		mRtvAllocInfo->Allocator->CpuDeallocate(mRtvAllocInfo.get());
-	}
-
-	if (mDsvAllocInfo->Allocator)
-	{
-		mDsvAllocInfo->Allocator->CpuDeallocate(mDsvAllocInfo.get());
-	}
+	DeallocateDescriptors();
 }
 
 void Carol::RenderPass::OnResize()
+{
+	DeallocateDescriptors();
+}
+
+void Carol::RenderPass::CopyDescriptors()
+{
+	mGlobalResources->CbvSrvUavAllocator->GpuAllocate(mCpuCbvSrvUavAllocInfo->NumDescriptors, mGpuCbvSrvUavAllocInfo.get());
+
+	uint32_t num = mCpuCbvSrvUavAllocInfo->NumDescriptors;
+	auto cpuHandle = mGlobalResources->CbvSrvUavAllocator->GetCpuHandle(mCpuCbvSrvUavAllocInfo.get());
+	auto shaderCpuHandle = mGlobalResources->CbvSrvUavAllocator->GetShaderCpuHandle(mGpuCbvSrvUavAllocInfo.get());
+	
+	mGlobalResources->Device->CopyDescriptorsSimple(num, shaderCpuHandle, cpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+}
+
+void Carol::RenderPass::DeallocateDescriptors()
 {
 	if (mRtvAllocInfo->Allocator)
 	{
@@ -56,17 +59,12 @@ void Carol::RenderPass::OnResize()
 	{
 		mGlobalResources->CbvSrvUavAllocator->CpuDeallocate(mCpuCbvSrvUavAllocInfo.get());
 	}
-}
 
-void Carol::RenderPass::CopyDescriptors()
-{
-	mGlobalResources->CbvSrvUavAllocator->GpuAllocate(mCpuCbvSrvUavAllocInfo->NumDescriptors, mGpuCbvSrvUavAllocInfo.get());
+	if (mGpuCbvSrvUavAllocInfo->Allocator)
+	{
+		mGlobalResources->CbvSrvUavAllocator->GpuDeallocate(mGpuCbvSrvUavAllocInfo.get());
+	}
 
-	uint32_t num = mCpuCbvSrvUavAllocInfo->NumDescriptors;
-	auto cpuHandle = mGlobalResources->CbvSrvUavAllocator->GetCpuHandle(mCpuCbvSrvUavAllocInfo.get());
-	auto shaderCpuHandle = mGlobalResources->CbvSrvUavAllocator->GetShaderCpuHandle(mGpuCbvSrvUavAllocInfo.get());
-	
-	mGlobalResources->Device->CopyDescriptorsSimple(num, shaderCpuHandle, cpuHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::RenderPass::GetRtv(int idx)

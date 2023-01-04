@@ -66,7 +66,7 @@ namespace Carol
 		virtual void OnMouseUp(WPARAM btnState, int x, int y)override;
 		virtual void OnMouseMove(WPARAM btnState, int x, int y)override;
 		virtual void OnKeyboardInput()override;
-        virtual void OnResize(uint32_t width, uint32_t height)override;
+        virtual void OnResize(uint32_t width, uint32_t height, bool init = false)override;
 
         void LoadModel(std::wstring path, std::wstring textureDir, std::wstring modelName, DirectX::XMMATRIX world, bool isSkinned);
         void UnloadModel(std::wstring modelName);
@@ -93,6 +93,8 @@ namespace Carol
 		{
 			FRAME_IDX,
 			DEPTH_STENCIL_IDX,
+			HIZ_R_IDX,
+			HIZ_W_IDX,
 			NORMAL_IDX,
 			SHADOW_IDX,
 			OIT_W_IDX,

@@ -1,4 +1,4 @@
-#include "include/root_signature.hlsli"
+#include "include/common.hlsli"
 #include "include/mesh.hlsli"
 
 struct MeshOut

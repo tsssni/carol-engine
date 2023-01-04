@@ -33,7 +33,6 @@ Carol::TaaPass::TaaPass(
 	InitHalton();
 	InitShaders();
 	InitPSOs();
-	OnResize();
 }
 
 void Carol::TaaPass::Update()
@@ -47,7 +46,7 @@ void Carol::TaaPass::OnResize()
 
 	if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
 	{
-		RenderPass::OnResize();
+		DeallocateDescriptors();
 
 		width = *mGlobalResources->ClientWidth;
 		height = *mGlobalResources->ClientHeight;
@@ -78,7 +77,7 @@ void Carol::TaaPass::InitShaders()
 
 void Carol::TaaPass::InitPSOs()
 {
-	auto velocityStaticPsoDesc = *mGlobalResources->BasePsoDesc;
+	auto velocityStaticPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
 	auto velocityStaticAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
 	auto velocityStaticMS = (*mGlobalResources->Shaders)[L"TaaVelocityStaticMS"].get();
 	auto velocityStaticPS = (*mGlobalResources->Shaders)[L"TaaVelocityStaticPS"].get();
@@ -103,7 +102,7 @@ void Carol::TaaPass::InitPSOs()
     velocitySkinnedStreamDesc.SizeInBytes = sizeof(velocitySkinnedPsoStream);
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&velocitySkinnedStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"VelocitySkinned"].GetAddressOf())));
 
-	auto outputPsoDesc = *mGlobalResources->BasePsoDesc;
+	auto outputPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
 	auto outputMS = (*mGlobalResources->Shaders)[L"ScreenMS"].get();
 	auto outputPS = (*mGlobalResources->Shaders)[L"TaaOutputPS"].get();
 	outputPsoDesc.MS = { reinterpret_cast<byte*>(outputMS->GetBufferPointer()),outputMS->GetBufferSize() };

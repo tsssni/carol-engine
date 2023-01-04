@@ -50,6 +50,8 @@
 "borderColor = STATIC_BORDER_COLOR_OPAQUE_BLACK)"
 
 [RootSignature(RS)]
+[numthreads(1, 1, 1)]
+[OutputTopology("triangle")]
 void main()
 {
 }

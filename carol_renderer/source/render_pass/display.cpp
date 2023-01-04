@@ -97,7 +97,7 @@ void Carol::Display::OnResize()
 
     if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
     {
-		RenderPass::OnResize();
+		DeallocateDescriptors();
 
         width = *mGlobalResources->ClientWidth;
         height = *mGlobalResources->ClientHeight;

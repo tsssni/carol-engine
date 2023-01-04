@@ -28,6 +28,7 @@ namespace Carol
 		virtual void InitResources() = 0;
 		virtual void InitDescriptors() = 0;
 		virtual void CopyDescriptors();
+		virtual void DeallocateDescriptors();
 
 		virtual CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int idx);
 		virtual CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int idx);

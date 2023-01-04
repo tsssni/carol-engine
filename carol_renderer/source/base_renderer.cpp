@@ -48,7 +48,7 @@ Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitCamera();
 
 #if defined _DEBUG
-	InitDebug();
+	//InitDebug();
 #endif
 	InitDxgiFactory();
 	InitDevice();
@@ -65,8 +65,6 @@ Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
 	
 	InitShaders();
 	InitPSOs();
-
-	BaseRenderer::OnResize(width, height);
 }
 
 void Carol::BaseRenderer::CalcFrameState()
@@ -233,12 +231,8 @@ void Carol::BaseRenderer::Start()
 	mTimer->Start();
 }
 
-void Carol::BaseRenderer::OnResize(uint32_t width, uint32_t height)
+void Carol::BaseRenderer::OnResize(uint32_t width, uint32_t height, bool init)
 {
-	assert(mDevice.Get());
-	assert(mDisplay->GetSwapChain());
-	assert(mInitCommandAllocator.Get());
-
 	if (mClientWidth == width && mClientHeight == height)
 	{
 		return;
@@ -246,20 +240,6 @@ void Carol::BaseRenderer::OnResize(uint32_t width, uint32_t height)
 
 	mClientWidth = width;
 	mClientHeight = height;
-
-	mTimer->Start();
-	FlushCommandQueue();
-
-	mCamera->SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 1000.0f);
-
-	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
-
-	mDisplay->OnResize();
-
-	mCommandList->Close();
-	vector<ID3D12CommandList*> cmdLists = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
-	FlushCommandQueue();
 
 	mScreenViewport.TopLeftX = 0;
 	mScreenViewport.TopLeftY = 0;
@@ -269,6 +249,10 @@ void Carol::BaseRenderer::OnResize(uint32_t width, uint32_t height)
 	mScreenViewport.MaxDepth = 1.0f;
 
 	mScissorRect = { 0, 0, (int)mClientWidth, (int)mClientHeight };
+
+	mTimer->Start();
+	mCamera->SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 1000.0f);
+	mDisplay->OnResize();
 }
 
 void Carol::BaseRenderer::SetPaused(bool state)

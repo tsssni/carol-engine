@@ -22,7 +22,6 @@ Carol::NormalPass::NormalPass(GlobalResources* globalResources, DXGI_FORMAT norm
 {
     InitShaders();
     InitPSOs();
-    OnResize();
 }
 
 void Carol::NormalPass::Draw()
@@ -56,7 +55,7 @@ void Carol::NormalPass::OnResize()
 
     if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
     {
-        RenderPass::OnResize();
+        DeallocateDescriptors();
 
         width = *mGlobalResources->ClientWidth;
         height = *mGlobalResources->ClientHeight;
@@ -91,7 +90,7 @@ void Carol::NormalPass::InitShaders()
 
 void Carol::NormalPass::InitPSOs()
 {
-    auto normalsStaticPsoDesc = *mGlobalResources->BasePsoDesc;
+    auto normalsStaticPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
     auto normalsStaticAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
     auto normalsStaticMS = (*mGlobalResources->Shaders)[L"NormalsStaticMS"].get();
     auto normalsStaticPS = (*mGlobalResources->Shaders)[L"NormalsStaticPS"].get();

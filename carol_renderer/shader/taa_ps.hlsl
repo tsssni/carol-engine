@@ -1,4 +1,4 @@
-#include "include/root_signature.hlsli"
+#include "include/common.hlsli"
 
 struct PixelIn
 {
@@ -50,7 +50,7 @@ float3 Clip(float3 histColor, float3 minPixelColor, float3 maxPixelColor)
 
 void CalcPixelColorAabb(float2 texC, inout float3 minPixelColor, inout float3 maxPixelColor)
 {
-    Texture2D gCurrMap = ResourceDescriptorHeap[gFrameIdx];
+    Texture2D currMap = ResourceDescriptorHeap[gFrameIdx];
     
     minPixelColor = float3(1.0f, 0.5f, 0.5f);
     maxPixelColor = float3(0.0f, -0.5f, -0.5f);
@@ -62,7 +62,7 @@ void CalcPixelColorAabb(float2 texC, inout float3 minPixelColor, inout float3 ma
     [unroll]
     for (int i = 0; i < sampleCount; i++)
     {
-        float3 pixelColor = Rgb2Ycocg(gCurrMap.Sample(gsamPointClamp, texC + float2(dx[i], dy[i]) * gInvRenderTargetSize).rgb);
+        float3 pixelColor = Rgb2Ycocg(currMap.Sample(gsamPointClamp, texC + float2(dx[i], dy[i]) * gInvRenderTargetSize).rgb);
         meanColor += pixelColor;
         varColor += pixelColor * pixelColor;
     }
@@ -76,10 +76,10 @@ void CalcPixelColorAabb(float2 texC, inout float3 minPixelColor, inout float3 ma
 
 float4 main(PixelIn pin) : SV_Target
 {
-    Texture2D gDepthMap = ResourceDescriptorHeap[gDepthStencilIdx];
-    Texture2D gCurrMap = ResourceDescriptorHeap[gFrameIdx];
-    Texture2D gHistMap = ResourceDescriptorHeap[gHistIdx];
-    Texture2D gVelocityMap = ResourceDescriptorHeap[gVelocityIdx];
+    Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilIdx];
+    Texture2D currMap = ResourceDescriptorHeap[gFrameIdx];
+    Texture2D histMap = ResourceDescriptorHeap[gHistIdx];
+    Texture2D velocityMap = ResourceDescriptorHeap[gVelocityIdx];
         
     float minZ = 1.0f;
     float2 minZPos = pin.TexC;
@@ -88,7 +88,7 @@ float4 main(PixelIn pin) : SV_Target
     for (int i = 0; i < 9; ++i)
     {
         float2 adjacentPos = pin.TexC + float2(dx[i], dy[i]) * gInvRenderTargetSize;
-        float adjacentZ = gDepthMap.Sample(gsamPointClamp, adjacentPos).r;
+        float adjacentZ = depthMap.Sample(gsamPointClamp, adjacentPos).r;
         
         if (adjacentZ < minZ)
         {
@@ -98,10 +98,10 @@ float4 main(PixelIn pin) : SV_Target
     }
     
     float2 currPos = pin.TexC;
-    float2 histPos = currPos + gVelocityMap.Sample(gsamPointClamp, minZPos).xy;
+    float2 histPos = currPos + velocityMap.Sample(gsamPointClamp, minZPos).xy;
         
-    float4 currPixelColor = gCurrMap.Sample(gsamPointClamp, currPos);
-    float4 histPixelColor = gHistMap.Sample(gsamPointClamp, histPos);
+    float4 currPixelColor = currMap.Sample(gsamPointClamp, currPos);
+    float4 histPixelColor = histMap.Sample(gsamPointClamp, histPos);
     
     float3 minPixelColor;
     float3 maxPixelColor;

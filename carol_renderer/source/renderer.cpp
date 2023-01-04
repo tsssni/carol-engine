@@ -50,11 +50,7 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitSsao();
 	InitTaa();
 	InitMeshes();
-
-	mCommandList->Close();
-	vector<ID3D12CommandList*> cmdLists{ mCommandList.Get()};
-	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
-	FlushCommandQueue();
+	OnResize(width, height, true);
 	ReleaseIntermediateBuffers();
 }
 
@@ -69,34 +65,38 @@ void Carol::Renderer::InitPSOs()
 {
 	BaseRenderer::InitPSOs();
 
-	mBasePsoDesc.pRootSignature = mRootSignature->Get();
-	mBasePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	mBasePsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	mBasePsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	mBasePsoDesc.SampleMask = UINT_MAX;
-	mBasePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	mBasePsoDesc.NumRenderTargets = 1;
-	mBasePsoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	mBasePsoDesc.SampleDesc.Count = 1;
-	mBasePsoDesc.SampleDesc.Quality = 0;
-	mBasePsoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	mBaseGraphicsPsoDesc.pRootSignature = mRootSignature->Get();
+	mBaseGraphicsPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	mBaseGraphicsPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	mBaseGraphicsPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	mBaseGraphicsPsoDesc.SampleMask = UINT_MAX;
+	mBaseGraphicsPsoDesc.NodeMask = 0;
+	mBaseGraphicsPsoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+	mBaseGraphicsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	mBaseGraphicsPsoDesc.NumRenderTargets = 1;
+	mBaseGraphicsPsoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	mBaseGraphicsPsoDesc.SampleDesc.Count = 1;
+	mBaseGraphicsPsoDesc.SampleDesc.Quality = 0;
+	mBaseGraphicsPsoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-	mGlobalResources->BasePsoDesc = &mBasePsoDesc;
+	mGlobalResources->BaseGraphicsPsoDesc = &mBaseGraphicsPsoDesc;
+
+	mBaseComputePsoDesc.pRootSignature = mRootSignature->Get();
+	mBaseComputePsoDesc.NodeMask = 0;
+	mBaseComputePsoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+	mGlobalResources->BaseComputePsoDesc = &mBaseComputePsoDesc;
 }
 
 void Carol::Renderer::InitFrame()
 {
 	mFrame = make_unique<FramePass>(mGlobalResources.get());
-	mFrameIdx[FRAME_IDX] = mFrame->GetFrameSrvIdx();
-	mFrameIdx[DEPTH_STENCIL_IDX] = mFrame->GetDepthStencilSrvIdx();
 	mGlobalResources->Frame = mFrame.get();
 }
 
 void Carol::Renderer::InitSsao()
 {
 	mSsao = make_unique<SsaoPass>(mGlobalResources.get());
-	mFrameIdx[RAND_VEC_IDX] = mSsao->GetRandVecSrvIdx();
-	mFrameIdx[AMBIENT_IDX] = mSsao->GetSsaoSrvIdx();
 	mGlobalResources->Ssao = mSsao.get();
 }
 
@@ -110,8 +110,6 @@ void Carol::Renderer::InitNormal()
 void Carol::Renderer::InitTaa()
 {
 	mTaa = make_unique<TaaPass>(mGlobalResources.get());
-	mFrameIdx[VELOCITY_IDX] = mTaa->GetVeloctiySrvIdx();
-	mFrameIdx[HIST_IDX] = mTaa->GetHistFrameSrvIdx();
 	mGlobalResources->Taa = mTaa.get();
 }
 
@@ -121,18 +119,12 @@ void Carol::Renderer::InitMainLight()
 	light.Direction = { 0.8f,-1.0f,1.0f };
 	light.Strength = { 0.8f,0.8f,0.8f };
 	mMainLight = make_unique<ShadowPass>(mGlobalResources.get(), light, 2048, 2048);
-	mFrameIdx[SHADOW_IDX] = mMainLight->GetShadowSrvIdx();
 	mGlobalResources->MainLight = mMainLight.get();
 }
 
 void Carol::Renderer::InitOitppll()
 {
 	mOitppll = make_unique<OitppllPass>(mGlobalResources.get());
-	mFrameIdx[OIT_W_IDX] = mOitppll->GetPpllUavIdx();
-	mFrameIdx[OIT_OFFSET_W_IDX] = mOitppll->GetOffsetUavIdx();
-	mFrameIdx[OIT_COUNTER_IDX] = mOitppll->GetCounterUavIdx();
-	mFrameIdx[OIT_R_IDX] = mOitppll->GetPpllSrvIdx();
-	mFrameIdx[OIT_OFFSET_R_IDX] = mOitppll->GetOffsetSrvIdx();
 	mGlobalResources->Oitppll = mOitppll.get();
 }
 
@@ -220,7 +212,6 @@ void Carol::Renderer::DelayedDelete()
 void Carol::Renderer::ReleaseIntermediateBuffers()
 {
 	mSsao->ReleaseIntermediateBuffers();
-	mOitppll->ReleaseIntermediateBuffers();
 	mMeshes->ReleaseIntermediateBuffers();
 }
 
@@ -228,9 +219,14 @@ void Carol::Renderer::Draw()
 {	
 	ID3D12DescriptorHeap* descriptorHeaps[] = {mCbvSrvUavAllocator->GetGpuDescriptorHeap()};
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+
 	mCommandList->SetGraphicsRootSignature(mRootSignature->Get());
+	mCommandList->SetComputeRootSignature(mRootSignature->Get());
+
 	mCommandList->SetGraphicsRootConstantBufferView(RootSignature::FRAME_CB, mFrameCBHeap->GetGPUVirtualAddress(mFrameCBAllocInfo.get()));
 	mCommandList->SetGraphicsRoot32BitConstants(RootSignature::FRAME_CONSTANTS, FRAME_IDX_COUNT, mFrameIdx.data(), 0);
+	mCommandList->SetComputeRootConstantBufferView(RootSignature::FRAME_CB, mFrameCBHeap->GetGPUVirtualAddress(mFrameCBAllocInfo.get()));
+	mCommandList->SetComputeRoot32BitConstants(RootSignature::FRAME_CONSTANTS, FRAME_IDX_COUNT, mFrameIdx.data(), 0);
 
 	mMainLight->Draw();
 	mNormal->Draw();
@@ -318,8 +314,14 @@ void Carol::Renderer::Update()
 	UpdateFrameCB();
 }
 
-void Carol::Renderer::OnResize(uint32_t width, uint32_t height)
+void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 {
+	if (!init)
+	{
+		ThrowIfFailed(mInitCommandAllocator->Reset());
+		ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
+	}
+
 	BaseRenderer::OnResize(width, height);
 	mFrame->OnResize();
 	mNormal->OnResize();
@@ -329,6 +331,8 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height)
 
 	mFrameIdx[FRAME_IDX] = mFrame->GetFrameSrvIdx();
 	mFrameIdx[DEPTH_STENCIL_IDX] = mFrame->GetDepthStencilSrvIdx();
+	mFrameIdx[HIZ_R_IDX] = mFrame->GetHiZSrvIdx();
+	mFrameIdx[HIZ_W_IDX] = mFrame->GetHiZUavIdx();
 	mFrameIdx[NORMAL_IDX] = mNormal->GetNormalSrvIdx();
 	mFrameIdx[AMBIENT_IDX] = mSsao->GetSsaoSrvIdx();
 	mFrameIdx[VELOCITY_IDX] = mTaa->GetVeloctiySrvIdx();
@@ -338,6 +342,11 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height)
 	mFrameIdx[OIT_COUNTER_IDX] = mOitppll->GetCounterUavIdx();
 	mFrameIdx[OIT_R_IDX] = mOitppll->GetPpllSrvIdx();
 	mFrameIdx[OIT_OFFSET_R_IDX] = mOitppll->GetOffsetSrvIdx();
+
+	mCommandList->Close();
+	vector<ID3D12CommandList*> cmdLists{ mCommandList.Get()};
+	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
+	FlushCommandQueue();
 }
 
 void Carol::Renderer::LoadModel(wstring path, wstring textureDir, wstring modelName, DirectX::XMMATRIX world, bool isSkinned)

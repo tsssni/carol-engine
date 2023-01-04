@@ -91,7 +91,7 @@ void Carol::ShadowPass::InitResources()
     texDesc.Width = mWidth;
     texDesc.Height = mHeight;
     texDesc.DepthOrArraySize = 1;
-    texDesc.MipLevels = 1;
+    texDesc.MipLevels = 10;
     texDesc.Format = mShadowFormat;
     texDesc.SampleDesc.Count = 1;
     texDesc.SampleDesc.Quality = 0;
@@ -117,7 +117,7 @@ void Carol::ShadowPass::InitDescriptors()
 	srvDesc.Format = mShadowSrvFormat;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MipLevels = 10;
 
 	mGlobalResources->Device->CreateShaderResourceView(mShadowMap->Get(), &srvDesc, GetCpuCbvSrvUav(SHADOW_SRV));
 	
@@ -163,7 +163,7 @@ void Carol::ShadowPass::InitShaders()
 
 void Carol::ShadowPass::InitPSOs()
 {
-	auto shadowStaticPsoDesc = *mGlobalResources->BasePsoDesc;
+	auto shadowStaticPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
 	auto shadowStaticAS = (*mGlobalResources->Shaders)[L"ShadowAS"].get();
 	auto shadowStaticMS = (*mGlobalResources->Shaders)[L"ShadowStaticMS"].get();
 	shadowStaticPsoDesc.AS = { reinterpret_cast<byte*>(shadowStaticAS->GetBufferPointer()),shadowStaticAS->GetBufferSize() };

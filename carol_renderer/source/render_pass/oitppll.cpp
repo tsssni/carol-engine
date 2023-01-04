@@ -23,7 +23,6 @@ Carol::OitppllPass::OitppllPass(GlobalResources* globalResources, DXGI_FORMAT ou
 {
 	InitShaders();
 	InitPSOs();
-	OnResize();
 }
 
 void Carol::OitppllPass::Draw()
@@ -46,7 +45,7 @@ void Carol::OitppllPass::OnResize()
 
     if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
     {
-        RenderPass::OnResize();
+		DeallocateDescriptors();
 
         width = *mGlobalResources->ClientWidth;
         height = *mGlobalResources->ClientHeight;
@@ -57,10 +56,6 @@ void Carol::OitppllPass::OnResize()
 
 void Carol::OitppllPass::ReleaseIntermediateBuffers()
 {
-	if (mOitppllBuffer)
-	{
-		mOitppllBuffer->ReleaseIntermediateBuffer();
-	}
 }
 
 uint32_t Carol::OitppllPass::GetPpllUavIdx()
@@ -109,7 +104,7 @@ void Carol::OitppllPass::InitShaders()
 
 void Carol::OitppllPass::InitPSOs()
 {
-	auto buildStaticOitppllPsoDesc = *mGlobalResources->BasePsoDesc;
+	auto buildStaticOitppllPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
 	auto buildStaticOitppllAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
 	auto buildStaicOitppllMS = (*mGlobalResources->Shaders)[L"OpaqueStaticMS"].get();
 	auto buildStaticOitppllPS = (*mGlobalResources->Shaders)[L"BuildStaticOitppllPS"].get();
@@ -139,7 +134,7 @@ void Carol::OitppllPass::InitPSOs()
     buildSkinnedOitppllStreamDesc.SizeInBytes = sizeof(buildSkinnedOitppllPsoStream);
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&buildSkinnedOitppllStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].GetAddressOf())));
 
-	auto drawOitppllPsoDesc = *mGlobalResources->BasePsoDesc;
+	auto drawOitppllPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
 	auto drawStaicOitppllMS = (*mGlobalResources->Shaders)[L"ScreenMS"].get();
 	auto drawOitppllPS = (*mGlobalResources->Shaders)[L"DrawOitppllPS"].get();
 	drawOitppllPsoDesc.MS = { reinterpret_cast<byte*>(drawStaicOitppllMS->GetBufferPointer()),drawStaicOitppllMS->GetBufferSize() };

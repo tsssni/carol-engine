@@ -227,10 +227,10 @@
     <None Include="shader\include\oitppll.hlsli">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\include\root_signature.hlsli">
+    <None Include="shader\include\common.hlsli">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\include\root_signature_compile.hlsli">
+    <None Include="shader\root_signature.hlsl">
       <Filter>着色器文件</Filter>
     </None>
     <None Include="shader\include\screen.hlsli">
@@ -278,6 +278,7 @@
     <None Include="shader\normals_ms.hlsl" />
     <None Include="shader\oitppll_build_ps.hlsl" />
     <None Include="shader\ssao_ms.hlsl" />
+    <None Include="shader\hiz_generate_cs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="lib\dxcompiler.lib" />

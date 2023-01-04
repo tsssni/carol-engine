@@ -31,7 +31,6 @@ Carol::SsaoPass::SsaoPass(GlobalResources* globalResources, uint32_t blurCount, 
     InitPSOs();
     InitRandomVectors();
     InitRandomVectorMap();
-    OnResize();
 }
 
 void Carol::SsaoPass::SetBlurCount(uint32_t blurCout)
@@ -56,7 +55,7 @@ void Carol::SsaoPass::OnResize()
 
     if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
     {
-        RenderPass::OnResize();
+        DeallocateDescriptors();
 
         width = *mGlobalResources->ClientWidth;
         height = *mGlobalResources->ClientHeight;
@@ -225,7 +224,7 @@ void Carol::SsaoPass::InitShaders()
 
 void Carol::SsaoPass::InitPSOs()
 {
-    auto ssaoPsoDesc = *mGlobalResources->BasePsoDesc;
+    auto ssaoPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
     auto ssaoMS = (*mGlobalResources->Shaders)[L"SsaoMS"].get();
     auto ssaoPS = (*mGlobalResources->Shaders)[L"SsaoPS"].get();
     ssaoPsoDesc.MS = { reinterpret_cast<byte*>(ssaoMS->GetBufferPointer()),ssaoMS->GetBufferSize() };

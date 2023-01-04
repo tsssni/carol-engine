@@ -1,4 +1,4 @@
-#include "include/root_signature.hlsli"
+#include "include/common.hlsli"
 
 static const int gBlurRadius = 5;
 
@@ -21,9 +21,9 @@ float NdcDepthToViewDepth(float z_ndc)
 
 float4 main(PixelIn pin) : SV_Target
 {
-    Texture2D gDepthMap = ResourceDescriptorHeap[gDepthStencilIdx];
-    Texture2D gNormalMap = ResourceDescriptorHeap[gNormalIdx];
-    Texture2D gAmbientMap = ResourceDescriptorHeap[gAmbientIdx + gBlurDirection];
+    Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilIdx];
+    Texture2D normalMap = ResourceDescriptorHeap[gNormalIdx];
+    Texture2D ambientMap = ResourceDescriptorHeap[gAmbientIdx + gBlurDirection];
     
     float blurWeights[12] =
     {
@@ -42,11 +42,11 @@ float4 main(PixelIn pin) : SV_Target
         texOffset = float2(0.0f, gInvRenderTargetSize.y); 
     }
     
-    float4 color = blurWeights[gBlurRadius] * gAmbientMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f);
+    float4 color = blurWeights[gBlurRadius] * ambientMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f);
     float totalWeight = blurWeights[gBlurRadius];
         
-    float3 centerNormal = gNormalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz;
-    float centerDepth = NdcDepthToViewDepth(gDepthMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).r);
+    float3 centerNormal = normalMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).xyz;
+    float centerDepth = NdcDepthToViewDepth(depthMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0f).r);
     
     for (int i = -gBlurRadius; i <= gBlurRadius; ++i)
     {
@@ -56,12 +56,12 @@ float4 main(PixelIn pin) : SV_Target
         }
         
         float2 offsetTexC = pin.TexC + i * texOffset;
-        float3 neighborNormal = gNormalMap.SampleLevel(gsamPointClamp, offsetTexC, 0.0f).xyz;
-        float neighborDepth = NdcDepthToViewDepth(gDepthMap.SampleLevel(gsamPointClamp, offsetTexC, 0.0f).r);
+        float3 neighborNormal = normalMap.SampleLevel(gsamPointClamp, offsetTexC, 0.0f).xyz;
+        float neighborDepth = NdcDepthToViewDepth(depthMap.SampleLevel(gsamPointClamp, offsetTexC, 0.0f).r);
  
         if (dot(centerNormal, neighborNormal) >= 0.8f && abs(centerDepth - neighborDepth) <= 0.2f)
         {
-            color += blurWeights[i + gBlurRadius] * gAmbientMap.SampleLevel(gsamPointClamp, offsetTexC, 0.0f);
+            color += blurWeights[i + gBlurRadius] * ambientMap.SampleLevel(gsamPointClamp, offsetTexC, 0.0f);
             totalWeight += blurWeights[i + gBlurRadius];
         }
     }

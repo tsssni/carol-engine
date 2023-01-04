@@ -1,4 +1,4 @@
-#include "include/root_signature.hlsli"
+#include "include/common.hlsli"
 #include "include/mesh.hlsli"
 
 struct PixelIn
@@ -9,6 +9,6 @@ struct PixelIn
 
 float4 main(PixelIn pin) : SV_Target
 {	
-	TextureCube gSkyBox = ResourceDescriptorHeap[gDiffuseMapIdx];
-    return gSkyBox.Sample(gsamLinearWrap, pin.PosL);
+	TextureCube skyBox = ResourceDescriptorHeap[gDiffuseMapIdx];
+    return skyBox.Sample(gsamLinearWrap, pin.PosL);
 }

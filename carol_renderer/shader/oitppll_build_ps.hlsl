@@ -1,4 +1,4 @@
-#include "include/root_signature.hlsli"
+#include "include/common.hlsli"
 #include "include/mesh.hlsli"
 #include "include/oitppll.hlsli"
 #include "include/shadow.hlsli"
@@ -17,38 +17,38 @@ struct PixelIn
 
 void main(PixelIn pin)
 {
-    RWStructuredBuffer<OitNode> gOitNodeBuffer = ResourceDescriptorHeap[gOitW];
-    RWByteAddressBuffer gStartOffsetBuffer = ResourceDescriptorHeap[gOitOffsetW];
-    RWByteAddressBuffer gCounter = ResourceDescriptorHeap[gOitCounterW];
+    RWStructuredBuffer<OitNode> oitNodeBuffer = ResourceDescriptorHeap[gOitW];
+    RWByteAddressBuffer startOffsetBuffer = ResourceDescriptorHeap[gOitOffsetW];
+    RWByteAddressBuffer counter = ResourceDescriptorHeap[gOitCounterW];
     
-    Texture2D gDiffuseMap = ResourceDescriptorHeap[gDiffuseMapIdx];
-    Texture2D gNormalMap = ResourceDescriptorHeap[gNormalMapIdx];
-    Texture2D gDepthMap = ResourceDescriptorHeap[gDepthStencilIdx];
+    Texture2D diffuseMap = ResourceDescriptorHeap[gDiffuseMapIdx];
+    Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
+    Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilIdx];
 #ifdef SSAO
-    Texture2D gSsaoMap = ResourceDescriptorHeap[gAmbientIdx];
+    Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientIdx];
 #endif
     
     float2 ndcPos = pin.PosH.xy * gInvRenderTargetSize;
-    if (pin.PosH.z > gDepthMap.Sample(gsamAnisotropicWrap, ndcPos).r)
+    if (pin.PosH.z > depthMap.Sample(gsamAnisotropicWrap, ndcPos).r)
     {
         return;
     }
 
-    float4 texDiffuse = gDiffuseMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
+    float4 texDiffuse = diffuseMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
 
     LightMaterialData lightMat;
     lightMat.fresnelR0 = gFresnelR0;
     lightMat.diffuseAlbedo = texDiffuse.rgb;
     lightMat.roughness = gRoughness;
 
-    float3 texNormal = gNormalMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
+    float3 texNormal = normalMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
     texNormal = TexNormalToWorldSpace(texNormal, pin.NormalW, pin.TangentW);
 
     float3 ambient = gLights[0].Ambient * texDiffuse.rgb;
 
 #ifdef SSAO
     pin.SsaoPosH /= pin.SsaoPosH.w;
-    float ambientAccess = gSsaoMap.SampleLevel(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
+    float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
     ambient*=ambientAccess;
 #endif
 
@@ -62,14 +62,14 @@ void main(PixelIn pin)
     link.DepthU = pin.PosH.z * 0xffffffff;
 
     uint pixelCount;
-    gCounter.InterlockedAdd(0, 1, pixelCount);
+    counter.InterlockedAdd(0, 1, pixelCount);
 
     uint2 pixelPos = uint2(pin.PosH.x - 0.5f, pin.PosH.y - 0.5f);
 
     uint pixelCountAddr = 4 * (pixelPos.y * gRenderTargetSize.x + pixelPos.x);
     uint oldStartOffset;
-    gStartOffsetBuffer.InterlockedExchange(pixelCountAddr, pixelCount, oldStartOffset);
+    startOffsetBuffer.InterlockedExchange(pixelCountAddr, pixelCount, oldStartOffset);
 
     link.NextU = oldStartOffset;
-    gOitNodeBuffer[pixelCount] = link;
+    oitNodeBuffer[pixelCount] = link;
 }
