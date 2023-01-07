@@ -7,10 +7,8 @@
 namespace Carol
 {
 	class GlobalResources;
-	class DefaultResource;
-	class Buffer;
-	class HeapAllocInfo;
-	class CircularHeap;
+	class StructuredBuffer;
+	class RawBuffer;
 
 	class OitppllNode
 	{
@@ -39,8 +37,7 @@ namespace Carol
 	protected:
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
-		virtual void InitResources();
-		virtual void InitDescriptors();
+		virtual void InitBuffers();
 
 		void DrawPpll();
 		void DrawOit();
@@ -50,9 +47,9 @@ namespace Carol
 			PPLL_SRV, OFFSET_SRV, PPLL_UAV, OFFSET_UAV, COUNTER_UAV, OITPPLL_CBV_SRV_UAV_COUNT
 		};
 
-		std::unique_ptr<DefaultResource> mOitppllBuffer;
-		std::unique_ptr<DefaultResource> mStartOffsetBuffer; 
-		std::unique_ptr<DefaultResource> mCounterBuffer;
+		std::unique_ptr<StructuredBuffer> mOitppllBuffer;
+		std::unique_ptr<RawBuffer> mStartOffsetBuffer; 
+		std::unique_ptr<RawBuffer> mCounterBuffer;
 
 		DXGI_FORMAT mOutputFormat;
 	};

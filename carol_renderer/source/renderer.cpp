@@ -32,9 +32,6 @@ namespace Carol {
 	using namespace DirectX;
 }
 
-Carol::unique_ptr<Carol::CircularHeap> Carol::MeshesPass::MeshCBHeap = nullptr;
-Carol::unique_ptr<Carol::CircularHeap> Carol::MeshesPass::SkinnedCBHeap = nullptr;
-
 Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	:BaseRenderer(hWnd, width, height), mFrameIdx(FRAME_IDX_COUNT, 0)
 {
@@ -103,7 +100,6 @@ void Carol::Renderer::InitSsao()
 void Carol::Renderer::InitNormal()
 {
 	mNormal = make_unique<NormalPass>(mGlobalResources.get());
-	mFrameIdx[NORMAL_IDX] = mNormal->GetNormalSrvIdx();
 	mGlobalResources->Normal = mNormal.get();
 }
 
@@ -200,7 +196,6 @@ void Carol::Renderer::UpdateFrameCB()
 
 void Carol::Renderer::DelayedDelete()
 {
-	mCbvSrvUavAllocator->DelayedDelete(mCurrFrame);
 	mScene->DelayedDelete(mCurrFrame);
 	mFrameCBHeap->DelayedDelete(mCurrFrame);
 	mDefaultBuffersHeap->DelayedDelete(mCurrFrame);
@@ -211,8 +206,8 @@ void Carol::Renderer::DelayedDelete()
 
 void Carol::Renderer::ReleaseIntermediateBuffers()
 {
+	mScene->ReleaseIntermediateBuffers();
 	mSsao->ReleaseIntermediateBuffers();
-	mMeshes->ReleaseIntermediateBuffers();
 }
 
 void Carol::Renderer::Draw()
@@ -308,6 +303,7 @@ void Carol::Renderer::Update()
 	
 	DelayedDelete();
 	mScene->Update(mCamera.get(), mTimer.get());
+	mMeshes->Update();
 	mMainLight->Update();
 	mSsao->Update();
 	mFrame->Update();
@@ -331,17 +327,17 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 
 	mFrameIdx[FRAME_IDX] = mFrame->GetFrameSrvIdx();
 	mFrameIdx[DEPTH_STENCIL_IDX] = mFrame->GetDepthStencilSrvIdx();
-	mFrameIdx[HIZ_R_IDX] = mFrame->GetHiZSrvIdx();
-	mFrameIdx[HIZ_W_IDX] = mFrame->GetHiZUavIdx();
 	mFrameIdx[NORMAL_IDX] = mNormal->GetNormalSrvIdx();
-	mFrameIdx[AMBIENT_IDX] = mSsao->GetSsaoSrvIdx();
-	mFrameIdx[VELOCITY_IDX] = mTaa->GetVeloctiySrvIdx();
-	mFrameIdx[HIST_IDX] = mTaa->GetHistFrameSrvIdx();
+	mFrameIdx[SHADOW_IDX] = mMainLight->GetShadowSrvIdx();
 	mFrameIdx[OIT_W_IDX] = mOitppll->GetPpllUavIdx();
 	mFrameIdx[OIT_OFFSET_W_IDX] = mOitppll->GetOffsetUavIdx();
 	mFrameIdx[OIT_COUNTER_IDX] = mOitppll->GetCounterUavIdx();
 	mFrameIdx[OIT_R_IDX] = mOitppll->GetPpllSrvIdx();
 	mFrameIdx[OIT_OFFSET_R_IDX] = mOitppll->GetOffsetSrvIdx();
+	mFrameIdx[RAND_VEC_IDX] = mSsao->GetRandVecSrvIdx();
+	mFrameIdx[AMBIENT_IDX] = mSsao->GetSsaoSrvIdx();
+	mFrameIdx[VELOCITY_IDX] = mTaa->GetVeloctiySrvIdx();
+	mFrameIdx[HIST_IDX] = mTaa->GetHistFrameSrvIdx();
 
 	mCommandList->Close();
 	vector<ID3D12CommandList*> cmdLists{ mCommandList.Get()};

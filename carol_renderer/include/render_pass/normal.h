@@ -7,7 +7,7 @@
 namespace Carol
 {
 	class GlobalResources;
-	class DefaultResource;
+	class ColorBuffer;
 
 	class NormalPass : public RenderPass
 	{
@@ -27,20 +27,9 @@ namespace Carol
 	protected:
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
-		virtual void InitResources()override;
-		virtual void InitDescriptors()override;
+		virtual void InitBuffers()override;
 
-		enum
-		{
-			NORMAL_SRV, NORMAL_CBV_SRV_UAV_COUNT
-		};
-
-		enum
-		{
-			NORMAL_RTV, NORMAL_RTV_COUNT
-		};
-
-		std::unique_ptr<DefaultResource> mNormalMap;
+		std::unique_ptr<ColorBuffer> mNormalMap;
 		DXGI_FORMAT mNormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	};
 }

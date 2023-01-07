@@ -43,7 +43,7 @@ float4 main(PixelIn pin) : SV_Target
 #endif
 
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
-    shadowFactor[0] = CalcShadowFactor(mul(float4(pin.PosW, 1.0f), gLights[0].ViewProjTex));
+    shadowFactor[0] =  CalcShadowFactor(mul(float4(pin.PosW, 1.0f), gLights[0].ViewProjTex));
     float4 litColor = ComputeLighting(gLights, lightMat, pin.PosW, texNormal, normalize(gEyePosW - pin.PosW), shadowFactor);
     
     return float4(ambient + litColor.rgb, 1.0f);

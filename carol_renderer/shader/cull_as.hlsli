@@ -4,12 +4,17 @@
 
 groupshared Payload sharedPayload;
 
-#ifdef SHADOW
-cbuffer ShadowConstants : register(b3)
+cbuffer CullConstants : register(b3)
 {
+    uint gViewCulledIdx;
+    uint gOcclusionPassedIdx;
+    uint gHiZIdx;
+    uint gWidth;
+    uint gHeight;
+#ifdef SHADOW
     uint gLightIdx;
-}
 #endif
+}
 
 [numthreads(AS_GROUP_SIZE, 1, 1)]
 void main(
@@ -17,9 +22,9 @@ void main(
     uint gtid : SV_GroupThreadID,
     uint dtid : SV_DispatchThreadID)
 { 
-    bool visible = false;
+    bool visible = GetMark(dtid, gOcclusionPassedIdx);
     
-    if (dtid < gMeshletCount)
+    if (dtid < gMeshletCount && !visible && !GetMark(dtid, gViewCulledIdx))
     {
 #ifdef SHADOW
         float4x4 worldViewProj = mul(gWorld, gLights[gLightIdx].ViewProj);
@@ -30,6 +35,20 @@ void main(
         CullData cd = cullData[dtid];
             
         visible = (AabbFrustumTest(cd.Center, cd.Extents, worldViewProj) != OUTSIDE) && NormalConeTest(cd.Center, cd.NormalCone, cd.ApexOffset, gWorld, gEyePosW);       
+
+        if(!visible)
+        {
+            SetMark(dtid, gViewCulledIdx);
+        }
+        else
+        {
+            visible = HiZOcclusionTest(cd.Center, cd.Extents, float2(gWidth, gHeight), worldViewProj, gHiZIdx);
+
+            if(visible)
+            {
+                SetMark(dtid, gOcclusionPassedIdx);
+            }
+        }
     }
     
     if (visible)

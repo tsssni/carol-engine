@@ -13,6 +13,14 @@ namespace Carol {
 }
 
 
+Carol::Display::~Display()
+{
+	if (mBackBufferRtvAllocInfo->Allocator)
+	{
+		mBackBufferRtvAllocInfo->Allocator->CpuDeallocate(mBackBufferRtvAllocInfo.get());
+	}
+}
+
 IDXGISwapChain* Carol::Display::GetSwapChain()
 {
 	return mSwapChain.Get();
@@ -36,7 +44,10 @@ Carol::Display::Display(
 	uint32_t height,
 	uint32_t bufferCount,
 	DXGI_FORMAT backBufferFormat)
-	:RenderPass(globalResources), mBackBufferFormat(backBufferFormat),mBackBuffer(bufferCount)
+	:RenderPass(globalResources),
+	mBackBuffer(bufferCount),
+	mBackBufferFormat(backBufferFormat),
+	mBackBufferRtvAllocInfo(make_unique<DescriptorAllocInfo>())
 {
 	mBackBufferFormat = backBufferFormat;
 	mBackBuffer.resize(bufferCount);
@@ -74,7 +85,7 @@ Carol::Resource* Carol::Display::GetCurrBackBuffer()
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::Display::GetCurrBackBufferRtv()
 {
-	return GetRtv(mCurrBackBufferIndex);
+	return mGlobalResources->RtvAllocator->GetCpuHandle(mBackBufferRtvAllocInfo.get(), mCurrBackBufferIndex);
 }
 
 DXGI_FORMAT Carol::Display::GetBackBufferFormat()
@@ -97,12 +108,10 @@ void Carol::Display::OnResize()
 
     if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
     {
-		DeallocateDescriptors();
-
         width = *mGlobalResources->ClientWidth;
         height = *mGlobalResources->ClientHeight;
 
-        InitResources();
+        InitBuffers();
     }
 }
 
@@ -128,7 +137,7 @@ void Carol::Display::InitPSOs()
 {
 }
 
-void Carol::Display::InitResources()
+void Carol::Display::InitBuffers()
 {
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
@@ -144,17 +153,19 @@ void Carol::Display::InitResources()
 	));
 
 	mCurrBackBufferIndex = 0;
-
 	InitDescriptors();
 }
 
 void Carol::Display::InitDescriptors()
 {
-	mGlobalResources->RtvAllocator->CpuAllocate(mBackBuffer.size(), mRtvAllocInfo.get());
+	if (!mBackBufferRtvAllocInfo->Allocator)
+	{
+		mGlobalResources->RtvAllocator->CpuAllocate(mBackBuffer.size(), mBackBufferRtvAllocInfo.get());
+	}
 	
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
 		ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(mBackBuffer[i]->GetAddressOf())));
-		mGlobalResources->Device->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, GetRtv(i));
+		mGlobalResources->Device->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, mGlobalResources->RtvAllocator->GetCpuHandle(mBackBufferRtvAllocInfo.get(), i));
 	}
 }

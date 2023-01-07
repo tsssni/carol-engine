@@ -48,7 +48,7 @@ Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitCamera();
 
 #if defined _DEBUG
-	//InitDebug();
+	InitDebug();
 #endif
 	InitDxgiFactory();
 	InitDevice();
@@ -185,9 +185,9 @@ void Carol::BaseRenderer::InitHeaps()
 
 void Carol::BaseRenderer::InitAllocators()
 {
-	mCbvSrvUavAllocator = make_unique<CbvSrvUavDescriptorAllocator>(mDevice.Get());
-	mRtvAllocator = make_unique<RtvDescriptorAllocator>(mDevice.Get());
-	mDsvAllocator = make_unique<DsvDescriptorAllocator>(mDevice.Get());
+	mCbvSrvUavAllocator = make_unique<DescriptorAllocator>(mDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	mRtvAllocator = make_unique<DescriptorAllocator>(mDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	mDsvAllocator = make_unique<DescriptorAllocator>(mDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
 	mGlobalResources->CbvSrvUavAllocator = mCbvSrvUavAllocator.get();
 	mGlobalResources->RtvAllocator = mRtvAllocator.get();

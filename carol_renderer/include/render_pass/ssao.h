@@ -8,15 +8,7 @@
 namespace Carol
 {
 	class GlobalResources;
-	class HeapAllocInfo;
-	class CircularHeap;
-	class DefaultResource;
-	class Shader;
-
-	class SsaoConstants {
-	public:
-		
-	};
+	class ColorBuffer;
 
 	class SsaoPass : public RenderPass
 	{
@@ -44,8 +36,7 @@ namespace Carol
 	protected:
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
-		virtual void InitResources()override;
-		virtual void InitDescriptors()override;
+		virtual void InitBuffers()override;
 
 		void InitRandomVectors();
 		void InitRandomVectorMap();
@@ -54,23 +45,12 @@ namespace Carol
 		void DrawAmbientMap();
 		void DrawAmbientMap(bool vertBlur);
 
-		std::unique_ptr<DefaultResource> mRandomVecMap;
-		std::unique_ptr<DefaultResource> mAmbientMap0;
-		std::unique_ptr<DefaultResource> mAmbientMap1;
-
-		uint32_t mBlurCount = 3;
-		
-		enum
-		{
-			RAND_VEC_SRV, AMBIENT0_SRV, AMBIENT1_SRV, SSAO_CBV_SRV_UAV_COUNT
-		};
-
-		enum
-		{
-			AMBIENT0_RTV, AMBIENT1_RTV, SSAO_RTV_COUNT
-		};
+		std::unique_ptr<ColorBuffer> mRandomVecMap;
+		std::unique_ptr<ColorBuffer> mAmbientMap0;
+		std::unique_ptr<ColorBuffer> mAmbientMap1;
 
 		DXGI_FORMAT mAmbientMapFormat = DXGI_FORMAT_R16_UNORM;
+		uint32_t mBlurCount;
 		DirectX::XMFLOAT4 mOffsets[14];
 	};
 }

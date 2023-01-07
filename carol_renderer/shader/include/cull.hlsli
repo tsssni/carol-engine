@@ -4,6 +4,8 @@
 #define OUTSIDE 1
 #define INTERSECTING 2
 
+#include "common.hlsli"
+
 struct CullData
 {
     float3 Center;
@@ -16,6 +18,23 @@ struct Payload
 {
     uint MeshletIndices[AS_GROUP_SIZE];
 };
+
+bool GetMark(uint idx, uint markIdx)
+{
+    RWByteAddressBuffer mark = ResourceDescriptorHeap[markIdx];
+    uint byte = mark.Load(idx / 8);
+    return ((byte >> (idx % 8)) & 1) == 1;
+}
+
+void SetMark(uint idx, uint markIdx)
+{
+    RWByteAddressBuffer mark = ResourceDescriptorHeap[markIdx];
+    uint byte = mark.Load(idx / 8);
+    uint oriByte;
+    
+    byte |= (1u << (idx % 8u));
+    mark.InterlockedExchange(idx, byte, oriByte);
+}
 
 uint AabbPlaneTest(float3 center, float3 extents, float4 plane)
 {
@@ -96,9 +115,9 @@ uint AabbFrustumTest(float3 center, float3 extents, float4x4 M)
     }
 }
 
-bool IsConeDegenerate(CullData c)
+bool IsConeDegenerate(uint packedNormalCone)
 {
-    return (c.NormalCone >> 24) == 0xff;
+    return (packedNormalCone >> 24) == 0xff;
 }
 
 float4 UnpackCone(uint packed)
@@ -115,15 +134,15 @@ float4 UnpackCone(uint packed)
     return v;
 }
 
-bool NormalConeTest(CullData c, float4x4 world, float3 viewPos)
+bool NormalConeTest(float3 center, uint packedNormalCone, float apexOffset, float4x4 world, float3 viewPos)
 {
-    if (IsConeDegenerate(c))
+    if (IsConeDegenerate(packedNormalCone))
         return true;
 
-    float4 normalCone = UnpackCone(c.NormalCone);
+    float4 normalCone = UnpackCone(packedNormalCone);
     float3 axis = normalize(mul(float4(normalCone.xyz, 0.f), world)).xyz;
 
-    float3 apex = mul(float4(c.Center - normalCone.xyz * c.ApexOffset, 1.f), world).xyz;
+    float3 apex = mul(float4(center - normalCone.xyz * apexOffset, 1.f), world).xyz;
     float3 view = normalize(viewPos - apex);
 
     if (dot(view, -axis) > normalCone.w)
@@ -132,4 +151,49 @@ bool NormalConeTest(CullData c, float4x4 world, float3 viewPos)
     }
 
     return true;
+}
+
+uint HiZOcclusionTest(float3 center, float3 extent, float2 rtSize, float4x4 M, uint hiZIdx)
+{
+    Texture2D hiZMap = ResourceDescriptorHeap[hiZIdx];
+    uint2 hiZSize;
+    uint maxMipLevel;
+
+    hiZMap.GetDimensions(0, hiZSize.x, hiZSize.y, maxMipLevel);
+    maxMipLevel -= 1;
+    
+    static float dx[8] = { -1.f, 1.f, -1.f, 1.f, -1.f, 1.f, -1.f, 1.f };
+    static float dy[8] = { -1.f, -1.f, 1.f, 1.f, -1.f, -1.f, 1.f, 1.f };
+    static float dz[8] = { -1.f, -1.f, -1.f, -1.f, 1.f, 1.f, 1.f, 1.f };
+    
+    float4 v[8];
+    float2 boxMin = { 1.f, 1.f };
+    float2 boxMax = { 0.f, 0.f };
+    float minZ = 1.f;
+    
+    [unroll]
+    for (int i = 0; i < 8; ++i)
+    {
+        v[i] = float4(center + extent * float3(dx[i], dy[i], dz[i]), 1.f);
+        v[i] = mul(v[i], M);
+        v[i] /= v[i].w;
+        v[i].xy = v[i].xy * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
+        
+        boxMin = min(boxMin, v[i].xy);
+        boxMax = max(boxMax, v[i].xy);
+        minZ = saturate(min(minZ, v[i].z));
+    }
+
+    float4 box = float4(boxMin, boxMax);
+    float2 boxSize = (boxMax - boxMin) * rtSize;
+    float mip = clamp(log2(max(boxSize.x, boxSize.y)), 0.f, maxMipLevel);
+
+    float4 depth;
+    depth.x = hiZMap.Sample(gsamPointClamp, box.xy).r;
+    depth.y = hiZMap.Sample(gsamPointClamp, box.zy).r;
+    depth.z = hiZMap.Sample(gsamPointClamp, box.xw).r;
+    depth.w = hiZMap.Sample(gsamPointClamp, box.zw).r;
+    
+    float maxDepth = max(depth.x, max(depth.y, max(depth.z, depth.w)));
+    return minZ > maxDepth;
 }

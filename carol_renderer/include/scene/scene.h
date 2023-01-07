@@ -1,5 +1,6 @@
 #pragma once
 #include <scene/light.h>
+#include <scene/model.h>
 #include <d3d12.h>
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
@@ -13,7 +14,7 @@ namespace Carol {
 	class Heap;
 	class HeapAllocInfo;
 	class CircularHeap;
-	class CbvSrvUavDescriptorAllocator;
+	class DescriptorAllocator;
 	class Mesh;
 	class TextureManager;
 	class Model;
@@ -69,7 +70,7 @@ namespace Carol {
 	class Scene
 	{
 	public:
-		Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* texHeap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator);
+		Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* defaultBuffersHeap, Heap* texHeap, Heap* uploadBuffersHeap, DescriptorAllocator* allocator);
 		Scene(const Scene&) = delete;
 		Scene(Scene&&) = delete;
 		Scene& operator=(const Scene&) = delete;
@@ -87,7 +88,8 @@ namespace Carol {
 		void ReleaseIntermediateBuffers();
 		void ReleaseIntermediateBuffers(std::wstring modelName);
 
-		const std::unordered_map<std::wstring, Mesh*>& GetMeshes(uint32_t type);
+		const std::unordered_map<std::wstring, Mesh*>& GetMeshes(MeshType type);
+		uint32_t GetMeshesCount(MeshType type);
 		Mesh* GetSkyBox();
 
 		void SetWorld(std::wstring modelName, DirectX::XMMATRIX world);
@@ -95,19 +97,14 @@ namespace Carol {
 		void Update(Camera* camera, Timer* timer);
 		void Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
 
-		enum
-		{
-			OPAQUE_STATIC, OPAQUE_SKINNED, TRANSPARENT_STATIC, TRANSPARENT_SKINNED, MESH_TYPE_COUNT
-		};
-
 	protected:
 		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot);
 
 		ID3D12Device* mDevice;
 		ID3D12GraphicsCommandList* mCommandList;
-		Heap* mHeap;
-		Heap* mUploadHeap;
-		CbvSrvUavDescriptorAllocator* mAllocator;
+		Heap* mDefaultBuffersHeap;
+		Heap* mUploadBuffersHeap;
+		DescriptorAllocator* mAllocator;
 
 		std::unordered_map<std::wstring, std::unique_ptr<Model>> mModels;
 		std::unique_ptr<Model> mSkyBox;

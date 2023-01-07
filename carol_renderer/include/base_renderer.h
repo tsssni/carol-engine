@@ -13,9 +13,7 @@ namespace Carol
 	class Heap;
     class CircularHeap;
     class HeapAllocInfo;
-	class RtvDescriptorAllocator;
-	class DsvDescriptorAllocator;
-	class CbvSrvUavDescriptorAllocator;
+	class DescriptorAllocator;
     class DescriptorAllocInfo;
     class Shader;
 	class RootSignature;
@@ -96,9 +94,9 @@ namespace Carol
         std::unique_ptr<Heap> mReadbackBuffersHeap;
 		std::unique_ptr<Heap> mTexturesHeap;
 
-		std::unique_ptr<CbvSrvUavDescriptorAllocator> mCbvSrvUavAllocator;
-		std::unique_ptr<RtvDescriptorAllocator> mRtvAllocator;
-		std::unique_ptr<DsvDescriptorAllocator> mDsvAllocator;
+		std::unique_ptr<DescriptorAllocator> mCbvSrvUavAllocator;
+		std::unique_ptr<DescriptorAllocator> mRtvAllocator;
+		std::unique_ptr<DescriptorAllocator> mDsvAllocator;
 		std::unique_ptr<RootSignature> mRootSignature;
 
         std::unordered_map<std::wstring, std::unique_ptr<Shader>> mShaders;

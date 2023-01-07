@@ -1,5 +1,6 @@
 #pragma once
 #include <render_pass/render_pass.h>
+#include <scene/model.h>
 #include <d3d12.h>
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
@@ -10,9 +11,18 @@
 namespace Carol
 {
 	class Mesh;
-	class Camera;
 	class GlobalResources;
-	class CircularHeap;
+	class StructuredBuffer;
+	class RawBuffer;
+
+	class IndirectCommand
+	{
+	public:
+		D3D12_GPU_VIRTUAL_ADDRESS MeshCB;
+		uint32_t MeshConstants[6];
+		D3D12_GPU_VIRTUAL_ADDRESS SkinnedCB;
+		D3D12_DISPATCH_MESH_ARGUMENTS DispatchMeshArgs;
+	};
 
 	class MeshesPass : public RenderPass
 	{
@@ -25,23 +35,25 @@ namespace Carol
 		virtual void OnResize()override;
 		virtual void ReleaseIntermediateBuffers()override;
 		
+		void ClearCullMark();
+		ID3D12CommandSignature* GetCommandSignature();
+		uint32_t GetCullMarkIdx(MeshType type);
+		uint32_t GetCommandBufferIdx(MeshType type);
 		void DrawMeshes(const std::vector<ID3D12PipelineState*>& pso);
 		void DrawSkyBox(ID3D12PipelineState* skyBoxPSO);
 
 	protected:
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
-		virtual void InitResources()override;
-		virtual void InitDescriptors()override;
-		
+		virtual void InitBuffers()override;
+		void InitCommandSignature();
+
 		void Draw(Mesh* renderNode);
 
-		enum
-		{
-			OPAQUE_STATIC, OPAQUE_SKINNED, TRANSPARENT_STATIC, TRANSPARENT_SKINNED, MESH_TYPE_COUNT
-		};
+		Microsoft::WRL::ComPtr<ID3D12CommandSignature> mCommandSignature;
+		std::vector<std::vector<IndirectCommand>> mIndirectCommand;
 
-		static std::unique_ptr<CircularHeap> MeshCBHeap;
-		static std::unique_ptr<CircularHeap> SkinnedCBHeap;
+		std::vector<std::unique_ptr<StructuredBuffer>> mIndirectCommandBuffer;
+		std::vector<std::unique_ptr<RawBuffer>> mCullMarkBuffer;
 	};
 }

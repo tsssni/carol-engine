@@ -40,12 +40,12 @@ void Carol::SsaoPass::SetBlurCount(uint32_t blurCout)
 
 uint32_t Carol::SsaoPass::GetRandVecSrvIdx()
 {
-    return mGpuCbvSrvUavAllocInfo->StartOffset + RAND_VEC_SRV;
+    return mRandomVecMap->GetGpuSrvIdx();
 }
 
 uint32_t Carol::SsaoPass::GetSsaoSrvIdx()
 {
-    return mGpuCbvSrvUavAllocInfo->StartOffset + AMBIENT0_SRV;
+    return mAmbientMap0->GetGpuSrvIdx();
 }
 
 void Carol::SsaoPass::OnResize()
@@ -55,12 +55,10 @@ void Carol::SsaoPass::OnResize()
 
     if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
     {
-        DeallocateDescriptors();
-
         width = *mGlobalResources->ClientWidth;
         height = *mGlobalResources->ClientHeight;
 
-        InitResources();
+        InitBuffers();
     }
 }
 
@@ -85,8 +83,8 @@ void Carol::SsaoPass::DrawSsao()
     mGlobalResources->CommandList->RSSetScissorRects(1, mGlobalResources->ScissorRect);
 
     mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap0->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-    mGlobalResources->CommandList->ClearRenderTargetView(GetRtv(AMBIENT0_RTV), DirectX::Colors::Red, 0, nullptr);
-    mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(AMBIENT0_RTV)), true, nullptr);
+    mGlobalResources->CommandList->ClearRenderTargetView(mAmbientMap0->GetRtv(), DirectX::Colors::Red, 0, nullptr);
+    mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mAmbientMap0->GetRtv()), true, nullptr);
     
     mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"Ssao"].Get());
     mGlobalResources->CommandList->DispatchMesh(1, 1, 1);
@@ -120,26 +118,39 @@ Carol::vector<float> Carol::SsaoPass::CalcGaussWeights(float sigma)
     return weights;
 }
 
-void Carol::SsaoPass::InitResources()
+void Carol::SsaoPass::InitBuffers()
 {
-    D3D12_RESOURCE_DESC ambientMapDesc = {};
-    ambientMapDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    ambientMapDesc.Alignment = 0;
-    ambientMapDesc.Width = *mGlobalResources->ClientWidth;
-    ambientMapDesc.Height = *mGlobalResources->ClientHeight;
-    ambientMapDesc.DepthOrArraySize = 1;
-    ambientMapDesc.MipLevels = 1;
-    ambientMapDesc.Format = mAmbientMapFormat;
-    ambientMapDesc.SampleDesc.Count = 1;
-    ambientMapDesc.SampleDesc.Quality = 0;
-    ambientMapDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    ambientMapDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;	
-    CD3DX12_CLEAR_VALUE ambientMapClearValue(mAmbientMapFormat, DirectX::Colors::Red);
+    uint32_t width = *mGlobalResources->ClientWidth;
+    uint32_t height = *mGlobalResources->ClientHeight;
+    D3D12_CLEAR_VALUE optClearValue = CD3DX12_CLEAR_VALUE(mAmbientMapFormat, DirectX::Colors::Red);
 
-    mAmbientMap0 = make_unique<DefaultResource>(&ambientMapDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &ambientMapClearValue);
-    mAmbientMap1 = make_unique<DefaultResource>(&ambientMapDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &ambientMapClearValue);
+    mAmbientMap0 = make_unique<ColorBuffer>(
+        width,
+        height,
+        1,
+        COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
+        mAmbientMapFormat,
+        mGlobalResources->DefaultBuffersHeap,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        mGlobalResources->CbvSrvUavAllocator,
+        mGlobalResources->RtvAllocator,
+        nullptr,
+        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+        &optClearValue);
 
-    InitDescriptors();
+	mAmbientMap1 = make_unique<ColorBuffer>(
+        width,
+        height,
+        1,
+        COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
+        mAmbientMapFormat,
+        mGlobalResources->DefaultBuffersHeap,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        mGlobalResources->CbvSrvUavAllocator,
+        mGlobalResources->RtvAllocator,
+        nullptr,
+        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+        &optClearValue);
 }
 
 void Carol::SsaoPass::InitRandomVectors()
@@ -176,20 +187,16 @@ void Carol::SsaoPass::InitRandomVectors()
 }
 
 void Carol::SsaoPass::InitRandomVectorMap()
-{
-    D3D12_RESOURCE_DESC texDesc = {};
-    texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    texDesc.Alignment = 0;
-    texDesc.Width = 256;
-    texDesc.Height = 256;
-    texDesc.DepthOrArraySize = 1;
-    texDesc.MipLevels = 1;
-    texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    texDesc.SampleDesc.Count = 1;
-    texDesc.SampleDesc.Quality = 0;
-    texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-    mRandomVecMap = make_unique<DefaultResource>(&texDesc, mGlobalResources->TexturesHeap);
+{ 
+    mRandomVecMap = make_unique<ColorBuffer>(
+        256,
+        256,
+        1,
+        COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        mGlobalResources->DefaultBuffersHeap,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        mGlobalResources->CbvSrvUavAllocator);
 
     XMCOLOR initData[256 * 256];
     for (int i = 0; i < 256; ++i)
@@ -205,7 +212,7 @@ void Carol::SsaoPass::InitRandomVectorMap()
     subresource.pData = initData;
     subresource.RowPitch = 256 * sizeof(XMCOLOR);
     subresource.SlicePitch = subresource.RowPitch * 256;
-    mRandomVecMap->CopySubresources(mGlobalResources->CommandList, mGlobalResources->UploadBuffersHeap, &subresource);
+    mRandomVecMap->CopySubresources(mGlobalResources->CommandList, mGlobalResources->UploadBuffersHeap, &subresource, 0, 1);
 }
 
 void Carol::SsaoPass::InitShaders()
@@ -255,37 +262,6 @@ void Carol::SsaoPass::GetOffsetVectors(DirectX::XMFLOAT4 offsets[14])
     std::copy(&mOffsets[0], &mOffsets[14], offsets);
 }
 
-void Carol::SsaoPass::InitDescriptors()
-{
-    mGlobalResources->CbvSrvUavAllocator->CpuAllocate(SSAO_CBV_SRV_UAV_COUNT, mCpuCbvSrvUavAllocInfo.get());
-	mGlobalResources->RtvAllocator->CpuAllocate(SSAO_RTV_COUNT, mRtvAllocInfo.get());
-    
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    srvDesc.Texture2D.MostDetailedMip = 0;
-    srvDesc.Texture2D.MipLevels = 1;
-    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-    mGlobalResources->Device->CreateShaderResourceView(mRandomVecMap->Get(), &srvDesc, GetCpuCbvSrvUav(RAND_VEC_SRV));
-
-    srvDesc.Format = mAmbientMapFormat;
-    mGlobalResources->Device->CreateShaderResourceView(mAmbientMap0->Get(), &srvDesc, GetCpuCbvSrvUav(AMBIENT0_SRV));
-    mGlobalResources->Device->CreateShaderResourceView(mAmbientMap1->Get(), &srvDesc, GetCpuCbvSrvUav(AMBIENT1_SRV));
-    
-    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-    rtvDesc.Format = mAmbientMapFormat;
-    rtvDesc.Texture2D.MipSlice = 0;
-    rtvDesc.Texture2D.PlaneSlice = 0;
-
-    mGlobalResources->Device->CreateRenderTargetView(mAmbientMap0->Get(), &rtvDesc, GetRtv(AMBIENT0_RTV));
-    mGlobalResources->Device->CreateRenderTargetView(mAmbientMap1->Get(), &rtvDesc, GetRtv(AMBIENT1_RTV));
-
-    CopyDescriptors();
-}
-
 void Carol::SsaoPass::DrawAmbientMap()
 {
     mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"SsaoBlur"].Get());
@@ -299,25 +275,28 @@ void Carol::SsaoPass::DrawAmbientMap()
 
 void Carol::SsaoPass::DrawAmbientMap(bool vertBlur)
 {
-    Resource* output;
+    ID3D12Resource* output;
     CD3DX12_CPU_DESCRIPTOR_HANDLE outputRtv;
+    uint32_t ssaoConstants[2] = { vertBlur };
 
     if (!vertBlur)
     {
-        output = mAmbientMap1.get();
-        outputRtv = GetRtv(AMBIENT1_RTV);
+        output = mAmbientMap1->Get();
+        outputRtv = mAmbientMap1->GetRtv();
+        ssaoConstants[1] = mAmbientMap0->GetGpuSrvIdx();
     }
     else
     {
-        output = mAmbientMap0.get();
-        outputRtv = GetRtv(AMBIENT0_RTV);
+        output = mAmbientMap0->Get();
+        outputRtv = mAmbientMap0->GetRtv();
+        ssaoConstants[1] = mAmbientMap1->GetGpuSrvIdx();
     }
 
-    mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(output->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET)));
+    mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET)));
     mGlobalResources->CommandList->ClearRenderTargetView(outputRtv, DirectX::Colors::Red, 0, nullptr);
     mGlobalResources->CommandList->OMSetRenderTargets(1, &outputRtv, true, nullptr);
-    mGlobalResources->CommandList->SetGraphicsRoot32BitConstant(RootSignature::PASS_CONSTANTS, vertBlur, 0);
+    mGlobalResources->CommandList->SetGraphicsRoot32BitConstants(RootSignature::PASS_CONSTANTS, 2, ssaoConstants, 0);
 
     mGlobalResources->CommandList->DispatchMesh(1, 1, 1);
-    mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(output->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ)));
+    mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ)));
 }

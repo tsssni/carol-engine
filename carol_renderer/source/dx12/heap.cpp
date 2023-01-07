@@ -19,7 +19,7 @@ Carol::Heap::Heap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS f
 
 void Carol::Heap::DeleteResource(HeapAllocInfo* info)
 {
-    mDeletedResources[mCurrFrame].push_back(info);
+    mDeletedResources[mCurrFrame].push_back(*info);
 }
 
 void Carol::Heap::DeleteResourceImmediate(HeapAllocInfo* info)
@@ -39,7 +39,7 @@ void Carol::Heap::DelayedDelete(uint32_t currFrame)
 
     for (auto& info : mDeletedResources[mCurrFrame])
     {
-        Deallocate(info);
+        Deallocate(&info);
     }
 
     mDeletedResources[mCurrFrame].clear();

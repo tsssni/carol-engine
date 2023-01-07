@@ -13,9 +13,6 @@ namespace Carol
 {
 	class GlobalResources;
 	class Resource;
-	class DefaultResource;
-	class CpuDescriptorAllocInfo;
-	class GpuDescriptorAllocInfo;
 
 	class Display : public RenderPass
 	{
@@ -32,6 +29,7 @@ namespace Carol
 		Display(const Display&) = delete;
 		Display(Display&&) = delete;
 		Display& operator=(const Display&) = delete;
+		~Display();
 	
 		virtual IDXGISwapChain* GetSwapChain();
 		IDXGISwapChain** GetAddressOfSwapChain();
@@ -51,13 +49,14 @@ namespace Carol
 	private:
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
-		virtual void InitResources()override;
-		virtual void InitDescriptors()override;
+		virtual void InitBuffers()override;
+		void InitDescriptors();
 
 		Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
-
 		uint32_t mCurrBackBufferIndex;
+
 		std::vector<std::unique_ptr<Resource>> mBackBuffer;
+		std::unique_ptr<DescriptorAllocInfo> mBackBufferRtvAllocInfo;
 		DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	};
 

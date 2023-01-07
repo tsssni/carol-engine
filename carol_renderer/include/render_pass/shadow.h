@@ -10,7 +10,8 @@
 namespace Carol
 {
     class GlobalResource;
-    class DefaultResource;
+    class ColorBuffer;
+    class StructuredBuffer;
     class HeapAllocInfo;
     class CircularHeap;
     class Shader;
@@ -24,9 +25,8 @@ namespace Carol
             Light light,
             uint32_t width = 1024,
             uint32_t height = 1024,
-            DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_TYPELESS,
-            DXGI_FORMAT shadowDsvFormat = DXGI_FORMAT_D32_FLOAT,
-            DXGI_FORMAT shadowSrvFormat = DXGI_FORMAT_R32_FLOAT);
+            DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
+            DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
         virtual void Draw()override;
         virtual void Update()override;
@@ -38,24 +38,23 @@ namespace Carol
     protected:
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
-        virtual void InitResources()override;
-        virtual void InitDescriptors()override;
-
+        virtual void InitBuffers()override;
+        
         void InitLightView();
         void InitCamera();
+        
+        void CullMeshes();
+        void DrawShadow();
+        void DrawHiZ();
+
+        void UpdateLight();
+        void UpdateCommandBuffer();
 
         std::unique_ptr<Light> mLight;
-        std::unique_ptr<DefaultResource> mShadowMap;
-        
-        enum
-        {
-            SHADOW_SRV, SHADOW_CBV_SRV_UAV_COUNT
-        };
-
-        enum
-        {
-            SHADOW_DSV, SHADOW_DSV_COUNT
-        };
+        std::unique_ptr<ColorBuffer> mShadowMap;
+        std::unique_ptr<ColorBuffer> mHiZMap;
+        std::vector<std::unique_ptr<StructuredBuffer>> mOcclusionCommandBuffer;
+		uint32_t mHiZMipLevels;
 
         D3D12_VIEWPORT mViewport;
         D3D12_RECT mScissorRect;
@@ -64,7 +63,6 @@ namespace Carol
         uint32_t mHeight;
 
         DXGI_FORMAT mShadowFormat;
-        DXGI_FORMAT mShadowDsvFormat;
-        DXGI_FORMAT mShadowSrvFormat;
+        DXGI_FORMAT mHiZFormat;
     };
 }

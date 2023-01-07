@@ -14,10 +14,9 @@ namespace Carol
 	class AnimationClip;
 	class SkinnedData;
 	class Heap;
-	class CircularHeap;
-	class DefaultResource;
-	class CbvSrvUavDescriptorAllocator;
-	class DescriptorAllocInfo;
+	class StructuredBuffer;
+	class RawBuffer;
+	class DescriptorAllocator;
 	class Timer;
 	class TextureManager;
 
@@ -86,6 +85,21 @@ namespace Carol
 	class Model;
 	class OctreeNode;
 
+	enum MeshType
+	{
+		OPAQUE_STATIC, OPAQUE_SKINNED, TRANSPARENT_STATIC, TRANSPARENT_SKINNED, MESH_TYPE_COUNT
+	};
+
+	enum OpaqueMeshType
+	{
+		OPAQUE_MESH_START = 0, OPAQUE_MESH_TYPE_COUNT = 2
+	};
+
+	enum TransparentMeshType
+	{
+		TRANSPARENT_MESH_START = 2, TRANSPARENT_MESH_TYPE_COUNT = 2
+	};
+
 	class Mesh
 	{
 	public:
@@ -93,18 +107,18 @@ namespace Carol
 			Model* model,
 			ID3D12Device* device,
 			ID3D12GraphicsCommandList* cmdList,
-			Heap* heap,
-			Heap* uploadHeap,
-			CbvSrvUavDescriptorAllocator* allocator,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorAllocator* allocator,
 			std::vector<Vertex>& vertices,
 			std::vector<uint32_t>& indices,
 			bool isSkinned,
 			bool isTransparent);
-		~Mesh();
 
 		void ReleaseIntermediateBuffer();
 
 		Material GetMaterial();
+		uint32_t GetMeshIdx(uint32_t idx);
 		const uint32_t* GetMeshIdxData();
 		uint32_t GetMeshletSize();
 
@@ -116,6 +130,7 @@ namespace Carol
 		OctreeNode* GetOctreeNode();
 
 		void Update(DirectX::XMMATRIX& world, CircularHeap* meshCBHeap);
+		void ClearCullMark(ID3D12GraphicsCommandList* cmdList);
 		D3D12_GPU_VIRTUAL_ADDRESS GetMeshCBGPUVirtualAddress();
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBGPUVirtualAddress();
 
@@ -124,21 +139,14 @@ namespace Carol
 
 		enum
 		{
-			VERTEX_IDX, MESHLET_IDX, CULLDATA_IDX, DIFFUSE_IDX, NORMAL_IDX, MESH_IDX_COUNT
+			VERTEX_IDX, MESHLET_IDX, CULL_DATA_IDX, FRUSTUM_CULLED_MARK_IDX, OCCLUSION_PASSED_MARK, DIFFUSE_IDX, NORMAL_IDX, MESH_IDX_COUNT
 		};
 
 	protected:
 		void LoadVertices();
 		void LoadMeshlets();
 		void LoadCullData();
-		void LoadResource(
-			std::unique_ptr<DefaultResource>& resource,
-			void* data,
-			uint32_t size,
-			uint32_t numElements,
-			uint32_t stride,
-			DescriptorAllocInfo* gpuInfo,
-			uint32_t srvIdx);
+		void InitCullMark();
 
 		void LoadMeshletBoundingBox();
 		void LoadMeshletNormalCone();
@@ -153,22 +161,19 @@ namespace Carol
 
 		ID3D12Device* mDevice;
 		ID3D12GraphicsCommandList* mCommandList;
-		Heap* mHeap;
-		Heap* mUploadHeap;
-		CbvSrvUavDescriptorAllocator* mAllocator;
+		Heap* mDefaultBuffersHeap;
+		Heap* mUploadBuffersHeap;
+		DescriptorAllocator* mAllocator;
 
 		std::vector<Vertex> mVertices;
 		std::vector<uint32_t> mIndices;
 		std::vector<Meshlet> mMeshlets;
 		std::vector<CullData> mCullData;
 
-		std::unique_ptr<DescriptorAllocInfo> mVertexSrvAllocInfo;
-		std::unique_ptr<DescriptorAllocInfo> mMeshletSrvAllocInfo;
-		std::unique_ptr<DescriptorAllocInfo> mCullDataSrvAllocInfo;
-
-		std::unique_ptr<DefaultResource> mVertexBuffer;
-		std::unique_ptr<DefaultResource> mMeshletBuffer;
-		std::unique_ptr<DefaultResource> mCullDataBuffer;
+		std::unique_ptr<StructuredBuffer> mVertexBuffer;
+		std::unique_ptr<StructuredBuffer> mMeshletBuffer;
+		std::unique_ptr<StructuredBuffer> mCullDataBuffer;
+		std::unique_ptr<RawBuffer> mCullMarkBuffer;
 		
 		Model* mModel;
 		Material mMaterial;
@@ -193,7 +198,7 @@ namespace Carol
 			ID3D12GraphicsCommandList* cmdList,
 			Heap* heap,
 			Heap* uploadHeap,
-			CbvSrvUavDescriptorAllocator* allocator);
+			DescriptorAllocator* allocator);
 		~Model();
 		
 		bool IsSkinned();
@@ -219,7 +224,7 @@ namespace Carol
 		ID3D12GraphicsCommandList* mCommandList;
 		Heap* mHeap;
 		Heap* mUploadHeap;
-		CbvSrvUavDescriptorAllocator* mAllocator;
+		DescriptorAllocator* mAllocator;
 		
 		std::wstring mTexDir;
 

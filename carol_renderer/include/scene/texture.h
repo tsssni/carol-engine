@@ -8,42 +8,30 @@
 
 namespace Carol
 {
-	class DefaultResource;
+	class ColorBuffer;
 	class Heap;
-	class CbvSrvUavDescriptorAllocator;
-	class DescriptorAllocInfo;
-	class RootSignature;
+	class DescriptorAllocator;
 	
 	class Texture
 	{
 	public:
-		DefaultResource* GetResource();
-		D3D12_SHADER_RESOURCE_VIEW_DESC GetDesc();
-		void LoadTexture(ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, std::wstring fileName, bool isSrgb = false);
+		Texture(std::wstring fileName, bool isSrgb, ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, DescriptorAllocator* allocator);
+
+		uint32_t GetGpuSrvIdx(uint32_t planeSlice = 0);
 		void ReleaseIntermediateBuffer();
+
+		uint32_t GetRef();
+		void AddRef();
+		void DecRef();
 	
-		void SetDesc();
-		std::unique_ptr<DefaultResource> mTexture;
-		D3D12_SHADER_RESOURCE_VIEW_DESC mTexDesc;
-
-		bool mIsCube = false;
-		bool mIsVolume = false;
-	};
-
-	class AllocatedTexture
-	{
-	public:
-		AllocatedTexture();
-		std::unique_ptr<Texture> Texture;
-		std::unique_ptr<DescriptorAllocInfo> CpuAllocInfo;
-		std::unique_ptr<DescriptorAllocInfo> GpuAllocInfo;
-		uint32_t NumRef;
+		std::unique_ptr<ColorBuffer> mTexture;
+		uint32_t mNumRef;
 	};
 
 	class TextureManager
 	{
 	public:
-		TextureManager(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator);
+		TextureManager(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, DescriptorAllocator* allocator);
 
 		uint32_t LoadTexture(const std::wstring& fileName, bool isSrgb = false);
 		void UnloadTexture(const std::wstring& fileName);
@@ -52,16 +40,14 @@ namespace Carol
 		void DelayedDelete(uint32_t currFrame);
 
 	protected:
-
 		Heap* mTexturesHeap;
 		Heap* mUploadBuffersHeap;
 
 		ID3D12Device* mDevice;
 		ID3D12GraphicsCommandList* mCommandList;
-		CbvSrvUavDescriptorAllocator* mDescriptorAllocator;
-		RootSignature* mRootSignature;
-		
-		std::unordered_map<std::wstring, std::unique_ptr<AllocatedTexture>> mTextures;
+		DescriptorAllocator* mAllocator;
+
+		std::unordered_map<std::wstring, std::unique_ptr<Texture>> mTextures;
 		std::vector<std::vector<std::wstring>> mDeletedTextures;
 		uint32_t mCurrFrame;
 	};

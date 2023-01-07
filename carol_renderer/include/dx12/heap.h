@@ -36,7 +36,7 @@ namespace Carol
 		D3D12_HEAP_FLAGS mFlag;
 
 		uint32_t mCurrFrame;
-		std::vector<std::vector<HeapAllocInfo*>> mDeletedResources;
+		std::vector<std::vector<HeapAllocInfo>> mDeletedResources;
 	};
 
 	class BuddyHeap : public Heap

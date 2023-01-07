@@ -1,4 +1,5 @@
 #include <dx12/descriptor_allocator.h>
+#include <dx12/resource.h>
 #include <utils/bitset.h>
 #include <utils/buddy.h>
 #include <utils/common.h>
@@ -8,11 +9,16 @@ namespace Carol {
 	using std::make_unique;	
 }
 
-Carol::DescriptorAllocator::DescriptorAllocator(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t initNumCpuDescriptors)
-	:mDevice(device), mType(type), mNumCpuDescriptorsPerHeap(initNumCpuDescriptors)
+Carol::DescriptorAllocator::DescriptorAllocator(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t initNumCpuDescriptors, uint32_t initNumGpuDescriptors)
+	:mDevice(device), mType(type), mNumCpuDescriptorsPerHeap(initNumCpuDescriptors), mNumGpuDescriptorsPerSection(initNumGpuDescriptors)
 {
-	AddCpuDescriptorHeap();
 	mDescriptorSize = device->GetDescriptorHandleIncrementSize(type);
+	AddCpuDescriptorHeap();
+
+	if (mType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+	{
+		ExpandGpuDescriptorHeap();
+	}
 }
 
 Carol::DescriptorAllocator::~DescriptorAllocator()
@@ -77,14 +83,14 @@ bool Carol::DescriptorAllocator::CpuDeallocate(DescriptorAllocInfo* info)
 	return false;
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorAllocator::GetCpuHandle(DescriptorAllocInfo* info)
+CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorAllocator::GetCpuHandle(DescriptorAllocInfo* info, uint32_t offset)
 {
 	uint32_t heapId = info->StartOffset / mNumCpuDescriptorsPerHeap;
 	uint32_t startOffset = info->StartOffset % mNumCpuDescriptorsPerHeap;
-	return CD3DX12_CPU_DESCRIPTOR_HANDLE(mCpuDescriptorHeaps[heapId]->GetCPUDescriptorHandleForHeapStart(), startOffset, mDescriptorSize);
+	return CD3DX12_CPU_DESCRIPTOR_HANDLE(mCpuDescriptorHeaps[heapId]->GetCPUDescriptorHandleForHeapStart(), startOffset, mDescriptorSize).Offset(offset * mDescriptorSize);
 }
 
-bool Carol::CbvSrvUavDescriptorAllocator::GpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info)
+bool Carol::DescriptorAllocator::GpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info)
 {
 	if (numDescriptors == 0)
 	{
@@ -114,13 +120,7 @@ bool Carol::CbvSrvUavDescriptorAllocator::GpuAllocate(uint32_t numDescriptors, D
 	return false;
 }
 
-bool Carol::CbvSrvUavDescriptorAllocator::GpuDeallocate(DescriptorAllocInfo* info)
-{
-	mGpuDeletionInfo[mCurrFrame].push_back(info);
-	return true;
-}
-
-bool Carol::CbvSrvUavDescriptorAllocator::GpuDelete(DescriptorAllocInfo* info)
+bool Carol::DescriptorAllocator::GpuDeallocate(DescriptorAllocInfo* info)
 {
 	if (info->NumDescriptors == 0)
 	{
@@ -143,65 +143,42 @@ bool Carol::CbvSrvUavDescriptorAllocator::GpuDelete(DescriptorAllocInfo* info)
 	return false;
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::CbvSrvUavDescriptorAllocator::GetShaderCpuHandle(DescriptorAllocInfo* info)
+void Carol::DescriptorAllocator::CreateSrv(D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset)
 {
-	return CD3DX12_CPU_DESCRIPTOR_HANDLE(mGpuDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), info->StartOffset, mDescriptorSize);
+	mDevice->CreateShaderResourceView(resource->Get(), srvDesc, GetCpuHandle(info, offset));
 }
 
-CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::CbvSrvUavDescriptorAllocator::GetShaderGpuHandle(DescriptorAllocInfo* info)
+void Carol::DescriptorAllocator::CreateUav(D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, Resource* resource, Resource* counterResource, DescriptorAllocInfo* info, uint32_t offset)
 {
-	return CD3DX12_GPU_DESCRIPTOR_HANDLE(mGpuDescriptorHeap->GetGPUDescriptorHandleForHeapStart(), info->StartOffset, mDescriptorSize);
+	mDevice->CreateUnorderedAccessView(resource->Get(), counterResource ? counterResource->Get() : nullptr, uavDesc, GetCpuHandle(info, offset));
 }
 
-Carol::RtvDescriptorAllocator::RtvDescriptorAllocator(ID3D12Device* device, uint32_t initNumCpuDescriptors)
-	:DescriptorAllocator(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, initNumCpuDescriptors)
+void Carol::DescriptorAllocator::CreateRtv(D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset)
 {
+	mDevice->CreateRenderTargetView(resource->Get(), rtvDesc, GetCpuHandle(info, offset));
 }
 
-Carol::DsvDescriptorAllocator::DsvDescriptorAllocator(ID3D12Device* device, uint32_t initNumCpuDescriptors)
-	:DescriptorAllocator(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, initNumCpuDescriptors)
+void Carol::DescriptorAllocator::CreateDsv(D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset)
 {
+	mDevice->CreateDepthStencilView(resource->Get(), dsvDesc, GetCpuHandle(info, offset));
 }
 
-Carol::CbvSrvUavDescriptorAllocator::CbvSrvUavDescriptorAllocator(ID3D12Device* device, uint32_t initNumCpuDescriptors, uint32_t initNumGpuDescriptors)
-	:DescriptorAllocator(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initNumCpuDescriptors), 
-	mNumGpuDescriptorsPerSection(initNumGpuDescriptors)
+CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorAllocator::GetShaderCpuHandle(DescriptorAllocInfo* info, uint32_t offset)
 {
-	ExpandGpuDescriptorHeap();
+	return CD3DX12_CPU_DESCRIPTOR_HANDLE(mGpuDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), info->StartOffset, mDescriptorSize).Offset(offset * mDescriptorSize);
 }
 
-Carol::CbvSrvUavDescriptorAllocator::~CbvSrvUavDescriptorAllocator()
+CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::DescriptorAllocator::GetGpuHandle(DescriptorAllocInfo* info, uint32_t offset)
 {
-	for (auto& vec : mGpuDeletionInfo)
+	return CD3DX12_GPU_DESCRIPTOR_HANDLE(mGpuDescriptorHeap->GetGPUDescriptorHandleForHeapStart(), info->StartOffset, mDescriptorSize).Offset(offset * mDescriptorSize);
+}
+
+void Carol::DescriptorAllocator::CopyDescriptors(DescriptorAllocInfo* cpuInfo, DescriptorAllocInfo* shaderCpuInfo)
+{
+	if (cpuInfo->Allocator == this && shaderCpuInfo->Allocator == this)
 	{
-		for (auto& info : vec)
-		{
-			if (info->Allocator == this)
-			{
-				GpuDeallocate(info);
-			}
-		}
+		mDevice->CopyDescriptorsSimple(cpuInfo->NumDescriptors, GetShaderCpuHandle(shaderCpuInfo), GetCpuHandle(cpuInfo), mType);
 	}
-}
-
-void Carol::CbvSrvUavDescriptorAllocator::DelayedDelete(uint32_t currFrame)
-{
-	mCurrFrame = currFrame;
-
-	if (mCurrFrame >= mGpuDeletionInfo.size())
-	{
-		mGpuDeletionInfo.emplace_back();
-	}
-
-	for (auto& info : mGpuDeletionInfo[mCurrFrame])
-	{
-		if (info->Allocator == this)
-		{
-			GpuDelete(info);
-		}
-	}
-
-	mGpuDeletionInfo[mCurrFrame].clear();
 }
 
 uint32_t Carol::DescriptorAllocator::GetDescriptorSize()
@@ -209,7 +186,7 @@ uint32_t Carol::DescriptorAllocator::GetDescriptorSize()
 	return mDescriptorSize;
 }
 
-ID3D12DescriptorHeap* Carol::CbvSrvUavDescriptorAllocator::GetGpuDescriptorHeap()
+ID3D12DescriptorHeap* Carol::DescriptorAllocator::GetGpuDescriptorHeap()
 {
 	return mGpuDescriptorHeap.Get();
 }
@@ -228,7 +205,7 @@ void Carol::DescriptorAllocator::AddCpuDescriptorHeap()
 	ThrowIfFailed(mDevice->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(mCpuDescriptorHeaps.back().GetAddressOf())));
 }
 
-void Carol::CbvSrvUavDescriptorAllocator::ExpandGpuDescriptorHeap()
+void Carol::DescriptorAllocator::ExpandGpuDescriptorHeap()
 {
 	mNumGpuDescriptors = (mNumGpuDescriptors == 0) ? mNumGpuDescriptorsPerSection : mNumGpuDescriptors * 2;
 	mGpuBuddies.resize(0);

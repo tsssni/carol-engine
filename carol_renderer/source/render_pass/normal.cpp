@@ -30,9 +30,9 @@ void Carol::NormalPass::Draw()
     mGlobalResources->CommandList->RSSetScissorRects(1, mGlobalResources->ScissorRect);
 
     mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mNormalMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-    mGlobalResources->CommandList->ClearRenderTargetView(GetRtv(NORMAL_RTV), DirectX::Colors::Blue, 0, nullptr);
-    mGlobalResources->CommandList->ClearDepthStencilView(mGlobalResources->Frame->GetDepthStencilDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-    mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(NORMAL_RTV)), true, GetRvaluePtr(mGlobalResources->Frame->GetDepthStencilDsv()));
+    mGlobalResources->CommandList->ClearRenderTargetView(mNormalMap->GetRtv(), DirectX::Colors::Blue, 0, nullptr);
+    mGlobalResources->CommandList->ClearDepthStencilView(mGlobalResources->Frame->GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+    mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mNormalMap->GetRtv()), true, GetRvaluePtr(mGlobalResources->Frame->GetFrameDsv()));
 
     mGlobalResources->Meshes->DrawMeshes({
         (*mGlobalResources->PSOs)[L"NormalsStatic"].Get(),
@@ -55,12 +55,10 @@ void Carol::NormalPass::OnResize()
 
     if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
     {
-        DeallocateDescriptors();
-
         width = *mGlobalResources->ClientWidth;
         height = *mGlobalResources->ClientHeight;
 
-        InitResources();
+        InitBuffers();
     }
 }
 
@@ -70,7 +68,7 @@ void Carol::NormalPass::ReleaseIntermediateBuffers()
 
 uint32_t Carol::NormalPass::GetNormalSrvIdx()
 {
-    return mGpuCbvSrvUavAllocInfo->StartOffset + NORMAL_SRV;
+    return mNormalMap->GetGpuSrvIdx();
 }
 
 void Carol::NormalPass::InitShaders()
@@ -116,48 +114,24 @@ void Carol::NormalPass::InitPSOs()
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&normalsSkinnedStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"NormalsSkinned"].GetAddressOf())));
 }
 
-void Carol::NormalPass::InitResources()
+void Carol::NormalPass::InitBuffers()
 {
-	D3D12_RESOURCE_DESC normalDesc = {};
-    normalDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    normalDesc.Alignment = 0;
-    normalDesc.Width = *mGlobalResources->ClientWidth;
-    normalDesc.Height = *mGlobalResources->ClientHeight;
-    normalDesc.DepthOrArraySize = 1;
-    normalDesc.MipLevels = 1;
-    normalDesc.Format = mNormalMapFormat;
-    normalDesc.SampleDesc.Count = 1;
-    normalDesc.SampleDesc.Quality = 0;
-    normalDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    normalDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    uint32_t width = *mGlobalResources->ClientWidth;
+    uint32_t height = *mGlobalResources->ClientHeight;
 
-    CD3DX12_CLEAR_VALUE normalMapClearValue(mNormalMapFormat, DirectX::Colors::Blue);
-    mNormalMap = make_unique<DefaultResource>(&normalDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &normalMapClearValue);
+    D3D12_CLEAR_VALUE optClearValue  = CD3DX12_CLEAR_VALUE(mNormalMapFormat, DirectX::Colors::Blue);
+    mNormalMap = make_unique<ColorBuffer>(
+        width,
+        height,
+        1,
+        COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
+        mNormalMapFormat,
+        mGlobalResources->DefaultBuffersHeap,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        mGlobalResources->CbvSrvUavAllocator,
+        mGlobalResources->RtvAllocator,
+        nullptr,
+        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+        &optClearValue);
     
-    InitDescriptors();
-}
-
-void Carol::NormalPass::InitDescriptors()
-{
-    mGlobalResources->CbvSrvUavAllocator->CpuAllocate(NORMAL_CBV_SRV_UAV_COUNT, mCpuCbvSrvUavAllocInfo.get());
-	mGlobalResources->RtvAllocator->CpuAllocate(NORMAL_RTV_COUNT, mRtvAllocInfo.get());
-    
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Format = mNormalMapFormat;
-    srvDesc.Texture2D.MostDetailedMip = 0;
-    srvDesc.Texture2D.MipLevels = 1;
-
-    mGlobalResources->Device->CreateShaderResourceView(mNormalMap->Get(), &srvDesc, GetCpuCbvSrvUav(NORMAL_SRV));
-    
-    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-    rtvDesc.Format = mNormalMapFormat;
-    rtvDesc.Texture2D.MipSlice = 0;
-    rtvDesc.Texture2D.PlaneSlice = 0;
-
-    mGlobalResources->Device->CreateRenderTargetView(mNormalMap->Get(), &rtvDesc, GetRtv(NORMAL_RTV));
-
-    CopyDescriptors();
 }

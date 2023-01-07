@@ -1,5 +1,6 @@
 #include <scene/assimp.h>
 #include <render_pass/global_resources.h>
+#include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <scene/scene.h>
 #include <scene/skinned_data.h>
@@ -22,7 +23,7 @@ namespace Carol {
 	using namespace DirectX;
 }
 
-Carol::AssimpModel::AssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, CbvSrvUavDescriptorAllocator* allocator, TextureManager* texManager, SceneNode* rootNode, wstring path, wstring textureDir, bool isSkinned)
+Carol::AssimpModel::AssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, DescriptorAllocator* allocator, TextureManager* texManager, SceneNode* rootNode, wstring path, wstring textureDir, bool isSkinned)
 	:Model(device, cmdList, heap, uploadHeap, allocator), mTexManager(texManager)
 {
 	Assimp::Importer mImporter;

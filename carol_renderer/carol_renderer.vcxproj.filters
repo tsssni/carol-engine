@@ -274,11 +274,12 @@
     <None Include="shader\skybox_ps.hlsl" />
     <None Include="shader\ssao_blur_ps.hlsl" />
     <None Include="shader\velocity_ps.hlsl" />
-    <None Include="shader\shadow_as.hlsl" />
     <None Include="shader\normals_ms.hlsl" />
     <None Include="shader\oitppll_build_ps.hlsl" />
     <None Include="shader\ssao_ms.hlsl" />
     <None Include="shader\hiz_generate_cs.hlsl" />
+    <None Include="shader\cull_cs.hlsl" />
+    <None Include="shader\cull_as.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="lib\dxcompiler.lib" />

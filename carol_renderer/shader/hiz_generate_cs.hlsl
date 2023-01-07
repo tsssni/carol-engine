@@ -1,19 +1,22 @@
-#include "include/common.hlsli"
-
 cbuffer HiZConstants : register(b3)
 {
+    uint gDepthIdx;
+    uint gHiZRIdx;
+    uint gHiZWIdx;
     uint gSrcMip;
     uint gNumMipLevel;
+    uint gWidth;
+    uint gHeight;
 }
 
 groupshared float sharedDepth[32][32];
 
 void Init(uint2 dtid)
 {
-    if(gSrcMip == 0 && dtid.x < gRenderTargetSize.x && dtid.y < gRenderTargetSize.y)
+    if(gSrcMip == 0 && dtid.x < gWidth && dtid.y < gHeight)
     {
         RWTexture2D<float4> srcHiZMap = ResourceDescriptorHeap[gHiZWIdx];
-        Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilIdx];
+        Texture2D depthMap = ResourceDescriptorHeap[gDepthIdx];
         srcHiZMap[dtid].r = depthMap.Load(int3(dtid, 0)).r;
     }
 }
@@ -35,8 +38,8 @@ float GetMaxDepth(uint2 gtid, uint offset)
 void main( uint2 dtid : SV_DispatchThreadID, uint2 gtid : SV_GroupThreadID)
 {    
     Init(dtid);
-    uint srcWidth = uint(gRenderTargetSize.x) >> gSrcMip;
-    uint srcHeight = uint(gRenderTargetSize.y) >> gSrcMip;
+    uint srcWidth = gWidth >> gSrcMip;
+    uint srcHeight = gHeight >> gSrcMip;
     
     if(dtid.x < srcWidth && dtid.y < srcHeight)
     {
@@ -54,8 +57,8 @@ void main( uint2 dtid : SV_DispatchThreadID, uint2 gtid : SV_GroupThreadID)
     {
         if (gtid.x % (uint) exp2(i) == 0 && gtid.y % (uint) exp2(i) == 0)
         {
-            RWTexture2D<float4> hizMap = ResourceDescriptorHeap[gHiZWIdx + gSrcMip + i];
-            hizMap[dtid >> i].r = GetMaxDepth(gtid, exp2(i - 1));
+            RWTexture2D<float4> hiZMap = ResourceDescriptorHeap[gHiZWIdx + gSrcMip + i];
+            hiZMap[max(dtid >> i, uint2(1, 1))].r = GetMaxDepth(gtid, exp2(i - 1));
         }
         
         GroupMemoryBarrierWithGroupSync();

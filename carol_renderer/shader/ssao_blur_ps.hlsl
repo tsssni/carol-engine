@@ -5,6 +5,7 @@ static const int gBlurRadius = 5;
 cbuffer BlurDirection : register(b3)
 {
     uint gBlurDirection;
+    uint gAmbientInputIdx;
 }
 
 struct PixelIn
@@ -23,7 +24,7 @@ float4 main(PixelIn pin) : SV_Target
 {
     Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilIdx];
     Texture2D normalMap = ResourceDescriptorHeap[gNormalIdx];
-    Texture2D ambientMap = ResourceDescriptorHeap[gAmbientIdx + gBlurDirection];
+    Texture2D ambientMap = ResourceDescriptorHeap[gAmbientInputIdx];
     
     float blurWeights[12] =
     {

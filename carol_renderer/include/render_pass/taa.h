@@ -7,10 +7,7 @@
 namespace Carol
 {
 	class GlobalResources;
-	class DefaultResource;
-	class HeapAllocInfo;
-	class CircularHeap;
-	class Shader;
+	class ColorBuffer;
 	
 	class TaaPass : public RenderPass
 	{
@@ -38,8 +35,7 @@ namespace Carol
 	protected:
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
-		virtual void InitResources()override;
-		virtual void InitDescriptors()override;
+		virtual void InitBuffers()override;
 
 		void InitHalton();
 		float RadicalInversion(int base, int num);
@@ -47,18 +43,8 @@ namespace Carol
         void DrawVelocityMap();
         void DrawOutput();
 
-		enum
-		{
-			HIST_SRV, VELOCITY_SRV, TAA_CBV_SRV_UAV_COUNT
-		};
-
-		enum
-		{
-			VELOCITY_RTV, TAA_RTV_COUNT
-		};
-
-		std::unique_ptr<DefaultResource> mHistFrameMap;
-		std::unique_ptr<DefaultResource> mVelocityMap;
+		std::unique_ptr<ColorBuffer> mHistFrameMap;
+		std::unique_ptr<ColorBuffer> mVelocityMap;
 
 		DXGI_FORMAT mVelocityMapFormat = DXGI_FORMAT_R16G16_SNORM;
 		DXGI_FORMAT mFrameFormat = DXGI_FORMAT_R8G8B8A8_UNORM;

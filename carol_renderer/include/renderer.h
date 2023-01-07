@@ -93,8 +93,6 @@ namespace Carol
 		{
 			FRAME_IDX,
 			DEPTH_STENCIL_IDX,
-			HIZ_R_IDX,
-			HIZ_W_IDX,
 			NORMAL_IDX,
 			SHADOW_IDX,
 			OIT_W_IDX,

@@ -45,12 +45,10 @@ void Carol::OitppllPass::OnResize()
 
     if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
     {
-		DeallocateDescriptors();
-
         width = *mGlobalResources->ClientWidth;
         height = *mGlobalResources->ClientHeight;
 
-        InitResources();
+        InitBuffers();
     }
 }
 
@@ -60,27 +58,27 @@ void Carol::OitppllPass::ReleaseIntermediateBuffers()
 
 uint32_t Carol::OitppllPass::GetPpllUavIdx()
 {
-	return mGpuCbvSrvUavAllocInfo->StartOffset + PPLL_UAV;
+	return mOitppllBuffer->GetGpuUavIdx();
 }
 
 uint32_t Carol::OitppllPass::GetOffsetUavIdx()
 {
-	return mGpuCbvSrvUavAllocInfo->StartOffset + OFFSET_UAV;
+	return mStartOffsetBuffer->GetGpuUavIdx();
 }
 
 uint32_t Carol::OitppllPass::GetCounterUavIdx()
 {
-	return mGpuCbvSrvUavAllocInfo->StartOffset + COUNTER_UAV;
+	return mCounterBuffer->GetGpuUavIdx();
 }
 
 uint32_t Carol::OitppllPass::GetPpllSrvIdx()
 {
-	return mGpuCbvSrvUavAllocInfo->StartOffset + PPLL_SRV;
+	return mOitppllBuffer->GetGpuSrvIdx();
 }
 
 uint32_t Carol::OitppllPass::GetOffsetSrvIdx()
 {
-	return mGpuCbvSrvUavAllocInfo->StartOffset + OFFSET_SRV;
+	return mStartOffsetBuffer->GetGpuSrvIdx();
 }
 
 void Carol::OitppllPass::InitShaders()
@@ -158,76 +156,43 @@ void Carol::OitppllPass::InitPSOs()
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&drawOitppllStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"DrawOitppll"].GetAddressOf())));
 }
 
-void Carol::OitppllPass::InitResources()
+void Carol::OitppllPass::InitBuffers()
 {
-	uint32_t linkedListBufferSize = (*mGlobalResources->ClientWidth) * (*mGlobalResources->ClientHeight) * 16 * sizeof(OitppllNode);
-	auto linkedListBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(linkedListBufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	mOitppllBuffer = make_unique<DefaultResource>(&linkedListBufferDesc, mGlobalResources->DefaultBuffersHeap, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	uint32_t width = *mGlobalResources->ClientWidth;
+	uint32_t height = *mGlobalResources->ClientHeight;
 
-	uint32_t startOffsetBufferSize = (*mGlobalResources->ClientWidth) * (*mGlobalResources->ClientHeight) * sizeof(uint32_t);
-	auto startOffsetBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(startOffsetBufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	mStartOffsetBuffer = make_unique<DefaultResource>(&startOffsetBufferDesc, mGlobalResources->DefaultBuffersHeap, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	mOitppllBuffer = make_unique<StructuredBuffer>(
+		width * height,
+		sizeof(OitppllNode),
+		mGlobalResources->DefaultBuffersHeap,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		mGlobalResources->CbvSrvUavAllocator,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	mStartOffsetBuffer = make_unique<RawBuffer>(
+		width*height*sizeof(uint32_t),
+		mGlobalResources->DefaultBuffersHeap,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		mGlobalResources->CbvSrvUavAllocator,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	
-	uint32_t counterBufferSize = sizeof(uint32_t);
-	auto counterBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(counterBufferSize, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	mCounterBuffer = make_unique<DefaultResource>(&counterBufferDesc, mGlobalResources->DefaultBuffersHeap, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-	InitDescriptors();
-}
-
-void Carol::OitppllPass::InitDescriptors()
-{
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(OITPPLL_CBV_SRV_UAV_COUNT, mCpuCbvSrvUavAllocInfo.get());
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	uavDesc.Buffer.StructureByteStride = sizeof(OitppllNode);
-	uavDesc.Buffer.FirstElement = 0;
-	uavDesc.Buffer.NumElements = (*mGlobalResources->ClientWidth) * (*mGlobalResources->ClientHeight) * 16;
-	uavDesc.Buffer.CounterOffsetInBytes = 0;
-	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
-
-	mGlobalResources->Device->CreateUnorderedAccessView(mOitppllBuffer->Get(), mCounterBuffer->Get(), &uavDesc, GetCpuCbvSrvUav(PPLL_UAV));
-
-	uavDesc.Buffer.StructureByteStride = 0;
-	uavDesc.Buffer.NumElements = (*mGlobalResources->ClientWidth) * (*mGlobalResources->ClientHeight);
-	uavDesc.Buffer.CounterOffsetInBytes = 0;
-	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
-	uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-
-	mGlobalResources->Device->CreateUnorderedAccessView(mStartOffsetBuffer->Get(), nullptr, &uavDesc, GetCpuCbvSrvUav(OFFSET_UAV));
-
-	uavDesc.Buffer.NumElements = 1;
-	mGlobalResources->Device->CreateUnorderedAccessView(mCounterBuffer->Get(), nullptr, &uavDesc, GetCpuCbvSrvUav(COUNTER_UAV));
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	srvDesc.Buffer.StructureByteStride = sizeof(OitppllNode);
-	srvDesc.Buffer.FirstElement = 0;
-	srvDesc.Buffer.NumElements = (*mGlobalResources->ClientWidth) * (*mGlobalResources->ClientHeight) * 16;
-	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-
-	mGlobalResources->Device->CreateShaderResourceView(mOitppllBuffer->Get(), &srvDesc, GetCpuCbvSrvUav(PPLL_SRV));
-
-	srvDesc.Buffer.StructureByteStride = 0;
-	srvDesc.Buffer.NumElements = (*mGlobalResources->ClientWidth) * (*mGlobalResources->ClientHeight);
-	srvDesc.Format = DXGI_FORMAT_R32_UINT;
-	mGlobalResources->Device->CreateShaderResourceView(mStartOffsetBuffer->Get(), &srvDesc, GetCpuCbvSrvUav(OFFSET_SRV));
-
-	CopyDescriptors();
+	mCounterBuffer = make_unique<RawBuffer>(
+		sizeof(uint32_t),
+		mGlobalResources->DefaultBuffersHeap,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		mGlobalResources->CbvSrvUavAllocator,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 
 void Carol::OitppllPass::DrawPpll()
 {
-	mGlobalResources->CommandList->RSSetViewports(1, mGlobalResources->ScreenViewport);
-	mGlobalResources->CommandList->RSSetScissorRects(1, mGlobalResources->ScissorRect);
-
 	static const uint32_t initOffsetValue = UINT32_MAX;
 	static const uint32_t initCounterValue = 0;
-	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetGpuCbvSrvUav(OFFSET_UAV), GetCpuCbvSrvUav(OFFSET_UAV), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
-	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(GetGpuCbvSrvUav(COUNTER_UAV), GetCpuCbvSrvUav(COUNTER_UAV), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
+	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(mStartOffsetBuffer->GetGpuUav(), mStartOffsetBuffer->GetCpuUav(), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
+	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(mCounterBuffer->GetGpuUav(), mCounterBuffer->GetCpuUav(), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
+
+	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mOitppllBuffer->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
+	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCounterBuffer->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
 
 	mGlobalResources->Meshes->DrawMeshes({
 		nullptr,
@@ -238,6 +203,9 @@ void Carol::OitppllPass::DrawPpll()
 
 void Carol::OitppllPass::DrawOit()
 {
+	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mOitppllBuffer->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_GENERIC_READ)));
+	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCounterBuffer->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_GENERIC_READ)));
+
 	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mGlobalResources->Frame->GetFrameRtv()), true, nullptr);
 	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"DrawOitppll"].Get());
 	mGlobalResources->CommandList->DispatchMesh(1, 1, 1);

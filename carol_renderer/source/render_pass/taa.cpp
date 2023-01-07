@@ -46,12 +46,10 @@ void Carol::TaaPass::OnResize()
 
 	if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
 	{
-		DeallocateDescriptors();
-
 		width = *mGlobalResources->ClientWidth;
 		height = *mGlobalResources->ClientHeight;
 
-		InitResources();
+		InitBuffers();
 	}
 }
 
@@ -122,13 +120,12 @@ void Carol::TaaPass::Draw()
 	DrawOutput();
 }
 
-
 void Carol::TaaPass::DrawVelocityMap()
 {
 	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mVelocityMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-	mGlobalResources->CommandList->ClearRenderTargetView(GetRtv(VELOCITY_RTV), DirectX::Colors::Black, 0, nullptr);
-	mGlobalResources->CommandList->ClearDepthStencilView(mGlobalResources->Frame->GetDepthStencilDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetRtv(VELOCITY_RTV)), true, GetRvaluePtr(mGlobalResources->Frame->GetDepthStencilDsv()));
+	mGlobalResources->CommandList->ClearRenderTargetView(mVelocityMap->GetRtv(), DirectX::Colors::Black, 0, nullptr);
+	mGlobalResources->CommandList->ClearDepthStencilView(mGlobalResources->Frame->GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mVelocityMap->GetRtv()), true, GetRvaluePtr(mGlobalResources->Frame->GetFrameDsv()));
 
 	mGlobalResources->Meshes->DrawMeshes({
 		(*mGlobalResources->PSOs)[L"TaaVelocityStatic"].Get(),
@@ -176,65 +173,43 @@ DirectX::XMMATRIX Carol::TaaPass::GetHistViewProj()
 
 uint32_t Carol::TaaPass::GetVeloctiySrvIdx()
 {
-	return mGpuCbvSrvUavAllocInfo->StartOffset + VELOCITY_SRV;
+	return mVelocityMap->GetGpuSrvIdx();
 }
 
 uint32_t Carol::TaaPass::GetHistFrameSrvIdx()
 {
-	return mGpuCbvSrvUavAllocInfo->StartOffset + HIST_SRV;
+	return mHistFrameMap->GetGpuSrvIdx();
 }
 
-void Carol::TaaPass::InitResources()
+void Carol::TaaPass::InitBuffers()
 {
-    D3D12_RESOURCE_DESC texDesc = {};
-    texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    texDesc.Alignment = 0;
-    texDesc.Width = *mGlobalResources->ClientWidth;
-    texDesc.Height = *mGlobalResources->ClientHeight;
-    texDesc.DepthOrArraySize = 1;
-    texDesc.MipLevels = 1;
-    texDesc.Format = mFrameFormat;
-    texDesc.SampleDesc.Count = 1;
-    texDesc.SampleDesc.Quality = 0;
-    texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    texDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	uint32_t width = *mGlobalResources->ClientWidth;
+	uint32_t height = *mGlobalResources->ClientHeight;
 
-	mHistFrameMap = make_unique<DefaultResource>(&texDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ);
+	mHistFrameMap = make_unique<ColorBuffer>(
+		width,
+		height,
+		1,
+		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
+		mFrameFormat,
+		mGlobalResources->DefaultBuffersHeap,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		mGlobalResources->CbvSrvUavAllocator);
 	
-    texDesc.Format = mVelocityMapFormat;
-	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    CD3DX12_CLEAR_VALUE velocityMapClearValue(mVelocityMapFormat, DirectX::Colors::Black);
-	mVelocityMap = make_unique<DefaultResource>(&texDesc, mGlobalResources->TexturesHeap, D3D12_RESOURCE_STATE_GENERIC_READ, &velocityMapClearValue);
-
-	InitDescriptors();
-}
-
-void Carol::TaaPass::InitDescriptors()
-{
-	mGlobalResources->CbvSrvUavAllocator->CpuAllocate(TAA_CBV_SRV_UAV_COUNT, mCpuCbvSrvUavAllocInfo.get());
-	mGlobalResources->RtvAllocator->CpuAllocate(TAA_RTV_COUNT, mRtvAllocInfo.get());
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Format = mFrameFormat;
-	srvDesc.Texture2D.MostDetailedMip = 0;
-	srvDesc.Texture2D.MipLevels = 1;
-
-	mGlobalResources->Device->CreateShaderResourceView(mHistFrameMap->Get(), &srvDesc, GetCpuCbvSrvUav(HIST_SRV));
-
-	srvDesc.Format = mVelocityMapFormat;
-	mGlobalResources->Device->CreateShaderResourceView(mVelocityMap->Get(), &srvDesc, GetCpuCbvSrvUav(VELOCITY_SRV));
-
-	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-    rtvDesc.Format = mVelocityMapFormat;
-    rtvDesc.Texture2D.MipSlice = 0;
-    rtvDesc.Texture2D.PlaneSlice = 0;
-
-	mGlobalResources->Device->CreateRenderTargetView(mVelocityMap->Get(), &rtvDesc, GetRtv(VELOCITY_RTV));
-
-	CopyDescriptors();
+	D3D12_CLEAR_VALUE optClearValue = CD3DX12_CLEAR_VALUE(mVelocityMapFormat, DirectX::Colors::Black);
+	mVelocityMap = make_unique<ColorBuffer>(
+		width,
+		height,
+		1,
+		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
+		mVelocityMapFormat,
+		mGlobalResources->DefaultBuffersHeap,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		mGlobalResources->CbvSrvUavAllocator,
+		mGlobalResources->RtvAllocator,
+		nullptr,
+		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+		&optClearValue);
 }
 
 void Carol::TaaPass::InitHalton()

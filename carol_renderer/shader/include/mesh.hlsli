@@ -20,6 +20,8 @@ cbuffer MeshConstants : register(b1)
     uint gVertexIdx;
     uint gMeshletIdx;
     uint gCullDataIdx;
+    uint gFrustumCulledMarkIdx;
+    uint gOcclusionPassedMarkIdx;
     uint gDiffuseMapIdx;
     uint gNormalMapIdx;
 }
