@@ -9,16 +9,16 @@
 
 namespace Carol
 {
-	class Heap;
-	class DescriptorAllocator;
 	class SceneNode;
+	class HeapManager;
+	class DescriptorManager;
 	class TextureManager;
 
 	class AssimpModel : public Model
 	{
 	public:
 		AssimpModel();
-	    AssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, DescriptorAllocator* allocator, TextureManager* texManager, SceneNode* rootNode, std::wstring path, std::wstring textureDir, bool isSkinned);
+	    AssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* descriptorManager, TextureManager* texManager, SceneNode* rootNode, std::wstring path, std::wstring textureDir, bool isSkinned);
 		AssimpModel(const AssimpModel&) = delete;
 		AssimpModel(AssimpModel&&) = delete;
 		AssimpModel& operator=(const AssimpModel&) = delete;

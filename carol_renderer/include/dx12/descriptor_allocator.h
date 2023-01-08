@@ -35,6 +35,7 @@ namespace Carol
 		bool GpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
 		bool GpuDeallocate(DescriptorAllocInfo* info);
 
+		void CreateCbv(D3D12_CONSTANT_BUFFER_VIEW_DESC* cbvDesc, DescriptorAllocInfo* info, uint32_t offset = 0);
 		void CreateSrv(D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
 		void CreateUav(D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, Resource* resource, Resource* counterResource, DescriptorAllocInfo* info, uint32_t offset = 0);
 		void CreateRtv(D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
@@ -64,5 +65,53 @@ namespace Carol
 		ID3D12Device* mDevice;
 		D3D12_DESCRIPTOR_HEAP_TYPE mType;
 		uint32_t mDescriptorSize;
+	};
+
+	class DescriptorManager
+	{
+	public:
+		DescriptorManager(
+			ID3D12Device* device,
+			uint32_t initCpuCbvSrvUavHeapSize = 2048,
+			uint32_t initGpuCbvSrvUavHeapSize = 2048,
+			uint32_t initRtvHeapSize = 2048,
+			uint32_t initDsvHeapSize = 2048
+		);
+		DescriptorManager(DescriptorManager&& manager);
+		DescriptorManager(const DescriptorManager&) = delete;
+		DescriptorManager& operator=(const DescriptorManager&) = delete;
+
+		void CpuCbvSrvUavAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
+		void GpuCbvSrvUavAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
+		void RtvAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
+		void DsvAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
+
+		void CpuCbvSrvUavDeallocate(DescriptorAllocInfo* info);
+		void GpuCbvSrvUavDeallocate(DescriptorAllocInfo* info);
+		void RtvDeallocate(DescriptorAllocInfo* info);
+		void DsvDeallocate(DescriptorAllocInfo* info);	
+
+		void CreateCbv(D3D12_CONSTANT_BUFFER_VIEW_DESC* cbvDesc, DescriptorAllocInfo* info, uint32_t offset = 0);
+		void CreateSrv(D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
+		void CreateUav(D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, Resource* resource, Resource* counterResource, DescriptorAllocInfo* info, uint32_t offset = 0);
+		void CreateRtv(D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
+		void CreateDsv(D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
+
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuCbvSrvUavHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetShaderCpuCbvSrvUavHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
+		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuCbvSrvUavHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtvHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsvHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
+
+		uint32_t GetCbvSrvUavSize();
+		uint32_t GetRtvSize();
+		uint32_t GetDsvSize();
+
+		ID3D12DescriptorHeap* GetResourceDescriptorHeap();
+		void CopyCbvSrvUav(DescriptorAllocInfo* cpuInfo, DescriptorAllocInfo* shaderCpuInfo);
+	protected:
+		std::unique_ptr<DescriptorAllocator> mCbvSrvUavAllocator;
+		std::unique_ptr<DescriptorAllocator> mRtvAllocator;
+		std::unique_ptr<DescriptorAllocator> mDsvAllocator;
 	};
 }

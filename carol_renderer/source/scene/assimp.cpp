@@ -23,8 +23,8 @@ namespace Carol {
 	using namespace DirectX;
 }
 
-Carol::AssimpModel::AssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, DescriptorAllocator* allocator, TextureManager* texManager, SceneNode* rootNode, wstring path, wstring textureDir, bool isSkinned)
-	:Model(device, cmdList, heap, uploadHeap, allocator), mTexManager(texManager)
+Carol::AssimpModel::AssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* descriptorManager, TextureManager* texManager, SceneNode* rootNode, wstring path, wstring textureDir, bool isSkinned)
+	:Model(device, cmdList, heapManager, descriptorManager), mTexManager(texManager)
 {
 	Assimp::Importer mImporter;
 	const aiScene* scene = mImporter.ReadFile(WStringToString(path), isSkinned ? aiProcess_Skinned : aiProcess_Static);
@@ -77,9 +77,15 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(aiMesh* mesh, const aiScene* scene)
 		ReadMeshVerticesAndIndices(vertices, indices, mesh);
 		ReadMeshBones(vertices, mesh);
 		mMeshes[meshName] = make_unique<Mesh>(
-			this, mDevice, mCommandList,
-			mHeap, mUploadHeap, mAllocator,
-			vertices, indices, mSkinned, false);
+			this,
+			mDevice,
+			mCommandList,
+			mHeapManager,
+			mDescriptorManager,
+			vertices,
+			indices,
+			mSkinned,
+			false);
 
 		ReadMeshMaterialAndTextures(mMeshes[meshName].get(), mesh, scene);
 	}

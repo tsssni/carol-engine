@@ -57,6 +57,7 @@
     <ClInclude Include="win32\targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\render_pass\render_pass.cpp" />
     <ClCompile Include="source\render_pass\frame.cpp" />
     <ClCompile Include="source\render_pass\normal.cpp" />
     <ClCompile Include="main.cpp" />
@@ -71,7 +72,6 @@
     <ClCompile Include="source\render_pass\display.cpp" />
     <ClCompile Include="source\render_pass\mesh.cpp" />
     <ClCompile Include="source\render_pass\oitppll.cpp" />
-    <ClCompile Include="source\render_pass\render_pass.cpp" />
     <ClCompile Include="source\render_pass\shadow.cpp" />
     <ClCompile Include="source\render_pass\ssao.cpp" />
     <ClCompile Include="source\render_pass\taa.cpp" />

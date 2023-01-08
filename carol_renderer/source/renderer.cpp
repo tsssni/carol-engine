@@ -127,7 +127,7 @@ void Carol::Renderer::InitOitppll()
 void Carol::Renderer::InitMeshes()
 {
 	mMeshes = make_unique<MeshesPass>(mGlobalResources.get());
-	mScene = make_unique<Scene>(L"Test", mDevice.Get(), mCommandList.Get(), mDefaultBuffersHeap.get(), mTexturesHeap.get(), mUploadBuffersHeap.get(), mCbvSrvUavAllocator.get());
+	mScene = make_unique<Scene>(L"Test", mDevice.Get(), mCommandList.Get(), mHeapManager.get(), mDescriptorManager.get());
 	
 	mScene->LoadGround();
 	mScene->LoadSkyBox();
@@ -198,10 +198,7 @@ void Carol::Renderer::DelayedDelete()
 {
 	mScene->DelayedDelete(mCurrFrame);
 	mFrameCBHeap->DelayedDelete(mCurrFrame);
-	mDefaultBuffersHeap->DelayedDelete(mCurrFrame);
-	mUploadBuffersHeap->DelayedDelete(mCurrFrame);
-	mReadbackBuffersHeap->DelayedDelete(mCurrFrame);
-	mTexturesHeap->DelayedDelete(mCurrFrame);
+	mHeapManager->DelayedDelete(mCurrFrame);
 }
 
 void Carol::Renderer::ReleaseIntermediateBuffers()
@@ -212,7 +209,7 @@ void Carol::Renderer::ReleaseIntermediateBuffers()
 
 void Carol::Renderer::Draw()
 {	
-	ID3D12DescriptorHeap* descriptorHeaps[] = {mCbvSrvUavAllocator->GetGpuDescriptorHeap()};
+	ID3D12DescriptorHeap* descriptorHeaps[] = {mDescriptorManager->GetResourceDescriptorHeap()};
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	mCommandList->SetGraphicsRootSignature(mRootSignature->Get());

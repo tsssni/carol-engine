@@ -130,11 +130,9 @@ void Carol::SsaoPass::InitBuffers()
         1,
         COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
         mAmbientMapFormat,
-        mGlobalResources->DefaultBuffersHeap,
+        mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+        mGlobalResources->DescriptorManager,
         D3D12_RESOURCE_STATE_GENERIC_READ,
-        mGlobalResources->CbvSrvUavAllocator,
-        mGlobalResources->RtvAllocator,
-        nullptr,
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         &optClearValue);
 
@@ -144,11 +142,9 @@ void Carol::SsaoPass::InitBuffers()
         1,
         COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
         mAmbientMapFormat,
-        mGlobalResources->DefaultBuffersHeap,
+        mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+        mGlobalResources->DescriptorManager,
         D3D12_RESOURCE_STATE_GENERIC_READ,
-        mGlobalResources->CbvSrvUavAllocator,
-        mGlobalResources->RtvAllocator,
-        nullptr,
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         &optClearValue);
 }
@@ -194,9 +190,9 @@ void Carol::SsaoPass::InitRandomVectorMap()
         1,
         COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
         DXGI_FORMAT_R8G8B8A8_UNORM,
-        mGlobalResources->DefaultBuffersHeap,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        mGlobalResources->CbvSrvUavAllocator);
+        mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+        mGlobalResources->DescriptorManager,
+        D3D12_RESOURCE_STATE_GENERIC_READ);
 
     XMCOLOR initData[256 * 256];
     for (int i = 0; i < 256; ++i)
@@ -212,7 +208,7 @@ void Carol::SsaoPass::InitRandomVectorMap()
     subresource.pData = initData;
     subresource.RowPitch = 256 * sizeof(XMCOLOR);
     subresource.SlicePitch = subresource.RowPitch * 256;
-    mRandomVecMap->CopySubresources(mGlobalResources->CommandList, mGlobalResources->UploadBuffersHeap, &subresource, 0, 1);
+    mRandomVecMap->CopySubresources(mGlobalResources->CommandList, mGlobalResources->HeapManager->GetUploadBuffersHeap(), &subresource, 0, 1);
 }
 
 void Carol::SsaoPass::InitShaders()

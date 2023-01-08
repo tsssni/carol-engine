@@ -12,9 +12,6 @@ namespace Carol
 	{
 	public:
 		RenderPass(GlobalResources* globalResources);
-		RenderPass(const RenderPass&) = delete;
-		RenderPass(RenderPass&&) = delete;
-		RenderPass& operator=(const RenderPass&) = delete;
 
 		virtual void Draw() = 0;
 		virtual void Update() = 0;

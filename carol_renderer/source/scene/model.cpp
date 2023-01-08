@@ -22,9 +22,8 @@ namespace Carol
 Carol::Mesh::Mesh(Model* model, 
 	ID3D12Device* device,
 	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorAllocator* allocator,
+	HeapManager* heapManager,
+	DescriptorManager* descriptorManager,
 	vector<Vertex>& vertices,
 	vector<uint32_t>& indices,
 	bool isSkinned,
@@ -33,9 +32,8 @@ Carol::Mesh::Mesh(Model* model,
 	mMeshIdx(MESH_IDX_COUNT),
 	mDevice(device),
 	mCommandList(cmdList),
-	mDefaultBuffersHeap(defaultBuffersHeap),
-	mUploadBuffersHeap(uploadBuffersHeap),
-	mAllocator(allocator),
+	mHeapManager(heapManager),
+	mDescriptorManager(descriptorManager),
 	mVertices(std::move(vertices)),
 	mIndices(std::move(indices)),
 	mMeshConstants(make_unique<MeshConstants>()),
@@ -157,11 +155,11 @@ void Carol::Mesh::LoadVertices()
 	mVertexBuffer = make_unique<StructuredBuffer>(
 		mVertices.size(),
 		sizeof(Vertex),
-		mDefaultBuffersHeap,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		mAllocator);
+		mHeapManager->GetDefaultBuffersHeap(),
+		mDescriptorManager,
+		D3D12_RESOURCE_STATE_GENERIC_READ);
 
-	mVertexBuffer->CopySubresources(mCommandList, mUploadBuffersHeap, mVertices.data(), mVertices.size() * sizeof(Vertex));
+	mVertexBuffer->CopySubresources(mCommandList, mHeapManager->GetUploadBuffersHeap(), mVertices.data(), mVertices.size() * sizeof(Vertex));
 	mMeshIdx[VERTEX_IDX] = mVertexBuffer->GetGpuSrvIdx();
 }
 
@@ -217,11 +215,11 @@ void Carol::Mesh::LoadMeshlets()
 	mMeshletBuffer = make_unique<StructuredBuffer>(
 		mMeshlets.size(),
 		sizeof(Meshlet),
-		mDefaultBuffersHeap,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		mAllocator);
+		mHeapManager->GetDefaultBuffersHeap(),
+		mDescriptorManager,
+		D3D12_RESOURCE_STATE_GENERIC_READ);
 
-	mMeshletBuffer->CopySubresources(mCommandList, mUploadBuffersHeap, mMeshlets.data(), mMeshlets.size() * sizeof(Meshlet));
+	mMeshletBuffer->CopySubresources(mCommandList, mHeapManager->GetUploadBuffersHeap(), mMeshlets.data(), mMeshlets.size() * sizeof(Meshlet));
 
 	mMeshIdx[MESHLET_IDX] = mMeshletBuffer->GetGpuSrvIdx();
 	mMeshConstants->MeshletCount = mMeshlets.size();
@@ -236,11 +234,11 @@ void Carol::Mesh::LoadCullData()
 	mCullDataBuffer = make_unique<StructuredBuffer>(
 		mCullData.size(),
 		sizeof(CullData),
-		mDefaultBuffersHeap,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		mAllocator);
+		mHeapManager->GetDefaultBuffersHeap(),
+		mDescriptorManager,
+		D3D12_RESOURCE_STATE_GENERIC_READ);
 
-	mCullDataBuffer->CopySubresources(mCommandList, mUploadBuffersHeap, mCullData.data(), mCullData.size() * sizeof(CullData));
+	mCullDataBuffer->CopySubresources(mCommandList, mHeapManager->GetUploadBuffersHeap(), mCullData.data(), mCullData.size() * sizeof(CullData));
 	mMeshIdx[CULL_DATA_IDX] = mCullDataBuffer->GetGpuSrvIdx();
 }
 
@@ -249,9 +247,9 @@ void Carol::Mesh::InitCullMark()
 	uint32_t byteSize = std::max((uint32_t)ceilf(mMeshlets.size() / 8.f), 8u);
 	mCullMarkBuffer = make_unique<RawBuffer>(
 		byteSize,
-		mDefaultBuffersHeap,
+		mHeapManager->GetDefaultBuffersHeap(),
+		mDescriptorManager,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
-		mAllocator,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 
@@ -643,8 +641,8 @@ void Carol::Mesh::RadiusCompare(const DirectX::XMVECTOR& pos, const DirectX::XMV
 	}
 }
 
-Carol::Model::Model(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* heap, Heap* uploadHeap, DescriptorAllocator* allocator)
-	:mDevice(device), mCommandList(cmdList), mHeap(heap), mUploadHeap(uploadHeap), mAllocator(allocator), mSkinnedConstants(make_unique<SkinnedConstants>()), mSkinnedCBAllocInfo(make_unique<HeapAllocInfo>())
+Carol::Model::Model(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* descriptorManager)
+	:mDevice(device), mCommandList(cmdList), mHeapManager(heapManager), mDescriptorManager(descriptorManager), mSkinnedConstants(make_unique<SkinnedConstants>()), mSkinnedCBAllocInfo(make_unique<HeapAllocInfo>())
 {
 	
 }
@@ -787,7 +785,7 @@ void Carol::Model::LoadGround(TextureManager* texManager)
 	}
 	
 	vector<uint32_t> indices = { 0,1,2,0,2,3 };
-	mMeshes[L"Ground"] = make_unique<Mesh>(this, mDevice, mCommandList, mHeap, mUploadHeap, mAllocator, vertices, indices, false, false);
+	mMeshes[L"Ground"] = make_unique<Mesh>(this, mDevice, mCommandList, mHeapManager, mDescriptorManager, vertices, indices, false, false);
 	mMeshes[L"Ground"]->SetTexIdx(Mesh::DIFFUSE_IDX, texManager->LoadTexture(L"texture\\tile.dds"));
 	mMeshes[L"Ground"]->SetTexIdx(Mesh::NORMAL_IDX, texManager->LoadTexture(L"texture\\tile_nmap.dds"));
 }
@@ -813,6 +811,6 @@ void Carol::Model::LoadSkyBox(TextureManager* texManager)
 	}
 
 	vector<uint32_t> indices = { 0,1,2,0,2,3,4,5,1,4,1,0,7,6,5,7,5,4,3,2,6,3,6,7,1,5,6,1,6,2,4,0,3,4,3,7 };
-	mMeshes[L"SkyBox"] = make_unique<Mesh>(this, mDevice, mCommandList, mHeap, mUploadHeap, mAllocator, vertices, indices, false, false);
+	mMeshes[L"SkyBox"] = make_unique<Mesh>(this, mDevice, mCommandList, mHeapManager, mDescriptorManager, vertices, indices, false, false);
 	mMeshes[L"SkyBox"]->SetTexIdx(Mesh::DIFFUSE_IDX, texManager->LoadTexture(L"texture\\snowcube1024.dds"));
 }

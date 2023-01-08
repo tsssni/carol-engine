@@ -11,10 +11,10 @@
 
 namespace Carol {
 
-	class Heap;
+	class HeapManager;
 	class HeapAllocInfo;
 	class CircularHeap;
-	class DescriptorAllocator;
+	class DescriptorManager;
 	class Mesh;
 	class TextureManager;
 	class Model;
@@ -70,7 +70,7 @@ namespace Carol {
 	class Scene
 	{
 	public:
-		Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* defaultBuffersHeap, Heap* texHeap, Heap* uploadBuffersHeap, DescriptorAllocator* allocator);
+		Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* descriptorManager);
 		Scene(const Scene&) = delete;
 		Scene(Scene&&) = delete;
 		Scene& operator=(const Scene&) = delete;
@@ -102,9 +102,8 @@ namespace Carol {
 
 		ID3D12Device* mDevice;
 		ID3D12GraphicsCommandList* mCommandList;
-		Heap* mDefaultBuffersHeap;
-		Heap* mUploadBuffersHeap;
-		DescriptorAllocator* mAllocator;
+		HeapManager* mHeapManager;
+		DescriptorManager* mDescriptorManager;
 
 		std::unordered_map<std::wstring, std::unique_ptr<Model>> mModels;
 		std::unique_ptr<Model> mSkyBox;

@@ -9,7 +9,7 @@ namespace Carol
 {
 	class Heap;
 	class HeapAllocInfo;
-	class DescriptorAllocator;
+	class DescriptorManager;
 	class DescriptorAllocInfo;
 
 	DXGI_FORMAT GetBaseFormat(DXGI_FORMAT format);
@@ -64,9 +64,7 @@ namespace Carol
 	{
 	public:
 		Buffer(
-			DescriptorAllocator* cbvSrvUavAllocator,
-			DescriptorAllocator* rtvAllocator,
-			DescriptorAllocator* dsvAllocator);
+			DescriptorManager* descriptorManager);
 		~Buffer();
 
 		ID3D12Resource* Get();
@@ -106,7 +104,7 @@ namespace Carol
 
 	protected:
 		void BindDescriptors();
-		void CopyDescriptors();
+		void CopyCbvSrvUav();
 
 		virtual void BindSrv() = 0;
 		virtual void BindUav() = 0;
@@ -116,9 +114,7 @@ namespace Carol
 		std::unique_ptr<Resource> mResource;
 		D3D12_RESOURCE_DESC mResourceDesc;
 
-		DescriptorAllocator* mCbvSrvUavAllocator;
-		DescriptorAllocator* mRtvAllocator;
-		DescriptorAllocator* mDsvAllocator;
+		DescriptorManager* mDescriptorManager;
 
 		std::unique_ptr<DescriptorAllocInfo> mCpuSrvAllocInfo;
 		std::unique_ptr<DescriptorAllocInfo> mGpuSrvAllocInfo;
@@ -154,10 +150,8 @@ namespace Carol
 			ColorBufferViewDimension viewDimension,
 			DXGI_FORMAT format,
 			Heap* heap,
+			DescriptorManager* descriptorManager,
 			D3D12_RESOURCE_STATES initState,
-			DescriptorAllocator* cbvSrvUavAllocator,
-			DescriptorAllocator* rtvAllocator = nullptr,
-			DescriptorAllocator* dsvAllocator = nullptr,
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
 			D3D12_CLEAR_VALUE* optClearValue = nullptr,
 			uint32_t mipLevels = 1,
@@ -196,8 +190,8 @@ namespace Carol
 			uint32_t numElements,
 			uint32_t elementSize,
 			Heap* heap,
+			DescriptorManager* descriptorManager,
 			D3D12_RESOURCE_STATES initState,
-			DescriptorAllocator* cbvSrvUavAllocator,
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
 			uint32_t viewNumElements = 0,
 			uint32_t firstElement = 0
@@ -220,8 +214,8 @@ namespace Carol
 		RawBuffer(
 			uint32_t byteSize,
 			Heap* heap,
+			DescriptorManager* descriptorManager,
 			D3D12_RESOURCE_STATES initState,
-			DescriptorAllocator* cbvSrvUavAllocator,
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE
 		);
 

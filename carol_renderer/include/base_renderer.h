@@ -10,11 +10,9 @@
 
 namespace Carol
 {
-	class Heap;
-    class CircularHeap;
+	class HeapManager;
     class HeapAllocInfo;
-	class DescriptorAllocator;
-    class DescriptorAllocInfo;
+	class DescriptorManager;
     class Shader;
 	class RootSignature;
 	class Display;
@@ -69,8 +67,8 @@ namespace Carol
 		virtual void InitCommandList();
 		virtual void InitRootSignature();
 
-		virtual void InitHeaps();
-		virtual void InitAllocators();
+		virtual void InitHeapManager();
+		virtual void InitDescriptorManager();
 		virtual void InitDisplay();
 
 		virtual void InitShaders();
@@ -89,15 +87,9 @@ namespace Carol
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
 		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mInitCommandAllocator;
 
-		std::unique_ptr<Heap> mDefaultBuffersHeap;
-        std::unique_ptr<Heap> mUploadBuffersHeap;
-        std::unique_ptr<Heap> mReadbackBuffersHeap;
-		std::unique_ptr<Heap> mTexturesHeap;
-
-		std::unique_ptr<DescriptorAllocator> mCbvSrvUavAllocator;
-		std::unique_ptr<DescriptorAllocator> mRtvAllocator;
-		std::unique_ptr<DescriptorAllocator> mDsvAllocator;
 		std::unique_ptr<RootSignature> mRootSignature;
+		std::unique_ptr<HeapManager> mHeapManager;
+		std::unique_ptr<DescriptorManager> mDescriptorManager;
 
         std::unordered_map<std::wstring, std::unique_ptr<Shader>> mShaders;
         std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;

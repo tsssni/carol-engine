@@ -46,8 +46,8 @@ void Carol::Heap::DelayedDelete(uint32_t currFrame)
 }
 
 
-Carol::BuddyHeap::BuddyHeap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag, uint32_t heapSize, uint32_t pageSize)
-    :Heap(device,type,flag), mHeapSize(heapSize), mPageSize(pageSize)
+Carol::BuddyHeap::BuddyHeap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag, uint32_t heapSize)
+    :Heap(device,type,flag), mHeapSize(heapSize)
 {
     Align();
     AddHeap();
@@ -384,4 +384,40 @@ void Carol::SegListHeap::AddHeap(uint32_t order)
         &desc,
         IID_PPV_ARGS(mSegLists[order].back().GetAddressOf())
     ));
+}
+
+Carol::HeapManager::HeapManager(ID3D12Device* device, uint32_t initDefaultBuffersHeapSize, uint32_t initUploadBuffersHeapSize, uint32_t initReadbackBuffersHeapSize, uint32_t texturesMaxPageSize)
+{
+    mDefaultBuffersHeap = make_unique<BuddyHeap>(device, D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
+    mUploadBuffersHeap = make_unique<BuddyHeap>(device, D3D12_HEAP_TYPE_UPLOAD, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
+    mReadbackBuffersHeap = make_unique<BuddyHeap>(device, D3D12_HEAP_TYPE_READBACK, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
+    mTexturesHeap = make_unique<SegListHeap>(device, D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, texturesMaxPageSize);
+}
+
+Carol::Heap* Carol::HeapManager::GetDefaultBuffersHeap()
+{
+    return mDefaultBuffersHeap.get();
+}
+
+Carol::Heap* Carol::HeapManager::GetUploadBuffersHeap()
+{
+    return mUploadBuffersHeap.get();
+}
+
+Carol::Heap* Carol::HeapManager::GetReadbackBuffersHeap()
+{
+    return mReadbackBuffersHeap.get();
+}
+
+Carol::Heap* Carol::HeapManager::GetTexturesHeap()
+{
+    return mTexturesHeap.get();
+}
+
+void Carol::HeapManager::DelayedDelete(uint32_t currFrame)
+{
+    mDefaultBuffersHeap->DelayedDelete(currFrame);
+    mUploadBuffersHeap->DelayedDelete(currFrame);
+    mReadbackBuffersHeap->DelayedDelete(currFrame);
+    mTexturesHeap->DelayedDelete(currFrame);
 }

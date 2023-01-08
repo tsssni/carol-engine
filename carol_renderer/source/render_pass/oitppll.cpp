@@ -164,23 +164,23 @@ void Carol::OitppllPass::InitBuffers()
 	mOitppllBuffer = make_unique<StructuredBuffer>(
 		width * height,
 		sizeof(OitppllNode),
-		mGlobalResources->DefaultBuffersHeap,
+		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+		mGlobalResources->DescriptorManager,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
-		mGlobalResources->CbvSrvUavAllocator,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	mStartOffsetBuffer = make_unique<RawBuffer>(
 		width*height*sizeof(uint32_t),
-		mGlobalResources->DefaultBuffersHeap,
+		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+		mGlobalResources->DescriptorManager,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
-		mGlobalResources->CbvSrvUavAllocator,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	
 	mCounterBuffer = make_unique<RawBuffer>(
 		sizeof(uint32_t),
-		mGlobalResources->DefaultBuffersHeap,
+		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+		mGlobalResources->DescriptorManager,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
-		mGlobalResources->CbvSrvUavAllocator,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 

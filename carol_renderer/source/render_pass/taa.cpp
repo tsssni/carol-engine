@@ -192,9 +192,9 @@ void Carol::TaaPass::InitBuffers()
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mFrameFormat,
-		mGlobalResources->DefaultBuffersHeap,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		mGlobalResources->CbvSrvUavAllocator);
+		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+		mGlobalResources->DescriptorManager,
+		D3D12_RESOURCE_STATE_GENERIC_READ);
 	
 	D3D12_CLEAR_VALUE optClearValue = CD3DX12_CLEAR_VALUE(mVelocityMapFormat, DirectX::Colors::Black);
 	mVelocityMap = make_unique<ColorBuffer>(
@@ -203,11 +203,9 @@ void Carol::TaaPass::InitBuffers()
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mVelocityMapFormat,
-		mGlobalResources->DefaultBuffersHeap,
+		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+		mGlobalResources->DescriptorManager,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
-		mGlobalResources->CbvSrvUavAllocator,
-		mGlobalResources->RtvAllocator,
-		nullptr,
 		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
 		&optClearValue);
 }

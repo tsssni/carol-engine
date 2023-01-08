@@ -13,12 +13,13 @@ namespace Carol
 {
 	class AnimationClip;
 	class SkinnedData;
-	class Heap;
+	class CircularHeap;
+	class HeapManager;
+	class DescriptorManager;
+	class TextureManager;
 	class StructuredBuffer;
 	class RawBuffer;
-	class DescriptorAllocator;
 	class Timer;
-	class TextureManager;
 
 	class Material
 	{
@@ -107,9 +108,8 @@ namespace Carol
 			Model* model,
 			ID3D12Device* device,
 			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorAllocator* allocator,
+			HeapManager* heapManager,
+			DescriptorManager* descriptorManager,
 			std::vector<Vertex>& vertices,
 			std::vector<uint32_t>& indices,
 			bool isSkinned,
@@ -161,9 +161,8 @@ namespace Carol
 
 		ID3D12Device* mDevice;
 		ID3D12GraphicsCommandList* mCommandList;
-		Heap* mDefaultBuffersHeap;
-		Heap* mUploadBuffersHeap;
-		DescriptorAllocator* mAllocator;
+		HeapManager* mHeapManager;
+		DescriptorManager* mDescriptorManager;
 
 		std::vector<Vertex> mVertices;
 		std::vector<uint32_t> mIndices;
@@ -196,9 +195,8 @@ namespace Carol
 	public:
 		Model(ID3D12Device* device,
 			ID3D12GraphicsCommandList* cmdList,
-			Heap* heap,
-			Heap* uploadHeap,
-			DescriptorAllocator* allocator);
+			HeapManager* heapManager,
+			DescriptorManager* descriptorManager);
 		~Model();
 		
 		bool IsSkinned();
@@ -222,9 +220,8 @@ namespace Carol
 	protected:
 		ID3D12Device* mDevice;
 		ID3D12GraphicsCommandList* mCommandList;
-		Heap* mHeap;
-		Heap* mUploadHeap;
-		DescriptorAllocator* mAllocator;
+		HeapManager* mHeapManager;
+		DescriptorManager* mDescriptorManager;
 		
 		std::wstring mTexDir;
 

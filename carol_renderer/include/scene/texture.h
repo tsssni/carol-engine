@@ -9,13 +9,13 @@
 namespace Carol
 {
 	class ColorBuffer;
-	class Heap;
-	class DescriptorAllocator;
+	class HeapManager;
+	class DescriptorManager;
 	
 	class Texture
 	{
 	public:
-		Texture(std::wstring fileName, bool isSrgb, ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, DescriptorAllocator* allocator);
+		Texture(std::wstring fileName, bool isSrgb, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* allocator);
 
 		uint32_t GetGpuSrvIdx(uint32_t planeSlice = 0);
 		void ReleaseIntermediateBuffer();
@@ -31,7 +31,7 @@ namespace Carol
 	class TextureManager
 	{
 	public:
-		TextureManager(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, DescriptorAllocator* allocator);
+		TextureManager(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* allocator);
 
 		uint32_t LoadTexture(const std::wstring& fileName, bool isSrgb = false);
 		void UnloadTexture(const std::wstring& fileName);
@@ -40,12 +40,10 @@ namespace Carol
 		void DelayedDelete(uint32_t currFrame);
 
 	protected:
-		Heap* mTexturesHeap;
-		Heap* mUploadBuffersHeap;
-
 		ID3D12Device* mDevice;
 		ID3D12GraphicsCommandList* mCommandList;
-		DescriptorAllocator* mAllocator;
+		HeapManager* mHeapManager;
+		DescriptorManager* mDescriptorManager;
 
 		std::unordered_map<std::wstring, std::unique_ptr<Texture>> mTextures;
 		std::vector<std::vector<std::wstring>> mDeletedTextures;

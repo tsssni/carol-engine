@@ -7,7 +7,7 @@
 namespace Carol {
 	using std::vector;
 	using std::make_unique;	
-}
+	}
 
 Carol::DescriptorAllocator::DescriptorAllocator(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE type, uint32_t initNumCpuDescriptors, uint32_t initNumGpuDescriptors)
 	:mDevice(device), mType(type), mNumCpuDescriptorsPerHeap(initNumCpuDescriptors), mNumGpuDescriptorsPerSection(initNumGpuDescriptors)
@@ -143,6 +143,11 @@ bool Carol::DescriptorAllocator::GpuDeallocate(DescriptorAllocInfo* info)
 	return false;
 }
 
+void Carol::DescriptorAllocator::CreateCbv(D3D12_CONSTANT_BUFFER_VIEW_DESC* cbvDesc, DescriptorAllocInfo* info, uint32_t offset)
+{
+	mDevice->CreateConstantBufferView(cbvDesc, GetCpuHandle(info, offset));
+}
+
 void Carol::DescriptorAllocator::CreateSrv(D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset)
 {
 	mDevice->CreateShaderResourceView(resource->Get(), srvDesc, GetCpuHandle(info, offset));
@@ -222,4 +227,131 @@ void Carol::DescriptorAllocator::ExpandGpuDescriptorHeap()
 	{
 		mGpuBuddies.emplace_back(make_unique<Buddy>(mNumGpuDescriptorsPerSection, 1u));
 	}
+}
+
+Carol::DescriptorManager::DescriptorManager(ID3D12Device* device, uint32_t initCpuCbvSrvUavHeapSize, uint32_t initGpuCbvSrvUavHeapSize, uint32_t initRtvHeapSize, uint32_t initDsvHeapSize)
+{
+	mCbvSrvUavAllocator = make_unique<DescriptorAllocator>(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initCpuCbvSrvUavHeapSize, initGpuCbvSrvUavHeapSize);
+	mRtvAllocator = make_unique<DescriptorAllocator>(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, initRtvHeapSize, 0);
+	mDsvAllocator = make_unique<DescriptorAllocator>(device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, initDsvHeapSize, 0);
+}
+
+Carol::DescriptorManager::DescriptorManager(Carol::DescriptorManager&& manager)
+{
+	mCbvSrvUavAllocator = std::move(manager.mCbvSrvUavAllocator);
+	mRtvAllocator = std::move(manager.mRtvAllocator);
+	mDsvAllocator = std::move(manager.mDsvAllocator);
+}
+
+void Carol::DescriptorManager::CpuCbvSrvUavAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info)
+{
+	mCbvSrvUavAllocator->CpuAllocate(numDescriptors, info);
+}
+
+void Carol::DescriptorManager::GpuCbvSrvUavAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info)
+{
+	mCbvSrvUavAllocator->GpuAllocate(numDescriptors, info);
+}
+
+void Carol::DescriptorManager::RtvAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info)
+{
+	mRtvAllocator->CpuAllocate(numDescriptors, info);
+}
+
+void Carol::DescriptorManager::DsvAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info)
+{
+	mDsvAllocator->CpuAllocate(numDescriptors, info);
+}
+
+void Carol::DescriptorManager::CpuCbvSrvUavDeallocate(DescriptorAllocInfo* info)
+{
+	mCbvSrvUavAllocator->CpuDeallocate(info);
+}
+
+void Carol::DescriptorManager::GpuCbvSrvUavDeallocate(DescriptorAllocInfo* info)
+{
+	mCbvSrvUavAllocator->GpuDeallocate(info);
+}
+void Carol::DescriptorManager::RtvDeallocate(DescriptorAllocInfo* info)
+{
+	mRtvAllocator->CpuDeallocate(info);
+}
+
+void Carol::DescriptorManager::DsvDeallocate(DescriptorAllocInfo* info)
+{
+	mDsvAllocator->CpuDeallocate(info);
+}
+
+void Carol::DescriptorManager::CreateCbv(D3D12_CONSTANT_BUFFER_VIEW_DESC* cbvDesc, DescriptorAllocInfo* info, uint32_t offset)
+{
+	mCbvSrvUavAllocator->CreateCbv(cbvDesc, info, offset);
+}
+
+void Carol::DescriptorManager::CreateSrv(D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset)
+{
+	mCbvSrvUavAllocator->CreateSrv(srvDesc, resource, info, offset);
+}
+
+void Carol::DescriptorManager::CreateUav(D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, Resource* resource, Resource* counterResource, DescriptorAllocInfo* info, uint32_t offset)
+{
+	mCbvSrvUavAllocator->CreateUav(uavDesc, resource, counterResource, info, offset);
+}
+void Carol::DescriptorManager::CreateRtv(D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset)
+{
+	mRtvAllocator->CreateRtv(rtvDesc, resource, info, offset);
+}
+
+void Carol::DescriptorManager::CreateDsv(D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset)
+{
+	mDsvAllocator->CreateDsv(dsvDesc, resource, info, offset);
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorManager::GetCpuCbvSrvUavHandle(DescriptorAllocInfo* info, uint32_t offset)
+{
+	return mCbvSrvUavAllocator->GetCpuHandle(info, offset);
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorManager::GetShaderCpuCbvSrvUavHandle(DescriptorAllocInfo* info, uint32_t offset)
+{
+	return mCbvSrvUavAllocator->GetShaderCpuHandle(info, offset);
+}
+
+CD3DX12_GPU_DESCRIPTOR_HANDLE Carol::DescriptorManager::GetGpuCbvSrvUavHandle(DescriptorAllocInfo* info, uint32_t offset)
+{
+	return mCbvSrvUavAllocator->GetGpuHandle(info, offset);
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorManager::GetRtvHandle(DescriptorAllocInfo* info, uint32_t offset)
+{
+	return mRtvAllocator->GetCpuHandle(info, offset);
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorManager::GetDsvHandle(DescriptorAllocInfo* info, uint32_t offset)
+{
+	return mDsvAllocator->GetCpuHandle(info, offset);
+}
+
+uint32_t Carol::DescriptorManager::GetCbvSrvUavSize()
+{
+	return mCbvSrvUavAllocator->GetDescriptorSize();
+}
+
+uint32_t Carol::DescriptorManager::GetRtvSize()
+{
+	return mRtvAllocator->GetDescriptorSize();
+}
+
+uint32_t Carol::DescriptorManager::GetDsvSize()
+{
+	return mDsvAllocator->GetDescriptorSize();
+}
+
+ID3D12DescriptorHeap* Carol::DescriptorManager::GetResourceDescriptorHeap()
+{
+	return mCbvSrvUavAllocator->GetGpuDescriptorHeap();
+}
+
+void Carol::DescriptorManager::CopyCbvSrvUav(DescriptorAllocInfo* cpuInfo, DescriptorAllocInfo* shaderCpuInfo)
+{
+	mCbvSrvUavAllocator->CopyDescriptors(cpuInfo, shaderCpuInfo);
 }

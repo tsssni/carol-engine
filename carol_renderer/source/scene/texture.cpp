@@ -17,7 +17,7 @@ namespace Carol {
 	using namespace DirectX;
 }
 
-Carol::Texture::Texture(wstring fileName, bool isSrgb, ID3D12GraphicsCommandList* cmdList, Heap* texHeap, Heap* uploadHeap, DescriptorAllocator* allocator)
+Carol::Texture::Texture(wstring fileName, bool isSrgb, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* descriptorManager)
 	:mNumRef(1)
 {
 	wstring suffix = fileName.substr(fileName.find_last_of(L'.') + 1, 3);
@@ -100,11 +100,9 @@ Carol::Texture::Texture(wstring fileName, bool isSrgb, ID3D12GraphicsCommandList
 		depthOrArraySize,
 		viewDimension,
 		metaData.format,
-		texHeap,
+		heapManager->GetTexturesHeap(),
+		descriptorManager,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
-		allocator,
-		nullptr,
-		nullptr,
 		D3D12_RESOURCE_FLAG_NONE,
 		nullptr,
 		metaData.mipLevels);
@@ -119,7 +117,7 @@ Carol::Texture::Texture(wstring fileName, bool isSrgb, ID3D12GraphicsCommandList
 		subresources[i].pData = images[i].pixels;
 	}
 
-	mTexture->CopySubresources(cmdList, uploadHeap, subresources.data(), 0, subresources.size());
+	mTexture->CopySubresources(cmdList, heapManager->GetUploadBuffersHeap(), subresources.data(), 0, subresources.size());
 }
 
 uint32_t Carol::Texture::GetGpuSrvIdx(uint32_t planeSlice)
@@ -148,14 +146,12 @@ void Carol::Texture::DecRef()
 Carol::TextureManager::TextureManager(
 	ID3D12Device* device,
 	ID3D12GraphicsCommandList* cmdList,
-	Heap* texHeap,
-	Heap* uploadHeap,
-	DescriptorAllocator* allocator)
+	HeapManager* heapManager,
+	DescriptorManager* descriptorManager)
 	:mDevice(device),
 	mCommandList(cmdList),
-	mTexturesHeap(texHeap),
-	mUploadBuffersHeap(uploadHeap),
-	mAllocator(allocator)
+	mHeapManager(heapManager),
+	mDescriptorManager(descriptorManager)
 {
 }
 
@@ -168,7 +164,7 @@ uint32_t Carol::TextureManager::LoadTexture(const wstring& fileName, bool isSrgb
 
 	if (mTextures.count(fileName) == 0)
 	{
-		mTextures[fileName] = make_unique<Texture>(fileName, false, mCommandList, mTexturesHeap, mUploadBuffersHeap, mAllocator);
+		mTextures[fileName] = make_unique<Texture>(fileName, false, mCommandList, mHeapManager, mDescriptorManager);
 	}
 	else
 	{

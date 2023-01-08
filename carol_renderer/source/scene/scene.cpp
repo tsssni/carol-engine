@@ -130,15 +130,14 @@ Carol::SceneNode::SceneNode()
 	XMStoreFloat4x4(&Transformation, XMMatrixIdentity());
 }
 
-Carol::Scene::Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, Heap* defaultBuffersHeap, Heap* texHeap, Heap* uploadBuffersHeap, DescriptorAllocator* allocator)
+Carol::Scene::Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* descriptorManager)
 	:mRootNode(make_unique<SceneNode>()),
 	mMeshes(MESH_TYPE_COUNT),
 	mDevice(device),
 	mCommandList(cmdList),
-	mDefaultBuffersHeap(defaultBuffersHeap),
-	mUploadBuffersHeap(uploadBuffersHeap),
-	mAllocator(allocator),
-	mTexManager(make_unique<TextureManager>(device, cmdList, texHeap, uploadBuffersHeap, allocator)),
+	mHeapManager(heapManager),
+	mDescriptorManager(descriptorManager),
+	mTexManager(make_unique<TextureManager>(device, cmdList, heapManager, descriptorManager)),
 	mMeshCBHeap(make_unique<CircularHeap>(device, cmdList, true, 2048, sizeof(MeshConstants))), 
 	mSkinnedCBHeap(make_unique<CircularHeap>(device, cmdList, true, 2048, sizeof(SkinnedConstants)))
 {
@@ -180,7 +179,7 @@ void Carol::Scene::LoadModel(std::wstring name, std::wstring path, std::wstring 
 	node->Children.push_back(make_unique<SceneNode>());
 
 	node->Name = name;
-	mModels[name] = make_unique<AssimpModel>(mDevice, mCommandList, mDefaultBuffersHeap, mUploadBuffersHeap, mAllocator, mTexManager.get(), node->Children[0].get(), path, textureDir, isSkinned);
+	mModels[name] = make_unique<AssimpModel>(mDevice, mCommandList, mHeapManager, mDescriptorManager, mTexManager.get(), node->Children[0].get(), path, textureDir, isSkinned);
 
 	for (auto& meshMapPair : mModels[name]->GetMeshes())
 	{
@@ -194,7 +193,7 @@ void Carol::Scene::LoadModel(std::wstring name, std::wstring path, std::wstring 
 
 void Carol::Scene::LoadGround()
 {
-	mModels[L"Ground"] = make_unique<Model>(mDevice, mCommandList, mDefaultBuffersHeap, mUploadBuffersHeap, mAllocator);
+	mModels[L"Ground"] = make_unique<Model>(mDevice, mCommandList, mHeapManager, mDescriptorManager);
 	mModels[L"Ground"]->LoadGround(mTexManager.get());
 	
 	mRootNode->Children.push_back(make_unique<SceneNode>());
@@ -214,7 +213,7 @@ void Carol::Scene::LoadGround()
 
 void Carol::Scene::LoadSkyBox()
 {
-	mSkyBox = make_unique<Model>(mDevice, mCommandList, mDefaultBuffersHeap, mUploadBuffersHeap, mAllocator);
+	mSkyBox = make_unique<Model>(mDevice, mCommandList, mHeapManager, mDescriptorManager);
 	mSkyBox->LoadSkyBox(mTexManager.get());
 }
 

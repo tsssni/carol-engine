@@ -8,7 +8,7 @@ namespace Carol {
     using std::make_unique;
 }
 
-Carol::RootSignature::RootSignature(ID3D12Device* device, DescriptorAllocator* allocator)
+Carol::RootSignature::RootSignature(ID3D12Device* device)
 {
     Shader rootSignatureShader(L"shader\\root_signature.hlsl", {}, L"main", L"ms_6_6");
     ThrowIfFailed(device->CreateRootSignature(0, rootSignatureShader.GetBufferPointer(), rootSignatureShader.GetBufferSize(), IID_PPV_ARGS(mRootSignature.GetAddressOf())));

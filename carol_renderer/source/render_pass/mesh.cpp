@@ -68,9 +68,9 @@ void Carol::MeshesPass::Update()
 			mIndirectCommandBuffer[i] = make_unique<StructuredBuffer>(
 				mIndirectCommand[i].size(),
 				sizeof(IndirectCommand),
-				mGlobalResources->UploadBuffersHeap,
-				D3D12_RESOURCE_STATE_GENERIC_READ,
-				mGlobalResources->CbvSrvUavAllocator);
+				mGlobalResources->HeapManager->GetUploadBuffersHeap(),
+				mGlobalResources->DescriptorManager,
+				D3D12_RESOURCE_STATE_GENERIC_READ);
 
 			mIndirectCommandBuffer[i]->CopyData(mIndirectCommand[i].data(), cmdBufferSize);
 		
@@ -78,9 +78,9 @@ void Carol::MeshesPass::Update()
 			mCullMarkBuffer[i].reset();
 			mCullMarkBuffer[i] = make_unique<RawBuffer>(
 				cullMarkSize,
-				mGlobalResources->DefaultBuffersHeap,
+				mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+				mGlobalResources->DescriptorManager,
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-				mGlobalResources->CbvSrvUavAllocator,
 				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 		}

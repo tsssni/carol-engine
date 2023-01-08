@@ -9,6 +9,7 @@
 
 namespace Carol
 {
+	class CircularHeap;
 	class Scene;
     class FramePass;
     class SsaoPass;

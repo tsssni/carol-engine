@@ -85,7 +85,7 @@ Carol::Resource* Carol::Display::GetCurrBackBuffer()
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::Display::GetCurrBackBufferRtv()
 {
-	return mGlobalResources->RtvAllocator->GetCpuHandle(mBackBufferRtvAllocInfo.get(), mCurrBackBufferIndex);
+	return mGlobalResources->DescriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mCurrBackBufferIndex);
 }
 
 DXGI_FORMAT Carol::Display::GetBackBufferFormat()
@@ -160,12 +160,12 @@ void Carol::Display::InitDescriptors()
 {
 	if (!mBackBufferRtvAllocInfo->Allocator)
 	{
-		mGlobalResources->RtvAllocator->CpuAllocate(mBackBuffer.size(), mBackBufferRtvAllocInfo.get());
+		mGlobalResources->DescriptorManager->RtvAllocate(mBackBuffer.size(), mBackBufferRtvAllocInfo.get());
 	}
 	
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
 		ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(mBackBuffer[i]->GetAddressOf())));
-		mGlobalResources->Device->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, mGlobalResources->RtvAllocator->GetCpuHandle(mBackBufferRtvAllocInfo.get(), i));
+		mGlobalResources->Device->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, mGlobalResources->DescriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), i));
 	}
 }

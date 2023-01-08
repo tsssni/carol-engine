@@ -15,7 +15,7 @@ namespace Carol
 	class RootSignature
 	{
 	public:
-		RootSignature(ID3D12Device* device, DescriptorAllocator* allocator);
+		RootSignature(ID3D12Device* device);
 		ID3D12RootSignature* Get();
 
 		enum {

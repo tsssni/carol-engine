@@ -58,8 +58,8 @@ Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitCommandList();
 	InitCommandQueue();
 
-	InitHeaps();
-	InitAllocators();	
+	InitHeapManager();
+	InitDescriptorManager();	
 	InitRootSignature();
 	InitDisplay();
 	
@@ -166,32 +166,20 @@ void Carol::BaseRenderer::InitCommandList()
 void Carol::BaseRenderer::InitRootSignature()
 {
 	Shader::InitCompiler();
-	mRootSignature = make_unique<RootSignature>(mDevice.Get(), mCbvSrvUavAllocator.get());
+	mRootSignature = make_unique<RootSignature>(mDevice.Get());
 	mGlobalResources->RootSignature = mRootSignature.get();
 }
 
-void Carol::BaseRenderer::InitHeaps()
+void Carol::BaseRenderer::InitHeapManager()
 {
-	mDefaultBuffersHeap = make_unique<BuddyHeap>(mDevice.Get(), D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, 1 << 29);
-	mUploadBuffersHeap = make_unique<BuddyHeap>(mDevice.Get(), D3D12_HEAP_TYPE_UPLOAD, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, 1 << 29);
-	mReadbackBuffersHeap = make_unique<BuddyHeap>(mDevice.Get(), D3D12_HEAP_TYPE_READBACK, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES);
-	mTexturesHeap = make_unique<SegListHeap>(mDevice.Get(), D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES);
-
-	mGlobalResources->DefaultBuffersHeap = mDefaultBuffersHeap.get();
-	mGlobalResources->UploadBuffersHeap = mUploadBuffersHeap.get();
-	mGlobalResources->ReadbackBuffersHeap = mReadbackBuffersHeap.get();
-	mGlobalResources->TexturesHeap = mTexturesHeap.get();
+	mHeapManager = make_unique<HeapManager>(mDevice.Get(), 1 << 29, 1 << 29);
+	mGlobalResources->HeapManager = mHeapManager.get();
 }
 
-void Carol::BaseRenderer::InitAllocators()
+void Carol::BaseRenderer::InitDescriptorManager()
 {
-	mCbvSrvUavAllocator = make_unique<DescriptorAllocator>(mDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	mRtvAllocator = make_unique<DescriptorAllocator>(mDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	mDsvAllocator = make_unique<DescriptorAllocator>(mDevice.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-
-	mGlobalResources->CbvSrvUavAllocator = mCbvSrvUavAllocator.get();
-	mGlobalResources->RtvAllocator = mRtvAllocator.get();
-	mGlobalResources->DsvAllocator = mDsvAllocator.get();
+	mDescriptorManager = make_unique<DescriptorManager>(mDevice.Get());
+	mGlobalResources->DescriptorManager = mDescriptorManager.get();
 }
 
 void Carol::BaseRenderer::InitDisplay()

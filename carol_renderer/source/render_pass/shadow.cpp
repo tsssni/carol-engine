@@ -88,11 +88,9 @@ void Carol::ShadowPass::InitBuffers()
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mShadowFormat,
-		mGlobalResources->DefaultBuffersHeap,
+		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+		mGlobalResources->DescriptorManager,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		mGlobalResources->CbvSrvUavAllocator,
-		nullptr,
-		mGlobalResources->DsvAllocator,
 		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
 		&optClearValue);
 
@@ -102,11 +100,9 @@ void Carol::ShadowPass::InitBuffers()
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mHiZFormat,
-		mGlobalResources->DefaultBuffersHeap,
+		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+		mGlobalResources->DescriptorManager,
 		D3D12_RESOURCE_STATE_COMMON,
-		mGlobalResources->CbvSrvUavAllocator,
-		nullptr,
-		nullptr,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		nullptr,
 		mHiZMipLevels);
@@ -239,9 +235,9 @@ void Carol::ShadowPass::UpdateCommandBuffer()
 			mOcclusionCommandBuffer[i] = make_unique<StructuredBuffer>(
 				numElements,
 				stride,
-				mGlobalResources->DefaultBuffersHeap,
+				mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+				mGlobalResources->DescriptorManager,
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-				mGlobalResources->CbvSrvUavAllocator,
 				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 		}
 	}

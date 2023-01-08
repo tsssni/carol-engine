@@ -8,12 +8,11 @@
 
 namespace Carol
 {
-	class Heap;
+	class HeapManager;
 	class HeapAllocInfo;
 	class RootSignature;
 	class Shader;
-	class CircularHeap;
-	class DescriptorAllocator;
+	class DescriptorManager;
 	class Display;
 	class FramePass;
 	class ShadowPass;
@@ -35,17 +34,10 @@ namespace Carol
 		ID3D12Device2* Device;
 		ID3D12CommandQueue* CommandQueue;
 		ID3D12GraphicsCommandList6* CommandList;
-		
-
-		Heap* DefaultBuffersHeap;
-		Heap* UploadBuffersHeap;
-		Heap* ReadbackBuffersHeap;
-		Heap* TexturesHeap;
 
 		RootSignature* RootSignature;
-		DescriptorAllocator* CbvSrvUavAllocator;
-		DescriptorAllocator* RtvAllocator;
-		DescriptorAllocator* DsvAllocator;
+		HeapManager* HeapManager;
+		DescriptorManager* DescriptorManager;
 
 		Display* Display;
 		FramePass* Frame;

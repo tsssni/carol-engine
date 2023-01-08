@@ -163,9 +163,6 @@
     <ClCompile Include="source\render_pass\oitppll.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\render_pass\render_pass.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="source\scene\assimp.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -209,6 +206,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\scene\scene.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\render_pass\render_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

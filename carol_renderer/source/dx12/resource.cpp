@@ -205,10 +205,8 @@ void Carol::Resource::ReleaseIntermediateBuffer()
 	}
 }
 
-Carol::Buffer::Buffer(DescriptorAllocator* cbvSrvUavAllocator, DescriptorAllocator* rtvAllocator, DescriptorAllocator* dsvAllocator)
-	:mCbvSrvUavAllocator(cbvSrvUavAllocator),
-	mRtvAllocator(rtvAllocator),
-	mDsvAllocator(dsvAllocator),
+Carol::Buffer::Buffer(DescriptorManager* descriptorManager)
+	:mDescriptorManager(descriptorManager),
 	mCpuSrvAllocInfo(make_unique<DescriptorAllocInfo>()),
 	mGpuSrvAllocInfo(make_unique<DescriptorAllocInfo>()),
 	mCpuUavAllocInfo(make_unique<DescriptorAllocInfo>()),
@@ -288,17 +286,17 @@ void Carol::Buffer::ReleaseIntermediateBuffer()
 
 D3D12_CPU_DESCRIPTOR_HANDLE Carol::Buffer::GetCpuSrv(uint32_t planeSlice)
 {
-	return mCbvSrvUavAllocator->GetCpuHandle(mCpuSrvAllocInfo.get(), planeSlice);
+	return mDescriptorManager->GetCpuCbvSrvUavHandle(mCpuSrvAllocInfo.get(), planeSlice);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Carol::Buffer::GetShaderCpuSrv(uint32_t planeSlice)
 {
-	return mCbvSrvUavAllocator->GetShaderCpuHandle(mGpuSrvAllocInfo.get(), planeSlice);
+	return mDescriptorManager->GetShaderCpuCbvSrvUavHandle(mGpuSrvAllocInfo.get(), planeSlice);
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE Carol::Buffer::GetGpuSrv(uint32_t planeSlice)
 {
-	return mCbvSrvUavAllocator->GetGpuHandle(mGpuSrvAllocInfo.get(), planeSlice);
+	return mDescriptorManager->GetGpuCbvSrvUavHandle(mGpuSrvAllocInfo.get(), planeSlice);
 }
 
 uint32_t Carol::Buffer::GetGpuSrvIdx(uint32_t planeSlice)
@@ -308,17 +306,17 @@ uint32_t Carol::Buffer::GetGpuSrvIdx(uint32_t planeSlice)
 
 D3D12_CPU_DESCRIPTOR_HANDLE Carol::Buffer::GetCpuUav(uint32_t mipSlice, uint32_t planeSlice)
 {
-	return mCbvSrvUavAllocator->GetCpuHandle(mCpuUavAllocInfo.get(), mipSlice + planeSlice * mResourceDesc.MipLevels);
+	return mDescriptorManager->GetCpuCbvSrvUavHandle(mCpuUavAllocInfo.get(), mipSlice + planeSlice * mResourceDesc.MipLevels);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Carol::Buffer::GetShaderCpuUav(uint32_t mipSlice, uint32_t planeSlice)
 {
-	return mCbvSrvUavAllocator->GetCpuHandle(mGpuUavAllocInfo.get(), mipSlice + planeSlice * mResourceDesc.MipLevels);
+	return mDescriptorManager->GetShaderCpuCbvSrvUavHandle(mGpuUavAllocInfo.get(), mipSlice + planeSlice * mResourceDesc.MipLevels);
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE Carol::Buffer::GetGpuUav(uint32_t mipSlice, uint32_t planeSlice)
 {
-	return mCbvSrvUavAllocator->GetGpuHandle(mGpuUavAllocInfo.get(), mipSlice + planeSlice * mResourceDesc.MipLevels);
+	return mDescriptorManager->GetGpuCbvSrvUavHandle(mGpuUavAllocInfo.get(), mipSlice + planeSlice * mResourceDesc.MipLevels);
 }
 
 uint32_t Carol::Buffer::GetGpuUavIdx(uint32_t mipSlice, uint32_t planeSlice)
@@ -328,15 +326,13 @@ uint32_t Carol::Buffer::GetGpuUavIdx(uint32_t mipSlice, uint32_t planeSlice)
 
 D3D12_CPU_DESCRIPTOR_HANDLE Carol::Buffer::GetRtv(uint32_t mipSlice, uint32_t planeSlice)
 {
-	return mRtvAllocator->GetCpuHandle(mRtvAllocInfo.get(), mipSlice + planeSlice * mResourceDesc.MipLevels);
+	return mDescriptorManager->GetRtvHandle(mRtvAllocInfo.get(), mipSlice + planeSlice * mResourceDesc.MipLevels);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Carol::Buffer::GetDsv(uint32_t mipSlice)
 {
-	return mDsvAllocator->GetCpuHandle(mDsvAllocInfo.get(), mipSlice);
+	return mDescriptorManager->GetDsvHandle(mDsvAllocInfo.get(), mipSlice);
 }
-
-
 
 void Carol::Buffer::BindDescriptors()
 {
@@ -357,13 +353,13 @@ void Carol::Buffer::BindDescriptors()
 		BindDsv();
 	}
 
-	CopyDescriptors();
+	CopyCbvSrvUav();
 }
 
-void Carol::Buffer::CopyDescriptors()
+void Carol::Buffer::CopyCbvSrvUav()
 {
-	mCbvSrvUavAllocator->CopyDescriptors(mCpuSrvAllocInfo.get(), mGpuSrvAllocInfo.get());
-	mCbvSrvUavAllocator->CopyDescriptors(mCpuUavAllocInfo.get(), mGpuUavAllocInfo.get());
+	mDescriptorManager->CopyCbvSrvUav(mCpuSrvAllocInfo.get(), mGpuSrvAllocInfo.get());
+	mDescriptorManager->CopyCbvSrvUav(mCpuUavAllocInfo.get(), mGpuUavAllocInfo.get());
 }
 
 Carol::ColorBuffer::ColorBuffer(
@@ -373,10 +369,8 @@ Carol::ColorBuffer::ColorBuffer(
 	ColorBufferViewDimension viewDimension,
 	DXGI_FORMAT format,
 	Heap* heap,
+	DescriptorManager* descriptorManager,
 	D3D12_RESOURCE_STATES initState,
-	DescriptorAllocator* cbvSrvUavAllocator,
-	DescriptorAllocator* rtvAllocator,
-	DescriptorAllocator* dsvAllocator,
 	D3D12_RESOURCE_FLAGS flags,
 	D3D12_CLEAR_VALUE* optClearValue,
 	uint32_t mipLevels,
@@ -387,7 +381,7 @@ Carol::ColorBuffer::ColorBuffer(
 	uint32_t firstArraySlice,
 	uint32_t sampleCount,
 	uint32_t sampleQuality)
-	:Buffer(cbvSrvUavAllocator, rtvAllocator, dsvAllocator),
+	:Buffer(descriptorManager),
 	mViewDimension(viewDimension),
 	mFormat(format),
 	mViewMipLevels(viewMipLevels == 0 ? mipLevels : viewMipLevels),
@@ -542,12 +536,12 @@ void Carol::ColorBuffer::BindSrv()
 		break;
 	};
 
-	mCbvSrvUavAllocator->CpuAllocate(srvDescs.size(), mCpuSrvAllocInfo.get());
-	mCbvSrvUavAllocator->GpuAllocate(srvDescs.size(), mGpuSrvAllocInfo.get());
+	mDescriptorManager->CpuCbvSrvUavAllocate(srvDescs.size(), mCpuSrvAllocInfo.get());
+	mDescriptorManager->GpuCbvSrvUavAllocate(srvDescs.size(), mGpuSrvAllocInfo.get());
 
 	for (int i = 0; i < srvDescs.size(); ++i)
 	{
-		mCbvSrvUavAllocator->CreateSrv(&srvDescs[i], mResource.get(), mCpuSrvAllocInfo.get(), i);
+		mDescriptorManager->CreateSrv(&srvDescs[i], mResource.get(), mCpuSrvAllocInfo.get(), i);
 	}
 }
 
@@ -665,12 +659,12 @@ void Carol::ColorBuffer::BindUav()
 		break;
 	};
 
-	mCbvSrvUavAllocator->CpuAllocate(uavDescs.size(), mCpuUavAllocInfo.get());
-	mCbvSrvUavAllocator->GpuAllocate(uavDescs.size(), mGpuUavAllocInfo.get());
+	mDescriptorManager->CpuCbvSrvUavAllocate(uavDescs.size(), mCpuUavAllocInfo.get());
+	mDescriptorManager->GpuCbvSrvUavAllocate(uavDescs.size(), mGpuUavAllocInfo.get());
 
 	for (int i = 0; i < uavDescs.size(); ++i)
 	{
-		mCbvSrvUavAllocator->CreateUav(&uavDescs[i], mResource.get(), nullptr, mCpuUavAllocInfo.get(), i);
+		mDescriptorManager->CreateUav(&uavDescs[i], mResource.get(), nullptr, mCpuUavAllocInfo.get(), i);
 	}
 }
 
@@ -787,11 +781,11 @@ void Carol::ColorBuffer::BindRtv()
 		break;
 	}
 
-	mRtvAllocator->CpuAllocate(rtvDescs.size(), mRtvAllocInfo.get());
+	mDescriptorManager->RtvAllocate(rtvDescs.size(), mRtvAllocInfo.get());
 
 	for (int i = 0; i < rtvDescs.size(); ++i)
 	{
-		mRtvAllocator->CreateRtv(&rtvDescs[i], mResource.get(), mRtvAllocInfo.get(), i);
+		mDescriptorManager->CreateRtv(&rtvDescs[i], mResource.get(), mRtvAllocInfo.get(), i);
 	}
 }
 
@@ -885,11 +879,11 @@ void Carol::ColorBuffer::BindDsv()
 		break;
 	};
 
-	mDsvAllocator->CpuAllocate(dsvDescs.size(), mDsvAllocInfo.get());
+	mDescriptorManager->DsvAllocate(dsvDescs.size(), mDsvAllocInfo.get());
 
 	for (int i = 0; i < dsvDescs.size(); ++i)
 	{
-		mDsvAllocator->CreateDsv(&dsvDescs[i], mResource.get(), mDsvAllocInfo.get(), i);
+		mDescriptorManager->CreateDsv(&dsvDescs[i], mResource.get(), mDsvAllocInfo.get(), i);
 	}
 
 }
@@ -922,12 +916,12 @@ Carol::StructuredBuffer::StructuredBuffer(
 	uint32_t numElements,
 	uint32_t elementSize,
 	Heap* heap,
+	DescriptorManager* descriptorManager,
 	D3D12_RESOURCE_STATES initState,
-	DescriptorAllocator* cbvSrvUavAllocator,
 	D3D12_RESOURCE_FLAGS flags,
 	uint32_t viewNumElements,
 	uint32_t firstElement)
-	:Buffer(cbvSrvUavAllocator, nullptr, nullptr),
+	:Buffer(descriptorManager),
 	mNumElements(numElements),
 	mElementSize(elementSize),
 	mViewNumElements(viewNumElements == 0 ? numElements : viewNumElements),
@@ -960,9 +954,9 @@ void Carol::StructuredBuffer::BindSrv()
 	srvDesc.Buffer.StructureByteStride = mElementSize;
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-	mCbvSrvUavAllocator->CpuAllocate(1, mCpuSrvAllocInfo.get());
-	mCbvSrvUavAllocator->GpuAllocate(1, mGpuSrvAllocInfo.get());
-	mCbvSrvUavAllocator->CreateSrv(&srvDesc, mResource.get(), mCpuSrvAllocInfo.get());
+	mDescriptorManager->CpuCbvSrvUavAllocate(1, mCpuSrvAllocInfo.get());
+	mDescriptorManager->GpuCbvSrvUavAllocate(1, mGpuSrvAllocInfo.get());
+	mDescriptorManager->CreateSrv(&srvDesc, mResource.get(), mCpuSrvAllocInfo.get());
 }
 
 void Carol::StructuredBuffer::BindUav()
@@ -976,9 +970,9 @@ void Carol::StructuredBuffer::BindUav()
 	uavDesc.Buffer.CounterOffsetInBytes = floorf(mResourceDesc.Width / 4096.f) * 4096;
 	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
-	mCbvSrvUavAllocator->CpuAllocate(1, mCpuUavAllocInfo.get());
-	mCbvSrvUavAllocator->GpuAllocate(1, mGpuUavAllocInfo.get());
-	mCbvSrvUavAllocator->CreateUav(&uavDesc, mResource.get(), mResource.get(), mCpuUavAllocInfo.get());
+	mDescriptorManager->CpuCbvSrvUavAllocate(1, mCpuUavAllocInfo.get());
+	mDescriptorManager->GpuCbvSrvUavAllocate(1, mGpuUavAllocInfo.get());
+	mDescriptorManager->CreateUav(&uavDesc, mResource.get(), mResource.get(), mCpuUavAllocInfo.get());
 }
 
 void Carol::StructuredBuffer::BindRtv()
@@ -992,10 +986,10 @@ void Carol::StructuredBuffer::BindDsv()
 Carol::RawBuffer::RawBuffer(
 	uint32_t byteSize,
 	Heap* heap,
+	DescriptorManager* descriptorManager,
 	D3D12_RESOURCE_STATES initState,
-	DescriptorAllocator* cbvSrvUavAllocator,
 	D3D12_RESOURCE_FLAGS flags)
-	:Buffer(cbvSrvUavAllocator, nullptr, nullptr)
+	:Buffer(descriptorManager)
 {
 	mResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	mResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -1024,9 +1018,9 @@ void Carol::RawBuffer::BindSrv()
 	srvDesc.Buffer.StructureByteStride = 0;
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
 
-	mCbvSrvUavAllocator->CpuAllocate(1, mCpuSrvAllocInfo.get());
-	mCbvSrvUavAllocator->GpuAllocate(1, mGpuSrvAllocInfo.get());
-	mCbvSrvUavAllocator->CreateSrv(&srvDesc, mResource.get(), mCpuSrvAllocInfo.get());
+	mDescriptorManager->CpuCbvSrvUavAllocate(1, mCpuSrvAllocInfo.get());
+	mDescriptorManager->GpuCbvSrvUavAllocate(1, mGpuSrvAllocInfo.get());
+	mDescriptorManager->CreateSrv(&srvDesc, mResource.get(), mCpuSrvAllocInfo.get());
 }
 
 void Carol::RawBuffer::BindUav()
@@ -1040,9 +1034,9 @@ void Carol::RawBuffer::BindUav()
 	uavDesc.Buffer.CounterOffsetInBytes = 0;
 	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
 
-	mCbvSrvUavAllocator->CpuAllocate(1, mCpuUavAllocInfo.get());
-	mCbvSrvUavAllocator->GpuAllocate(1, mGpuUavAllocInfo.get());
-	mCbvSrvUavAllocator->CreateUav(&uavDesc, mResource.get(), nullptr, mCpuUavAllocInfo.get());
+	mDescriptorManager->CpuCbvSrvUavAllocate(1, mCpuUavAllocInfo.get());
+	mDescriptorManager->GpuCbvSrvUavAllocate(1, mGpuUavAllocInfo.get());
+	mDescriptorManager->CreateUav(&uavDesc, mResource.get(), nullptr, mCpuUavAllocInfo.get());
 }
 
 void Carol::RawBuffer::BindRtv()

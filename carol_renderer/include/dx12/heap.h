@@ -46,8 +46,7 @@ namespace Carol
 			ID3D12Device* device,
 			D3D12_HEAP_TYPE type,
 			D3D12_HEAP_FLAGS flag,
-			uint32_t heapSize = 1 << 26,
-			uint32_t pageSize = 1 << 16);
+			uint32_t heapSize = 1 << 26);
 
 		virtual void CreateResource(
 			Microsoft::WRL::ComPtr<ID3D12Resource>* resource,
@@ -67,7 +66,7 @@ namespace Carol
 		std::vector<std::unique_ptr<Buddy>> mBuddies;
 
 		uint32_t mHeapSize;
-		uint32_t mPageSize;
+		uint32_t mPageSize = 65536;
 		uint32_t mNumPages;
 	};
 
@@ -149,6 +148,30 @@ namespace Carol
 		uint32_t mMaxNumPages;
 		uint32_t mPageSize = 65536;
 		uint32_t mOrder;
+	};
+
+	class HeapManager
+	{
+	public:
+		HeapManager(
+			ID3D12Device* device,
+			uint32_t initDefaultBuffersHeapSize = 1 << 26,
+			uint32_t initUploadBuffersHeapSize = 1 << 26,
+			uint32_t initReadbackBuffersHeapSize = 1 << 26,
+			uint32_t texturesMaxPageSize = 1 << 26);
+
+		Heap* GetDefaultBuffersHeap();
+		Heap* GetUploadBuffersHeap();
+		Heap* GetReadbackBuffersHeap();
+		Heap* GetTexturesHeap();
+
+		void DelayedDelete(uint32_t currFrame);
+
+	protected:
+		std::unique_ptr<Heap> mDefaultBuffersHeap;
+		std::unique_ptr<Heap> mUploadBuffersHeap;
+		std::unique_ptr<Heap> mReadbackBuffersHeap;
+		std::unique_ptr<Heap> mTexturesHeap;
 	};
 }
 

@@ -52,9 +52,9 @@ void Carol::FramePass::Update()
 			mOcclusionCommandBuffer[i] = make_unique<StructuredBuffer>(
 				numElements,
 				stride,
-				mGlobalResources->DefaultBuffersHeap,
+				mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+				mGlobalResources->DescriptorManager,
 				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-				mGlobalResources->CbvSrvUavAllocator,
 				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 		}
 	}
@@ -196,11 +196,9 @@ void Carol::FramePass::InitBuffers()
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mFrameFormat,
-		mGlobalResources->TexturesHeap,
+		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+		mGlobalResources->DescriptorManager,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
-		mGlobalResources->CbvSrvUavAllocator,
-		mGlobalResources->RtvAllocator,
-		nullptr,
 		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
 		&frameOptClearValue);
 
@@ -211,11 +209,9 @@ void Carol::FramePass::InitBuffers()
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mDepthStencilFormat,
-		mGlobalResources->TexturesHeap,
+		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+		mGlobalResources->DescriptorManager,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		mGlobalResources->CbvSrvUavAllocator,
-		nullptr,
-		mGlobalResources->DsvAllocator,
 		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
 		&depthStencilOptClearValue);
 
@@ -225,11 +221,9 @@ void Carol::FramePass::InitBuffers()
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mHiZFormat,
-		mGlobalResources->DefaultBuffersHeap,
+		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+		mGlobalResources->DescriptorManager,
 		D3D12_RESOURCE_STATE_COMMON,
-		mGlobalResources->CbvSrvUavAllocator,
-		nullptr,
-		nullptr,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		nullptr,
 		mHiZMipLevels);

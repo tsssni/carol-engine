@@ -4,4 +4,3 @@ Carol::RenderPass::RenderPass(GlobalResources* globalResources)
 	:mGlobalResources(globalResources)
 {
 }
-
