@@ -23,7 +23,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\dx12\descriptor_allocator.h">
+    <ClInclude Include="include\dx12\descriptor.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\dx12\heap.h">
@@ -130,7 +130,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\dx12\descriptor_allocator.cpp">
+    <ClCompile Include="source\dx12\descriptor.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\dx12\heap.cpp">
@@ -236,13 +236,10 @@
     <None Include="shader\include\screen.hlsli">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\shadow_ms.hlsl">
+    <None Include="shader\depth_ms.hlsl">
       <Filter>着色器文件</Filter>
     </None>
     <None Include="shader\include\shadow.hlsli">
-      <Filter>着色器文件</Filter>
-    </None>
-    <None Include="shader\include\skinned.hlsli">
       <Filter>着色器文件</Filter>
     </None>
     <None Include="shader\ssao_ps.hlsl">
@@ -264,7 +261,6 @@
     <None Include="assimp-vc143-mtd.dll" />
     <None Include="dxcompiler.dll" />
     <None Include="dxil.dll" />
-    <None Include="shader\cull_as.hlsl" />
     <None Include="shader\include\cull.hlsli" />
     <None Include="shader\default_ps.hlsl" />
     <None Include="shader\default_ms.hlsl" />
@@ -279,7 +275,7 @@
     <None Include="shader\ssao_ms.hlsl" />
     <None Include="shader\hiz_generate_cs.hlsl" />
     <None Include="shader\cull_cs.hlsl" />
-    <None Include="shader\cull_as.hlsli" />
+    <None Include="shader\cull_as.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="lib\dxcompiler.lib" />

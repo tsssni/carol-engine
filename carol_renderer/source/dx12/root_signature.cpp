@@ -1,5 +1,5 @@
 #include <dx12/root_signature.h>
-#include <dx12/descriptor_allocator.h>
+#include <dx12/descriptor.h>
 #include <dx12/resource.h>
 #include <dx12/shader.h>
 #include <dx12/sampler.h>

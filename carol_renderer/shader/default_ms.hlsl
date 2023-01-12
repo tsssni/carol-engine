@@ -25,20 +25,20 @@ void main(
     out vertices MeshOut verts[64])
 {
     uint meshletIdx = payload.MeshletIndices[gid];
-    StructuredBuffer<Meshlet> meshlets = ResourceDescriptorHeap[gMeshletIdx];
-    Meshlet m = meshlets[meshletIdx];
+    StructuredBuffer<Meshlet> meshlets = ResourceDescriptorHeap[gMeshletBufferIdx];
+    Meshlet meshlet = meshlets[meshletIdx];
     
-    SetMeshOutputCounts(m.VertexCount, m.PrimCount);
+    SetMeshOutputCounts(meshlet.VertexCount, meshlet.PrimCount);
     
-    if (gtid < m.PrimCount)
+    if (gtid < meshlet.PrimCount)
     {
-        tris[gtid] = UnpackPrim(m.Prims[gtid]);
+        tris[gtid] = UnpackPrim(meshlet.Prims[gtid]);
     }
     
-    if (gtid < m.VertexCount)
+    if (gtid < meshlet.VertexCount)
     {
-        StructuredBuffer<MeshIn> vertices = ResourceDescriptorHeap[gVertexIdx];
-        MeshIn min = vertices[m.Vertices[gtid]];
+        StructuredBuffer<MeshIn> vertices = ResourceDescriptorHeap[gVertexBufferIdx];
+        MeshIn min = vertices[meshlet.Vertices[gtid]];
             
 #ifdef SKINNED
         min = SkinnedTransform(min);

@@ -1,6 +1,7 @@
 #pragma once
 #include <render_pass/render_pass.h>
 #include <scene/light.h>
+#include <scene/model.h>
 #include <DirectXMath.h>
 #include <vector>
 #include <memory>
@@ -43,17 +44,42 @@ namespace Carol
         void InitLightView();
         void InitCamera();
         
-        void CullMeshes();
-        void DrawShadow();
+        void Clear();
+        void CullMeshes(bool hist);
+        void DrawShadow(bool hist);
         void DrawHiZ();
 
-        void UpdateLight();
-        void UpdateCommandBuffer();
+		void TestCommandBufferSize(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements);
+		void ResizeCommandBuffer(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements, uint32_t elementSize);
+        
+        enum
+        {
+            HIZ_DEPTH_IDX,
+            HIZ_R_IDX,
+            HIZ_W_IDX,
+            HIZ_SRC_MIP,
+            HIZ_NUM_MIP_LEVEL,
+            HIZ_IDX_COUNT
+        };
 
+        enum
+        {
+            CULL_CULLED_COMMAND_BUFFER_IDX,
+            CULL_MESH_COUNT,
+            CULL_MESH_OFFSET,
+            CULL_HIZ_IDX,
+            CULL_HIST,
+            CULL_LIGHT_IDX,
+            CULL_IDX_COUNT
+        };
+        
         std::unique_ptr<Light> mLight;
         std::unique_ptr<ColorBuffer> mShadowMap;
         std::unique_ptr<ColorBuffer> mHiZMap;
-        std::vector<std::unique_ptr<StructuredBuffer>> mOcclusionCommandBuffer;
+        std::vector<std::vector<std::unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
+
+        std::vector<std::vector<uint32_t>> mCullIdx;
+        std::vector<uint32_t> mHiZIdx;
 		uint32_t mHiZMipLevels;
 
         D3D12_VIEWPORT mViewport;

@@ -1,7 +1,7 @@
 #include <scene/scene.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
-#include <dx12/descriptor_allocator.h>
+#include <dx12/descriptor.h>
 #include <scene/assimp.h>
 #include <scene/timer.h>
 #include <scene/camera.h>
@@ -12,6 +12,7 @@ namespace Carol
 	using std::vector;
 	using std::wstring;
 	using std::unordered_map;
+	using std::unique_ptr;
 	using std::make_unique;
 	using namespace DirectX;
 	
@@ -137,9 +138,7 @@ Carol::Scene::Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsComma
 	mCommandList(cmdList),
 	mHeapManager(heapManager),
 	mDescriptorManager(descriptorManager),
-	mTexManager(make_unique<TextureManager>(device, cmdList, heapManager, descriptorManager)),
-	mMeshCBHeap(make_unique<CircularHeap>(device, cmdList, true, 2048, sizeof(MeshConstants))), 
-	mSkinnedCBHeap(make_unique<CircularHeap>(device, cmdList, true, 2048, sizeof(SkinnedConstants)))
+	mTexManager(make_unique<TextureManager>(device, cmdList, heapManager, descriptorManager))
 {
 	mRootNode->Name = name;
 }
@@ -147,8 +146,6 @@ Carol::Scene::Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsComma
 void Carol::Scene::DelayedDelete(uint32_t currFrame)
 {
 	mTexManager->DelayedDelete(currFrame);
-	mMeshCBHeap->DelayedDelete(currFrame);
-	mSkinnedCBHeap->DelayedDelete(currFrame);
 }
 
 Carol::vector<Carol::wstring> Carol::Scene::GetAnimationClips(std::wstring modelName)
@@ -179,7 +176,16 @@ void Carol::Scene::LoadModel(std::wstring name, std::wstring path, std::wstring 
 	node->Children.push_back(make_unique<SceneNode>());
 
 	node->Name = name;
-	mModels[name] = make_unique<AssimpModel>(mDevice, mCommandList, mHeapManager, mDescriptorManager, mTexManager.get(), node->Children[0].get(), path, textureDir, isSkinned);
+	mModels[name] = make_unique<AssimpModel>(
+		node->Children[0].get(),
+		path,
+		textureDir,
+		mTexManager.get(),
+		isSkinned,
+		mDevice,
+		mCommandList,
+		mHeapManager,
+		mDescriptorManager);
 
 	for (auto& meshMapPair : mModels[name]->GetMeshes())
 	{
@@ -264,6 +270,16 @@ uint32_t Carol::Scene::GetMeshesCount(MeshType type)
 	return mMeshes[type].size();
 }
 
+const Carol::unordered_map<Carol::wstring, Carol::unique_ptr<Carol::Model>>& Carol::Scene::GetModels()
+{
+	return mModels;
+}
+
+uint32_t Carol::Scene::GetModelsCount()
+{
+	return mModels.size();
+}
+
 Carol::Mesh* Carol::Scene::GetSkyBox()
 {
 	return mSkyBox->GetMesh(L"SkyBox");
@@ -296,7 +312,7 @@ void Carol::Scene::Update(Camera* camera, Timer* timer)
 		auto& model = modelMapPair.second;
 		if (model->IsSkinned())
 		{
-			model->Update(timer, mSkinnedCBHeap.get());
+			model->Update(timer);
 		}
 	}
 
@@ -310,7 +326,7 @@ void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot)
 
 	for(auto& mesh : node->Meshes)
 	{
-		mesh->Update(world, mMeshCBHeap.get());
+		mesh->Update(world);
 	}
 
 	for (auto& child : node->Children)

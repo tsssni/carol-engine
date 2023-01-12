@@ -3,7 +3,7 @@
 #include <render_pass/display.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
-#include <dx12/descriptor_allocator.h>
+#include <dx12/descriptor.h>
 #include <dx12/root_signature.h>
 #include <dx12/shader.h>
 #include <scene/timer.h>
@@ -172,8 +172,9 @@ void Carol::BaseRenderer::InitRootSignature()
 
 void Carol::BaseRenderer::InitHeapManager()
 {
-	mHeapManager = make_unique<HeapManager>(mDevice.Get(), 1 << 29, 1 << 29);
+	mHeapManager = make_unique<HeapManager>(mDevice.Get());
 	mGlobalResources->HeapManager = mHeapManager.get();
+	StructuredBuffer::InitCounterResetBuffer(mHeapManager->GetUploadBuffersHeap());
 }
 
 void Carol::BaseRenderer::InitDescriptorManager()

@@ -9,6 +9,6 @@ struct PixelIn
 
 float4 main(PixelIn pin) : SV_Target
 {	
-	TextureCube skyBox = ResourceDescriptorHeap[gDiffuseMapIdx];
+	TextureCube skyBox = ResourceDescriptorHeap[gDiffuseTextureIdx];
     return skyBox.Sample(gsamLinearWrap, pin.PosL);
 }

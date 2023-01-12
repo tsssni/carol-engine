@@ -23,7 +23,16 @@ namespace Carol {
 	using namespace DirectX;
 }
 
-Carol::AssimpModel::AssimpModel(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* descriptorManager, TextureManager* texManager, SceneNode* rootNode, wstring path, wstring textureDir, bool isSkinned)
+Carol::AssimpModel::AssimpModel(
+	SceneNode* rootNode,
+	wstring path,
+	wstring textureDir,
+	TextureManager* texManager,
+	bool isSkinned,
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	HeapManager* heapManager, 
+	DescriptorManager* descriptorManager)
 	:Model(device, cmdList, heapManager, descriptorManager), mTexManager(texManager)
 {
 	Assimp::Importer mImporter;
@@ -77,15 +86,15 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(aiMesh* mesh, const aiScene* scene)
 		ReadMeshVerticesAndIndices(vertices, indices, mesh);
 		ReadMeshBones(vertices, mesh);
 		mMeshes[meshName] = make_unique<Mesh>(
+			vertices,
+			indices,
+			mSkinned,
+			false,
 			this,
 			mDevice,
 			mCommandList,
 			mHeapManager,
-			mDescriptorManager,
-			vertices,
-			indices,
-			mSkinned,
-			false);
+			mDescriptorManager);
 
 		ReadMeshMaterialAndTextures(mMeshes[meshName].get(), mesh, scene);
 	}
@@ -435,6 +444,7 @@ void Carol::AssimpModel::ReadMeshMaterialAndTextures(Mesh* mesh, aiMesh* aimesh,
 
 	aiGetMaterialFloat(matData, AI_MATKEY_SHININESS, &mat.Roughness);
 	mat.Roughness = 1.0f - mat.Roughness;
+	mat.Roughness = mat.Roughness < 0.f ? 0.f : mat.Roughness;
 	
 	mesh->SetMaterial(mat);
 	ReadTexture(mesh, matData);
@@ -484,10 +494,10 @@ void Carol::AssimpModel::LoadTexture(Mesh* mesh, aiString aiPath, aiTextureType 
 	switch (type)
 	{
 	case aiTextureType_DIFFUSE:
-		mesh->SetTexIdx(Mesh::DIFFUSE_IDX, mTexManager->LoadTexture(path));
+		mesh->SetDiffuseMapIdx(mTexManager->LoadTexture(path));
 		break;
 	case aiTextureType_NORMALS:
-		mesh->SetTexIdx(Mesh::NORMAL_IDX, mTexManager->LoadTexture(path));
+		mesh->SetNormalMapIdx(mTexManager->LoadTexture(path));
 		break;
 	}
 }

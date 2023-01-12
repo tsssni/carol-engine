@@ -1,19 +1,17 @@
-cbuffer HiZConstants : register(b3)
+cbuffer HiZConstants : register(b2)
 {
     uint gDepthIdx;
     uint gHiZRIdx;
     uint gHiZWIdx;
     uint gSrcMip;
     uint gNumMipLevel;
-    uint gWidth;
-    uint gHeight;
 }
 
 groupshared float sharedDepth[32][32];
 
-void Init(uint2 dtid)
+void Init(uint2 dtid, uint2 size)
 {
-    if(gSrcMip == 0 && dtid.x < gWidth && dtid.y < gHeight)
+    if(gSrcMip == 0 && dtid.x < size.x && dtid.y < size.y)
     {
         RWTexture2D<float4> srcHiZMap = ResourceDescriptorHeap[gHiZWIdx];
         Texture2D depthMap = ResourceDescriptorHeap[gDepthIdx];
@@ -37,14 +35,18 @@ float GetMaxDepth(uint2 gtid, uint offset)
 [numthreads(32, 32, 1)]
 void main( uint2 dtid : SV_DispatchThreadID, uint2 gtid : SV_GroupThreadID)
 {    
-    Init(dtid);
-    uint srcWidth = gWidth >> gSrcMip;
-    uint srcHeight = gHeight >> gSrcMip;
+    Texture2D hiZMap = ResourceDescriptorHeap[gHiZRIdx];
+    uint2 size;
+    uint mip;
+    hiZMap.GetDimensions(0, size.x, size.y, mip);
+    
+    Init(dtid, size);
+    uint srcWidth = size.x >> gSrcMip;
+    uint srcHeight = size.y >> gSrcMip;
     
     if(dtid.x < srcWidth && dtid.y < srcHeight)
     {
-        Texture2D hizMap = ResourceDescriptorHeap[gHiZRIdx];
-        sharedDepth[gtid.x][gtid.y] = hizMap.Load(int3(dtid, gSrcMip)).r;
+        sharedDepth[gtid.x][gtid.y] = hiZMap.Load(int3(dtid, gSrcMip)).r;
     }
     else
     {
@@ -55,13 +57,12 @@ void main( uint2 dtid : SV_DispatchThreadID, uint2 gtid : SV_GroupThreadID)
         
     for (int i = 1; i <= gNumMipLevel; ++i)
     {
-        if (gtid.x % (uint) exp2(i) == 0 && gtid.y % (uint) exp2(i) == 0)
+        if (gtid.x % uint(exp2(i)) == 0 && gtid.y % uint(exp2(i)) == 0)
         {
             RWTexture2D<float4> hiZMap = ResourceDescriptorHeap[gHiZWIdx + gSrcMip + i];
-            hiZMap[max(dtid >> i, uint2(1, 1))].r = GetMaxDepth(gtid, exp2(i - 1));
+            hiZMap[dtid >> i].r = GetMaxDepth(gtid, exp2(i - 1));
         }
         
         GroupMemoryBarrierWithGroupSync();
     }
-    
 }

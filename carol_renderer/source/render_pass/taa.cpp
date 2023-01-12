@@ -10,7 +10,7 @@
 #include <dx12/resource.h>
 #include <dx12/shader.h>
 #include <dx12/sampler.h>
-#include <dx12/descriptor_allocator.h>
+#include <dx12/descriptor.h>
 #include <dx12/root_signature.h>
 #include <utils/common.h>
 #include <DirectXColors.h>
@@ -127,12 +127,12 @@ void Carol::TaaPass::DrawVelocityMap()
 	mGlobalResources->CommandList->ClearDepthStencilView(mGlobalResources->Frame->GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mVelocityMap->GetRtv()), true, GetRvaluePtr(mGlobalResources->Frame->GetFrameDsv()));
 
-	mGlobalResources->Meshes->DrawMeshes({
-		(*mGlobalResources->PSOs)[L"TaaVelocityStatic"].Get(),
-		(*mGlobalResources->PSOs)[L"TaaVelocitySkinned"].Get(),
-		(*mGlobalResources->PSOs)[L"TaaVelocityStatic"].Get(),
-		(*mGlobalResources->PSOs)[L"TaaVelocitySkinned"].Get()
-		});
+	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"VelocityStatic"].Get());
+	mGlobalResources->Meshes->ExecuteIndirect(mGlobalResources->Frame->GetIndirectCommandBuffer(OPAQUE_STATIC));
+
+	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"VelocitySkinned"].Get());
+	mGlobalResources->Meshes->ExecuteIndirect(mGlobalResources->Frame->GetIndirectCommandBuffer(OPAQUE_SKINNED));
+
 	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mVelocityMap->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ)));
 }
 

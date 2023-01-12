@@ -6,7 +6,7 @@
 #include <render_pass/mesh.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
-#include <dx12/descriptor_allocator.h>
+#include <dx12/descriptor.h>
 #include <dx12/root_signature.h>
 #include <dx12/shader.h>
 #include <scene/scene.h>
@@ -19,10 +19,54 @@ namespace Carol {
 
 Carol::OitppllPass::OitppllPass(GlobalResources* globalResources, DXGI_FORMAT outputFormat)
 	:RenderPass(globalResources),
-	 mOutputFormat(outputFormat)
+	 mOutputFormat(outputFormat),
+	mCulledCommandBuffer(globalResources->NumFrame),
+	mCullIdx(TRANSPARENT_MESH_TYPE_COUNT)
 {
 	InitShaders();
 	InitPSOs();
+
+	for (int i = 0; i < mGlobalResources->NumFrame; ++i)
+	{
+		mCulledCommandBuffer[i].resize(TRANSPARENT_MESH_TYPE_COUNT);
+
+		for (int j = 0; j < TRANSPARENT_MESH_TYPE_COUNT; ++j)
+		{
+			ResizeCommandBuffer(mCulledCommandBuffer[i][j], 1024, sizeof(IndirectCommand));
+		}
+	}
+
+	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
+	{
+		mCullIdx[i].resize(CULL_IDX_COUNT);
+	}
+}
+
+void Carol::OitppllPass::Cull()
+{
+	if (mGlobalResources->Scene->IsAnyTransparentMeshes())
+	{
+		uint32_t currFrame = *mGlobalResources->CurrFrame;
+		mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"OitppllCull"].Get());
+
+		for (int i = 0; i < TRANSPARENT_MESH_TYPE_COUNT; ++i)
+		{
+			if (mCullIdx[i][CULL_MESH_COUNT] == 0)
+			{
+				continue;
+			}
+
+			mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_COPY_DEST)));
+			mCulledCommandBuffer[currFrame][i]->ResetCounter(mGlobalResources->CommandList);
+			mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
+		
+			uint32_t count = ceilf(mCullIdx[i][CULL_MESH_COUNT] / 32.f);
+
+			mGlobalResources->CommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
+			mGlobalResources->CommandList->Dispatch(count, 1, 1);
+			mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
+		}
+	}
 }
 
 void Carol::OitppllPass::Draw()
@@ -36,6 +80,18 @@ void Carol::OitppllPass::Draw()
 
 void Carol::OitppllPass::Update()
 {
+	uint32_t currFrame = *mGlobalResources->CurrFrame;
+
+	for (int i = 0; i < TRANSPARENT_MESH_TYPE_COUNT; ++i)
+	{
+		MeshType type = MeshType(TRANSPARENT_MESH_START + i);
+		TestCommandBufferSize(mCulledCommandBuffer[currFrame][i], mGlobalResources->Scene->GetMeshesCount(type));
+
+		mCullIdx[i][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[currFrame][i]->GetGpuUavIdx();
+		mCullIdx[i][CULL_MESH_COUNT] = mGlobalResources->Scene->GetMeshesCount(type);
+		mCullIdx[i][CULL_MESH_OFFSET] = mGlobalResources->Meshes->GetMeshCBStartOffet(type);
+		mCullIdx[i][CULL_HIST] = 0;
+	}
 }
 
 void Carol::OitppllPass::OnResize()
@@ -98,14 +154,17 @@ void Carol::OitppllPass::InitShaders()
 	(*mGlobalResources->Shaders)[L"BuildStaticOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", staticDefines, L"main", L"ps_6_6");
 	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", skinnedDefines, L"main", L"ps_6_6");
 	(*mGlobalResources->Shaders)[L"DrawOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+	(*mGlobalResources->Shaders)[L"TransparentCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", nullDefines, L"main", L"cs_6_6");
+	(*mGlobalResources->Shaders)[L"TransparentAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", nullDefines, L"main", L"as_6_6");
 }
 
 void Carol::OitppllPass::InitPSOs()
 {
 	auto buildStaticOitppllPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
-	auto buildStaticOitppllAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
+	auto buildStaticOitppllAS = (*mGlobalResources->Shaders)[L"TransparentAS"].get();
 	auto buildStaicOitppllMS = (*mGlobalResources->Shaders)[L"OpaqueStaticMS"].get();
 	auto buildStaticOitppllPS = (*mGlobalResources->Shaders)[L"BuildStaticOitppllPS"].get();
+	buildStaticOitppllPsoDesc.AS = { reinterpret_cast<byte*>(buildStaticOitppllAS->GetBufferPointer()), buildStaticOitppllAS->GetBufferSize() };
 	buildStaticOitppllPsoDesc.MS = { reinterpret_cast<byte*>(buildStaicOitppllMS->GetBufferPointer()),buildStaicOitppllMS->GetBufferSize() };
 	buildStaticOitppllPsoDesc.PS = { reinterpret_cast<byte*>(buildStaticOitppllPS->GetBufferPointer()),buildStaticOitppllPS->GetBufferSize() };
 	buildStaticOitppllPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
@@ -154,6 +213,11 @@ void Carol::OitppllPass::InitPSOs()
     drawOitppllStreamDesc.pPipelineStateSubobjectStream = &drawOitppllPsoStream;
     drawOitppllStreamDesc.SizeInBytes = sizeof(drawOitppllPsoStream);
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&drawOitppllStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"DrawOitppll"].GetAddressOf())));
+
+	auto oitppllCullPsoDesc = *mGlobalResources->BaseComputePsoDesc;
+	auto oitppllCullCS = (*mGlobalResources->Shaders)[L"TransparentCS"].get();
+	oitppllCullPsoDesc.CS = { reinterpret_cast<byte*>(oitppllCullCS->GetBufferPointer()), oitppllCullCS->GetBufferSize() };
+	ThrowIfFailed(mGlobalResources->Device->CreateComputePipelineState(&oitppllCullPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"OitppllCull"].GetAddressOf())));
 }
 
 void Carol::OitppllPass::InitBuffers()
@@ -162,25 +226,44 @@ void Carol::OitppllPass::InitBuffers()
 	uint32_t height = *mGlobalResources->ClientHeight;
 
 	mOitppllBuffer = make_unique<StructuredBuffer>(
-		width * height,
+		width * height * 2,
 		sizeof(OitppllNode),
 		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
 		mGlobalResources->DescriptorManager,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	mStartOffsetBuffer = make_unique<RawBuffer>(
-		width*height*sizeof(uint32_t),
+		width * height * sizeof(uint32_t),
 		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
 		mGlobalResources->DescriptorManager,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	
 	mCounterBuffer = make_unique<RawBuffer>(
 		sizeof(uint32_t),
 		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
 		mGlobalResources->DescriptorManager,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+}
+
+void Carol::OitppllPass::TestCommandBufferSize(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements)
+{
+	if (buffer->GetNumElements() < numElements)
+	{
+		ResizeCommandBuffer(buffer, numElements, buffer->GetElementSize());
+	}
+}
+
+void Carol::OitppllPass::ResizeCommandBuffer(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements, uint32_t elementSize)
+{
+	buffer = make_unique<StructuredBuffer>(
+		numElements,
+		elementSize,
+		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
+		mGlobalResources->DescriptorManager,
+		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 
@@ -188,23 +271,25 @@ void Carol::OitppllPass::DrawPpll()
 {
 	static const uint32_t initOffsetValue = UINT32_MAX;
 	static const uint32_t initCounterValue = 0;
+	uint32_t currFrame = *mGlobalResources->CurrFrame;
+
+	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mOitppllBuffer->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
+	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCounterBuffer->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
+
 	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(mStartOffsetBuffer->GetGpuUav(), mStartOffsetBuffer->GetCpuUav(), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
 	mGlobalResources->CommandList->ClearUnorderedAccessViewUint(mCounterBuffer->GetGpuUav(), mCounterBuffer->GetCpuUav(), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
-
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mOitppllBuffer->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCounterBuffer->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
-
-	mGlobalResources->Meshes->DrawMeshes({
-		nullptr,
-		nullptr,
-		(*mGlobalResources->PSOs)[L"BuildStaticOitppll"].Get(),
-		(*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].Get() });
+	
+	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"BuildStaticOitppll"].Get());
+	mGlobalResources->Meshes->ExecuteIndirect(mCulledCommandBuffer[currFrame][TRANSPARENT_STATIC - TRANSPARENT_MESH_START].get());
+	
+	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"BuildSkinnedOitppll"].Get());
+	mGlobalResources->Meshes->ExecuteIndirect(mCulledCommandBuffer[currFrame][TRANSPARENT_SKINNED - TRANSPARENT_MESH_START].get());
 }
 
 void Carol::OitppllPass::DrawOit()
 {
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mOitppllBuffer->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_GENERIC_READ)));
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCounterBuffer->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_GENERIC_READ)));
+	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mOitppllBuffer->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCounterBuffer->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 
 	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mGlobalResources->Frame->GetFrameRtv()), true, nullptr);
 	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"DrawOitppll"].Get());

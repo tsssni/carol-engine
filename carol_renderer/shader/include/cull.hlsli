@@ -6,6 +6,19 @@
 
 #include "common.hlsli"
 
+cbuffer CullCB : register(b2)
+{
+    uint gCullCommandBufferIdx;
+    uint gMeshCount;
+    uint gMeshOffset;
+    uint gHiZIdx;
+    uint gIsHist;
+    
+#ifdef SHADOW
+    uint gLightIdx;
+#endif
+}
+
 struct CullData
 {
     float3 Center;
@@ -22,18 +35,15 @@ struct Payload
 bool GetMark(uint idx, uint markIdx)
 {
     RWByteAddressBuffer mark = ResourceDescriptorHeap[markIdx];
-    uint byte = mark.Load(idx / 8);
-    return ((byte >> (idx % 8)) & 1) == 1;
+    uint byte = mark.Load(idx / 32u);
+    return (byte >> (idx % 32u)) & 1;
 }
 
 void SetMark(uint idx, uint markIdx)
 {
     RWByteAddressBuffer mark = ResourceDescriptorHeap[markIdx];
-    uint byte = mark.Load(idx / 8);
-    uint oriByte;
-    
-    byte |= (1u << (idx % 8u));
-    mark.InterlockedExchange(idx, byte, oriByte);
+    uint value;
+    mark.InterlockedOr(idx / 32u, 1u << (idx % 32u), value);
 }
 
 uint AabbPlaneTest(float3 center, float3 extents, float4 plane)
@@ -153,13 +163,13 @@ bool NormalConeTest(float3 center, uint packedNormalCone, float apexOffset, floa
     return true;
 }
 
-uint HiZOcclusionTest(float3 center, float3 extent, float2 rtSize, float4x4 M, uint hiZIdx)
+bool HiZOcclusionTest(float3 center, float3 extents, float4x4 M, uint hiZIdx)
 {
     Texture2D hiZMap = ResourceDescriptorHeap[hiZIdx];
-    uint2 hiZSize;
+    uint2 size;
     uint maxMipLevel;
 
-    hiZMap.GetDimensions(0, hiZSize.x, hiZSize.y, maxMipLevel);
+    hiZMap.GetDimensions(0, size.x, size.y, maxMipLevel);
     maxMipLevel -= 1;
     
     static float dx[8] = { -1.f, 1.f, -1.f, 1.f, -1.f, 1.f, -1.f, 1.f };
@@ -174,10 +184,15 @@ uint HiZOcclusionTest(float3 center, float3 extent, float2 rtSize, float4x4 M, u
     [unroll]
     for (int i = 0; i < 8; ++i)
     {
-        v[i] = float4(center + extent * float3(dx[i], dy[i], dz[i]), 1.f);
+        v[i] = float4(center + extents * float3(dx[i], dy[i], dz[i]), 1.f);
         v[i] = mul(v[i], M);
         v[i] /= v[i].w;
         v[i].xy = v[i].xy * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
+        
+        if (v[i].x < 0.f || v[i].x > 1.f || v[i].y < 0.f || v[i].y > 1.f || v[i].z < 0.f || v[i].z > 1.f)
+        {
+            return false;
+        }
         
         boxMin = min(boxMin, v[i].xy);
         boxMax = max(boxMax, v[i].xy);
@@ -185,14 +200,14 @@ uint HiZOcclusionTest(float3 center, float3 extent, float2 rtSize, float4x4 M, u
     }
 
     float4 box = float4(boxMin, boxMax);
-    float2 boxSize = (boxMax - boxMin) * rtSize;
-    float mip = clamp(log2(max(boxSize.x, boxSize.y)), 0.f, maxMipLevel);
-
+    float2 boxSize = (boxMax - boxMin) * size;
+    float lod = clamp(log2(max(boxSize.x, boxSize.y)), 0.f, maxMipLevel);
+    
     float4 depth;
-    depth.x = hiZMap.Sample(gsamPointClamp, box.xy).r;
-    depth.y = hiZMap.Sample(gsamPointClamp, box.zy).r;
-    depth.z = hiZMap.Sample(gsamPointClamp, box.xw).r;
-    depth.w = hiZMap.Sample(gsamPointClamp, box.zw).r;
+    depth.x = hiZMap.SampleLevel(gsamPointClamp, box.xy, lod).r;
+    depth.y = hiZMap.SampleLevel(gsamPointClamp, box.zy, lod).r;
+    depth.z = hiZMap.SampleLevel(gsamPointClamp, box.xw, lod).r;
+    depth.w = hiZMap.SampleLevel(gsamPointClamp, box.zw, lod).r;
     
     float maxDepth = max(depth.x, max(depth.y, max(depth.z, depth.w)));
     return minZ > maxDepth;

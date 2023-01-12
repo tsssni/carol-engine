@@ -13,6 +13,9 @@ namespace Carol
 	class HeapAllocInfo
 	{
 	public:
+		Microsoft::WRL::ComPtr<ID3D12Resource> Resource;
+		byte* MappedData = nullptr;
+
 		Heap* Heap;
 		uint64_t Bytes = 0;
 		uint64_t Addr = 0;
@@ -68,56 +71,6 @@ namespace Carol
 		uint32_t mHeapSize;
 		uint32_t mPageSize = 65536;
 		uint32_t mNumPages;
-	};
-
-	class CircularHeap : public Heap
-	{
-	public:
-		CircularHeap(
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			bool isConstant,
-			uint32_t elementCount,
-			uint32_t elementSize);
-		~CircularHeap();
-
-		virtual void CreateResource(HeapAllocInfo* info);
-		virtual void DeleteResource(HeapAllocInfo* info)override;
-
-		virtual void DelayedDelete(uint32_t currFrame)override;
-		void CopyData(HeapAllocInfo* info, const void* data);
-		D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress(HeapAllocInfo* info);
-
-	protected:
-		virtual void CreateResource(
-			Microsoft::WRL::ComPtr<ID3D12Resource>* resource,
-			D3D12_RESOURCE_DESC* desc,
-			HeapAllocInfo* info,
-			D3D12_RESOURCE_STATES initState = D3D12_RESOURCE_STATE_COMMON,
-			D3D12_CLEAR_VALUE* optimizedClearValue = nullptr)override;
-		
-		virtual bool Allocate(uint32_t size, HeapAllocInfo* info)override;
-		virtual bool Deallocate(HeapAllocInfo* info)override;
-
-		void Align();
-		void ExpandHeap();
-
-		std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> mHeaps;
-		std::vector<byte*> mMappedData;
-
-		ID3D12GraphicsCommandList* mCommandList;
-
-		uint32_t mElementCount = 0;
-		uint32_t mElementSize = 0;
-		uint32_t mBufferSize = 0;
-		uint32_t mHeapSize = 0;
-
-		uint32_t mBegin;
-		uint32_t mEnd;
-		uint32_t mQueueSize = 0;
-
-		uint32_t mCurrFrame;
-		std::vector<uint32_t> mDelayedDeletionCount;
 	};
 
 	class SegListHeap : public Heap

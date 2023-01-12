@@ -2,9 +2,9 @@
 #define SHADOW_HEADER
 #include "common.hlsli"
 
-float CalcShadowFactor(float4 shadowPosH)
+float CalcShadowFactor(float4 shadowPosH, uint shadowMapIdx)
 {
-    Texture2D gShadowMap = ResourceDescriptorHeap[gShadowIdx];
+    Texture2D gShadowMap = ResourceDescriptorHeap[shadowMapIdx];
     
     // Complete projection by doing division by w.
     shadowPosH.xyz /= shadowPosH.w;

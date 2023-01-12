@@ -32,6 +32,7 @@ namespace Carol
 		float Roughness = 0.5f;
 	};
 	
+#pragma pack(1)
 	class MeshConstants
 	{
 	public:
@@ -39,13 +40,25 @@ namespace Carol
 		DirectX::XMFLOAT4X4 HistWorld;
 
 		DirectX::XMFLOAT3 Center;
-		uint32_t MeshletCount;
-		DirectX::XMFLOAT3 Extents;
 		float MeshPad0;
+		DirectX::XMFLOAT3 Extents;
+		float MeshPad1;
 
 		DirectX::XMFLOAT3 FresnelR0 = { 0.5f,0.5f,0.5f };
 		float Roughness = 0.5f;
+
+		uint32_t MeshletCount;
+		uint32_t VertexBufferIdx;
+		uint32_t MeshletBufferIdx;
+		uint32_t CullDataBufferIdx;
+
+		uint32_t MeshletFrustumCulledMarkBufferIdx;
+		uint32_t MeshletOcclusionCulledMarkBufferIdx;
+
+		uint32_t DiffuseMapIdx;
+		uint32_t NormalMapIdx;
 	};
+#pragma pack()
 
 	class SkinnedConstants
 	{
@@ -88,59 +101,62 @@ namespace Carol
 
 	enum MeshType
 	{
-		OPAQUE_STATIC, OPAQUE_SKINNED, TRANSPARENT_STATIC, TRANSPARENT_SKINNED, MESH_TYPE_COUNT
+		OPAQUE_STATIC,
+		OPAQUE_SKINNED,
+		TRANSPARENT_STATIC,
+		TRANSPARENT_SKINNED,
+		MESH_TYPE_COUNT
 	};
 
 	enum OpaqueMeshType
 	{
-		OPAQUE_MESH_START = 0, OPAQUE_MESH_TYPE_COUNT = 2
+		OPAQUE_MESH_START = 0,
+		OPAQUE_MESH_TYPE_COUNT = 2
 	};
 
 	enum TransparentMeshType
 	{
-		TRANSPARENT_MESH_START = 2, TRANSPARENT_MESH_TYPE_COUNT = 2
+		TRANSPARENT_MESH_START = 2,
+		TRANSPARENT_MESH_TYPE_COUNT = 2
 	};
 
 	class Mesh
 	{
 	public:
 		Mesh(
+			std::vector<Vertex>& vertices,
+			std::vector<uint32_t>& indices,
+			bool isSkinned,
+			bool isTransparent,
 			Model* model,
 			ID3D12Device* device,
 			ID3D12GraphicsCommandList* cmdList,
 			HeapManager* heapManager,
-			DescriptorManager* descriptorManager,
-			std::vector<Vertex>& vertices,
-			std::vector<uint32_t>& indices,
-			bool isSkinned,
-			bool isTransparent);
+			DescriptorManager* descriptorManager);
 
 		void ReleaseIntermediateBuffer();
 
 		Material GetMaterial();
-		uint32_t GetMeshIdx(uint32_t idx);
-		const uint32_t* GetMeshIdxData();
 		uint32_t GetMeshletSize();
 
 		void SetMaterial(const Material& mat);
-		void SetTexIdx(uint32_t type, uint32_t idx);
+		void SetDiffuseMapIdx(uint32_t idx);
+		void SetNormalMapIdx(uint32_t idx);
 
 		DirectX::BoundingBox GetBoundingBox();
 		void SetOctreeNode(OctreeNode* node);
 		OctreeNode* GetOctreeNode();
 
-		void Update(DirectX::XMMATRIX& world, CircularHeap* meshCBHeap);
+		void Update(DirectX::XMMATRIX& world);
 		void ClearCullMark(ID3D12GraphicsCommandList* cmdList);
-		D3D12_GPU_VIRTUAL_ADDRESS GetMeshCBGPUVirtualAddress();
-		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBGPUVirtualAddress();
+
+		MeshConstants* GetMeshConstants();
+		void SetMeshCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr);
+		D3D12_GPU_VIRTUAL_ADDRESS GetMeshCBAddress();
+		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBAddress();
 
 		bool IsSkinned();
 		bool IsTransparent();
-
-		enum
-		{
-			VERTEX_IDX, MESHLET_IDX, CULL_DATA_IDX, FRUSTUM_CULLED_MARK_IDX, OCCLUSION_PASSED_MARK, DIFFUSE_IDX, NORMAL_IDX, MESH_IDX_COUNT
-		};
 
 	protected:
 		void LoadVertices();
@@ -172,19 +188,18 @@ namespace Carol
 		std::unique_ptr<StructuredBuffer> mVertexBuffer;
 		std::unique_ptr<StructuredBuffer> mMeshletBuffer;
 		std::unique_ptr<StructuredBuffer> mCullDataBuffer;
-		std::unique_ptr<RawBuffer> mCullMarkBuffer;
+		std::unique_ptr<RawBuffer> mMeshletFrustumCulledMarkBuffer;
+		std::unique_ptr<RawBuffer> mMeshletOcclusionPassedMarkBuffer;
 		
 		Model* mModel;
 		Material mMaterial;
-		std::vector<uint32_t> mMeshIdx;
 
 		OctreeNode* mOctreeNode;
 		DirectX::BoundingBox mOriginalBoundingBox;
 		DirectX::BoundingBox mBoundingBox;
 
 		std::unique_ptr<MeshConstants> mMeshConstants;
-		std::unique_ptr<HeapAllocInfo> mMeshCBAllocInfo;
-		D3D12_GPU_VIRTUAL_ADDRESS mMeshCBGPUVirtualAddress;
+		D3D12_GPU_VIRTUAL_ADDRESS mMeshCBAddr;
 		
 		bool mSkinned;
 		bool mTransparent;
@@ -208,14 +223,14 @@ namespace Carol
 		Mesh* GetMesh(std::wstring meshName);
 		const std::unordered_map<std::wstring, std::unique_ptr<Mesh>>& GetMeshes();
 
-		std::vector<int>& GetBoneHierarchy();
-		std::vector<DirectX::XMFLOAT4X4>& GetBoneOffsets();
-		
 		const std::vector<std::vector<std::vector<DirectX::XMFLOAT4X4>>>& GetAnimationTransforms();
 		std::vector<std::wstring> GetAnimationClips();
 		void SetAnimationClip(std::wstring clipName);
-		void Update(Timer* timer, CircularHeap* skinnedCBHeap);
-		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBGPUVirtualAddress();
+		void Update(Timer* timer);
+
+		SkinnedConstants* GetSkinnedConstants();
+		void SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr);
+		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBAddress();
 
 	protected:
 		ID3D12Device* mDevice;
@@ -239,8 +254,7 @@ namespace Carol
 		std::vector<std::vector<std::vector<DirectX::XMFLOAT4X4>>> mAnimationFrames;
 
 		std::unique_ptr<SkinnedConstants> mSkinnedConstants;
-		std::unique_ptr<HeapAllocInfo> mSkinnedCBAllocInfo;
-		D3D12_GPU_VIRTUAL_ADDRESS mSkinnedCBGPUVirtualAddress;
+		D3D12_GPU_VIRTUAL_ADDRESS mSkinnedCBAddr;
 	};
 
 	

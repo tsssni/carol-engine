@@ -22,11 +22,13 @@ namespace Carol
 	{
 	public:
 		OitppllPass(GlobalResources* globalResources, DXGI_FORMAT outputFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
-
+	
 		virtual void Draw();
 		virtual void Update();
 		virtual void OnResize();
 		virtual void ReleaseIntermediateBuffers();
+
+		void Cull();
 		
 		uint32_t GetPpllUavIdx();
 		uint32_t GetOffsetUavIdx();
@@ -39,13 +41,25 @@ namespace Carol
 		virtual void InitPSOs()override;
 		virtual void InitBuffers();
 
+		void TestCommandBufferSize(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements);
+		void ResizeCommandBuffer(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements, uint32_t elementSize);
+	
 		void DrawPpll();
 		void DrawOit();
-		
+
 		enum
-		{
-			PPLL_SRV, OFFSET_SRV, PPLL_UAV, OFFSET_UAV, COUNTER_UAV, OITPPLL_CBV_SRV_UAV_COUNT
-		};
+        {
+            CULL_CULLED_COMMAND_BUFFER_IDX,
+            CULL_MESH_COUNT,
+            CULL_MESH_OFFSET,
+            CULL_HIZ_IDX,
+            CULL_HIST,
+            CULL_IDX_COUNT
+        };
+
+		
+		std::vector<std::vector<std::unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
+        std::vector<std::vector<uint32_t>> mCullIdx;
 
 		std::unique_ptr<StructuredBuffer> mOitppllBuffer;
 		std::unique_ptr<RawBuffer> mStartOffsetBuffer; 

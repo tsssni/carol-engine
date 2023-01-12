@@ -2,7 +2,7 @@
 
 static const int gBlurRadius = 5;
 
-cbuffer BlurDirection : register(b3)
+cbuffer BlurDirection : register(b2)
 {
     uint gBlurDirection;
     uint gAmbientInputIdx;
@@ -22,8 +22,8 @@ float NdcDepthToViewDepth(float z_ndc)
 
 float4 main(PixelIn pin) : SV_Target
 {
-    Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilIdx];
-    Texture2D normalMap = ResourceDescriptorHeap[gNormalIdx];
+    Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
+    Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
     Texture2D ambientMap = ResourceDescriptorHeap[gAmbientInputIdx];
     
     float blurWeights[12] =

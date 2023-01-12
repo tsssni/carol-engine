@@ -34,6 +34,7 @@ namespace Carol
 		bool CpuDeallocate(DescriptorAllocInfo* info);
 		bool GpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
 		bool GpuDeallocate(DescriptorAllocInfo* info);
+		void DelayedDelete(uint32_t currFrame);
 
 		void CreateCbv(D3D12_CONSTANT_BUFFER_VIEW_DESC* cbvDesc, DescriptorAllocInfo* info, uint32_t offset = 0);
 		void CreateSrv(D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
@@ -53,6 +54,9 @@ namespace Carol
 		void AddCpuDescriptorHeap();
 		void ExpandGpuDescriptorHeap();
 
+		bool CpuDelete(DescriptorAllocInfo* info);
+		bool GpuDelete(DescriptorAllocInfo* info);
+
 		std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> mCpuDescriptorHeaps;
 		std::vector<std::unique_ptr<Buddy>> mCpuBuddies;
 		uint32_t mNumCpuDescriptorsPerHeap;
@@ -61,6 +65,10 @@ namespace Carol
 		std::vector<std::unique_ptr<Buddy>> mGpuBuddies;
 		uint32_t mNumGpuDescriptorsPerSection;
 		uint32_t mNumGpuDescriptors = 0;
+
+		std::vector<std::vector<DescriptorAllocInfo>> mCpuDeletedAllocInfo;
+		std::vector<std::vector<DescriptorAllocInfo>> mGpuDeletedAllocInfo;
+		uint32_t mCurrFrame;
 
 		ID3D12Device* mDevice;
 		D3D12_DESCRIPTOR_HEAP_TYPE mType;
@@ -90,6 +98,7 @@ namespace Carol
 		void GpuCbvSrvUavDeallocate(DescriptorAllocInfo* info);
 		void RtvDeallocate(DescriptorAllocInfo* info);
 		void DsvDeallocate(DescriptorAllocInfo* info);	
+		void DelayedDelete(uint32_t currFrame);
 
 		void CreateCbv(D3D12_CONSTANT_BUFFER_VIEW_DESC* cbvDesc, DescriptorAllocInfo* info, uint32_t offset = 0);
 		void CreateSrv(D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);

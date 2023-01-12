@@ -1,84 +1,86 @@
 #include "include/cull.hlsli"
 #include "include/common.hlsli"
+#include "include/mesh.hlsli"
 
-struct Mesh
+struct IndirectCommand
+{
+    uint2 MeshCBAddr;
+    uint2 SkinnedCBAddr;
+    uint3 DispathMeshArgs;
+};
+
+struct MeshConstants
 {
     float4x4 World;
     float4x4 HistWorld;
     
     float3 Center;
-    uint MeshletCount;
-    float3 Extents;
     float MeshPad0;
+    float3 Extents;
+    float MeshPad1;
     
     float3 FresnelR0;
     float Roughness;
+    
+    uint MeshletCount;
+    uint VertexBufferIdx;
+    uint MeshletBufferIdx;
+    uint CullDataBufferIdx;
+    
+    uint FrustumCulledMarkBufferIdx;
+    uint OcclusionPassedMarkBufferIdx;
+    
+    uint MeshDiffuseMapIdx;
+    uint MeshNormalMapIdx;
+    
+    float4 ConstantPad0;
+    float4 ConstantPad1;
+    float4 ConstantPad2;
 };
 
-struct IndirectCommand
-{
-    uint2 MeshCB;
-    
-    uint VertexIdx;
-    uint MeshletIdx;
-    uint CullDataIdx;
-    uint CullMarkIdx;
-    uint DiffuseMapIdx;
-    uint NormalMapIdx;
-
-    uint2 SkinnedCB;
-    uint3 DispathMeshArgs;
-};
-
-cbuffer CullConstants : register(b3)
-{
-    uint gCommandBufferIdx;
-    uint gCullCommandBufferIdx;
-    uint gInstanceFrustumCulledMarkIdx;
-    uint gInstanceOcclusionPassedMarkIdx;
-    uint gHiZIdx;
-    uint gMeshCBIdx;
-    uint gMeshCount;
-    uint gWidth;
-    uint gHeight;
-    
-#ifdef SHADOW
-    uint gLightIdx;
-#endif
-}
 
 [numthreads(32, 1, 1)]
 void main( uint dtid : SV_DispatchThreadID )
 {
+#ifdef OCCLUSION
     if (dtid < gMeshCount && !GetMark(dtid, gInstanceFrustumCulledMarkIdx) && !GetMark(dtid, gInstanceOcclusionPassedMarkIdx))
-    {
-        RWStructuredBuffer<IndirectCommand> commandBuffer = ResourceDescriptorHeap[gCommandBufferIdx];
-        AppendStructuredBuffer<IndirectCommand> cullCommandBuffer = ResourceDescriptorHeap[gCullCommandBufferIdx];
-        StructuredBuffer<Mesh> meshCB = ResourceDescriptorHeap[gMeshCBIdx];
-        
-        Mesh mesh = meshCB.Load(dtid);
-        float4x4 worldViewProj;
-#ifdef SHADOW
-        worldViewProj = mul(mesh.World, gLights[gLightIdx].ViewProj);
 #else
-        worldViewProj = mul(mesh.World, gViewProj);
+    if (dtid < gMeshCount && !GetMark(dtid, gInstanceFrustumCulledMarkIdx))
 #endif
-        bool visible = AabbFrustumTest(mesh.Center, mesh.Extents, worldViewProj) != OUTSIDE;
+    {
+        StructuredBuffer<IndirectCommand> commandBuffer = ResourceDescriptorHeap[gCommandBufferIdx];
+        AppendStructuredBuffer<IndirectCommand> cullCommandBuffer = ResourceDescriptorHeap[gCullCommandBufferIdx];
+        StructuredBuffer<MeshConstants> meshCB = ResourceDescriptorHeap[gMeshCBIdx];
         
-        if (!visible)
+        MeshConstants mc = meshCB.Load(gMeshOffset + dtid);
+
+#ifdef SHADOW
+        float4x4 frustumWorldViewProj = mul(mc.World, gLights[gLightIdx].ViewProj);
+#ifdef OCCLUSION
+        float4x4 occlusionWorldViewProj = mul(gIsHist ? mc.HistWorld : mc.World, gLights[gLightIdx].ViewProj);
+#endif
+#else 
+        float4x4 frustumWorldViewProj = mul(mc.World, gViewProj);
+#ifdef OCCLUSION
+        float4x4 occlusionWorldViewProj = mul(gIsHist ? mc.HistWorld : mc.World, gIsHist ? gHistViewProj : gViewProj);
+#endif
+#endif
+        
+        if (AabbFrustumTest(mc.Center, mc.Extents, frustumWorldViewProj) == OUTSIDE)
         {
-            SetMark(dtid, gInstanceFrustumCulledMarkIdx);
+            SetMark(gMeshOffset + dtid, gInstanceFrustumCulledMarkIdx);
         }
+#ifdef OCCLUSION
+        else if(!HiZOcclusionTest(mc.Center, mc.Extents, occlusionWorldViewProj, gHiZIdx))
+        {
+            SetMark(gMeshOffset + dtid, gInstanceOcclusionPassedMarkIdx);
+            cullCommandBuffer.Append(commandBuffer.Load(gMeshOffset + dtid)); 
+        }
+#else
         else
         {
-            visible = HiZOcclusionTest(mesh.Center, mesh.Extents, float2(gWidth, gHeight), worldViewProj, gHiZIdx) != OUTSIDE;
-            
-            if(visible)
-            {
-                SetMark(dtid, gInstanceOcclusionPassedMarkIdx);
-                cullCommandBuffer.Append(commandBuffer.Load(dtid));
-            }  
+            cullCommandBuffer.Append(commandBuffer.Load(gMeshOffset + dtid)); 
         }
-        
+#endif
     }
 }

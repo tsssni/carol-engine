@@ -9,7 +9,7 @@
 
 namespace Carol
 {
-	class CircularHeap;
+	class FastConstantBufferAllocator;
 	class Scene;
     class FramePass;
     class SsaoPass;
@@ -20,7 +20,7 @@ namespace Carol
     class MeshesPass;
     class TextureManager;
 
-    class FrameConstants
+	class FrameConstants
 	{
 	public:
 		// Transformation
@@ -53,6 +53,26 @@ namespace Carol
 		float SurfaceEplison = 0.05f;
 
 		Light Lights[MAX_LIGHTS];
+
+		uint32_t MeshCBIdx;
+		uint32_t CommandBufferIdx;
+		uint32_t InstanceFrustumCulledMarkIdx;
+		uint32_t InstanceOcclusionPassedMarkIdx;
+
+		uint32_t FrameMapIdx;
+		uint32_t DepthStencilMapIdx;
+		uint32_t NormalMapIdx;
+		uint32_t MainLightShadowMapIdx;
+		uint32_t OitBufferWIdx;
+		uint32_t OitOffsetBufferWIdx;
+		uint32_t OitCounterIdx;
+		uint32_t OitBufferRIdx;
+		uint32_t OitOffsetBufferRIdx;
+		uint32_t RandVecMapIdx;
+		uint32_t AmbientMapIdx;
+		uint32_t VelocityMapIdx;
+		uint32_t HistFrameMapIdx;
+		DirectX::XMFLOAT3 FramePad2;
 	};
  
     class Renderer :public BaseRenderer
@@ -90,23 +110,6 @@ namespace Carol
         void ReleaseIntermediateBuffers();
 
     protected:
-		enum
-		{
-			FRAME_IDX,
-			DEPTH_STENCIL_IDX,
-			NORMAL_IDX,
-			SHADOW_IDX,
-			OIT_W_IDX,
-			OIT_OFFSET_W_IDX,
-			OIT_COUNTER_IDX,
-			OIT_R_IDX,
-			OIT_OFFSET_R_IDX,
-			RAND_VEC_IDX,
-			AMBIENT_IDX,
-			VELOCITY_IDX,
-			HIST_IDX,
-			FRAME_IDX_COUNT
-		};
 
 		std::unique_ptr<Scene> mScene;
         std::unique_ptr<FramePass> mFrame;
@@ -117,10 +120,9 @@ namespace Carol
         std::unique_ptr<OitppllPass> mOitppll;
         std::unique_ptr<MeshesPass> mMeshes;
 
-		std::vector<uint32_t> mFrameIdx;
 		std::unique_ptr<FrameConstants> mFrameConstants;
-        std::unique_ptr<HeapAllocInfo> mFrameCBAllocInfo;
-        std::unique_ptr<CircularHeap> mFrameCBHeap;
+        std::unique_ptr<FastConstantBufferAllocator> mFrameCBAllocator;
+		D3D12_GPU_VIRTUAL_ADDRESS mFrameCBAddr;
     };
 
 }

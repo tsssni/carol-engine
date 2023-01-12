@@ -15,7 +15,6 @@ namespace Carol {
 	class HeapAllocInfo;
 	class CircularHeap;
 	class DescriptorManager;
-	class Mesh;
 	class TextureManager;
 	class Model;
 	class Timer;
@@ -90,6 +89,10 @@ namespace Carol {
 
 		const std::unordered_map<std::wstring, Mesh*>& GetMeshes(MeshType type);
 		uint32_t GetMeshesCount(MeshType type);
+		
+		const std::unordered_map<std::wstring, std::unique_ptr<Model>>& GetModels();
+		uint32_t GetModelsCount();
+
 		Mesh* GetSkyBox();
 
 		void SetWorld(std::wstring modelName, DirectX::XMMATRIX world);
@@ -105,15 +108,12 @@ namespace Carol {
 		HeapManager* mHeapManager;
 		DescriptorManager* mDescriptorManager;
 
-		std::unordered_map<std::wstring, std::unique_ptr<Model>> mModels;
 		std::unique_ptr<Model> mSkyBox;
 		std::vector<Light> mLights;
-
 		std::unique_ptr<SceneNode> mRootNode;
 
 		std::unique_ptr<TextureManager> mTexManager;
-		std::unique_ptr<CircularHeap> mMeshCBHeap;
-		std::unique_ptr<CircularHeap> mSkinnedCBHeap;
+		std::unordered_map<std::wstring, std::unique_ptr<Model>> mModels;
 		std::vector<std::unordered_map<std::wstring, Mesh*>> mMeshes;
 	};
 }

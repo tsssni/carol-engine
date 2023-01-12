@@ -10,7 +10,7 @@
 #include <render_pass/mesh.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
-#include <dx12/descriptor_allocator.h>
+#include <dx12/descriptor.h>
 #include <dx12/root_signature.h>
 #include <dx12/shader.h>
 #include <scene/scene.h>
@@ -33,7 +33,7 @@ namespace Carol {
 }
 
 Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
-	:BaseRenderer(hWnd, width, height), mFrameIdx(FRAME_IDX_COUNT, 0)
+	:BaseRenderer(hWnd, width, height)
 {
 	ThrowIfFailed(mInitCommandAllocator->Reset());
 	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
@@ -53,9 +53,8 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 
 void Carol::Renderer::InitConstants()
 {
-	mFrameCBHeap = make_unique<CircularHeap>(mDevice.Get(), mCommandList.Get(), true, 32, sizeof(FrameConstants));
 	mFrameConstants = make_unique<FrameConstants>();
-	mFrameCBAllocInfo = make_unique<HeapAllocInfo>();
+	mFrameCBAllocator = make_unique<FastConstantBufferAllocator>(mNumFrame, sizeof(FrameConstants), mHeapManager->GetUploadBuffersHeap(), mDescriptorManager.get());
 }
 
 void Carol::Renderer::InitPSOs()
@@ -188,17 +187,16 @@ void Carol::Renderer::UpdateFrameCB()
     mFrameConstants->BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
 
 	mFrameConstants->Lights[0] = mMainLight->GetLight();
+	mFrameConstants->MeshCBIdx = mMeshes->GetMeshCBIdx();
 
-	mFrameCBHeap->DeleteResource(mFrameCBAllocInfo.get());
-	mFrameCBHeap->CreateResource(mFrameCBAllocInfo.get());
-	mFrameCBHeap->CopyData(mFrameCBAllocInfo.get(), mFrameConstants.get());
+	mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
 }
 
 void Carol::Renderer::DelayedDelete()
 {
 	mScene->DelayedDelete(mCurrFrame);
-	mFrameCBHeap->DelayedDelete(mCurrFrame);
 	mHeapManager->DelayedDelete(mCurrFrame);
+	mDescriptorManager->DelayedDelete(mCurrFrame);
 }
 
 void Carol::Renderer::ReleaseIntermediateBuffers()
@@ -215,12 +213,11 @@ void Carol::Renderer::Draw()
 	mCommandList->SetGraphicsRootSignature(mRootSignature->Get());
 	mCommandList->SetComputeRootSignature(mRootSignature->Get());
 
-	mCommandList->SetGraphicsRootConstantBufferView(RootSignature::FRAME_CB, mFrameCBHeap->GetGPUVirtualAddress(mFrameCBAllocInfo.get()));
-	mCommandList->SetGraphicsRoot32BitConstants(RootSignature::FRAME_CONSTANTS, FRAME_IDX_COUNT, mFrameIdx.data(), 0);
-	mCommandList->SetComputeRootConstantBufferView(RootSignature::FRAME_CB, mFrameCBHeap->GetGPUVirtualAddress(mFrameCBAllocInfo.get()));
-	mCommandList->SetComputeRoot32BitConstants(RootSignature::FRAME_CONSTANTS, FRAME_IDX_COUNT, mFrameIdx.data(), 0);
+	mCommandList->SetGraphicsRootConstantBufferView(FRAME_CB, mFrameCBAddr);
+	mCommandList->SetComputeRootConstantBufferView(FRAME_CB, mFrameCBAddr);
 
 	mMainLight->Draw();
+	mFrame->Cull();
 	mNormal->Draw();
 	mSsao->Draw();
 	mFrame->Draw();
@@ -322,19 +319,24 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mTaa->OnResize();
 	mOitppll->OnResize();
 
-	mFrameIdx[FRAME_IDX] = mFrame->GetFrameSrvIdx();
-	mFrameIdx[DEPTH_STENCIL_IDX] = mFrame->GetDepthStencilSrvIdx();
-	mFrameIdx[NORMAL_IDX] = mNormal->GetNormalSrvIdx();
-	mFrameIdx[SHADOW_IDX] = mMainLight->GetShadowSrvIdx();
-	mFrameIdx[OIT_W_IDX] = mOitppll->GetPpllUavIdx();
-	mFrameIdx[OIT_OFFSET_W_IDX] = mOitppll->GetOffsetUavIdx();
-	mFrameIdx[OIT_COUNTER_IDX] = mOitppll->GetCounterUavIdx();
-	mFrameIdx[OIT_R_IDX] = mOitppll->GetPpllSrvIdx();
-	mFrameIdx[OIT_OFFSET_R_IDX] = mOitppll->GetOffsetSrvIdx();
-	mFrameIdx[RAND_VEC_IDX] = mSsao->GetRandVecSrvIdx();
-	mFrameIdx[AMBIENT_IDX] = mSsao->GetSsaoSrvIdx();
-	mFrameIdx[VELOCITY_IDX] = mTaa->GetVeloctiySrvIdx();
-	mFrameIdx[HIST_IDX] = mTaa->GetHistFrameSrvIdx();
+	mFrameConstants->MeshCBIdx = mMeshes->GetMeshCBIdx();
+	mFrameConstants->CommandBufferIdx = mMeshes->GetCommandBufferIdx();
+	mFrameConstants->InstanceFrustumCulledMarkIdx = mMeshes->GetInstanceFrustumCulledMarkBufferIdx();
+	mFrameConstants->InstanceOcclusionPassedMarkIdx = mMeshes->GetInstanceOcclusionPassedMarkBufferIdx();
+	
+	mFrameConstants->FrameMapIdx = mFrame->GetFrameSrvIdx();
+	mFrameConstants->DepthStencilMapIdx = mFrame->GetDepthStencilSrvIdx();
+	mFrameConstants->NormalMapIdx = mNormal->GetNormalSrvIdx();
+	mFrameConstants->MainLightShadowMapIdx = mMainLight->GetShadowSrvIdx();
+	mFrameConstants->OitBufferWIdx = mOitppll->GetPpllUavIdx();
+	mFrameConstants->OitOffsetBufferWIdx = mOitppll->GetOffsetUavIdx();
+	mFrameConstants->OitCounterIdx = mOitppll->GetCounterUavIdx();
+	mFrameConstants->OitBufferRIdx = mOitppll->GetPpllSrvIdx();
+	mFrameConstants->OitOffsetBufferRIdx = mOitppll->GetOffsetSrvIdx();
+	mFrameConstants->RandVecMapIdx = mSsao->GetRandVecSrvIdx();
+	mFrameConstants->AmbientMapIdx = mSsao->GetSsaoSrvIdx();
+	mFrameConstants->VelocityMapIdx = mTaa->GetVeloctiySrvIdx();
+	mFrameConstants->HistFrameMapIdx = mTaa->GetHistFrameSrvIdx();
 
 	mCommandList->Close();
 	vector<ID3D12CommandList*> cmdLists{ mCommandList.Get()};

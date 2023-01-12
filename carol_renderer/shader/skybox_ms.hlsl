@@ -16,20 +16,20 @@ void main(
     out indices uint3 tris[126],
     out vertices MeshOut verts[64])
 {
-	StructuredBuffer<Meshlet> meshlets = ResourceDescriptorHeap[gMeshletIdx];
-    Meshlet m = meshlets[gid];
+	StructuredBuffer<Meshlet> meshlets = ResourceDescriptorHeap[gMeshletBufferIdx];
+    Meshlet meshlet = meshlets[gid];
     
-    SetMeshOutputCounts(m.VertexCount, m.PrimCount);
+    SetMeshOutputCounts(meshlet.VertexCount, meshlet.PrimCount);
     
-    if (gtid < m.PrimCount)
+    if (gtid < meshlet.PrimCount)
     {
-        tris[gtid] = UnpackPrim(m.Prims[gtid]);
+        tris[gtid] = UnpackPrim(meshlet.Prims[gtid]);
     }
     
-    if (gtid < m.VertexCount)
+    if (gtid < meshlet.VertexCount)
     {
-        StructuredBuffer<MeshIn> vertices = ResourceDescriptorHeap[gVertexIdx];
-        MeshIn min = vertices[m.Vertices[gtid]];
+        StructuredBuffer<MeshIn> vertices = ResourceDescriptorHeap[gVertexBufferIdx];
+        MeshIn min = vertices[meshlet.Vertices[gtid]];
         MeshOut mout;
 	
         mout.PosL = min.PosL;

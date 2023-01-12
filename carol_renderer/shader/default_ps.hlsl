@@ -17,21 +17,21 @@ struct PixelIn
 
 float4 main(PixelIn pin) : SV_Target
 {
-    Texture2D diffuseMap = ResourceDescriptorHeap[gDiffuseMapIdx];
-    Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
+    Texture2D diffuseTex = ResourceDescriptorHeap[gDiffuseTextureIdx];
+    Texture2D normalTex = ResourceDescriptorHeap[gNormalTextureIdx];
 
 #ifdef SSAO
-    Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientIdx];
+    Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapIdx];
 #endif
     
-    float4 texDiffuse = diffuseMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
+    float4 texDiffuse = diffuseTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);
     
     LightMaterialData lightMat;
     lightMat.fresnelR0 = gFresnelR0;
     lightMat.diffuseAlbedo = texDiffuse.rgb;
     lightMat.roughness = gRoughness;
 
-    float3 texNormal = normalMap.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
+    float3 texNormal = normalTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f).rgb;
     texNormal = TexNormalToWorldSpace(texNormal, pin.NormalW, pin.TangentW);
     
     float3 ambient = gLights[0].Ambient * texDiffuse.rgb;
@@ -43,7 +43,7 @@ float4 main(PixelIn pin) : SV_Target
 #endif
 
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
-    shadowFactor[0] =  CalcShadowFactor(mul(float4(pin.PosW, 1.0f), gLights[0].ViewProjTex));
+    shadowFactor[0] =  CalcShadowFactor(mul(float4(pin.PosW, 1.0f), gLights[0].ViewProjTex), gMainLightShadowMapIdx);
     float4 litColor = ComputeLighting(gLights, lightMat, pin.PosW, texNormal, normalize(gEyePosW - pin.PosW), shadowFactor);
     
     return float4(ambient + litColor.rgb, 1.0f);

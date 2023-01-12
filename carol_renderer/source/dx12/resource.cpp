@@ -1,9 +1,10 @@
 #include <dx12/resource.h>
 #include <dx12/heap.h>
-#include <dx12/descriptor_allocator.h>
+#include <dx12/descriptor.h>
 #include <vector>
 
 namespace Carol {
+	using std::unique_ptr;
 	using std::make_unique;
 	using std::vector;
 }
@@ -134,14 +135,9 @@ Carol::Resource::Resource(D3D12_RESOURCE_DESC* desc, Heap* heap, D3D12_RESOURCE_
 
 Carol::Resource::~Resource()
 {
-	if (mMappedData)
-	{
-		mResource->Unmap(0, nullptr);
-		mMappedData = nullptr;
-	}
-
 	if (mAllocInfo->Heap)
 	{
+		mMappedData = nullptr;
 		mAllocInfo->Heap->DeleteResource(mAllocInfo.get());
 	}
 }
@@ -154,6 +150,16 @@ ID3D12Resource* Carol::Resource::Get()
 ID3D12Resource** Carol::Resource::GetAddressOf()
 {
 	return mResource.GetAddressOf();
+}
+
+byte* Carol::Resource::GetMappedData()
+{
+	return mMappedData;
+}
+
+Carol::Heap* Carol::Resource::GetHeap()
+{
+	return mAllocInfo->Heap;
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Carol::Resource::GetGPUVirtualAddress()
@@ -185,15 +191,17 @@ void Carol::Resource::CopySubresources(ID3D12GraphicsCommandList* cmdList, Heap*
 	UpdateSubresources(cmdList, mResource.Get(), mIntermediateBuffer.Get(), 0, firstSubresource, numSubresources, subresources);
 	cmdList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ)));
 }
-
-void Carol::Resource::CopyData(const void* data, uint32_t byteSize)
+#include <scene/model.h>
+void Carol::Resource::CopyData(const void* data, uint32_t byteSize, uint32_t offset)
 {
 	if (!mMappedData)
 	{
 		ThrowIfFailed(mResource->Map(0, nullptr, reinterpret_cast<void**>(&mMappedData)));
+		mAllocInfo->MappedData = mMappedData;
 	}
 
-	memcpy(mMappedData, data, byteSize);
+	memcpy(mMappedData + offset, data, byteSize);
+	MeshConstants* mc = reinterpret_cast<MeshConstants*>(mMappedData + offset);
 }
 
 void Carol::Resource::ReleaseIntermediateBuffer()
@@ -214,6 +222,29 @@ Carol::Buffer::Buffer(DescriptorManager* descriptorManager)
 	mRtvAllocInfo(make_unique<DescriptorAllocInfo>()),
 	mDsvAllocInfo(make_unique<DescriptorAllocInfo>())
 {
+}
+
+Carol::Buffer::Buffer(Buffer&& buffer)
+{
+	mResource = std::move(buffer.mResource);
+	mResourceDesc = buffer.mResourceDesc;
+	
+	mDescriptorManager = buffer.mDescriptorManager;
+	
+	mCpuSrvAllocInfo = std::move(buffer.mCpuSrvAllocInfo);
+	mGpuSrvAllocInfo = std::move(buffer.mGpuSrvAllocInfo);
+		
+	mCpuUavAllocInfo = std::move(buffer.mCpuUavAllocInfo);
+	mGpuUavAllocInfo = std::move(buffer.mGpuUavAllocInfo);
+
+	mRtvAllocInfo = std::move(buffer.mRtvAllocInfo);
+	mDsvAllocInfo = std::move(buffer.mDsvAllocInfo);
+}
+
+Carol::Buffer& Carol::Buffer::operator=(Buffer&& buffer)
+{
+	this->Buffer::Buffer(std::move(buffer));
+	return *this;
 }
 
 Carol::Buffer::~Buffer()
@@ -274,9 +305,9 @@ void Carol::Buffer::CopySubresources(ID3D12GraphicsCommandList* cmdList, Heap* i
 	mResource->CopySubresources(cmdList, intermediateHeap, subresources, firstSubresource, numSubresources);
 }
 
-void Carol::Buffer::CopyData(const void* data, uint32_t byteSize)
+void Carol::Buffer::CopyData(const void* data, uint32_t byteSize, uint32_t offset)
 {
-	mResource->CopyData(data, byteSize);
+	mResource->CopyData(data, byteSize, offset);
 }
 
 void Carol::Buffer::ReleaseIntermediateBuffer()
@@ -406,6 +437,27 @@ Carol::ColorBuffer::ColorBuffer(
 	
 	mResource = make_unique<Resource>(&mResourceDesc, heap, initState, optClearValue);
 	BindDescriptors();
+}
+
+Carol::ColorBuffer::ColorBuffer(ColorBuffer&& colorBuffer)
+	:Buffer(std::move(colorBuffer))
+{
+	mViewDimension=colorBuffer.mViewDimension;
+	mFormat = colorBuffer.mFormat;
+
+	mViewMipLevels = colorBuffer.mViewMipLevels;
+	mMostDetailedMip = colorBuffer.mMostDetailedMip;
+	mResourceMinLODClamp = colorBuffer.mResourceMinLODClamp;
+
+	mViewArraySize = colorBuffer.mViewArraySize;
+	mFirstArraySlice = colorBuffer.mFirstArraySlice;
+	mPlaneSize = colorBuffer.mPlaneSize;
+}
+
+Carol::ColorBuffer& Carol::ColorBuffer::operator=(ColorBuffer&& colorBuffer)
+{
+	this->ColorBuffer::ColorBuffer(std::move(colorBuffer));
+	return *this;
 }
 
 void Carol::ColorBuffer::BindSrv()
@@ -912,6 +964,8 @@ D3D12_RESOURCE_DIMENSION Carol::ColorBuffer::GetResourceDimension(ColorBufferVie
 	}
 }
 
+Carol::unique_ptr<Carol::Resource> Carol::StructuredBuffer::sCounterResetBuffer = nullptr;
+
 Carol::StructuredBuffer::StructuredBuffer(
 	uint32_t numElements,
 	uint32_t elementSize,
@@ -919,21 +973,26 @@ Carol::StructuredBuffer::StructuredBuffer(
 	DescriptorManager* descriptorManager,
 	D3D12_RESOURCE_STATES initState,
 	D3D12_RESOURCE_FLAGS flags,
+	bool isConstant,
 	uint32_t viewNumElements,
 	uint32_t firstElement)
 	:Buffer(descriptorManager),
 	mNumElements(numElements),
-	mElementSize(elementSize),
+	mElementSize(isConstant ? AlignForConstantBuffer(elementSize) : elementSize),
+	mIsConstant(isConstant),
 	mViewNumElements(viewNumElements == 0 ? numElements : viewNumElements),
 	mFirstElement(firstElement)
 {
+	uint32_t byteSize = mNumElements * mElementSize;
+	mCounterOffset = AlignForUavCounter(byteSize);
+
 	mResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	mResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
 	mResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	mResourceDesc.Flags = flags;
 	mResourceDesc.SampleDesc.Count = 1u;
 	mResourceDesc.SampleDesc.Quality = 0u;
-	mResourceDesc.Width = (flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) ? mNumElements * mElementSize + 4096 : mNumElements * mElementSize;
+	mResourceDesc.Width = (flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) ? mCounterOffset + sizeof(uint32_t) : byteSize;
 	mResourceDesc.Height = 1u;
 	mResourceDesc.DepthOrArraySize = 1ui16;
 	mResourceDesc.MipLevels = 1ui16;
@@ -941,6 +1000,69 @@ Carol::StructuredBuffer::StructuredBuffer(
 
 	mResource = make_unique<Resource>(&mResourceDesc, heap, initState);
 	BindDescriptors();
+}
+
+Carol::StructuredBuffer::StructuredBuffer(StructuredBuffer&& structuredBuffer)
+	:Buffer(std::move(structuredBuffer))
+{
+	mNumElements = structuredBuffer.mNumElements;
+	mElementSize = structuredBuffer.mElementSize;
+	mViewNumElements = structuredBuffer.mViewNumElements;
+	mFirstElement = structuredBuffer.mFirstElement;
+}
+
+Carol::StructuredBuffer& Carol::StructuredBuffer::operator=(StructuredBuffer&& structuredBuffer)
+{
+	this->StructuredBuffer::StructuredBuffer(std::move(structuredBuffer));
+	return *this;
+}
+
+void Carol::StructuredBuffer::InitCounterResetBuffer(Heap* heap)
+{
+	sCounterResetBuffer = make_unique<Resource>(
+		GetRvaluePtr(CD3DX12_RESOURCE_DESC::Buffer(sizeof(uint32_t))),
+		heap,
+		D3D12_RESOURCE_STATE_GENERIC_READ);
+
+	uint32_t zero = 0;
+	sCounterResetBuffer->CopyData(&zero, sizeof(uint32_t));
+}
+
+void Carol::StructuredBuffer::ResetCounter(ID3D12GraphicsCommandList* cmdList)
+{
+	cmdList->CopyBufferRegion(mResource->Get(), mCounterOffset, sCounterResetBuffer->Get(), 0, sizeof(uint32_t));
+}
+
+void Carol::StructuredBuffer::CopyElements(const void* data, uint32_t offset, uint32_t numElements)
+{
+	uint32_t byteSize = numElements * mElementSize;
+	uint32_t byteOffset = offset * mElementSize;
+	CopyData(data, byteSize, byteOffset);
+}
+
+uint32_t Carol::StructuredBuffer::GetNumElements()
+{
+	return mNumElements;
+}
+
+uint32_t Carol::StructuredBuffer::GetElementSize()
+{
+	return mElementSize;
+}
+
+uint32_t Carol::StructuredBuffer::GetCounterOffset()
+{
+	return mCounterOffset;
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Carol::StructuredBuffer::GetElementAddress(uint32_t offset)
+{
+	return mResource->GetGPUVirtualAddress() + offset * mElementSize;
+}
+
+bool Carol::StructuredBuffer::IsConstant()
+{
+	return mIsConstant;
 }
 
 void Carol::StructuredBuffer::BindSrv()
@@ -967,7 +1089,7 @@ void Carol::StructuredBuffer::BindUav()
 	uavDesc.Buffer.NumElements = mViewNumElements;
 	uavDesc.Buffer.FirstElement = mFirstElement;
 	uavDesc.Buffer.StructureByteStride = mElementSize;
-	uavDesc.Buffer.CounterOffsetInBytes = floorf(mResourceDesc.Width / 4096.f) * 4096;
+	uavDesc.Buffer.CounterOffsetInBytes = mCounterOffset;
 	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
 	mDescriptorManager->CpuCbvSrvUavAllocate(1, mCpuUavAllocInfo.get());
@@ -981,6 +1103,46 @@ void Carol::StructuredBuffer::BindRtv()
 
 void Carol::StructuredBuffer::BindDsv()
 {
+}
+
+uint32_t Carol::StructuredBuffer::AlignForConstantBuffer(uint32_t byteSize)
+{
+	uint32_t alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+	return (byteSize + alignment - 1) & ~(alignment - 1);
+}
+
+
+uint32_t Carol::StructuredBuffer::AlignForUavCounter(uint32_t byteSize)
+{
+	uint32_t alignment = D3D12_UAV_COUNTER_PLACEMENT_ALIGNMENT;
+	return (byteSize + alignment - 1) & ~(alignment - 1);
+}
+
+Carol::FastConstantBufferAllocator::FastConstantBufferAllocator(uint32_t numElements, uint32_t elementSize, Heap* heap, DescriptorManager* descriptorManager)
+	:mCurrOffset(0)
+{
+	mResourceQueue = make_unique<StructuredBuffer>(numElements, elementSize, heap, descriptorManager, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAG_NONE, true);
+}
+
+Carol::FastConstantBufferAllocator::FastConstantBufferAllocator(FastConstantBufferAllocator&& fastResourceAllocator)
+{
+	mResourceQueue = std::move(fastResourceAllocator.mResourceQueue);
+	mCurrOffset = fastResourceAllocator.mCurrOffset;
+}
+
+Carol::FastConstantBufferAllocator& Carol::FastConstantBufferAllocator::operator=(FastConstantBufferAllocator&& fastResourceAllocator)
+{
+	this->FastConstantBufferAllocator::FastConstantBufferAllocator(std::move(fastResourceAllocator));
+	return *this;
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Carol::FastConstantBufferAllocator::Allocate(const void* data)
+{
+	auto addr = mResourceQueue->GetElementAddress(mCurrOffset);
+	mResourceQueue->CopyElements(data, mCurrOffset);
+	mCurrOffset = (mCurrOffset + 1) % mResourceQueue->GetNumElements();
+
+	return addr;
 }
 
 Carol::RawBuffer::RawBuffer(
@@ -1007,13 +1169,24 @@ Carol::RawBuffer::RawBuffer(
 	BindDescriptors();
 }
 
+Carol::RawBuffer::RawBuffer(RawBuffer&& rawBuffer)
+	:Buffer(std::move(rawBuffer))
+{
+}
+
+Carol::RawBuffer& Carol::RawBuffer::operator=(RawBuffer&& rawBuffer)
+{
+	this->RawBuffer::RawBuffer(std::move(rawBuffer));
+	return *this;
+}
+
 void Carol::RawBuffer::BindSrv()
 {
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Buffer.NumElements = 1;
+	srvDesc.Buffer.NumElements = mResourceDesc.Width / sizeof(uint32_t);
 	srvDesc.Buffer.FirstElement = 0;
 	srvDesc.Buffer.StructureByteStride = 0;
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
@@ -1028,7 +1201,7 @@ void Carol::RawBuffer::BindUav()
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-	uavDesc.Buffer.NumElements = 1;
+	uavDesc.Buffer.NumElements = mResourceDesc.Width / sizeof(uint32_t);
 	uavDesc.Buffer.FirstElement = 0;
 	uavDesc.Buffer.StructureByteStride = 0;
 	uavDesc.Buffer.CounterOffsetInBytes = 0;

@@ -6,7 +6,7 @@
 #include <dx12/heap.h>
 #include <dx12/resource.h>
 #include <dx12/shader.h>
-#include <dx12/descriptor_allocator.h>
+#include <dx12/descriptor.h>
 #include <dx12/root_signature.h>
 #include <scene/camera.h>
 #include <DirectXColors.h>
@@ -291,7 +291,7 @@ void Carol::SsaoPass::DrawAmbientMap(bool vertBlur)
     mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET)));
     mGlobalResources->CommandList->ClearRenderTargetView(outputRtv, DirectX::Colors::Red, 0, nullptr);
     mGlobalResources->CommandList->OMSetRenderTargets(1, &outputRtv, true, nullptr);
-    mGlobalResources->CommandList->SetGraphicsRoot32BitConstants(RootSignature::PASS_CONSTANTS, 2, ssaoConstants, 0);
+    mGlobalResources->CommandList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, 2, ssaoConstants, 0);
 
     mGlobalResources->CommandList->DispatchMesh(1, 1, 1);
     mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ)));

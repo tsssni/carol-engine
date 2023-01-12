@@ -1,6 +1,7 @@
 #pragma once
 #include <render_pass/render_pass.h>
 #include <scene/light.h>
+#include <scene/model.h>
 #include <DirectXMath.h>
 #include <memory>
 
@@ -30,8 +31,12 @@ namespace Carol
 		virtual void OnResize()override;
 		virtual void ReleaseIntermediateBuffers()override;
 
+		void Cull();
+
 		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameRtv();
 		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameDsv();
+		StructuredBuffer* GetIndirectCommandBuffer(MeshType type);
+
 		uint32_t GetFrameSrvIdx();
 		uint32_t GetDepthStencilSrvIdx();
 		uint32_t GetHiZSrvIdx();
@@ -41,18 +46,47 @@ namespace Carol
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
 		virtual void InitBuffers()override;
+
+		void TestCommandBufferSize(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements);
+		void ResizeCommandBuffer(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements, uint32_t elementSize);
 		
-		void DrawFrame();
+		void Clear();
+        void CullMeshes(bool hist);
+		void DrawDepth(bool hist);
 		void DrawHiZ();
+
+		enum
+        {
+            HIZ_DEPTH_IDX,
+            HIZ_R_IDX,
+            HIZ_W_IDX,
+            HIZ_SRC_MIP,
+            HIZ_NUM_MIP_LEVEL,
+            HIZ_IDX_COUNT
+        };
+
+        enum
+        {
+            CULL_CULLED_COMMAND_BUFFER_IDX,
+            CULL_MESH_COUNT,
+            CULL_MESH_OFFSET,
+            CULL_HIZ_IDX,
+            CULL_HIST,
+            CULL_IDX_COUNT
+        };
+
 
 		std::unique_ptr<ColorBuffer> mFrameMap;
 		std::unique_ptr<ColorBuffer> mDepthStencilMap;
 		std::unique_ptr<ColorBuffer> mHiZMap;
-		std::vector<std::unique_ptr<StructuredBuffer>> mOcclusionCommandBuffer;
+		std::vector<std::vector<std::unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
 
+        std::vector<std::vector<uint32_t>> mCullIdx;
+		std::vector<uint32_t> mHiZIdx;
+		uint32_t mHiZMipLevels;
+		
 		DXGI_FORMAT mFrameFormat;
 		DXGI_FORMAT mDepthStencilFormat;
 		DXGI_FORMAT mHiZFormat;
-		uint32_t mHiZMipLevels;
 	};
 }

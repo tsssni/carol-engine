@@ -1,7 +1,7 @@
 #include <render_pass/display.h>
 #include <render_pass/global_resources.h>
 #include <dx12/resource.h>
-#include <dx12/descriptor_allocator.h>
+#include <dx12/descriptor.h>
 #include <dx12/root_signature.h>
 #include <dx12/heap.h>
 #include <utils/Common.h>

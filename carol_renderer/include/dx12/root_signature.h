@@ -9,24 +9,19 @@
 
 namespace Carol
 {
-	class DescriptorAllocator;
-	class DescriptorAllocInfo;
+	enum RootParameter {
+			MESH_CB,
+			SKINNED_CB,
+			PASS_CONSTANTS,
+			FRAME_CB,
+			ROOT_SIGNATURE_COUNT
+		};
 
 	class RootSignature
 	{
 	public:
 		RootSignature(ID3D12Device* device);
 		ID3D12RootSignature* Get();
-
-		enum {
-			MESH_CB,
-			MESH_CONSTANTS,
-			SKINNED_CB,
-			PASS_CONSTANTS,
-			FRAME_CB,
-			FRAME_CONSTANTS,
-			ROOT_SIGNATURE_COUNT
-		};
 
 		Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature;
 	};

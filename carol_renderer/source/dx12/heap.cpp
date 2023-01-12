@@ -39,6 +39,12 @@ void Carol::Heap::DelayedDelete(uint32_t currFrame)
 
     for (auto& info : mDeletedResources[mCurrFrame])
     {
+        if (info.MappedData)
+        {
+            info.Resource->Unmap(0, nullptr);
+            info.MappedData = nullptr;
+        }
+
         Deallocate(&info);
     }
 
@@ -116,7 +122,7 @@ bool Carol::BuddyHeap::Deallocate(HeapAllocInfo* info)
 void Carol::BuddyHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_RESOURCE_DESC* desc, HeapAllocInfo* info, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue)
 {
     Allocate(mDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes, info);
-
+    
     ThrowIfFailed(mDevice->CreatePlacedResource(
         mHeaps[info->Addr / mHeapSize].Get(),
         info->Addr % mHeapSize,
@@ -125,6 +131,8 @@ void Carol::BuddyHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_RE
         optimizedClearValue,
         IID_PPV_ARGS(resource->GetAddressOf())
     ));
+
+    info->Resource = *resource;
 }
 
 void Carol::BuddyHeap::Align()
@@ -153,134 +161,6 @@ void Carol::BuddyHeap::AddHeap()
     mDevice->CreateHeap(&heapDesc, IID_PPV_ARGS(mHeaps.back().GetAddressOf()));
 }
 
-Carol::CircularHeap::CircularHeap(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, bool isConstant, uint32_t elementCount, uint32_t elementSize)
-    :Heap(device,D3D12_HEAP_TYPE_UPLOAD,D3D12_HEAP_FLAG_NONE),mCommandList(cmdList),mElementCount(elementCount),mElementSize(elementSize),mBufferSize(elementSize)
-{
-    if (isConstant)
-    {
-        Align();
-    }
-
-    ExpandHeap();
-}
-
-Carol::CircularHeap::~CircularHeap()
-{
-    for (int i = 0; i < mHeaps.size(); ++i)
-    {
-        mHeaps[i]->Unmap(0, nullptr);
-        mMappedData[i] = nullptr;
-    }
-}
-
-void Carol::CircularHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_RESOURCE_DESC* desc, HeapAllocInfo* info, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue)
-{
-}
-
-void Carol::CircularHeap::CreateResource(HeapAllocInfo* info)
-{
-    Allocate(1, info);
-}
-
-void Carol::CircularHeap::DeleteResource(HeapAllocInfo* info)
-{
-    info->Heap = nullptr;
-    info->Addr = 0;
-    info->Bytes = 0;
-    ++mDelayedDeletionCount[mCurrFrame];
-}
-
-void Carol::CircularHeap::DelayedDelete(uint32_t currFrame)
-{
-    mCurrFrame = currFrame;
-    if (mCurrFrame >= mDelayedDeletionCount.size())
-    {
-        mDelayedDeletionCount.emplace_back(0);
-    }
-
-    mBegin = (mBegin + mDelayedDeletionCount[currFrame]) % mElementCount;
-    mQueueSize -= mDelayedDeletionCount[currFrame];
-    mDelayedDeletionCount[currFrame] = 0;
-}
-
-void Carol::CircularHeap::CopyData(HeapAllocInfo* info, const void* data)
-{
-    memcpy(&mMappedData[info->Addr / mHeapSize][info->Addr % mHeapSize], data, mBufferSize);
-}
-
-D3D12_GPU_VIRTUAL_ADDRESS Carol::CircularHeap::GetGPUVirtualAddress(HeapAllocInfo* info)
-{
-    if (info == nullptr)
-    {
-        return D3D12_GPU_VIRTUAL_ADDRESS();
-    }
-
-    return mHeaps[info->Addr / mHeapSize]->GetGPUVirtualAddress() + (info->Addr % mHeapSize);
-}
-
-bool Carol::CircularHeap::Allocate(uint32_t size, HeapAllocInfo* info)
-{
-    if (mQueueSize > 0 && mBegin == mEnd)
-    {
-        ExpandHeap();
-    }
-
-    info->Heap = this;
-    info->Bytes = mElementSize;
-    info->Addr = mEnd * mElementSize;
-
-    mEnd = (mEnd + 1) % mElementCount;  
-    ++mQueueSize;
-    return true;
-}
-
-bool Carol::CircularHeap::Deallocate(HeapAllocInfo* info)
-{
-    return true;
-}
-
-void Carol::CircularHeap::Align()
-{
-    mElementSize = (~255) & (mElementSize + 255);
-}
-
-void Carol::CircularHeap::ExpandHeap()
-{
-    if (!mHeapSize)
-    {
-        mHeapSize = mElementCount * mElementSize;
-    }
-    else
-    {
-        mElementCount <<= 1;
-    }
-
-    mHeaps.emplace_back();
-    mMappedData.emplace_back();
-
-    ThrowIfFailed(mDevice->CreateCommittedResource(
-        GetRvaluePtr(D3D12_HEAP_PROPERTIES(CD3DX12_HEAP_PROPERTIES(mType))),
-        mFlag,
-        GetRvaluePtr(CD3DX12_RESOURCE_DESC::Buffer(mHeapSize)),
-        D3D12_RESOURCE_STATE_GENERIC_READ,
-        nullptr,
-        IID_PPV_ARGS(mHeaps.back().GetAddressOf())
-    ));
-
-    ThrowIfFailed(mHeaps.back()->Map(0, nullptr, reinterpret_cast<void**>(&mMappedData.back())));
-
-    if (mHeaps.size() > 1)
-    {
-        mEnd = (mElementCount >> 1) + 1;
-        mQueueSize = mEnd - mBegin;
-    }
-    else
-    {
-        mBegin = 0;
-        mEnd = 0;
-    }
-}
-
 Carol::SegListHeap::SegListHeap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag, uint32_t maxPageSize)
     :Heap(device, type, flag),mOrder(GetOrder(maxPageSize))
 {
@@ -296,7 +176,7 @@ Carol::SegListHeap::SegListHeap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D1
 void Carol::SegListHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_RESOURCE_DESC* desc, HeapAllocInfo* info, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue)
 {
     Allocate(mDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes, info);
-    
+
     auto order = GetOrder(info->Bytes);
     auto orderNumPages = 1 << (mOrder - order);
     auto heapIdx = info->Addr / (orderNumPages * (mPageSize << order));
@@ -309,6 +189,8 @@ void Carol::SegListHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_
         optimizedClearValue,
         IID_PPV_ARGS(resource->GetAddressOf())
     ));
+    
+    info->Resource = *resource;
 }
 
 bool Carol::SegListHeap::Allocate(uint32_t size, HeapAllocInfo* info)

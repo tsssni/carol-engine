@@ -5,9 +5,6 @@
 struct MeshOut
 {
     float4 PosH : SV_POSITION;
-    float3 PosW : POSITION;
-    float3 NormalW : NORMAL;
-    float3 TangentW : TANGENT;
 };
 
 [numthreads(128, 1, 1)]
@@ -38,12 +35,19 @@ void main(
 #ifdef SKINNED
         min = SkinnedTransform(min);
 #endif
+        
+        float4x4 worldViewProj;
+        
+#ifdef SHADOW
+        worldViewProj = mul(gWorld, gLights[gLightIdx].ViewProj);
+#else
+        worldViewProj = mul(gWorld, gViewProj);
+#endif
      
         MeshOut mout;
-        mout.PosW = mul(float4(min.PosL, 1.0f), gWorld).xyz;
-        mout.PosH = mul(float4(mout.PosW, 1.0f), gViewProj);
-        mout.NormalW = mul(min.NormalL, (float3x3)gWorld);
+        mout.PosH = mul(float4(min.PosL, 1.0f), worldViewProj);
         
         verts[gtid] = mout;
     }
 }
+

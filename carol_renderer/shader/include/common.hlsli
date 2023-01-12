@@ -3,7 +3,7 @@
 
 #include "light.hlsli"
 
-cbuffer FrameCB : register(b4)
+cbuffer FrameCB : register(b3)
 {
     float4x4 gView;
     float4x4 gInvView;
@@ -34,23 +34,26 @@ cbuffer FrameCB : register(b4)
     float gSurfaceEplison;
 
     Light gLights[MAX_LIGHTS];
-}
+    
+    uint gMeshCBIdx;
+    uint gCommandBufferIdx;
+    uint gInstanceFrustumCulledMarkIdx;
+    uint gInstanceOcclusionPassedMarkIdx;
 
-cbuffer FrameConstants : register(b5)
-{
-    uint gFrameIdx;
-    uint gDepthStencilIdx;
-    uint gNormalIdx;
-    uint gShadowIdx;
-    uint gOitW;
-    uint gOitOffsetW;
-    uint gOitCounterW;
-    uint gOitR;
-    uint gOitOffsetR;
-    uint gRandVecIdx;
-    uint gAmbientIdx;
-    uint gVelocityIdx;
-    uint gHistIdx;
+    uint gFrameMapIdx;
+    uint gDepthStencilMapIdx;
+    uint gNormalMapIdx;
+    uint gMainLightShadowMapIdx;
+    uint gOitBufferWIdx;
+    uint gOitOffsetBufferWIdx;
+    uint gOitCounterBufferIdx;
+    uint gOitBufferRIdx;
+    uint gOitOffsetBufferRIdx;
+    uint gRandVecMapIdx;
+    uint gAmbientMapIdx;
+    uint gVelocityMapIdx;
+    uint gHistFrameMapIdx;
+    float3 gFramePad2;
 }
 
 SamplerState gsamPointWrap : register(s0);

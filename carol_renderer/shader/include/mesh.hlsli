@@ -1,37 +1,39 @@
 #ifndef MESH_HEADER
 #define MESH_HEADER
 
+#include "common.hlsli"
+
 cbuffer MeshCB : register(b0)
 {
     float4x4 gWorld;
     float4x4 gHistWorld;
     
     float3 gCenter;
-    uint gMeshletCount;
+    float MeshPad0;
     float3 gExtents;
-    float gMeshPad0;
+    float MeshPad1;
     
     float3 gFresnelR0;
     float gRoughness;
-}
-
-cbuffer MeshConstants : register(b1)
-{
-    uint gVertexIdx;
-    uint gMeshletIdx;
-    uint gCullDataIdx;
-    uint gFrustumCulledMarkIdx;
-    uint gOcclusionPassedMarkIdx;
-    uint gDiffuseMapIdx;
-    uint gNormalMapIdx;
-}
+    
+    uint gMeshletCount;
+    uint gVertexBufferIdx;
+    uint gMeshletBufferIdx;
+    uint gCullDataBufferIdx;
+    
+    uint gMeshletFrustumCulledMarkBufferIdx;
+    uint gMeshletOcclusionPassedMarkBufferIdx;
+    
+    uint gDiffuseTextureIdx;
+    uint gNormalTextureIdx;
+};
 
 #ifdef SKINNED
-cbuffer SkinnedCB : register(b2)
+cbuffer SkinnedCB : register(b1)
 {
     float4x4 gBoneTransforms[256];
     float4x4 gHistBoneTransforms[256];
-}
+};
 #endif
 
 struct Meshlet

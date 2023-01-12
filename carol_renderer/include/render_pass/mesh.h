@@ -10,19 +10,19 @@
 
 namespace Carol
 {
-	class Mesh;
 	class GlobalResources;
 	class StructuredBuffer;
 	class RawBuffer;
 
+#pragma pack(1)
 	class IndirectCommand
 	{
 	public:
-		D3D12_GPU_VIRTUAL_ADDRESS MeshCB;
-		uint32_t MeshConstants[6];
-		D3D12_GPU_VIRTUAL_ADDRESS SkinnedCB;
+		D3D12_GPU_VIRTUAL_ADDRESS MeshCBAddr;
+		D3D12_GPU_VIRTUAL_ADDRESS SkinnedCBAddr;
 		D3D12_DISPATCH_MESH_ARGUMENTS DispatchMeshArgs;
 	};
+#pragma pack()
 
 	class MeshesPass : public RenderPass
 	{
@@ -36,10 +36,16 @@ namespace Carol
 		virtual void ReleaseIntermediateBuffers()override;
 		
 		void ClearCullMark();
+
 		ID3D12CommandSignature* GetCommandSignature();
-		uint32_t GetCullMarkIdx(MeshType type);
-		uint32_t GetCommandBufferIdx(MeshType type);
-		void DrawMeshes(const std::vector<ID3D12PipelineState*>& pso);
+		uint32_t GetMeshCBStartOffet(MeshType type);
+
+		uint32_t GetMeshCBIdx();
+		uint32_t GetCommandBufferIdx();
+		uint32_t GetInstanceFrustumCulledMarkBufferIdx();
+		uint32_t GetInstanceOcclusionPassedMarkBufferIdx();
+
+		void ExecuteIndirect(StructuredBuffer* indirectCmdBuffer);
 		void DrawSkyBox(ID3D12PipelineState* skyBoxPSO);
 
 	protected:
@@ -48,12 +54,18 @@ namespace Carol
 		virtual void InitBuffers()override;
 		void InitCommandSignature();
 
-		void Draw(Mesh* renderNode);
+		void TestBufferSize(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements);
+		void ResizeBuffer(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements, uint32_t elementSize, bool isConstant);
 
 		Microsoft::WRL::ComPtr<ID3D12CommandSignature> mCommandSignature;
-		std::vector<std::vector<IndirectCommand>> mIndirectCommand;
 
 		std::vector<std::unique_ptr<StructuredBuffer>> mIndirectCommandBuffer;
-		std::vector<std::unique_ptr<RawBuffer>> mCullMarkBuffer;
+		std::vector<std::unique_ptr<StructuredBuffer>> mMeshCB;
+		std::vector<std::unique_ptr<StructuredBuffer>> mSkinnedCB;
+
+		std::unique_ptr<RawBuffer> mInstanceFrustumCulledMarkBuffer;
+		std::unique_ptr<RawBuffer> mInstanceOcclusionPassedMarkBuffer;
+
+		uint32_t mMeshStartOffset[MESH_TYPE_COUNT];
 	};
 }

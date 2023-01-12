@@ -1,7 +1,7 @@
 #include <scene/model.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
-#include <dx12/descriptor_allocator.h>
+#include <dx12/descriptor.h>
 #include <scene/scene.h>
 #include <scene/skinned_data.h>
 #include <scene/timer.h>
@@ -19,17 +19,17 @@ namespace Carol
 	using namespace DirectX;
 }
 
-Carol::Mesh::Mesh(Model* model, 
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	HeapManager* heapManager,
-	DescriptorManager* descriptorManager,
+Carol::Mesh::Mesh(
 	vector<Vertex>& vertices,
 	vector<uint32_t>& indices,
 	bool isSkinned,
-	bool isTransparent)
+	bool isTransparent,
+	Model* model, 
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	HeapManager* heapManager,
+	DescriptorManager* descriptorManager)
 	:mModel(model),
-	mMeshIdx(MESH_IDX_COUNT),
 	mDevice(device),
 	mCommandList(cmdList),
 	mHeapManager(heapManager),
@@ -37,7 +37,6 @@ Carol::Mesh::Mesh(Model* model,
 	mVertices(std::move(vertices)),
 	mIndices(std::move(indices)),
 	mMeshConstants(make_unique<MeshConstants>()),
-	mMeshCBAllocInfo(make_unique<HeapAllocInfo>()),
 	mSkinned(isSkinned),
 	mTransparent(isTransparent)
 {
@@ -71,16 +70,6 @@ Carol::Material Carol::Mesh::GetMaterial()
 	return mMaterial;
 }
 
-uint32_t Carol::Mesh::GetMeshIdx(uint32_t idx)
-{
-	return mMeshIdx[idx];
-}
-
-const uint32_t* Carol::Mesh::GetMeshIdxData()
-{
-	return mMeshIdx.data();
-}
-
 uint32_t Carol::Mesh::GetMeshletSize()
 {
 	return mMeshConstants->MeshletCount;
@@ -91,9 +80,14 @@ void Carol::Mesh::SetMaterial(const Material& mat)
 	mMaterial = mat;
 }
 
-void Carol::Mesh::SetTexIdx(uint32_t type, uint32_t idx)
+void Carol::Mesh::SetDiffuseMapIdx(uint32_t idx)
 {
-	mMeshIdx[type] = idx;
+	mMeshConstants->DiffuseMapIdx = idx;
+}
+
+void Carol::Mesh::SetNormalMapIdx(uint32_t idx)
+{
+	mMeshConstants->NormalMapIdx = idx;
 }
 
 Carol::BoundingBox Carol::Mesh::GetBoundingBox()
@@ -111,33 +105,39 @@ Carol::OctreeNode* Carol::Mesh::GetOctreeNode()
 	return mOctreeNode;
 }
 
-void Carol::Mesh::Update(XMMATRIX& world, CircularHeap* meshCBHeap)
+void Carol::Mesh::Update(XMMATRIX& world)
 {
 	mMeshConstants->FresnelR0 = mMaterial.FresnelR0;
 	mMeshConstants->Roughness = mMaterial.Roughness;
 	mMeshConstants->HistWorld = mMeshConstants->World;
 	XMStoreFloat4x4(&mMeshConstants->World, XMMatrixTranspose(world));
-
-	meshCBHeap->DeleteResource(mMeshCBAllocInfo.get());
-	meshCBHeap->CreateResource(mMeshCBAllocInfo.get());
-	meshCBHeap->CopyData(mMeshCBAllocInfo.get(), mMeshConstants.get());
-	mMeshCBGPUVirtualAddress = meshCBHeap->GetGPUVirtualAddress(mMeshCBAllocInfo.get());
 }
 
 void Carol::Mesh::ClearCullMark(ID3D12GraphicsCommandList* cmdList)
 {
 	static const uint32_t cullMarkClearValue = 0;
-	cmdList->ClearUnorderedAccessViewUint(mCullMarkBuffer->GetGpuUav(), mCullMarkBuffer->GetCpuUav(), mCullMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
+	cmdList->ClearUnorderedAccessViewUint(mMeshletFrustumCulledMarkBuffer->GetGpuUav(), mMeshletFrustumCulledMarkBuffer->GetCpuUav(), mMeshletFrustumCulledMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
+	cmdList->ClearUnorderedAccessViewUint(mMeshletOcclusionPassedMarkBuffer->GetGpuUav(), mMeshletOcclusionPassedMarkBuffer->GetCpuUav(), mMeshletOcclusionPassedMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetMeshCBGPUVirtualAddress()
+void Carol::Mesh::SetMeshCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr)
 {
-	return mMeshCBGPUVirtualAddress;
+	mMeshCBAddr = addr;
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetSkinnedCBGPUVirtualAddress()
+Carol::MeshConstants* Carol::Mesh::GetMeshConstants()
 {
-	return mModel->GetSkinnedCBGPUVirtualAddress();
+	return mMeshConstants.get();
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetMeshCBAddress()
+{
+	return mMeshCBAddr;
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetSkinnedCBAddress()
+{
+	return mModel->GetSkinnedCBAddress();
 }
 
 bool Carol::Mesh::IsSkinned()
@@ -157,10 +157,10 @@ void Carol::Mesh::LoadVertices()
 		sizeof(Vertex),
 		mHeapManager->GetDefaultBuffersHeap(),
 		mDescriptorManager,
-		D3D12_RESOURCE_STATE_GENERIC_READ);
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 	mVertexBuffer->CopySubresources(mCommandList, mHeapManager->GetUploadBuffersHeap(), mVertices.data(), mVertices.size() * sizeof(Vertex));
-	mMeshIdx[VERTEX_IDX] = mVertexBuffer->GetGpuSrvIdx();
+	mMeshConstants->VertexBufferIdx = mVertexBuffer->GetGpuSrvIdx();
 }
 
 void Carol::Mesh::LoadMeshlets()
@@ -217,11 +217,10 @@ void Carol::Mesh::LoadMeshlets()
 		sizeof(Meshlet),
 		mHeapManager->GetDefaultBuffersHeap(),
 		mDescriptorManager,
-		D3D12_RESOURCE_STATE_GENERIC_READ);
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 	mMeshletBuffer->CopySubresources(mCommandList, mHeapManager->GetUploadBuffersHeap(), mMeshlets.data(), mMeshlets.size() * sizeof(Meshlet));
-
-	mMeshIdx[MESHLET_IDX] = mMeshletBuffer->GetGpuSrvIdx();
+	mMeshConstants->MeshletBufferIdx = mMeshletBuffer->GetGpuSrvIdx();
 	mMeshConstants->MeshletCount = mMeshlets.size();
 }
 
@@ -236,21 +235,33 @@ void Carol::Mesh::LoadCullData()
 		sizeof(CullData),
 		mHeapManager->GetDefaultBuffersHeap(),
 		mDescriptorManager,
-		D3D12_RESOURCE_STATE_GENERIC_READ);
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 	mCullDataBuffer->CopySubresources(mCommandList, mHeapManager->GetUploadBuffersHeap(), mCullData.data(), mCullData.size() * sizeof(CullData));
-	mMeshIdx[CULL_DATA_IDX] = mCullDataBuffer->GetGpuSrvIdx();
+	mMeshConstants->CullDataBufferIdx = mCullDataBuffer->GetGpuSrvIdx();
 }
 
 void Carol::Mesh::InitCullMark()
 {
 	uint32_t byteSize = std::max((uint32_t)ceilf(mMeshlets.size() / 8.f), 8u);
-	mCullMarkBuffer = make_unique<RawBuffer>(
+
+	mMeshletFrustumCulledMarkBuffer = make_unique<RawBuffer>(
 		byteSize,
 		mHeapManager->GetDefaultBuffersHeap(),
 		mDescriptorManager,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	mMeshConstants->MeshletFrustumCulledMarkBufferIdx = mMeshletFrustumCulledMarkBuffer->GetGpuUavIdx();
+
+	mMeshletOcclusionPassedMarkBuffer = make_unique<RawBuffer>(
+		byteSize,
+		mHeapManager->GetDefaultBuffersHeap(),
+		mDescriptorManager,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	
+	mMeshConstants->MeshletOcclusionCulledMarkBufferIdx = mMeshletOcclusionPassedMarkBuffer->GetGpuUavIdx();
 }
 
 void Carol::Mesh::LoadMeshletBoundingBox()
@@ -641,8 +652,16 @@ void Carol::Mesh::RadiusCompare(const DirectX::XMVECTOR& pos, const DirectX::XMV
 	}
 }
 
-Carol::Model::Model(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* descriptorManager)
-	:mDevice(device), mCommandList(cmdList), mHeapManager(heapManager), mDescriptorManager(descriptorManager), mSkinnedConstants(make_unique<SkinnedConstants>()), mSkinnedCBAllocInfo(make_unique<HeapAllocInfo>())
+Carol::Model::Model(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	HeapManager* heapManager,
+	DescriptorManager* descriptorManager)
+	:mDevice(device),
+	mCommandList(cmdList),
+	mHeapManager(heapManager),
+	mDescriptorManager(descriptorManager),
+	mSkinnedConstants(make_unique<SkinnedConstants>())
 {
 	
 }
@@ -670,16 +689,6 @@ const Carol::unordered_map<Carol::wstring, Carol::unique_ptr<Carol::Mesh>>& Caro
 	return mMeshes;
 }
 
-Carol::vector<int>& Carol::Model::GetBoneHierarchy()
-{
-	return mBoneHierarchy;
-}
-
-Carol::vector<Carol::XMFLOAT4X4>& Carol::Model::GetBoneOffsets()
-{
-	return mBoneOffsets;
-}
-
 const Carol::vector<Carol::vector<Carol::vector<Carol::XMFLOAT4X4>>>& Carol::Model::GetAnimationTransforms()
 {
 	return mAnimationFrames;
@@ -703,7 +712,7 @@ void Carol::Model::SetAnimationClip(std::wstring clipName)
 	mTimePos = 0.0f;
 }
 
-void Carol::Model::Update(Timer* timer, CircularHeap* skinnedCBHeap)
+void Carol::Model::Update(Timer* timer)
 {
 	mTimePos += timer->DeltaTime();
 
@@ -739,17 +748,21 @@ void Carol::Model::Update(Timer* timer, CircularHeap* skinnedCBHeap)
 
 	std::copy(std::begin(mSkinnedConstants->FinalTransforms), std::end(mSkinnedConstants->FinalTransforms), mSkinnedConstants->HistFinalTransforms);
 	std::copy(std::begin(finalTransforms), std::end(finalTransforms), mSkinnedConstants->FinalTransforms);
-
-	skinnedCBHeap->DeleteResource(mSkinnedCBAllocInfo.get());
-	skinnedCBHeap->CreateResource(mSkinnedCBAllocInfo.get());
-	skinnedCBHeap->CopyData(mSkinnedCBAllocInfo.get(), mSkinnedConstants.get());
-
-	mSkinnedCBGPUVirtualAddress = skinnedCBHeap->GetGPUVirtualAddress(mSkinnedCBAllocInfo.get());
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS Carol::Model::GetSkinnedCBGPUVirtualAddress()
+Carol::SkinnedConstants* Carol::Model::GetSkinnedConstants()
 {
-	return mSkinnedCBGPUVirtualAddress;
+	return mSkinnedConstants.get();
+}
+
+void Carol::Model::SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr)
+{
+	mSkinnedCBAddr = addr;
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Carol::Model::GetSkinnedCBAddress()
+{
+	return mSkinnedCBAddr;
 }
 
 bool Carol::Model::IsSkinned()
@@ -785,9 +798,20 @@ void Carol::Model::LoadGround(TextureManager* texManager)
 	}
 	
 	vector<uint32_t> indices = { 0,1,2,0,2,3 };
-	mMeshes[L"Ground"] = make_unique<Mesh>(this, mDevice, mCommandList, mHeapManager, mDescriptorManager, vertices, indices, false, false);
-	mMeshes[L"Ground"]->SetTexIdx(Mesh::DIFFUSE_IDX, texManager->LoadTexture(L"texture\\tile.dds"));
-	mMeshes[L"Ground"]->SetTexIdx(Mesh::NORMAL_IDX, texManager->LoadTexture(L"texture\\tile_nmap.dds"));
+
+	mMeshes[L"Ground"] = make_unique<Mesh>(
+		vertices,
+		indices,
+		false,
+		false,
+		this,
+		mDevice,
+		mCommandList,
+		mHeapManager,
+		mDescriptorManager);
+
+	mMeshes[L"Ground"]->SetDiffuseMapIdx(texManager->LoadTexture(L"texture\\tile.dds"));
+	mMeshes[L"Ground"]->SetNormalMapIdx(texManager->LoadTexture(L"texture\\tile_nmap.dds"));
 }
 
 void Carol::Model::LoadSkyBox(TextureManager* texManager)
@@ -811,6 +835,15 @@ void Carol::Model::LoadSkyBox(TextureManager* texManager)
 	}
 
 	vector<uint32_t> indices = { 0,1,2,0,2,3,4,5,1,4,1,0,7,6,5,7,5,4,3,2,6,3,6,7,1,5,6,1,6,2,4,0,3,4,3,7 };
-	mMeshes[L"SkyBox"] = make_unique<Mesh>(this, mDevice, mCommandList, mHeapManager, mDescriptorManager, vertices, indices, false, false);
-	mMeshes[L"SkyBox"]->SetTexIdx(Mesh::DIFFUSE_IDX, texManager->LoadTexture(L"texture\\snowcube1024.dds"));
+	mMeshes[L"SkyBox"] = make_unique<Mesh>(
+		vertices,
+		indices,
+		false,
+		false,
+		this,
+		mDevice,
+		mCommandList,
+		mHeapManager,
+		mDescriptorManager);
+	mMeshes[L"SkyBox"]->SetDiffuseMapIdx(texManager->LoadTexture(L"texture\\snowcube1024.dds"));
 }
