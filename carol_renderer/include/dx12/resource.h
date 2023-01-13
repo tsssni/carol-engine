@@ -274,5 +274,7 @@ namespace Carol
 		virtual void BindUav()override;
 		virtual void BindRtv()override;
 		virtual void BindDsv()override;
+
+		uint32_t AlignForRawBuffer(uint32_t byteSize);
 	};
 }

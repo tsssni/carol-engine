@@ -35,15 +35,14 @@ struct Payload
 bool GetMark(uint idx, uint markIdx)
 {
     RWByteAddressBuffer mark = ResourceDescriptorHeap[markIdx];
-    uint byte = mark.Load(idx / 32u);
+    uint byte = mark.Load(idx / 32u * 4);
     return (byte >> (idx % 32u)) & 1;
 }
 
 void SetMark(uint idx, uint markIdx)
 {
     RWByteAddressBuffer mark = ResourceDescriptorHeap[markIdx];
-    uint value;
-    mark.InterlockedOr(idx / 32u, 1u << (idx % 32u), value);
+    mark.InterlockedOr(idx / 32u * 4u, 1u << (idx % 32u));
 }
 
 uint AabbPlaneTest(float3 center, float3 extents, float4 plane)
@@ -163,6 +162,7 @@ bool NormalConeTest(float3 center, uint packedNormalCone, float apexOffset, floa
     return true;
 }
 
+#ifdef OCCLUSION
 bool HiZOcclusionTest(float3 center, float3 extents, float4x4 M, uint hiZIdx)
 {
     Texture2D hiZMap = ResourceDescriptorHeap[hiZIdx];
@@ -212,3 +212,4 @@ bool HiZOcclusionTest(float3 center, float3 extents, float4x4 M, uint hiZIdx)
     float maxDepth = max(depth.x, max(depth.y, max(depth.z, depth.w)));
     return minZ > maxDepth;
 }
+#endif

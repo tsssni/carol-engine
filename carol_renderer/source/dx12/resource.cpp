@@ -1159,7 +1159,7 @@ Carol::RawBuffer::RawBuffer(
 	mResourceDesc.Flags = flags;
 	mResourceDesc.SampleDesc.Count = 1u;
 	mResourceDesc.SampleDesc.Quality = 0u;
-	mResourceDesc.Width = byteSize;
+	mResourceDesc.Width = AlignForRawBuffer(byteSize);
 	mResourceDesc.Height = 1u;
 	mResourceDesc.DepthOrArraySize = 1ui16;
 	mResourceDesc.MipLevels = 1ui16;
@@ -1186,7 +1186,7 @@ void Carol::RawBuffer::BindSrv()
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	srvDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Buffer.NumElements = mResourceDesc.Width / sizeof(uint32_t);
+	srvDesc.Buffer.NumElements = mResourceDesc.Width  / sizeof(uint32_t);
 	srvDesc.Buffer.FirstElement = 0;
 	srvDesc.Buffer.StructureByteStride = 0;
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
@@ -1220,6 +1220,11 @@ void Carol::RawBuffer::BindRtv()
 void Carol::RawBuffer::BindDsv()
 {
 
+}
+
+uint32_t Carol::RawBuffer::AlignForRawBuffer(uint32_t byteSize)
+{
+	return (byteSize + 3) & (~3);
 }
 
 

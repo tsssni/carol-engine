@@ -47,7 +47,7 @@ void Carol::OitppllPass::Cull()
 	if (mGlobalResources->Scene->IsAnyTransparentMeshes())
 	{
 		uint32_t currFrame = *mGlobalResources->CurrFrame;
-		mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"OitppllCull"].Get());
+		mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"OitppllInstanceCull"].Get());
 
 		for (int i = 0; i < TRANSPARENT_MESH_TYPE_COUNT; ++i)
 		{
@@ -65,6 +65,13 @@ void Carol::OitppllPass::Cull()
 			mGlobalResources->CommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
 			mGlobalResources->CommandList->Dispatch(count, 1, 1);
 			mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
+		}
+
+		mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"OitppllMeshletCull"].Get());
+
+		for (int i = 0; i < TRANSPARENT_MESH_TYPE_COUNT; ++i)
+		{
+			mGlobalResources->Meshes->ExecuteIndirect(mCulledCommandBuffer[currFrame][i].get());
 		}
 	}
 }
@@ -143,19 +150,34 @@ void Carol::OitppllPass::InitShaders()
 
 	vector<wstring> staticDefines =
 	{
-		L"TAA=1",L"SSAO=1"
+		L"TAA=1",
+		L"SSAO=1"
 	};
 
 	vector<wstring> skinnedDefines =
 	{
-		L"TAA=1",L"SSAO=1",L"SKINNED=1"
+		L"TAA=1",
+		L"SSAO=1",
+		L"SKINNED=1"
+	};
+
+	vector<wstring> cullDefines =
+	{
+		L"FRUSTUM_ONLY=1"
+	};
+
+	vector<wstring> cullWriteDefines =
+	{
+		L"WRITE",
+		L"TRANSPARENT"
 	};
 
 	(*mGlobalResources->Shaders)[L"BuildStaticOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", staticDefines, L"main", L"ps_6_6");
 	(*mGlobalResources->Shaders)[L"BuildSkinnedOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", skinnedDefines, L"main", L"ps_6_6");
 	(*mGlobalResources->Shaders)[L"DrawOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_ps.hlsl", nullDefines, L"main", L"ps_6_6");
 	(*mGlobalResources->Shaders)[L"TransparentCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", nullDefines, L"main", L"cs_6_6");
-	(*mGlobalResources->Shaders)[L"TransparentAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", nullDefines, L"main", L"as_6_6");
+	(*mGlobalResources->Shaders)[L"TransparentAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullDefines, L"main", L"as_6_6");
+	(*mGlobalResources->Shaders)[L"TransparentCullAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullWriteDefines, L"main", L"as_6_6");
 }
 
 void Carol::OitppllPass::InitPSOs()
@@ -214,10 +236,28 @@ void Carol::OitppllPass::InitPSOs()
     drawOitppllStreamDesc.SizeInBytes = sizeof(drawOitppllPsoStream);
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&drawOitppllStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"DrawOitppll"].GetAddressOf())));
 
-	auto oitppllCullPsoDesc = *mGlobalResources->BaseComputePsoDesc;
+	auto oitppllMeshletCullPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
+	auto oitppllCullAS = (*mGlobalResources->Shaders)[L"TransparentCullAS"].get();
+	auto oitppllCullMS = (*mGlobalResources->Shaders)[L"DepthStaticMS"].get();
+	oitppllMeshletCullPsoDesc.AS = { reinterpret_cast<byte*>(oitppllCullAS->GetBufferPointer()), oitppllCullAS->GetBufferSize() };
+	oitppllMeshletCullPsoDesc.MS = { reinterpret_cast<byte*>(oitppllCullMS->GetBufferPointer()), oitppllCullMS->GetBufferSize() };
+	oitppllMeshletCullPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	oitppllMeshletCullPsoDesc.DepthStencilState.DepthEnable = false;
+	oitppllMeshletCullPsoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+	oitppllMeshletCullPsoDesc.NumRenderTargets = 0;
+	oitppllMeshletCullPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+	oitppllMeshletCullPsoDesc.DepthStencilState.DepthEnable = false;
+	oitppllMeshletCullPsoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+	auto oitppllMeshletCullPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(oitppllMeshletCullPsoDesc);
+    D3D12_PIPELINE_STATE_STREAM_DESC oitppllMeshletCullStreamDesc;
+    oitppllMeshletCullStreamDesc.pPipelineStateSubobjectStream = &oitppllMeshletCullPsoStream;
+    oitppllMeshletCullStreamDesc.SizeInBytes = sizeof(oitppllMeshletCullPsoStream);
+    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&oitppllMeshletCullStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"OitppllMeshletCull"].GetAddressOf())));
+
+	auto oitppllInstanceCullPsoDesc = *mGlobalResources->BaseComputePsoDesc;
 	auto oitppllCullCS = (*mGlobalResources->Shaders)[L"TransparentCS"].get();
-	oitppllCullPsoDesc.CS = { reinterpret_cast<byte*>(oitppllCullCS->GetBufferPointer()), oitppllCullCS->GetBufferSize() };
-	ThrowIfFailed(mGlobalResources->Device->CreateComputePipelineState(&oitppllCullPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"OitppllCull"].GetAddressOf())));
+	oitppllInstanceCullPsoDesc.CS = { reinterpret_cast<byte*>(oitppllCullCS->GetBufferPointer()), oitppllCullCS->GetBufferSize() };
+	ThrowIfFailed(mGlobalResources->Device->CreateComputePipelineState(&oitppllInstanceCullPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"OitppllInstanceCull"].GetAddressOf())));
 }
 
 void Carol::OitppllPass::InitBuffers()

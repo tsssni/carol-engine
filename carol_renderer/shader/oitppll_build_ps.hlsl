@@ -26,7 +26,7 @@ void main(PixelIn pin)
     
     Texture2D diffuseTex = ResourceDescriptorHeap[gDiffuseTextureIdx];
     Texture2D normalTex = ResourceDescriptorHeap[gNormalTextureIdx];
-    Texture2D depthMap = ResourceDescriptorHeap[gNormalMapIdx];
+    Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
 #ifdef SSAO
     Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapIdx];
 #endif

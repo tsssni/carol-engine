@@ -39,7 +39,7 @@ void main( uint2 dtid : SV_DispatchThreadID, uint2 gtid : SV_GroupThreadID)
     uint2 size;
     uint mip;
     hiZMap.GetDimensions(0, size.x, size.y, mip);
-    
+        
     Init(dtid, size);
     uint srcWidth = size.x >> gSrcMip;
     uint srcHeight = size.y >> gSrcMip;

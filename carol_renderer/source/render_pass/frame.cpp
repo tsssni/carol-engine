@@ -128,7 +128,7 @@ void Carol::FramePass::Cull()
 
 	DrawHiZ();
 	CullMeshes(false);
-	DrawDepth(true);
+	DrawDepth(false);
 
 	mGlobalResources->Oitppll->Cull();
 }
@@ -186,6 +186,12 @@ void Carol::FramePass::InitShaders()
 	{
 		L"OCCLUSION=1"
 	};
+
+	vector<wstring> cullWriteDefines =
+	{
+		L"OCCLUSION=1",
+		L"WRITE=1"
+	};
 	
 	(*mGlobalResources->Shaders)[L"OpaqueStaticMS"] = make_unique<Shader>(L"shader\\default_ms.hlsl", staticDefines, L"main", L"ms_6_6");
 	(*mGlobalResources->Shaders)[L"OpaqueStaticPS"] = make_unique<Shader>(L"shader\\default_ps.hlsl", staticDefines, L"main", L"ps_6_6");
@@ -197,6 +203,7 @@ void Carol::FramePass::InitShaders()
 	(*mGlobalResources->Shaders)[L"HiZGenerateCS"] = make_unique<Shader>(L"shader\\hiz_generate_cs.hlsl", nullDefines, L"main", L"cs_6_6");
 	(*mGlobalResources->Shaders)[L"FrameCullCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", cullDefines, L"main", L"cs_6_6");
 	(*mGlobalResources->Shaders)[L"CullAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullDefines, L"main", L"as_6_6");
+	(*mGlobalResources->Shaders)[L"CullWriteAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullWriteDefines, L"main", L"as_6_6");
 	(*mGlobalResources->Shaders)[L"DepthStaticMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", nullDefines, L"main", L"ms_6_6");
 	(*mGlobalResources->Shaders)[L"DepthSkinnedMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
 }
@@ -204,7 +211,7 @@ void Carol::FramePass::InitShaders()
 void Carol::FramePass::InitPSOs()
 {
 	auto depthStaticPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
-	auto depthStaticAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
+	auto depthStaticAS = (*mGlobalResources->Shaders)[L"CullWriteAS"].get();
 	auto depthStaticMS = (*mGlobalResources->Shaders)[L"DepthStaticMS"].get();
 	depthStaticPsoDesc.AS = { reinterpret_cast<byte*>(depthStaticAS->GetBufferPointer()), depthStaticAS->GetBufferSize() };
 	depthStaticPsoDesc.MS = { reinterpret_cast<byte*>(depthStaticMS->GetBufferPointer()), depthStaticMS->GetBufferSize() };
@@ -214,10 +221,8 @@ void Carol::FramePass::InitPSOs()
     depthStaticStreamDesc.SizeInBytes = sizeof(DepthStaticPsoStream);
     ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&depthStaticStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"DepthStatic"].GetAddressOf())));
 
-	auto depthSkinnedPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
-	auto depthSkinnedAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
+	auto depthSkinnedPsoDesc = depthStaticPsoDesc;
 	auto depthSkinnedMS = (*mGlobalResources->Shaders)[L"DepthSkinnedMS"].get();
-	depthSkinnedPsoDesc.AS = { reinterpret_cast<byte*>(depthSkinnedAS->GetBufferPointer()), depthSkinnedAS->GetBufferSize() };
 	depthSkinnedPsoDesc.MS = { reinterpret_cast<byte*>(depthSkinnedMS->GetBufferPointer()), depthSkinnedMS->GetBufferSize() };
 	auto DepthSkinnedPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(depthSkinnedPsoDesc);
     D3D12_PIPELINE_STATE_STREAM_DESC depthSkinnedStreamDesc;

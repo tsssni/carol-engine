@@ -14,6 +14,9 @@ void main(
     
     if (dtid < gMeshletCount)
     {    
+#ifdef FRUSTUM_ONLY
+        visible = !GetMark(dtid, gMeshletFrustumCulledMarkBufferIdx);
+#else
         if(GetMark(dtid, gMeshletFrustumCulledMarkBufferIdx))
         {
             visible = false;
@@ -24,6 +27,7 @@ void main(
             visible = true;
         }
 #endif
+#ifdef WRITE
         else
         {    
 #ifdef SHADOW
@@ -37,7 +41,6 @@ void main(
             float4x4 occlusionWorldViewProj = mul(gIsHist ? gHistWorld : gWorld, gIsHist ? gHistViewProj : gViewProj);
 #endif
 #endif  
-
             StructuredBuffer<CullData> cullData = ResourceDescriptorHeap[gCullDataBufferIdx];
             CullData cd = cullData[dtid];
             
@@ -59,8 +62,11 @@ void main(
                 SetMark(dtid, gMeshletFrustumCulledMarkBufferIdx);
             }
         }
+#endif
+#endif
     }
-    
+
+#ifndef TRANSPARENT
     if (visible)
     {
         uint idx = WavePrefixCountBits(visible);
@@ -69,4 +75,7 @@ void main(
     
     uint visibleCount = WaveActiveCountBits(visible);
     DispatchMesh(visibleCount, 1, 1, sharedPayload);
+#else
+    DispatchMesh(0, 0, 0, sharedPayload);
+#endif
 }

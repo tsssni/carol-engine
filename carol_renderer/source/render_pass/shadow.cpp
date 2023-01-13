@@ -288,7 +288,8 @@ void Carol::ShadowPass::InitShaders()
 	vector<wstring> shadowCullDefines =
 	{
 		L"SHADOW=1",
-		L"OCCLUSION=1"
+		L"OCCLUSION=1",
+		L"WRITE=1"
 	};
 
 	(*mGlobalResources->Shaders)[L"ShadowCullCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", shadowCullDefines, L"main", L"cs_6_6");

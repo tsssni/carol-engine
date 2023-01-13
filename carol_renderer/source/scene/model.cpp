@@ -243,7 +243,7 @@ void Carol::Mesh::LoadCullData()
 
 void Carol::Mesh::InitCullMark()
 {
-	uint32_t byteSize = std::max((uint32_t)ceilf(mMeshlets.size() / 8.f), 8u);
+	uint32_t byteSize = ceilf(mMeshlets.size() / 8.f);
 
 	mMeshletFrustumCulledMarkBuffer = make_unique<RawBuffer>(
 		byteSize,
