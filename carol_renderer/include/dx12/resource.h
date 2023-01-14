@@ -36,18 +36,18 @@ namespace Carol
 		D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress();
 
 		void CopySubresources(
-			ID3D12GraphicsCommandList* cmdList,
 			Heap* intermediateHeap,
 			const void* data,
-			uint32_t byteSize
+			uint32_t byteSize,
+			D3D12_RESOURCE_STATES beforeState
 		);
 
 		void CopySubresources(
-			ID3D12GraphicsCommandList* cmdList,
 			Heap* intermediateHeap,
 			D3D12_SUBRESOURCE_DATA* subresources,
 			uint32_t firstSubresource,
-			uint32_t numSubresources
+			uint32_t numSubresources,
+			D3D12_RESOURCE_STATES beforeState
 		);
 
 		void CopyData(const void* data, uint32_t byteSize, uint32_t offset = 0);
@@ -66,7 +66,7 @@ namespace Carol
 	class Buffer
 	{
 	public:
-		Buffer(DescriptorManager* descriptorManager);
+		Buffer();
 		Buffer(Buffer&& buffer);
 		Buffer& operator=(Buffer&& buffer);
 		~Buffer();
@@ -76,18 +76,18 @@ namespace Carol
 		D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress();
 
 		void CopySubresources(
-			ID3D12GraphicsCommandList* cmdList,
 			Heap* intermediateHeap,
 			const void* data,
-			uint32_t byteSize
+			uint32_t byteSize,
+			D3D12_RESOURCE_STATES beforeState
 		);
 
 		void CopySubresources(
-			ID3D12GraphicsCommandList* cmdList,
 			Heap* intermediateHeap,
 			D3D12_SUBRESOURCE_DATA* subresources,
 			uint32_t firstSubresource,
-			uint32_t numSubresources
+			uint32_t numSubresources,
+			D3D12_RESOURCE_STATES beforeState
 		);
 
 		void CopyData(const void* data, uint32_t byteSize, uint32_t offset = 0);
@@ -117,8 +117,6 @@ namespace Carol
 
 		std::unique_ptr<Resource> mResource;
 		D3D12_RESOURCE_DESC mResourceDesc;
-
-		DescriptorManager* mDescriptorManager;
 
 		std::unique_ptr<DescriptorAllocInfo> mCpuSrvAllocInfo;
 		std::unique_ptr<DescriptorAllocInfo> mGpuSrvAllocInfo;
@@ -154,7 +152,6 @@ namespace Carol
 			ColorBufferViewDimension viewDimension,
 			DXGI_FORMAT format,
 			Heap* heap,
-			DescriptorManager* descriptorManager,
 			D3D12_RESOURCE_STATES initState,
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
 			D3D12_CLEAR_VALUE* optClearValue = nullptr,
@@ -196,18 +193,16 @@ namespace Carol
 			uint32_t numElements,
 			uint32_t elementSize,
 			Heap* heap,
-			DescriptorManager* descriptorManager,
 			D3D12_RESOURCE_STATES initState,
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
 			bool isConstant = false,
 			uint32_t viewNumElements = 0,
-			uint32_t firstElement = 0
-		);
+			uint32_t firstElement = 0);
 		StructuredBuffer(StructuredBuffer&& structuredBuffer);
 		StructuredBuffer& operator=(StructuredBuffer&& structuredBuffer);
 
 		static void InitCounterResetBuffer(Heap* heapManager);
-		void ResetCounter(ID3D12GraphicsCommandList* cmdList);
+		void ResetCounter();
 		void CopyElements(const void* data, uint32_t offset = 0, uint32_t numElements = 1);
 
 		uint32_t GetNumElements();
@@ -243,9 +238,7 @@ namespace Carol
 		FastConstantBufferAllocator(
 			uint32_t numElements,
 			uint32_t elementSize,
-			Heap* heap,
-			DescriptorManager* descriptorManager
-		);
+			Heap* heap);
 		FastConstantBufferAllocator(FastConstantBufferAllocator&& fastResourceAllocator);
 		FastConstantBufferAllocator& operator=(FastConstantBufferAllocator&& fastResourceAllocator);
 
@@ -262,7 +255,6 @@ namespace Carol
 		RawBuffer(
 			uint32_t byteSize,
 			Heap* heap,
-			DescriptorManager* descriptorManager,
 			D3D12_RESOURCE_STATES initState,
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE
 		);

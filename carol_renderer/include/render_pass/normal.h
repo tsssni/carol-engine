@@ -6,20 +6,18 @@
 
 namespace Carol
 {
-	class GlobalResources;
 	class ColorBuffer;
 
 	class NormalPass : public RenderPass
 	{
 	public:
-		NormalPass(GlobalResources* globalResources, DXGI_FORMAT normalMapFormat = DXGI_FORMAT_R8G8B8A8_SNORM);
+		NormalPass(DXGI_FORMAT normalMapFormat = DXGI_FORMAT_R8G8B8A8_SNORM);
 		NormalPass(const NormalPass&) = delete;
 		NormalPass(NormalPass&&) = delete;
 		NormalPass& operator=(const NormalPass&) = delete;
 
 		virtual void Draw()override;
 		virtual void Update()override;
-		virtual void OnResize()override;
 		virtual void ReleaseIntermediateBuffers()override;
 
 		uint32_t GetNormalSrvIdx();

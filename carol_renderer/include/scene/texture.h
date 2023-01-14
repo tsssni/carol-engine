@@ -9,13 +9,11 @@
 namespace Carol
 {
 	class ColorBuffer;
-	class HeapManager;
-	class DescriptorManager;
 	
 	class Texture
 	{
 	public:
-		Texture(std::wstring fileName, bool isSrgb, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* allocator);
+		Texture(std::wstring fileName, bool isSrgb);
 
 		uint32_t GetGpuSrvIdx(uint32_t planeSlice = 0);
 		void ReleaseIntermediateBuffer();
@@ -31,23 +29,17 @@ namespace Carol
 	class TextureManager
 	{
 	public:
-		TextureManager(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* allocator);
+		TextureManager();
 
 		uint32_t LoadTexture(const std::wstring& fileName, bool isSrgb = false);
 		void UnloadTexture(const std::wstring& fileName);
 		void ReleaseIntermediateBuffers(const std::wstring& fileName);
 
-		void DelayedDelete(uint32_t currFrame);
+		void DelayedDelete();
 
 	protected:
-		ID3D12Device* mDevice;
-		ID3D12GraphicsCommandList* mCommandList;
-		HeapManager* mHeapManager;
-		DescriptorManager* mDescriptorManager;
-
 		std::unordered_map<std::wstring, std::unique_ptr<Texture>> mTextures;
 		std::vector<std::vector<std::wstring>> mDeletedTextures;
-		uint32_t mCurrFrame;
 	};
 }
 

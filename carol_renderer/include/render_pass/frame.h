@@ -9,15 +9,14 @@
 
 namespace Carol
 {
-	class GlobalResources;
 	class ColorBuffer;
 	class StructuredBuffer;
+	class OitppllPass;
 
 	class FramePass :public RenderPass
 	{
 	public:
 		FramePass(
-			GlobalResources* globalResources,
 			DXGI_FORMAT frameFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
 			DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
 			DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
@@ -26,15 +25,16 @@ namespace Carol
 		FramePass(FramePass&&) = delete;
 		FramePass& operator=(const FramePass&) = delete;
 		
-		virtual void Draw()override;
+		void Draw(OitppllPass* oitppllPass);
 		virtual void Update()override;
-		virtual void OnResize()override;
 		virtual void ReleaseIntermediateBuffers()override;
 
 		void Cull();
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameRtv();
 		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameDsv();
+		DXGI_FORMAT GetFrameRtvFormat();
+		DXGI_FORMAT GetFrameDsvFormat();
 		StructuredBuffer* GetIndirectCommandBuffer(MeshType type);
 
 		uint32_t GetFrameSrvIdx();
@@ -43,6 +43,7 @@ namespace Carol
 		uint32_t GetHiZUavIdx();
 
 	protected:
+		virtual void Draw()override;
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
 		virtual void InitBuffers()override;
@@ -74,7 +75,6 @@ namespace Carol
             CULL_HIST,
             CULL_IDX_COUNT
         };
-
 
 		std::unique_ptr<ColorBuffer> mFrameMap;
 		std::unique_ptr<ColorBuffer> mDepthStencilMap;

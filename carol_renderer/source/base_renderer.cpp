@@ -1,11 +1,12 @@
 #include <base_renderer.h>
-#include <render_pass/global_resources.h>
 #include <render_pass/display.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <dx12/descriptor.h>
+#include <dx12/pipeline_state.h>
 #include <dx12/root_signature.h>
 #include <dx12/shader.h>
+#include <dx12/indirect_command.h>
 #include <scene/timer.h>
 #include <scene/camera.h>
 #include <scene/skinned_data.h>
@@ -15,11 +16,31 @@
 #include <DirectXMath.h>
 #include <memory>
 
-namespace Carol {
+namespace Carol
+{
+	using std::unique_ptr;
+	using std::unordered_map;
 	using std::vector;
 	using std::make_unique;
 	using std::to_wstring;
 	using Microsoft::WRL::ComPtr;
+
+	ComPtr<ID3D12Device> gDevice;
+	ComPtr<ID3D12CommandQueue> gCommandQueue;
+	ComPtr<ID3D12GraphicsCommandList> gCommandList;
+
+	unique_ptr<RootSignature> gRootSignature;
+	ComPtr<ID3D12CommandSignature> gCommandSignature;
+	
+	unique_ptr<HeapManager> gHeapManager;
+	unique_ptr<DescriptorManager> gDescriptorManager;
+
+	unordered_map<wstring, unique_ptr<Shader>> gShaders;
+	unordered_map<wstring, unique_ptr<PSO>> gPSOs;
+	std::unique_ptr<DisplayPass> gDisplayPass;
+
+	uint32_t gNumFrame;
+	uint32_t gCurrFrame;
 }
 
 float Carol::BaseRenderer::AspectRatio()
@@ -31,18 +52,16 @@ void Carol::BaseRenderer::InitTimer()
 {
 	mTimer = make_unique<Timer>();
 	mTimer->Reset();
-	mGlobalResources->Timer = mTimer.get();
 }
 
 void Carol::BaseRenderer::InitCamera()
 {
 	mCamera = make_unique<Camera>();
 	mCamera->SetPosition(0.0f, 5.0f, -5.0f);
-	mGlobalResources->Camera = mCamera.get();
 }
 
 Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
-	:mhWnd(hWnd),mGlobalResources(make_unique<GlobalResources>())
+	:mhWnd(hWnd)
 {
 	InitTimer();
 	InitCamera();
@@ -58,13 +77,12 @@ Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitCommandList();
 	InitCommandQueue();
 
+	InitRootSignature();
+	InitCommandSignature();
+
 	InitHeapManager();
 	InitDescriptorManager();	
-	InitRootSignature();
 	InitDisplay();
-	
-	InitShaders();
-	InitPSOs();
 }
 
 void Carol::BaseRenderer::CalcFrameState()
@@ -116,15 +134,14 @@ void Carol::BaseRenderer::InitDevice()
 {
 	ComPtr<ID3D12Device2> device;
 	ThrowIfFailed(D3D12CreateDevice(device.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(device.GetAddressOf())));
-
-	mGlobalResources->Device = device.Get();
-	mDevice = device;
+	
+	gDevice = device;
 }
 
 void Carol::BaseRenderer::InitFence()
 {
 	ComPtr<ID3D12Fence> fence;
-	ThrowIfFailed(mDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(fence.GetAddressOf())));
+	ThrowIfFailed(gDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(fence.GetAddressOf())));
 	mFence = fence;
 }
 
@@ -134,75 +151,74 @@ void Carol::BaseRenderer::InitCommandQueue()
 	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 
-	ThrowIfFailed(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(mCommandQueue.GetAddressOf())));
-	mGlobalResources->CommandQueue = mCommandQueue.Get();
+	ThrowIfFailed(gDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(gCommandQueue.GetAddressOf())));
 }
 
 void Carol::BaseRenderer::InitCommandAllocator()
 {
-	ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mInitCommandAllocator.GetAddressOf())));
+	ThrowIfFailed(gDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mInitCommandAllocator.GetAddressOf())));
 
-	mFrameAllocator.resize(mNumFrame);
-	for (int i = 0; i < mNumFrame; ++i)
+	gNumFrame = 3;
+	gCurrFrame = 0;
+
+	mFrameAllocator.resize(gNumFrame);
+	for (int i = 0; i < gNumFrame; ++i)
 	{
-		ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mFrameAllocator[i].GetAddressOf())));
+		ThrowIfFailed(gDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mFrameAllocator[i].GetAddressOf())));
 	}
-
-	mGlobalResources->NumFrame = mNumFrame;
-	mGlobalResources->CurrFrame = &mCurrFrame;
 }
 
 void Carol::BaseRenderer::InitCommandList()
 {
 	ComPtr<ID3D12GraphicsCommandList6> cmdList;
 
-	ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mInitCommandAllocator.Get(), nullptr, IID_PPV_ARGS(cmdList.GetAddressOf())));
+	ThrowIfFailed(gDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mInitCommandAllocator.Get(), nullptr, IID_PPV_ARGS(cmdList.GetAddressOf())));
 	cmdList->Close();
 
-	mGlobalResources->CommandList = cmdList.Get();
-	mCommandList = cmdList;
+	gCommandList = cmdList;
+}
+
+void Carol::BaseRenderer::InitCommandSignature()
+{
+	D3D12_INDIRECT_ARGUMENT_DESC argDesc[3];
+
+	argDesc[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW;
+	argDesc[0].ConstantBufferView.RootParameterIndex = MESH_CB;
+	
+	argDesc[1].Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW;
+	argDesc[1].ConstantBufferView.RootParameterIndex = SKINNED_CB;
+
+	argDesc[2].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
+	
+	D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc;
+	cmdSigDesc.pArgumentDescs = argDesc;
+	cmdSigDesc.NumArgumentDescs = _countof(argDesc);
+	cmdSigDesc.ByteStride = sizeof(IndirectCommand);
+	cmdSigDesc.NodeMask = 0;
+
+	ThrowIfFailed(gDevice->CreateCommandSignature(&cmdSigDesc, gRootSignature->Get(), IID_PPV_ARGS(gCommandSignature.GetAddressOf())));
 }
 
 void Carol::BaseRenderer::InitRootSignature()
 {
 	Shader::InitCompiler();
-	mRootSignature = make_unique<RootSignature>(mDevice.Get());
-	mGlobalResources->RootSignature = mRootSignature.get();
+	gRootSignature = make_unique<RootSignature>();
 }
 
 void Carol::BaseRenderer::InitHeapManager()
 {
-	mHeapManager = make_unique<HeapManager>(mDevice.Get());
-	mGlobalResources->HeapManager = mHeapManager.get();
-	StructuredBuffer::InitCounterResetBuffer(mHeapManager->GetUploadBuffersHeap());
+	gHeapManager = make_unique<HeapManager>();
+	StructuredBuffer::InitCounterResetBuffer(gHeapManager->GetUploadBuffersHeap());
 }
 
 void Carol::BaseRenderer::InitDescriptorManager()
 {
-	mDescriptorManager = make_unique<DescriptorManager>(mDevice.Get());
-	mGlobalResources->DescriptorManager = mDescriptorManager.get();
+	gDescriptorManager = make_unique<DescriptorManager>();
 }
 
 void Carol::BaseRenderer::InitDisplay()
 {
-	mGlobalResources->ScreenViewport = &mScreenViewport;
-	mGlobalResources->ScissorRect = &mScissorRect;
-	
-	mGlobalResources->ClientWidth = &mClientWidth;
-	mGlobalResources->ClientHeight = &mClientHeight;
-
-	mDisplay=make_unique<Display>(mGlobalResources.get(), mhWnd, mDxgiFactory.Get(), mClientWidth, mClientHeight, 2);
-	mGlobalResources->Display = mDisplay.get();
-}
-
-void Carol::BaseRenderer::InitShaders()
-{
-	mGlobalResources->Shaders = &mShaders;
-}
-
-void Carol::BaseRenderer::InitPSOs()
-{
-	mGlobalResources->PSOs = &mPSOs;
+	gDisplayPass = make_unique<DisplayPass>(mhWnd, mDxgiFactory.Get(), mClientWidth, mClientHeight, 2);
 }
 
 void Carol::BaseRenderer::Tick()
@@ -230,18 +246,9 @@ void Carol::BaseRenderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mClientWidth = width;
 	mClientHeight = height;
 
-	mScreenViewport.TopLeftX = 0;
-	mScreenViewport.TopLeftY = 0;
-	mScreenViewport.Width = static_cast<float>(mClientWidth);
-	mScreenViewport.Height = static_cast<float>(mClientHeight);
-	mScreenViewport.MinDepth = 0.0f;
-	mScreenViewport.MaxDepth = 1.0f;
-
-	mScissorRect = { 0, 0, (int)mClientWidth, (int)mClientHeight };
-
 	mTimer->Start();
 	mCamera->SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 1000.0f);
-	mDisplay->OnResize();
+	gDisplayPass->OnResize(mClientWidth, mClientHeight);
 }
 
 void Carol::BaseRenderer::SetPaused(bool state)
@@ -287,7 +294,7 @@ bool Carol::BaseRenderer::Resizing()
 void Carol::BaseRenderer::FlushCommandQueue()
 {
 	++mCpuFence;
-	ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFence));
+	ThrowIfFailed(gCommandQueue->Signal(mFence.Get(), mCpuFence));
 
 	if (mFence->GetCompletedValue() < mCpuFence)
 	{

@@ -18,16 +18,12 @@ namespace Carol
 	{
 	public:
 		AssimpModel();
-	    AssimpModel(
+		AssimpModel(
 			SceneNode* rootNode,
 			std::wstring path,
 			std::wstring textureDir,
 			TextureManager* texManager,
-			bool isSkinned,
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			HeapManager* heapManager,
-			DescriptorManager* descriptorManager);
+			bool isSkinned);
 		AssimpModel(const AssimpModel&) = delete;
 		AssimpModel(AssimpModel&&) = delete;
 		AssimpModel& operator=(const AssimpModel&) = delete;

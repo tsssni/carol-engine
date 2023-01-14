@@ -6,7 +6,6 @@
 
 namespace Carol
 {
-	class GlobalResources;
 	class StructuredBuffer;
 	class RawBuffer;
 
@@ -21,12 +20,11 @@ namespace Carol
 	class OitppllPass : public RenderPass
 	{
 	public:
-		OitppllPass(GlobalResources* globalResources, DXGI_FORMAT outputFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
+		OitppllPass(DXGI_FORMAT outputFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
 	
-		virtual void Draw();
-		virtual void Update();
-		virtual void OnResize();
-		virtual void ReleaseIntermediateBuffers();
+		virtual void Draw()override;
+		virtual void Update()override;
+		virtual void ReleaseIntermediateBuffers()override;
 
 		void Cull();
 		

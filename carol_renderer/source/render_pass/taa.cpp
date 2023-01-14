@@ -1,17 +1,18 @@
 #include <render_pass/taa.h>
-#include <render_pass/global_resources.h>
+#include <global.h>
 #include <render_pass/display.h>
 #include <render_pass/frame.h>
 #include <render_pass/shadow.h>
 #include <render_pass/oitppll.h>
 #include <render_pass/ssao.h>
-#include <render_pass/mesh.h>
+#include <render_pass/scene.h>
 #include <dx12/heap.h>
 #include <dx12/resource.h>
 #include <dx12/shader.h>
 #include <dx12/sampler.h>
 #include <dx12/descriptor.h>
 #include <dx12/root_signature.h>
+#include <dx12/pipeline_state.h>
 #include <utils/common.h>
 #include <DirectXColors.h>
 #include <cmath>
@@ -20,14 +21,13 @@ namespace Carol {
 	using std::vector;
 	using std::wstring;
 	using std::make_unique;
+	using Microsoft::WRL::ComPtr;
 }
 
 Carol::TaaPass::TaaPass(
-	GlobalResources* globalResources,
 	DXGI_FORMAT velocityMapFormat,
 	DXGI_FORMAT frameFormat)
-	:RenderPass(globalResources),
-	 mVelocityMapFormat(velocityMapFormat),
+	 :mVelocityMapFormat(velocityMapFormat),
 	 mFrameFormat(frameFormat)
 {
 	InitHalton();
@@ -37,20 +37,6 @@ Carol::TaaPass::TaaPass(
 
 void Carol::TaaPass::Update()
 {
-}
-
-void Carol::TaaPass::OnResize()
-{
-	static uint32_t width = 0;
-	static uint32_t height = 0;
-
-	if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
-	{
-		width = *mGlobalResources->ClientWidth;
-		height = *mGlobalResources->ClientHeight;
-
-		InitBuffers();
-	}
 }
 
 void Carol::TaaPass::ReleaseIntermediateBuffers()
@@ -66,52 +52,37 @@ void Carol::TaaPass::InitShaders()
 		L"SKINNED=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"TaaVelocityStaticMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", nullDefines, L"main", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"TaaVelocityStaticPS"] = make_unique<Shader>(L"shader\\velocity_ps.hlsl", nullDefines, L"main", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"TaaVelocitySkinnedMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"TaaVelocitySkinnedPS"] = make_unique<Shader>(L"shader\\velocity_ps.hlsl", skinnedDefines, L"main", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"TaaOutputPS"] = make_unique<Shader>(L"shader\\taa_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+	gShaders[L"TaaVelocityStaticMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+	gShaders[L"TaaVelocityPS"] = make_unique<Shader>(L"shader\\velocity_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+	gShaders[L"TaaVelocitySkinnedMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+	gShaders[L"TaaOutputPS"] = make_unique<Shader>(L"shader\\taa_ps.hlsl", nullDefines, L"main", L"ps_6_6");
 }
 
 void Carol::TaaPass::InitPSOs()
 {
-	auto velocityStaticPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
-	auto velocityStaticAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
-	auto velocityStaticMS = (*mGlobalResources->Shaders)[L"TaaVelocityStaticMS"].get();
-	auto velocityStaticPS = (*mGlobalResources->Shaders)[L"TaaVelocityStaticPS"].get();
-	velocityStaticPsoDesc.AS = { reinterpret_cast<byte*>(velocityStaticAS->GetBufferPointer()),velocityStaticAS->GetBufferSize() };
-	velocityStaticPsoDesc.MS = { reinterpret_cast<byte*>(velocityStaticMS->GetBufferPointer()),velocityStaticMS->GetBufferSize() };
-	velocityStaticPsoDesc.PS = { reinterpret_cast<byte*>(velocityStaticPS->GetBufferPointer()),velocityStaticPS->GetBufferSize() };
-	velocityStaticPsoDesc.RTVFormats[0] = mVelocityMapFormat;
-	auto velocityStaticPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(velocityStaticPsoDesc);
-    D3D12_PIPELINE_STATE_STREAM_DESC velocityStaticStreamDesc;
-    velocityStaticStreamDesc.pPipelineStateSubobjectStream = &velocityStaticPsoStream;
-    velocityStaticStreamDesc.SizeInBytes = sizeof(velocityStaticPsoStream);
-    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&velocityStaticStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"VelocityStatic"].GetAddressOf())));
+	auto velocityStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	velocityStaticMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, gFramePass->GetFrameDsvFormat());
+	velocityStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
+	velocityStaticMeshPSO->SetMS(gShaders[L"TaaVelocityStaticMS"].get());
+	velocityStaticMeshPSO->SetPS(gShaders[L"TaaVelocityPS"].get());
+	velocityStaticMeshPSO->Finalize();
+	gPSOs[L"VelocityStatic"] = std::move(velocityStaticMeshPSO);
 
-	auto velocitySkinnedPsoDesc = velocityStaticPsoDesc;
-	auto velocitySkinnedMS = (*mGlobalResources->Shaders)[L"TaaVelocitySkinnedMS"].get();
-	auto velocitySkinnedPS = (*mGlobalResources->Shaders)[L"TaaVelocitySkinnedPS"].get();
-	velocitySkinnedPsoDesc.MS = { reinterpret_cast<byte*>(velocitySkinnedMS->GetBufferPointer()),velocitySkinnedMS->GetBufferSize() };
-	velocitySkinnedPsoDesc.PS = { reinterpret_cast<byte*>(velocitySkinnedPS->GetBufferPointer()),velocitySkinnedPS->GetBufferSize() };
-	auto velocitySkinnedPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(velocitySkinnedPsoDesc);
-    D3D12_PIPELINE_STATE_STREAM_DESC velocitySkinnedStreamDesc;
-    velocitySkinnedStreamDesc.pPipelineStateSubobjectStream = &velocitySkinnedPsoStream;
-    velocitySkinnedStreamDesc.SizeInBytes = sizeof(velocitySkinnedPsoStream);
-    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&velocitySkinnedStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"VelocitySkinned"].GetAddressOf())));
+	auto velocitySkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	velocitySkinnedMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, gFramePass->GetFrameDsvFormat());
+	velocitySkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
+	velocitySkinnedMeshPSO->SetMS(gShaders[L"TaaVelocitySkinnedMS"].get());
+	velocitySkinnedMeshPSO->SetPS(gShaders[L"TaaVelocityPS"].get());
+	velocitySkinnedMeshPSO->Finalize();
+	gPSOs[L"VelocitySkinned"] = std::move(velocitySkinnedMeshPSO);
 
-	auto outputPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
-	auto outputMS = (*mGlobalResources->Shaders)[L"ScreenMS"].get();
-	auto outputPS = (*mGlobalResources->Shaders)[L"TaaOutputPS"].get();
-	outputPsoDesc.MS = { reinterpret_cast<byte*>(outputMS->GetBufferPointer()),outputMS->GetBufferSize() };
-	outputPsoDesc.PS = { reinterpret_cast<byte*>(outputPS->GetBufferPointer()),outputPS->GetBufferSize() };
-	outputPsoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
-	outputPsoDesc.DepthStencilState.DepthEnable = false;
-	auto outputPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(outputPsoDesc);
-    D3D12_PIPELINE_STATE_STREAM_DESC outputStreamDesc;
-    outputStreamDesc.pPipelineStateSubobjectStream = &outputPsoStream;
-    outputStreamDesc.SizeInBytes = sizeof(outputPsoStream);
-    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&outputStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"TaaOutput"].GetAddressOf())));
+	auto outputMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	outputMeshPSO->SetDepthStencilState(gDepthDisabledState);
+	outputMeshPSO->SetRenderTargetFormat(gFramePass->GetFrameRtvFormat());
+	outputMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
+	outputMeshPSO->SetPS(gShaders[L"TaaOutputPS"].get());
+	outputMeshPSO->Finalize();
+	gPSOs[L"TaaOutput"] = std::move(outputMeshPSO);
 }
 
 void Carol::TaaPass::Draw()
@@ -122,41 +93,44 @@ void Carol::TaaPass::Draw()
 
 void Carol::TaaPass::DrawVelocityMap()
 {
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mVelocityMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-	mGlobalResources->CommandList->ClearRenderTargetView(mVelocityMap->GetRtv(), DirectX::Colors::Black, 0, nullptr);
-	mGlobalResources->CommandList->ClearDepthStencilView(mGlobalResources->Frame->GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mVelocityMap->GetRtv()), true, GetRvaluePtr(mGlobalResources->Frame->GetFrameDsv()));
+	gCommandList->RSSetViewports(1, &mViewport);
+	gCommandList->RSSetScissorRects(1, &mScissorRect);
 
-	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"VelocityStatic"].Get());
-	mGlobalResources->Meshes->ExecuteIndirect(mGlobalResources->Frame->GetIndirectCommandBuffer(OPAQUE_STATIC));
+	gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mVelocityMap->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)));
+	gCommandList->ClearRenderTargetView(mVelocityMap->GetRtv(), DirectX::Colors::Black, 0, nullptr);
+	gCommandList->ClearDepthStencilView(gFramePass->GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+	gCommandList->OMSetRenderTargets(1, GetRvaluePtr(mVelocityMap->GetRtv()), true, GetRvaluePtr(gFramePass->GetFrameDsv()));
 
-	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"VelocitySkinned"].Get());
-	mGlobalResources->Meshes->ExecuteIndirect(mGlobalResources->Frame->GetIndirectCommandBuffer(OPAQUE_SKINNED));
+	gCommandList->SetPipelineState(gPSOs[L"VelocityStatic"]->Get());
+	gScene->ExecuteIndirect(gFramePass->GetIndirectCommandBuffer(OPAQUE_STATIC));
 
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mVelocityMap->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_GENERIC_READ)));
+	gCommandList->SetPipelineState(gPSOs[L"VelocitySkinned"]->Get());
+	gScene->ExecuteIndirect(gFramePass->GetIndirectCommandBuffer(OPAQUE_SKINNED));
+
+	gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mVelocityMap->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
 void Carol::TaaPass::DrawOutput()
 {
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mGlobalResources->Display->GetCurrBackBuffer()->Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-	mGlobalResources->CommandList->ClearRenderTargetView(mGlobalResources->Display->GetCurrBackBufferRtv(), DirectX::Colors::Gray, 0, nullptr);
-	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(mGlobalResources->Display->GetCurrBackBufferRtv()), true, nullptr);
-	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"TaaOutput"].Get());
-	mGlobalResources->CommandList->DispatchMesh(1, 1, 1);
+	gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(gDisplayPass->GetCurrBackBuffer()->Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET)));
+	gCommandList->ClearRenderTargetView(gDisplayPass->GetCurrBackBufferRtv(), DirectX::Colors::Gray, 0, nullptr);
+	gCommandList->OMSetRenderTargets(1, GetRvaluePtr(gDisplayPass->GetCurrBackBufferRtv()), true, nullptr);
+	gCommandList->SetPipelineState(gPSOs[L"TaaOutput"]->Get());
+	static_cast<ID3D12GraphicsCommandList6*>(gCommandList.Get())->DispatchMesh(1, 1, 1);
 
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mHistFrameMap->Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_COPY_DEST)));
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mGlobalResources->Display->GetCurrBackBuffer()->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE)));
-	mGlobalResources->CommandList->CopyResource(mHistFrameMap->Get(), mGlobalResources->Display->GetCurrBackBuffer()->Get());
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mHistFrameMap->Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ)));
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mGlobalResources->Display->GetCurrBackBuffer()->Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PRESENT)));
+	gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mHistFrameMap->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST)));
+	gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(gDisplayPass->GetCurrBackBuffer()->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE)));
+	gCommandList->CopyResource(mHistFrameMap->Get(), gDisplayPass->GetCurrBackBuffer()->Get());
+	gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mHistFrameMap->Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+	gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(gDisplayPass->GetCurrBackBuffer()->Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PRESENT)));
 }
 
 void Carol::TaaPass::GetHalton(float& proj0, float& proj1)
 {
 	static int i = 0;
 
-	proj0 = (2 * mHalton[i].x - 1) / (*mGlobalResources->ClientWidth);
-	proj1 = (2 * mHalton[i].y - 1) / (*mGlobalResources->ClientHeight);
+	proj0 = (2 * mHalton[i].x - 1) / mWidth;
+	proj1 = (2 * mHalton[i].y - 1) / mHeight;
 
 	i = (i + 1) % 8;
 }
@@ -183,29 +157,24 @@ uint32_t Carol::TaaPass::GetHistFrameSrvIdx()
 
 void Carol::TaaPass::InitBuffers()
 {
-	uint32_t width = *mGlobalResources->ClientWidth;
-	uint32_t height = *mGlobalResources->ClientHeight;
-
 	mHistFrameMap = make_unique<ColorBuffer>(
-		width,
-		height,
+		mWidth,
+		mHeight,
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mFrameFormat,
-		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
-		mGlobalResources->DescriptorManager,
-		D3D12_RESOURCE_STATE_GENERIC_READ);
+		gHeapManager->GetDefaultBuffersHeap(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	
 	D3D12_CLEAR_VALUE optClearValue = CD3DX12_CLEAR_VALUE(mVelocityMapFormat, DirectX::Colors::Black);
 	mVelocityMap = make_unique<ColorBuffer>(
-		width,
-		height,
+		mWidth,
+		mHeight,
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mVelocityMapFormat,
-		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
-		mGlobalResources->DescriptorManager,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		gHeapManager->GetDefaultBuffersHeap(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
 		&optClearValue);
 }

@@ -7,14 +7,12 @@
 
 namespace Carol
 {
-	class GlobalResources;
 	class ColorBuffer;
 
 	class SsaoPass : public RenderPass
 	{
 	public:
 		SsaoPass(
-			GlobalResources* globalResources,
 			uint32_t blurCount = 3,
 			DXGI_FORMAT ambientMapFormat = DXGI_FORMAT_R16_UNORM);
 		SsaoPass(const SsaoPass&) = delete;
@@ -23,7 +21,6 @@ namespace Carol
 
 		virtual void Draw()override;
 		virtual void Update()override;
-		virtual void OnResize()override;
 		virtual void ReleaseIntermediateBuffers()override;
 
 		void SetBlurCount(uint32_t blurCout);

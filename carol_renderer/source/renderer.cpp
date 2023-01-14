@@ -1,5 +1,4 @@
 #include <renderer.h>
-#include <render_pass/global_resources.h>
 #include <render_pass/display.h>
 #include <render_pass/frame.h>
 #include <render_pass/ssao.h>
@@ -7,18 +6,18 @@
 #include <render_pass/taa.h>
 #include <render_pass/shadow.h>
 #include <render_pass/oitppll.h>
-#include <render_pass/mesh.h>
+#include <render_pass/scene.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <dx12/descriptor.h>
 #include <dx12/root_signature.h>
 #include <dx12/shader.h>
-#include <scene/scene.h>
 #include <scene/assimp.h>
 #include <scene/texture.h>
 #include <scene/timer.h>
 #include <scene/camera.h>
 #include <scene/skinned_data.h>
+#include <scene/scene_node.h>
 #include <utils/bitset.h>
 #include <utils/buddy.h>
 #include <utils/common.h>
@@ -30,20 +29,30 @@ namespace Carol {
 	using std::unique_ptr;
 	using std::make_unique;
 	using namespace DirectX;
+
+	unique_ptr<Scene> gScene;
+	unique_ptr<FramePass> gFramePass;
+
+	D3D12_RASTERIZER_DESC gCullDisabledState;
+
+	D3D12_DEPTH_STENCIL_DESC gDepthLessEqualState;
+	D3D12_DEPTH_STENCIL_DESC gDepthDisabledState;
+
+	D3D12_BLEND_DESC gAlphaBlendState;
+
 }
 
 Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	:BaseRenderer(hWnd, width, height)
 {
 	ThrowIfFailed(mInitCommandAllocator->Reset());
-	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
+	ThrowIfFailed(gCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
 	
 	InitConstants();
-	InitPSOs();
+	InitPipelineStates();
 	InitFrame();
 	InitNormal();
 	InitMainLight();
-	InitOitppll();
 	InitSsao();
 	InitTaa();
 	InitMeshes();
@@ -54,58 +63,52 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 void Carol::Renderer::InitConstants()
 {
 	mFrameConstants = make_unique<FrameConstants>();
-	mFrameCBAllocator = make_unique<FastConstantBufferAllocator>(mNumFrame, sizeof(FrameConstants), mHeapManager->GetUploadBuffersHeap(), mDescriptorManager.get());
+	mFrameCBAllocator = make_unique<FastConstantBufferAllocator>(gNumFrame, sizeof(FrameConstants), gHeapManager->GetUploadBuffersHeap());
 }
 
-void Carol::Renderer::InitPSOs()
+void Carol::Renderer::InitPipelineStates()
 {
-	BaseRenderer::InitPSOs();
+	gCullDisabledState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	gCullDisabledState.CullMode = D3D12_CULL_MODE_NONE;
 
-	mBaseGraphicsPsoDesc.pRootSignature = mRootSignature->Get();
-	mBaseGraphicsPsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	mBaseGraphicsPsoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	mBaseGraphicsPsoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	mBaseGraphicsPsoDesc.SampleMask = UINT_MAX;
-	mBaseGraphicsPsoDesc.NodeMask = 0;
-	mBaseGraphicsPsoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-	mBaseGraphicsPsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	mBaseGraphicsPsoDesc.NumRenderTargets = 1;
-	mBaseGraphicsPsoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-	mBaseGraphicsPsoDesc.SampleDesc.Count = 1;
-	mBaseGraphicsPsoDesc.SampleDesc.Quality = 0;
-	mBaseGraphicsPsoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	gDepthDisabledState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	gDepthDisabledState.DepthEnable = false;
 
-	mGlobalResources->BaseGraphicsPsoDesc = &mBaseGraphicsPsoDesc;
+	gDepthLessEqualState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	gDepthLessEqualState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
-	mBaseComputePsoDesc.pRootSignature = mRootSignature->Get();
-	mBaseComputePsoDesc.NodeMask = 0;
-	mBaseComputePsoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
-
-	mGlobalResources->BaseComputePsoDesc = &mBaseComputePsoDesc;
+	gAlphaBlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	gAlphaBlendState.RenderTarget[0].BlendEnable = true;
+	gAlphaBlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	gAlphaBlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	gAlphaBlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	gAlphaBlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	gAlphaBlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ZERO;
+	gAlphaBlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+	gAlphaBlendState.RenderTarget[0].LogicOpEnable = false;
+	gAlphaBlendState.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
+	gAlphaBlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 }
 
 void Carol::Renderer::InitFrame()
 {
-	mFrame = make_unique<FramePass>(mGlobalResources.get());
-	mGlobalResources->Frame = mFrame.get();
+	gFramePass = make_unique<FramePass>();
+	mOitppll = make_unique<OitppllPass>();
 }
 
 void Carol::Renderer::InitSsao()
 {
-	mSsao = make_unique<SsaoPass>(mGlobalResources.get());
-	mGlobalResources->Ssao = mSsao.get();
+	mSsao = make_unique<SsaoPass>();
 }
 
 void Carol::Renderer::InitNormal()
 {
-	mNormal = make_unique<NormalPass>(mGlobalResources.get());
-	mGlobalResources->Normal = mNormal.get();
+	mNormal = make_unique<NormalPass>();
 }
 
 void Carol::Renderer::InitTaa()
 {
-	mTaa = make_unique<TaaPass>(mGlobalResources.get());
-	mGlobalResources->Taa = mTaa.get();
+	mTaa = make_unique<TaaPass>();
 }
 
 void Carol::Renderer::InitMainLight()
@@ -113,26 +116,15 @@ void Carol::Renderer::InitMainLight()
 	Light light = {};
 	light.Direction = { 0.8f,-1.0f,1.0f };
 	light.Strength = { 0.8f,0.8f,0.8f };
-	mMainLight = make_unique<ShadowPass>(mGlobalResources.get(), light, 2048, 2048);
-	mGlobalResources->MainLight = mMainLight.get();
-}
-
-void Carol::Renderer::InitOitppll()
-{
-	mOitppll = make_unique<OitppllPass>(mGlobalResources.get());
-	mGlobalResources->Oitppll = mOitppll.get();
+	mMainLight = make_unique<ShadowPass>(light, 2048, 2048);
 }
 
 void Carol::Renderer::InitMeshes()
 {
-	mMeshes = make_unique<MeshesPass>(mGlobalResources.get());
-	mScene = make_unique<Scene>(L"Test", mDevice.Get(), mCommandList.Get(), mHeapManager.get(), mDescriptorManager.get());
+	gScene = make_unique<Scene>(L"Test");
 	
-	mScene->LoadGround();
-	mScene->LoadSkyBox();
-
-	mGlobalResources->Meshes = mMeshes.get();
-	mGlobalResources->Scene = mScene.get();
+	gScene->LoadGround();
+	gScene->LoadSkyBox();
 }
 
 void Carol::Renderer::UpdateFrameCB()
@@ -187,51 +179,52 @@ void Carol::Renderer::UpdateFrameCB()
     mFrameConstants->BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
 
 	mFrameConstants->Lights[0] = mMainLight->GetLight();
-	mFrameConstants->MeshCBIdx = mMeshes->GetMeshCBIdx();
+	mFrameConstants->MeshCBIdx = gScene->GetMeshCBIdx();
 
 	mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
 }
 
 void Carol::Renderer::DelayedDelete()
 {
-	mScene->DelayedDelete(mCurrFrame);
-	mHeapManager->DelayedDelete(mCurrFrame);
-	mDescriptorManager->DelayedDelete(mCurrFrame);
+	gScene->DelayedDelete();
+	gHeapManager->DelayedDelete();
+	gDescriptorManager->DelayedDelete();
 }
 
 void Carol::Renderer::ReleaseIntermediateBuffers()
 {
-	mScene->ReleaseIntermediateBuffers();
+	gScene->ReleaseIntermediateBuffers();
 	mSsao->ReleaseIntermediateBuffers();
 }
 
 void Carol::Renderer::Draw()
 {	
-	ID3D12DescriptorHeap* descriptorHeaps[] = {mDescriptorManager->GetResourceDescriptorHeap()};
-	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	ID3D12DescriptorHeap* descriptorHeaps[] = {gDescriptorManager->GetResourceDescriptorHeap()};
+	gCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-	mCommandList->SetGraphicsRootSignature(mRootSignature->Get());
-	mCommandList->SetComputeRootSignature(mRootSignature->Get());
+	gCommandList->SetGraphicsRootSignature(gRootSignature->Get());
+	gCommandList->SetComputeRootSignature(gRootSignature->Get());
 
-	mCommandList->SetGraphicsRootConstantBufferView(FRAME_CB, mFrameCBAddr);
-	mCommandList->SetComputeRootConstantBufferView(FRAME_CB, mFrameCBAddr);
+	gCommandList->SetGraphicsRootConstantBufferView(FRAME_CB, mFrameCBAddr);
+	gCommandList->SetComputeRootConstantBufferView(FRAME_CB, mFrameCBAddr);
 
 	mMainLight->Draw();
-	mFrame->Cull();
+	gFramePass->Cull();
+	mOitppll->Cull();
 	mNormal->Draw();
 	mSsao->Draw();
-	mFrame->Draw();
+	gFramePass->Draw(mOitppll.get());
 	mTaa->Draw();
 	
-	mCommandList->Close();
-	vector<ID3D12CommandList*> cmdLists{ mCommandList.Get()};
-	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
+	gCommandList->Close();
+	vector<ID3D12CommandList*> cmdLists{ gCommandList.Get()};
+	gCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 
-	mDisplay->Present();
-	mGpuFence[mCurrFrame] = ++mCpuFence;
-	ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFence));
+	gDisplayPass->Present();
+	mGpuFence[gCurrFrame] = ++mCpuFence;
+	ThrowIfFailed(gCommandQueue->Signal(mFence.Get(), mCpuFence));
 
-	mCurrFrame = (mCurrFrame + 1) % mNumFrame;
+	gCurrFrame = (gCurrFrame + 1) % gNumFrame;
 }
 
 void Carol::Renderer::OnMouseDown(WPARAM btnState, int x, int y)
@@ -284,23 +277,23 @@ void Carol::Renderer::Update()
 {
 	OnKeyboardInput();
 
-	if (mGpuFence[mCurrFrame] != 0 && mFence->GetCompletedValue() < mGpuFence[mCurrFrame])
+	if (mGpuFence[gCurrFrame] != 0 && mFence->GetCompletedValue() < mGpuFence[gCurrFrame])
 	{
 		HANDLE eventHandle = CreateEventEx(nullptr, LPCWSTR(nullptr), 0, EVENT_ALL_ACCESS);
-		ThrowIfFailed(mFence->SetEventOnCompletion(mGpuFence[mCurrFrame], eventHandle));
+		ThrowIfFailed(mFence->SetEventOnCompletion(mGpuFence[gCurrFrame], eventHandle));
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
 
-	ThrowIfFailed(mFrameAllocator[mCurrFrame]->Reset());
-	ThrowIfFailed(mCommandList->Reset(mFrameAllocator[mCurrFrame].Get(), nullptr));
+	ThrowIfFailed(mFrameAllocator[gCurrFrame]->Reset());
+	ThrowIfFailed(gCommandList->Reset(mFrameAllocator[gCurrFrame].Get(), nullptr));
 	
 	DelayedDelete();
-	mScene->Update(mCamera.get(), mTimer.get());
-	mMeshes->Update();
+	gScene->Update(mCamera.get(), mTimer.get());
 	mMainLight->Update();
 	mSsao->Update();
-	mFrame->Update();
+	gFramePass->Update();
+	mOitppll->Update();
 	UpdateFrameCB();
 }
 
@@ -309,23 +302,23 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	if (!init)
 	{
 		ThrowIfFailed(mInitCommandAllocator->Reset());
-		ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
+		ThrowIfFailed(gCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
 	}
 
 	BaseRenderer::OnResize(width, height);
-	mFrame->OnResize();
-	mNormal->OnResize();
-	mSsao->OnResize();
-	mTaa->OnResize();
-	mOitppll->OnResize();
+	gFramePass->OnResize(width, height);
+	mNormal->OnResize(width, height);
+	mSsao->OnResize(width, height);
+	mTaa->OnResize(width, height);
+	mOitppll->OnResize(width, height);
 
-	mFrameConstants->MeshCBIdx = mMeshes->GetMeshCBIdx();
-	mFrameConstants->CommandBufferIdx = mMeshes->GetCommandBufferIdx();
-	mFrameConstants->InstanceFrustumCulledMarkIdx = mMeshes->GetInstanceFrustumCulledMarkBufferIdx();
-	mFrameConstants->InstanceOcclusionPassedMarkIdx = mMeshes->GetInstanceOcclusionPassedMarkBufferIdx();
+	mFrameConstants->MeshCBIdx = gScene->GetMeshCBIdx();
+	mFrameConstants->CommandBufferIdx = gScene->GetCommandBufferIdx();
+	mFrameConstants->InstanceFrustumCulledMarkIdx = gScene->GetInstanceFrustumCulledMarkBufferIdx();
+	mFrameConstants->InstanceOcclusionPassedMarkIdx = gScene->GetInstanceOcclusionPassedMarkBufferIdx();
 	
-	mFrameConstants->FrameMapIdx = mFrame->GetFrameSrvIdx();
-	mFrameConstants->DepthStencilMapIdx = mFrame->GetDepthStencilSrvIdx();
+	mFrameConstants->FrameMapIdx = gFramePass->GetFrameSrvIdx();
+	mFrameConstants->DepthStencilMapIdx = gFramePass->GetDepthStencilSrvIdx();
 	mFrameConstants->NormalMapIdx = mNormal->GetNormalSrvIdx();
 	mFrameConstants->MainLightShadowMapIdx = mMainLight->GetShadowSrvIdx();
 	mFrameConstants->OitBufferWIdx = mOitppll->GetPpllUavIdx();
@@ -338,45 +331,45 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mFrameConstants->VelocityMapIdx = mTaa->GetVeloctiySrvIdx();
 	mFrameConstants->HistFrameMapIdx = mTaa->GetHistFrameSrvIdx();
 
-	mCommandList->Close();
-	vector<ID3D12CommandList*> cmdLists{ mCommandList.Get()};
-	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
+	gCommandList->Close();
+	vector<ID3D12CommandList*> cmdLists{ gCommandList.Get()};
+	gCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 	FlushCommandQueue();
 }
 
 void Carol::Renderer::LoadModel(wstring path, wstring textureDir, wstring modelName, DirectX::XMMATRIX world, bool isSkinned)
 {
 	ThrowIfFailed(mInitCommandAllocator->Reset());
-	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
+	ThrowIfFailed(gCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
 
-	mScene->LoadModel(modelName, path, textureDir, isSkinned);
-	mScene->SetWorld(modelName, world);
+	gScene->LoadModel(modelName, path, textureDir, isSkinned);
+	gScene->SetWorld(modelName, world);
 
-	mCommandList->Close();
-	vector<ID3D12CommandList*> cmdLists = { mCommandList.Get() };
-	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
+	gCommandList->Close();
+	vector<ID3D12CommandList*> cmdLists = { gCommandList.Get() };
+	gCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 	FlushCommandQueue();
 	
-	mScene->ReleaseIntermediateBuffers(modelName);
+	gScene->ReleaseIntermediateBuffers(modelName);
 }
 
 void Carol::Renderer::UnloadModel(wstring modelName)
 {
 	FlushCommandQueue();
-	mScene->UnloadModel(modelName);
+	gScene->UnloadModel(modelName);
 }
 
 Carol::vector<wstring> Carol::Renderer::GetAnimationNames(wstring modelName)
 {
-	return mScene->GetAnimationClips(modelName);
+	return gScene->GetAnimationClips(modelName);
 }
 
 void Carol::Renderer::SetAnimation(wstring modelName, wstring animationName)
 {
-	mScene->SetAnimationClip(modelName, animationName);
+	gScene->SetAnimationClip(modelName, animationName);
 }
 
 Carol::vector<wstring> Carol::Renderer::GetModelNames()
 {
-	return mScene->GetModelNames();
+	return gScene->GetModelNames();
 }

@@ -24,21 +24,19 @@ namespace Carol
 	class Heap
 	{
 	public:
-		Heap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag);
+		Heap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag);
 		virtual void CreateResource(Microsoft::WRL::ComPtr<ID3D12Resource>* resource, D3D12_RESOURCE_DESC* desc, HeapAllocInfo* info, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue = nullptr) = 0;
 		virtual void DeleteResource(HeapAllocInfo* info);
 		virtual void DeleteResourceImmediate(HeapAllocInfo* info);
-		virtual void DelayedDelete(uint32_t currFrame);
+		virtual void DelayedDelete();
 
 	protected:
 		virtual bool Allocate(uint32_t size, HeapAllocInfo* info) = 0;
 		virtual bool Deallocate(HeapAllocInfo* info) = 0;
 
-		ID3D12Device* mDevice;
 		D3D12_HEAP_TYPE mType;
 		D3D12_HEAP_FLAGS mFlag;
 
-		uint32_t mCurrFrame;
 		std::vector<std::vector<HeapAllocInfo>> mDeletedResources;
 	};
 
@@ -46,7 +44,6 @@ namespace Carol
 	{
 	public:
 		BuddyHeap(
-			ID3D12Device* device,
 			D3D12_HEAP_TYPE type,
 			D3D12_HEAP_FLAGS flag,
 			uint32_t heapSize = 1 << 26);
@@ -77,7 +74,6 @@ namespace Carol
 	{
 	public:
 		SegListHeap(
-			ID3D12Device* device,
 			D3D12_HEAP_TYPE type,
 			D3D12_HEAP_FLAGS flag,
 			uint32_t maxPageSize = 1 << 26);
@@ -107,7 +103,6 @@ namespace Carol
 	{
 	public:
 		HeapManager(
-			ID3D12Device* device,
 			uint32_t initDefaultBuffersHeapSize = 1 << 26,
 			uint32_t initUploadBuffersHeapSize = 1 << 26,
 			uint32_t initReadbackBuffersHeapSize = 1 << 26,
@@ -118,7 +113,7 @@ namespace Carol
 		Heap* GetReadbackBuffersHeap();
 		Heap* GetTexturesHeap();
 
-		void DelayedDelete(uint32_t currFrame);
+		void DelayedDelete();
 
 	protected:
 		std::unique_ptr<Heap> mDefaultBuffersHeap;

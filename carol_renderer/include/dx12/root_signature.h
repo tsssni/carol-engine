@@ -20,7 +20,7 @@ namespace Carol
 	class RootSignature
 	{
 	public:
-		RootSignature(ID3D12Device* device);
+		RootSignature();
 		ID3D12RootSignature* Get();
 
 		Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature;

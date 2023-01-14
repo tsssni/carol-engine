@@ -4,6 +4,7 @@
 #include <dx12/descriptor.h>
 #include <dx12/root_signature.h>
 #include <utils/common.h>
+#include <global.h>
 #include <DirectXTex.h>
 #include <memory>
 #include <vector>
@@ -17,7 +18,7 @@ namespace Carol {
 	using namespace DirectX;
 }
 
-Carol::Texture::Texture(wstring fileName, bool isSrgb, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* descriptorManager)
+Carol::Texture::Texture(wstring fileName, bool isSrgb)
 	:mNumRef(1)
 {
 	wstring suffix = fileName.substr(fileName.find_last_of(L'.') + 1, 3);
@@ -100,9 +101,8 @@ Carol::Texture::Texture(wstring fileName, bool isSrgb, ID3D12GraphicsCommandList
 		depthOrArraySize,
 		viewDimension,
 		metaData.format,
-		heapManager->GetTexturesHeap(),
-		descriptorManager,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		gHeapManager->GetTexturesHeap(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_NONE,
 		nullptr,
 		metaData.mipLevels);
@@ -117,7 +117,7 @@ Carol::Texture::Texture(wstring fileName, bool isSrgb, ID3D12GraphicsCommandList
 		subresources[i].pData = images[i].pixels;
 	}
 
-	mTexture->CopySubresources(cmdList, heapManager->GetUploadBuffersHeap(), subresources.data(), 0, subresources.size());
+	mTexture->CopySubresources(gHeapManager->GetUploadBuffersHeap(), subresources.data(), 0, subresources.size(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 uint32_t Carol::Texture::GetGpuSrvIdx(uint32_t planeSlice)
@@ -143,15 +143,8 @@ void Carol::Texture::DecRef()
 {
 }
 
-Carol::TextureManager::TextureManager(
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	HeapManager* heapManager,
-	DescriptorManager* descriptorManager)
-	:mDevice(device),
-	mCommandList(cmdList),
-	mHeapManager(heapManager),
-	mDescriptorManager(descriptorManager)
+Carol::TextureManager::TextureManager()
+	:mDeletedTextures(gNumFrame)
 {
 }
 
@@ -164,7 +157,7 @@ uint32_t Carol::TextureManager::LoadTexture(const wstring& fileName, bool isSrgb
 
 	if (mTextures.count(fileName) == 0)
 	{
-		mTextures[fileName] = make_unique<Texture>(fileName, false, mCommandList, mHeapManager, mDescriptorManager);
+		mTextures[fileName] = make_unique<Texture>(fileName, false);
 	}
 	else
 	{
@@ -176,19 +169,12 @@ uint32_t Carol::TextureManager::LoadTexture(const wstring& fileName, bool isSrgb
 
 void Carol::TextureManager::UnloadTexture(const wstring& fileName)
 {
-	mDeletedTextures[mCurrFrame].push_back(fileName);
+	mDeletedTextures[gCurrFrame].push_back(fileName);
 }
 
-void Carol::TextureManager::DelayedDelete(uint32_t currFrame)
+void Carol::TextureManager::DelayedDelete()
 {
-	mCurrFrame = currFrame;
-
-	if (mCurrFrame >= mDeletedTextures.size())
-	{
-		mDeletedTextures.emplace_back();
-	}
-
-	for (auto& fileName : mDeletedTextures[mCurrFrame])
+	for (auto& fileName : mDeletedTextures[gCurrFrame])
 	{
 		mTextures[fileName]->DecRef();
 		if (mTextures[fileName]->GetRef() == 0)
@@ -197,7 +183,7 @@ void Carol::TextureManager::DelayedDelete(uint32_t currFrame)
 		}
 	}
 
-	mDeletedTextures[mCurrFrame].clear();
+	mDeletedTextures[gCurrFrame].clear();
 }
 
 void Carol::TextureManager::ReleaseIntermediateBuffers(const std::wstring& fileName)

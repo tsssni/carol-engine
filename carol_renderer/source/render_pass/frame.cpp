@@ -1,17 +1,15 @@
 #include <render_pass/frame.h>
-#include <render_pass/global_resources.h>
-#include <render_pass/shadow.h>
-#include <render_pass/ssao.h>
-#include <render_pass/mesh.h>
+#include <render_pass/scene.h>
 #include <render_pass/oitppll.h>
-#include <render_pass/taa.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <dx12/root_signature.h>
 #include <dx12/descriptor.h>
 #include <dx12/shader.h>
-#include <scene/scene.h>
+#include <dx12/pipeline_state.h>
+#include <dx12/indirect_command.h>
 #include <scene/camera.h>
+#include <global.h>
 #include <DirectXColors.h>
 
 namespace Carol
@@ -23,9 +21,11 @@ namespace Carol
 	using namespace DirectX;
 }
 
-Carol::FramePass::FramePass(GlobalResources* globalResources, DXGI_FORMAT frameFormat, DXGI_FORMAT depthStencilFormat, DXGI_FORMAT hiZFormat)
-	:RenderPass(globalResources),
-	mCulledCommandBuffer(globalResources->NumFrame),
+Carol::FramePass::FramePass(
+	DXGI_FORMAT frameFormat,
+	DXGI_FORMAT depthStencilFormat,
+	DXGI_FORMAT hiZFormat)
+	:mCulledCommandBuffer(gNumFrame),
 	mCullIdx(OPAQUE_MESH_TYPE_COUNT),
 	mHiZIdx(HIZ_IDX_COUNT),
 	mFrameFormat(frameFormat),
@@ -35,7 +35,7 @@ Carol::FramePass::FramePass(GlobalResources* globalResources, DXGI_FORMAT frameF
     InitShaders();
     InitPSOs();
 	
-	for (int i = 0; i < mGlobalResources->NumFrame; ++i)
+	for (int i = 0; i < gNumFrame; ++i)
 	{
 		mCulledCommandBuffer[i].resize(OPAQUE_MESH_TYPE_COUNT);
 
@@ -51,65 +51,46 @@ Carol::FramePass::FramePass(GlobalResources* globalResources, DXGI_FORMAT frameF
 	}
 }
 
-void Carol::FramePass::Draw()
+void Carol::FramePass::Draw(OitppllPass* oitppllPass)
 {
-	mGlobalResources->CommandList->RSSetViewports(1, mGlobalResources->ScreenViewport);
-	mGlobalResources->CommandList->RSSetScissorRects(1, mGlobalResources->ScissorRect);
+	gCommandList->RSSetViewports(1, &mViewport);
+	gCommandList->RSSetScissorRects(1, &mScissorRect);
 
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mFrameMap->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-	mGlobalResources->CommandList->ClearRenderTargetView(GetFrameRtv(), Colors::Gray, 0, nullptr);
-	mGlobalResources->CommandList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	mGlobalResources->CommandList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, GetRvaluePtr(GetFrameDsv()));
+	gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mFrameMap->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)));
+	gCommandList->ClearRenderTargetView(GetFrameRtv(), Colors::Gray, 0, nullptr);
+	gCommandList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+	gCommandList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, GetRvaluePtr(GetFrameDsv()));
 	
-	ID3D12PipelineState* pso[] = { (*mGlobalResources->PSOs)[L"OpaqueStatic"].Get(), (*mGlobalResources->PSOs)[L"OpaqueSkinned"].Get() };
+	gCommandList->SetPipelineState(gPSOs[L"OpaqueStatic"]->Get());
+	gScene->ExecuteIndirect(GetIndirectCommandBuffer(OPAQUE_STATIC));
 
-	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"OpaqueStatic"].Get());
-	mGlobalResources->Meshes->ExecuteIndirect(GetIndirectCommandBuffer(OPAQUE_STATIC));
-
-	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"OpaqueSkinned"].Get());
-	mGlobalResources->Meshes->ExecuteIndirect(GetIndirectCommandBuffer(OPAQUE_SKINNED));
+	gCommandList->SetPipelineState(gPSOs[L"OpaqueSkinned"]->Get());
+	gScene->ExecuteIndirect(GetIndirectCommandBuffer(OPAQUE_SKINNED));
 	
-	mGlobalResources->Meshes->DrawSkyBox((*mGlobalResources->PSOs)[L"SkyBox"].Get());
-	mGlobalResources->Oitppll->Draw();
+	gScene->DrawSkyBox(gPSOs[L"SkyBox"]->Get());
+	oitppllPass->Draw();
 
-	mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mFrameMap->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+	gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mFrameMap->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
 void Carol::FramePass::Update()
 {
-	uint32_t currFrame = *mGlobalResources->CurrFrame;
+	uint32_t currFrame = gCurrFrame;
 
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(OPAQUE_MESH_START + i);
-		TestCommandBufferSize(mCulledCommandBuffer[currFrame][i], mGlobalResources->Scene->GetMeshesCount(type));
+		TestCommandBufferSize(mCulledCommandBuffer[currFrame][i], gScene->GetMeshesCount(type));
 
 		mCullIdx[i][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[currFrame][i]->GetGpuUavIdx();
-		mCullIdx[i][CULL_MESH_COUNT] = mGlobalResources->Scene->GetMeshesCount(type);
-		mCullIdx[i][CULL_MESH_OFFSET] = mGlobalResources->Meshes->GetMeshCBStartOffet(type);
+		mCullIdx[i][CULL_MESH_COUNT] = gScene->GetMeshesCount(type);
+		mCullIdx[i][CULL_MESH_OFFSET] = gScene->GetMeshCBStartOffet(type);
 		mCullIdx[i][CULL_HIZ_IDX] = mHiZMap->GetGpuSrvIdx();
 	}
 
 	mHiZIdx[HIZ_DEPTH_IDX] = mDepthStencilMap->GetGpuSrvIdx();
 	mHiZIdx[HIZ_R_IDX] = mHiZMap->GetGpuSrvIdx();
 	mHiZIdx[HIZ_W_IDX] = mHiZMap->GetGpuUavIdx();
-
-	mGlobalResources->Oitppll->Update();
-}
-
-void Carol::FramePass::OnResize()
-{
-	static uint32_t width = 0;
-	static uint32_t height = 0;
-
-	if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
-	{
-		width = *mGlobalResources->ClientWidth;
-		height = *mGlobalResources->ClientHeight;
-		mHiZMipLevels = std::max(ceilf(log2f(width)), ceilf(log2f(height)));
-
-		InitBuffers();
-	}
 }
 
 void Carol::FramePass::ReleaseIntermediateBuffers()
@@ -119,8 +100,8 @@ void Carol::FramePass::ReleaseIntermediateBuffers()
 void Carol::FramePass::Cull()
 {
 	Clear();
-	mGlobalResources->CommandList->RSSetViewports(1, mGlobalResources->ScreenViewport);
-	mGlobalResources->CommandList->RSSetScissorRects(1, mGlobalResources->ScissorRect);
+	gCommandList->RSSetViewports(1, &mViewport);
+	gCommandList->RSSetScissorRects(1, &mScissorRect);
 
 	DrawHiZ();
 	CullMeshes(true);
@@ -129,8 +110,6 @@ void Carol::FramePass::Cull()
 	DrawHiZ();
 	CullMeshes(false);
 	DrawDepth(false);
-
-	mGlobalResources->Oitppll->Cull();
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Carol::FramePass::GetFrameRtv()
@@ -143,9 +122,19 @@ D3D12_CPU_DESCRIPTOR_HANDLE Carol::FramePass::GetFrameDsv()
 	return mDepthStencilMap->GetDsv();
 }
 
+DXGI_FORMAT Carol::FramePass::GetFrameRtvFormat()
+{
+	return mFrameFormat;
+}
+
 Carol::StructuredBuffer* Carol::FramePass::GetIndirectCommandBuffer(MeshType type)
 {
-	return mCulledCommandBuffer[*mGlobalResources->CurrFrame][type - OPAQUE_MESH_START].get();
+	return mCulledCommandBuffer[gCurrFrame][type - OPAQUE_MESH_START].get();
+}
+
+DXGI_FORMAT Carol::FramePass::GetFrameDsvFormat()
+{
+	return GetDsvFormat(mDepthStencilFormat);
 }
 
 uint32_t Carol::FramePass::GetFrameSrvIdx()
@@ -166,6 +155,10 @@ uint32_t Carol::FramePass::GetHiZSrvIdx()
 uint32_t Carol::FramePass::GetHiZUavIdx()
 {
 	return mHiZMap->GetGpuUavIdx();
+}
+
+void Carol::FramePass::Draw()
+{
 }
 
 void Carol::FramePass::InitShaders()
@@ -193,129 +186,106 @@ void Carol::FramePass::InitShaders()
 		L"WRITE=1"
 	};
 	
-	(*mGlobalResources->Shaders)[L"OpaqueStaticMS"] = make_unique<Shader>(L"shader\\default_ms.hlsl", staticDefines, L"main", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"OpaqueStaticPS"] = make_unique<Shader>(L"shader\\default_ps.hlsl", staticDefines, L"main", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"OpaqueSkinnedMS"] = make_unique<Shader>(L"shader\\default_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"OpaqueSkinnedPS"] = make_unique<Shader>(L"shader\\default_ps.hlsl", skinnedDefines, L"main", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"ScreenMS"] = make_unique<Shader>(L"shader\\screen_ms.hlsl", nullDefines, L"main", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"SkyBoxMS"] = make_unique<Shader>(L"shader\\skybox_ms.hlsl", staticDefines, L"main", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"SkyBoxPS"] = make_unique<Shader>(L"shader\\skybox_ps.hlsl", staticDefines, L"main", L"ps_6_6");
-	(*mGlobalResources->Shaders)[L"HiZGenerateCS"] = make_unique<Shader>(L"shader\\hiz_generate_cs.hlsl", nullDefines, L"main", L"cs_6_6");
-	(*mGlobalResources->Shaders)[L"FrameCullCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", cullDefines, L"main", L"cs_6_6");
-	(*mGlobalResources->Shaders)[L"CullAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullDefines, L"main", L"as_6_6");
-	(*mGlobalResources->Shaders)[L"CullWriteAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullWriteDefines, L"main", L"as_6_6");
-	(*mGlobalResources->Shaders)[L"DepthStaticMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", nullDefines, L"main", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"DepthSkinnedMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+	gShaders[L"OpaqueStaticMS"] = make_unique<Shader>(L"shader\\default_ms.hlsl", staticDefines, L"main", L"ms_6_6");
+	gShaders[L"OpaquePS"] = make_unique<Shader>(L"shader\\default_ps.hlsl", staticDefines, L"main", L"ps_6_6");
+	gShaders[L"OpaqueSkinnedMS"] = make_unique<Shader>(L"shader\\default_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+	gShaders[L"ScreenMS"] = make_unique<Shader>(L"shader\\screen_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+	gShaders[L"SkyBoxMS"] = make_unique<Shader>(L"shader\\skybox_ms.hlsl", staticDefines, L"main", L"ms_6_6");
+	gShaders[L"SkyBoxPS"] = make_unique<Shader>(L"shader\\skybox_ps.hlsl", staticDefines, L"main", L"ps_6_6");
+	gShaders[L"HiZGenerateCS"] = make_unique<Shader>(L"shader\\hiz_generate_cs.hlsl", nullDefines, L"main", L"cs_6_6");
+	gShaders[L"FrameCullCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", cullDefines, L"main", L"cs_6_6");
+	gShaders[L"CullAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullDefines, L"main", L"as_6_6");
+	gShaders[L"CullWriteAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullWriteDefines, L"main", L"as_6_6");
+	gShaders[L"DepthStaticMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+	gShaders[L"DepthSkinnedMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
 }
 
 void Carol::FramePass::InitPSOs()
 {
-	auto depthStaticPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
-	auto depthStaticAS = (*mGlobalResources->Shaders)[L"CullWriteAS"].get();
-	auto depthStaticMS = (*mGlobalResources->Shaders)[L"DepthStaticMS"].get();
-	depthStaticPsoDesc.AS = { reinterpret_cast<byte*>(depthStaticAS->GetBufferPointer()), depthStaticAS->GetBufferSize() };
-	depthStaticPsoDesc.MS = { reinterpret_cast<byte*>(depthStaticMS->GetBufferPointer()), depthStaticMS->GetBufferSize() };
-	auto DepthStaticPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(depthStaticPsoDesc);
-    D3D12_PIPELINE_STATE_STREAM_DESC depthStaticStreamDesc;
-    depthStaticStreamDesc.pPipelineStateSubobjectStream = &DepthStaticPsoStream;
-    depthStaticStreamDesc.SizeInBytes = sizeof(DepthStaticPsoStream);
-    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&depthStaticStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"DepthStatic"].GetAddressOf())));
+	auto cullStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	cullStaticMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthStencilFormat));
+	cullStaticMeshPSO->SetAS(gShaders[L"CullWriteAS"].get());
+	cullStaticMeshPSO->SetMS(gShaders[L"DepthStaticMS"].get());
+	cullStaticMeshPSO->Finalize();
+	gPSOs[L"FrameCullStaticMeshes"] = std::move(cullStaticMeshPSO);
 
-	auto depthSkinnedPsoDesc = depthStaticPsoDesc;
-	auto depthSkinnedMS = (*mGlobalResources->Shaders)[L"DepthSkinnedMS"].get();
-	depthSkinnedPsoDesc.MS = { reinterpret_cast<byte*>(depthSkinnedMS->GetBufferPointer()), depthSkinnedMS->GetBufferSize() };
-	auto DepthSkinnedPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(depthSkinnedPsoDesc);
-    D3D12_PIPELINE_STATE_STREAM_DESC depthSkinnedStreamDesc;
-    depthSkinnedStreamDesc.pPipelineStateSubobjectStream = &DepthSkinnedPsoStream;
-    depthSkinnedStreamDesc.SizeInBytes = sizeof(DepthSkinnedPsoStream);
-    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&depthSkinnedStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"DepthSkinned"].GetAddressOf())));
+	auto cullSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	cullSkinnedMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthStencilFormat));
+	cullSkinnedMeshPSO->SetAS(gShaders[L"CullWriteAS"].get());
+	cullSkinnedMeshPSO->SetMS(gShaders[L"DepthSkinnedMS"].get());
+	cullSkinnedMeshPSO->Finalize();
+	gPSOs[L"FrameCullSkinnedMeshes"] = std::move(cullSkinnedMeshPSO);
 
-	auto opaqueStaticPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
-	auto opaqueStaticAS = (*mGlobalResources->Shaders)[L"CullAS"].get();
-	auto opaqueStaticMS = (*mGlobalResources->Shaders)[L"OpaqueStaticMS"].get();
-	auto opaqueStaticPS = (*mGlobalResources->Shaders)[L"OpaqueStaticPS"].get();
-	opaqueStaticPsoDesc.AS = { reinterpret_cast<byte*>(opaqueStaticAS->GetBufferPointer()),opaqueStaticAS->GetBufferSize() };
-	opaqueStaticPsoDesc.MS = { reinterpret_cast<byte*>(opaqueStaticMS->GetBufferPointer()),opaqueStaticMS->GetBufferSize() };
-	opaqueStaticPsoDesc.PS = { reinterpret_cast<byte*>(opaqueStaticPS->GetBufferPointer()),opaqueStaticPS->GetBufferSize() };
-	auto opaqueStaticPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(opaqueStaticPsoDesc);
-    D3D12_PIPELINE_STATE_STREAM_DESC opaqueStaticStreamDesc;
-    opaqueStaticStreamDesc.pPipelineStateSubobjectStream = &opaqueStaticPsoStream;
-    opaqueStaticStreamDesc.SizeInBytes = sizeof(opaqueStaticPsoStream);
-    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&opaqueStaticStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"OpaqueStatic"].GetAddressOf())));
+	auto opaqueStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	opaqueStaticMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
+	opaqueStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
+	opaqueStaticMeshPSO->SetMS(gShaders[L"OpaqueStaticMS"].get());
+	opaqueStaticMeshPSO->SetPS(gShaders[L"OpaquePS"].get());
+	opaqueStaticMeshPSO->Finalize();
+	gPSOs[L"OpaqueStatic"] = std::move(opaqueStaticMeshPSO);
 
-	auto opaqueSkinnedPsoDesc = opaqueStaticPsoDesc;
-	auto opaqueSkinnedMS = (*mGlobalResources->Shaders)[L"OpaqueSkinnedMS"].get();
-	auto opaqueSkinnedPS = (*mGlobalResources->Shaders)[L"OpaqueSkinnedPS"].get();
-	opaqueSkinnedPsoDesc.MS = { reinterpret_cast<byte*>(opaqueSkinnedMS->GetBufferPointer()),opaqueSkinnedMS->GetBufferSize() };
-	opaqueSkinnedPsoDesc.PS = { reinterpret_cast<byte*>(opaqueSkinnedPS->GetBufferPointer()),opaqueSkinnedPS->GetBufferSize() };
-	auto opaqueSkinnedPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(opaqueSkinnedPsoDesc);
-    D3D12_PIPELINE_STATE_STREAM_DESC opaqueSkinnedStreamDesc;
-    opaqueSkinnedStreamDesc.pPipelineStateSubobjectStream = &opaqueSkinnedPsoStream;
-    opaqueSkinnedStreamDesc.SizeInBytes = sizeof(opaqueSkinnedPsoStream);
-    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&opaqueSkinnedStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"OpaqueSkinned"].GetAddressOf())));
+	auto opaqueSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	opaqueSkinnedMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
+	opaqueSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
+	opaqueSkinnedMeshPSO->SetMS(gShaders[L"OpaqueSkinnedMS"].get());
+	opaqueSkinnedMeshPSO->SetPS(gShaders[L"OpaquePS"].get());
+	opaqueSkinnedMeshPSO->Finalize();
+	gPSOs[L"OpaqueSkinned"] = std::move(opaqueSkinnedMeshPSO);
 
-	auto skyBoxPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
-	auto skyBoxMS = (*mGlobalResources->Shaders)[L"SkyBoxMS"].get();
-	auto skyBoxPS = (*mGlobalResources->Shaders)[L"SkyBoxPS"].get();
-	skyBoxPsoDesc.MS = { reinterpret_cast<byte*>(skyBoxMS->GetBufferPointer()),skyBoxMS->GetBufferSize() };
-	skyBoxPsoDesc.PS = { reinterpret_cast<byte*>(skyBoxPS->GetBufferPointer()),skyBoxPS->GetBufferSize() };
-	skyBoxPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	auto skyBoxPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(skyBoxPsoDesc);
-    D3D12_PIPELINE_STATE_STREAM_DESC skyBoxStreamDesc;
-    skyBoxStreamDesc.pPipelineStateSubobjectStream = &skyBoxPsoStream;
-    skyBoxStreamDesc.SizeInBytes = sizeof(skyBoxPsoStream);
-    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&skyBoxStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"SkyBox"].GetAddressOf())));
+	auto skyBoxMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	skyBoxMeshPSO->SetDepthStencilState(gDepthLessEqualState);
+	skyBoxMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
+	skyBoxMeshPSO->SetMS(gShaders[L"SkyBoxMS"].get());
+	skyBoxMeshPSO->SetPS(gShaders[L"SkyBoxPS"].get());
+	skyBoxMeshPSO->Finalize();
+	gPSOs[L"SkyBox"] = std::move(skyBoxMeshPSO);
 
-	auto hiZGeneratePsoDesc = *mGlobalResources->BaseComputePsoDesc;
-	auto hiZGenerateCS = (*mGlobalResources->Shaders)[L"HiZGenerateCS"].get();
-	hiZGeneratePsoDesc.CS = { reinterpret_cast<byte*>(hiZGenerateCS->GetBufferPointer()), hiZGenerateCS->GetBufferSize() };
-	ThrowIfFailed(mGlobalResources->Device->CreateComputePipelineState(&hiZGeneratePsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"HiZGenerate"].GetAddressOf())));
+	auto hiZGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	hiZGenerateComputePSO->SetCS(gShaders[L"HiZGenerateCS"].get());
+	hiZGenerateComputePSO->Finalize();
+	gPSOs[L"HiZGenerate"] = std::move(hiZGenerateComputePSO);
 
-	auto frameCullPsoDesc = *mGlobalResources->BaseComputePsoDesc;
-	auto frameCullCS = (*mGlobalResources->Shaders)[L"FrameCullCS"].get();
-	frameCullPsoDesc.CS = { reinterpret_cast<byte*>(frameCullCS->GetBufferPointer()), frameCullCS->GetBufferSize() };
-	ThrowIfFailed(mGlobalResources->Device->CreateComputePipelineState(&frameCullPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"FrameCull"].GetAddressOf())));
+	auto cullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	cullInstanceComputePSO->SetCS(gShaders[L"FrameCullCS"].get());
+	cullInstanceComputePSO->Finalize();
+	gPSOs[L"FrameCullInstances"] = std::move(cullInstanceComputePSO);
 }
 
 void Carol::FramePass::InitBuffers()
 {
-	uint32_t width = *mGlobalResources->ClientWidth;
-	uint32_t height = *mGlobalResources->ClientHeight;
+	mHiZMipLevels = std::max(ceilf(log2f(mWidth)), ceilf(log2f(mHeight)));
 
 	D3D12_CLEAR_VALUE frameOptClearValue = CD3DX12_CLEAR_VALUE(mFrameFormat, DirectX::Colors::Gray);
 	mFrameMap = make_unique<ColorBuffer>(
-		width,
-		height,
+		mWidth,
+		mHeight,
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mFrameFormat,
-		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
-		mGlobalResources->DescriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
 		&frameOptClearValue);
 
 	D3D12_CLEAR_VALUE depthStencilOptClearValue = CD3DX12_CLEAR_VALUE(GetDsvFormat(mDepthStencilFormat), 1.f, 0);
 	mDepthStencilMap = make_unique<ColorBuffer>(
-		width,
-		height,
+		mWidth,
+		mHeight,
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mDepthStencilFormat,
-		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
-		mGlobalResources->DescriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
 		&depthStencilOptClearValue);
 
 	mHiZMap = make_unique<ColorBuffer>(
-		width,
-		height,
+		mWidth,
+		mHeight,
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mHiZFormat,
-		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
-		mGlobalResources->DescriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		nullptr,
@@ -335,29 +305,26 @@ void Carol::FramePass::ResizeCommandBuffer(unique_ptr<StructuredBuffer>& buffer,
 	buffer = make_unique<StructuredBuffer>(
 		numElements,
 		elementSize,
-		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
-		mGlobalResources->DescriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 
 void Carol::FramePass::Clear()
 {
-	mGlobalResources->Meshes->ClearCullMark();
-	uint32_t currFrame = *mGlobalResources->CurrFrame;
+	gScene->ClearCullMark();
 
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_COPY_DEST)));
-		mCulledCommandBuffer[currFrame][i]->ResetCounter(mGlobalResources->CommandList);
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_COPY_DEST)));
+		mCulledCommandBuffer[gCurrFrame][i]->ResetCounter();
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
 	}
 }
 
 void Carol::FramePass::CullMeshes(bool hist)
 {
-	uint32_t currFrame = *mGlobalResources->CurrFrame;
-	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"FrameCull"].Get());
+	gCommandList->SetPipelineState(gPSOs[L"FrameCullInstances"]->Get());
 	
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
@@ -370,20 +337,18 @@ void Carol::FramePass::CullMeshes(bool hist)
 		uint32_t count = ceilf(mCullIdx[i][CULL_MESH_COUNT] / 32.f);
 
 		mCullIdx[i][CULL_HIST] = hist;
-		mGlobalResources->CommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
-		mGlobalResources->CommandList->Dispatch(count, 1, 1);
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mCulledCommandBuffer[currFrame][i]->Get())));
+		gCommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
+		gCommandList->Dispatch(count, 1, 1);
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mCulledCommandBuffer[gCurrFrame][i]->Get())));
 	}
 }
 
 void Carol::FramePass::DrawDepth(bool hist)
 {
-	mGlobalResources->CommandList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	mGlobalResources->CommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(GetFrameDsv()));
-
-	uint32_t currFrame = *mGlobalResources->CurrFrame;
-	ID3D12PipelineState* pso[] = {(*mGlobalResources->PSOs)[L"DepthStatic"].Get(), (*mGlobalResources->PSOs)[L"DepthSkinned"].Get()};
+	gCommandList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	gCommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(GetFrameDsv()));
+	ID3D12PipelineState* pso[] = {gPSOs[L"FrameCullStaticMeshes"]->Get(), gPSOs[L"FrameCullSkinnedMeshes"]->Get()};
 
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
@@ -394,26 +359,26 @@ void Carol::FramePass::DrawDepth(bool hist)
 
 		mCullIdx[i][CULL_HIST] = hist;
 
-		mGlobalResources->CommandList->SetPipelineState(pso[i]);
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
-		mGlobalResources->CommandList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-		mGlobalResources->Meshes->ExecuteIndirect(mCulledCommandBuffer[currFrame][i].get());
+		gCommandList->SetPipelineState(pso[i]);
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
+		gCommandList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
+		gScene->ExecuteIndirect(mCulledCommandBuffer[gCurrFrame][i].get());
 	}
 }
 
 void Carol::FramePass::DrawHiZ()
 {
-	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"HiZGenerate"].Get());
+	gCommandList->SetPipelineState(gPSOs[L"HiZGenerate"]->Get());
 	mHiZMipLevels = 10;
 	for (int i = 0; i < mHiZMipLevels - 1; i += 5)
 	{
 		mHiZIdx[HIZ_SRC_MIP] = i;
 		mHiZIdx[HIZ_NUM_MIP_LEVEL] = i + 5 >= mHiZMipLevels ? mHiZMipLevels - i - 1 : 5;
-		mGlobalResources->CommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, mHiZIdx.size(), mHiZIdx.data(), 0);
+		gCommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, mHiZIdx.size(), mHiZIdx.data(), 0);
 		
-		uint32_t width = ceilf(((*mGlobalResources->ClientWidth) >> i) / 32.f);
-		uint32_t height = ceilf(((*mGlobalResources->ClientHeight) >> i) / 32.f);
-		mGlobalResources->CommandList->Dispatch(width, height, 1);
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mHiZMap->Get())));
+		uint32_t width = ceilf((mWidth >> i) / 32.f);
+		uint32_t height = ceilf((mHeight >> i) / 32.f);
+		gCommandList->Dispatch(width, height, 1);
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mHiZMap->Get())));
 	}
 }

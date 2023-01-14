@@ -6,14 +6,12 @@
 
 namespace Carol
 {
-	class GlobalResources;
 	class ColorBuffer;
 	
 	class TaaPass : public RenderPass
 	{
 	public:
 		TaaPass(
-			GlobalResources* globalResources,
 			DXGI_FORMAT velocityMapFormat = DXGI_FORMAT_R16G16_FLOAT,
 			DXGI_FORMAT frameFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
 		TaaPass(const TaaPass&) = delete;
@@ -22,7 +20,6 @@ namespace Carol
 
 		virtual void Draw()override;
 		virtual void Update()override;
-		virtual void OnResize()override;
 		virtual void ReleaseIntermediateBuffers()override;
 
 		void GetHalton(float& proj0,float& proj1);

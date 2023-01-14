@@ -1,10 +1,10 @@
 #include <scene/assimp.h>
-#include <render_pass/global_resources.h>
+#include <global.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
-#include <scene/scene.h>
 #include <scene/skinned_data.h>
 #include <scene/texture.h>
+#include <scene/scene_node.h>
 #include <utils/common.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
@@ -28,12 +28,8 @@ Carol::AssimpModel::AssimpModel(
 	wstring path,
 	wstring textureDir,
 	TextureManager* texManager,
-	bool isSkinned,
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	HeapManager* heapManager, 
-	DescriptorManager* descriptorManager)
-	:Model(device, cmdList, heapManager, descriptorManager), mTexManager(texManager)
+	bool isSkinned)
+	:Model(), mTexManager(texManager)
 {
 	Assimp::Importer mImporter;
 	const aiScene* scene = mImporter.ReadFile(WStringToString(path), isSkinned ? aiProcess_Skinned : aiProcess_Static);
@@ -90,11 +86,7 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(aiMesh* mesh, const aiScene* scene)
 			indices,
 			mSkinned,
 			false,
-			this,
-			mDevice,
-			mCommandList,
-			mHeapManager,
-			mDescriptorManager);
+			this);
 
 		ReadMeshMaterialAndTextures(mMeshes[meshName].get(), mesh, scene);
 	}

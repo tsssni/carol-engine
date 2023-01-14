@@ -10,28 +10,25 @@
 
 namespace Carol
 {
-    class GlobalResource;
     class ColorBuffer;
     class StructuredBuffer;
-    class HeapAllocInfo;
-    class CircularHeap;
-    class Shader;
     class Camera; 
 
     class ShadowPass : public RenderPass
     {
     public:
         ShadowPass(
-            GlobalResources* globalResources,
             Light light,
             uint32_t width = 1024,
             uint32_t height = 1024,
+            uint32_t depthBias = 60000,
+            float depthBiasClamp = 0.01f,
+            float slopeScaledDepthBias = 4.f,
             DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
         virtual void Draw()override;
         virtual void Update()override;
-        virtual void OnResize()override;
         virtual void ReleaseIntermediateBuffers()override;
 
         uint32_t GetShadowSrvIdx();
@@ -78,15 +75,15 @@ namespace Carol
         std::unique_ptr<ColorBuffer> mHiZMap;
         std::vector<std::vector<std::unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
 
+        uint32_t mDepthBias;
+        float mDepthBiasClamp;
+        float mSlopeScaledDepthBias;
+
         std::vector<std::vector<uint32_t>> mCullIdx;
         std::vector<uint32_t> mHiZIdx;
 		uint32_t mHiZMipLevels;
 
-        D3D12_VIEWPORT mViewport;
-        D3D12_RECT mScissorRect;
         std::unique_ptr<Camera> mCamera;
-        uint32_t mWidth;
-        uint32_t mHeight;
 
         DXGI_FORMAT mShadowFormat;
         DXGI_FORMAT mHiZFormat;

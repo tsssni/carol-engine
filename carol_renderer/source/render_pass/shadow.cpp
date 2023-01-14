@@ -1,13 +1,14 @@
 #include <render_pass/shadow.h>
-#include <render_pass/global_resources.h>
+#include <global.h>
 #include <render_pass/display.h>
-#include <render_pass/mesh.h>
+#include <render_pass/scene.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <dx12/shader.h>
 #include <dx12/descriptor.h>
 #include <dx12/root_signature.h>
-#include <scene/scene.h>
+#include <dx12/indirect_command.h>
+#include <dx12/pipeline_state.h>
 #include <scene/assimp.h>
 #include <scene/camera.h>
 #include <utils/common.h>
@@ -22,15 +23,23 @@ namespace Carol {
 	using namespace DirectX;
 }
 
-Carol::ShadowPass::ShadowPass(GlobalResources* globalResources, Light light, uint32_t width, uint32_t height, DXGI_FORMAT shadowFormat, DXGI_FORMAT hiZFormat)
-	:RenderPass(globalResources),
-	mLight(make_unique<Light>(light)),
-	mWidth(width),
-	mHeight(height),
+Carol::ShadowPass::ShadowPass(
+	Light light,
+	uint32_t width,
+	uint32_t height,
+	uint32_t depthBias,
+	float depthBiasClamp,
+	float slopeScaledDepthBias,
+	DXGI_FORMAT shadowFormat,
+	DXGI_FORMAT hiZFormat)
+	:mLight(make_unique<Light>(light)),
+	mDepthBias(depthBias),
+	mDepthBiasClamp(depthBiasClamp),
+	mSlopeScaledDepthBias(slopeScaledDepthBias),
 	mCullIdx(OPAQUE_MESH_TYPE_COUNT),
 	mHiZIdx(HIZ_IDX_COUNT),
 	mHiZMipLevels(std::max(ceilf(log2f(width)), ceilf(log2f(height)))),
-	mCulledCommandBuffer(globalResources->NumFrame),
+	mCulledCommandBuffer(gNumFrame),
 	mShadowFormat(shadowFormat),
 	mHiZFormat(hiZFormat)
 {
@@ -38,14 +47,14 @@ Carol::ShadowPass::ShadowPass(GlobalResources* globalResources, Light light, uin
 	InitCamera();
 	InitShaders();
 	InitPSOs();
-	InitBuffers();
+	OnResize(width, height);
 }
 
 void Carol::ShadowPass::Draw()
 {
 	Clear();
-	mGlobalResources->CommandList->RSSetViewports(1, &mViewport);
-	mGlobalResources->CommandList->RSSetScissorRects(1, &mScissorRect);
+	gCommandList->RSSetViewports(1, &mViewport);
+	gCommandList->RSSetScissorRects(1, &mScissorRect);
 
 	DrawHiZ();
 	CullMeshes(true);
@@ -73,16 +82,14 @@ void Carol::ShadowPass::Update()
 	XMStoreFloat4x4(&mLight->ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mLight->ViewProjTex, XMMatrixTranspose(DirectX::XMMatrixMultiply(viewProj, tex)));
 
-	uint32_t currFrame = *mGlobalResources->CurrFrame;
-
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(OPAQUE_MESH_START + i);
-		TestCommandBufferSize(mCulledCommandBuffer[currFrame][type], mGlobalResources->Scene->GetMeshesCount(type));
+		TestCommandBufferSize(mCulledCommandBuffer[gCurrFrame][type], gScene->GetMeshesCount(type));
 
-		mCullIdx[i][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[currFrame][i]->GetGpuUavIdx();
-		mCullIdx[i][CULL_MESH_COUNT] = mGlobalResources->Scene->GetMeshesCount(type);
-		mCullIdx[i][CULL_MESH_OFFSET] = mGlobalResources->Meshes->GetMeshCBStartOffet(type);
+		mCullIdx[i][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[gCurrFrame][i]->GetGpuUavIdx();
+		mCullIdx[i][CULL_MESH_COUNT] = gScene->GetMeshesCount(type);
+		mCullIdx[i][CULL_MESH_OFFSET] = gScene->GetMeshCBStartOffet(type);
 		mCullIdx[i][CULL_HIZ_IDX] = mHiZMap->GetGpuSrvIdx();
 		mCullIdx[i][CULL_LIGHT_IDX] = 0;
 	}
@@ -90,10 +97,6 @@ void Carol::ShadowPass::Update()
 	mHiZIdx[HIZ_DEPTH_IDX] = mShadowMap->GetGpuSrvIdx();
 	mHiZIdx[HIZ_R_IDX] = mHiZMap->GetGpuSrvIdx();
 	mHiZIdx[HIZ_W_IDX] = mHiZMap->GetGpuUavIdx();
-}
-
-void Carol::ShadowPass::OnResize()
-{
 }
 
 void Carol::ShadowPass::ReleaseIntermediateBuffers()
@@ -123,8 +126,7 @@ void Carol::ShadowPass::InitBuffers()
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mShadowFormat,
-		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
-		mGlobalResources->DescriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
 		&optClearValue);
@@ -135,14 +137,13 @@ void Carol::ShadowPass::InitBuffers()
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mHiZFormat,
-		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
-		mGlobalResources->DescriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		nullptr,
 		mHiZMipLevels);
 
-	for (int i = 0; i < mGlobalResources->NumFrame; ++i)
+	for (int i = 0; i < gNumFrame; ++i)
 	{
 		mCulledCommandBuffer[i].resize(OPAQUE_MESH_TYPE_COUNT);
 
@@ -177,21 +178,19 @@ void Carol::ShadowPass::InitCamera()
 
 void Carol::ShadowPass::Clear()
 {
-	mGlobalResources->Meshes->ClearCullMark();
-	uint32_t currFrame = *mGlobalResources->CurrFrame;
+	gScene->ClearCullMark();
 
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_COPY_DEST)));
-		mCulledCommandBuffer[currFrame][i]->ResetCounter(mGlobalResources->CommandList);
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_COPY_DEST)));
+		mCulledCommandBuffer[gCurrFrame][i]->ResetCounter();
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
 	}
 }
 
 void Carol::ShadowPass::CullMeshes(bool hist)
 {
-	uint32_t currFrame = *mGlobalResources->CurrFrame;
-	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"ShadowCull"].Get());
+	gCommandList->SetPipelineState(gPSOs[L"ShadowInstanceCull"]->Get());
 	
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
@@ -203,20 +202,19 @@ void Carol::ShadowPass::CullMeshes(bool hist)
 		mCullIdx[i][CULL_HIST] = hist;
 		uint32_t count = ceilf(mCullIdx[i][CULL_MESH_COUNT] / 32.f);
 
-		mGlobalResources->CommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
-		mGlobalResources->CommandList->Dispatch(count, 1, 1);
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mCulledCommandBuffer[currFrame][i]->Get())));
+		gCommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
+		gCommandList->Dispatch(count, 1, 1);
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mCulledCommandBuffer[gCurrFrame][i]->Get())));
 	}
 }
 
 void Carol::ShadowPass::DrawShadow(bool hist)
 {
-	mGlobalResources->CommandList->ClearDepthStencilView(mShadowMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	mGlobalResources->CommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mShadowMap->GetDsv()));
+	gCommandList->ClearDepthStencilView(mShadowMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	gCommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mShadowMap->GetDsv()));
 
-	uint32_t currFrame = *mGlobalResources->CurrFrame;
-	ID3D12PipelineState* pso[] = {(*mGlobalResources->PSOs)[L"ShadowStatic"].Get(), (*mGlobalResources->PSOs)[L"ShadowSkinned"].Get()};
+	ID3D12PipelineState* pso[] = {gPSOs[L"ShadowStatic"]->Get(), gPSOs[L"ShadowSkinned"]->Get()};
 
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
@@ -227,27 +225,27 @@ void Carol::ShadowPass::DrawShadow(bool hist)
 
 		mCullIdx[i][CULL_HIST] = hist;
 
-		mGlobalResources->CommandList->SetPipelineState(pso[i]);
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[currFrame][i]->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
-		mGlobalResources->CommandList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-		mGlobalResources->Meshes->ExecuteIndirect(mCulledCommandBuffer[currFrame][i].get());
+		gCommandList->SetPipelineState(pso[i]);
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
+		gCommandList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
+		gScene->ExecuteIndirect(mCulledCommandBuffer[gCurrFrame][i].get());
 	}
 }
 
 void Carol::ShadowPass::DrawHiZ()
 {
-	mGlobalResources->CommandList->SetPipelineState((*mGlobalResources->PSOs)[L"HiZGenerate"].Get());
+	gCommandList->SetPipelineState(gPSOs[L"HiZGenerate"]->Get());
 
 	for (int i = 0; i < mHiZMipLevels - 1; i += 5)
 	{
 		mHiZIdx[HIZ_SRC_MIP] = i;
 		mHiZIdx[HIZ_NUM_MIP_LEVEL] = i + 5 >= mHiZMipLevels ? mHiZMipLevels - i - 1 : 5;
-		mGlobalResources->CommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, HIZ_IDX_COUNT, mHiZIdx.data(), 0);
+		gCommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, HIZ_IDX_COUNT, mHiZIdx.data(), 0);
 		
 		uint32_t width = ceilf((mWidth >> i) / 32.f);
 		uint32_t height = ceilf((mHeight >> i) / 32.f);
-		mGlobalResources->CommandList->Dispatch(width, height, 1);
-		mGlobalResources->CommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mHiZMap->Get())));
+		gCommandList->Dispatch(width, height, 1);
+		gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mHiZMap->Get())));
 	}
 }
 
@@ -264,8 +262,7 @@ void Carol::ShadowPass::ResizeCommandBuffer(unique_ptr<StructuredBuffer>& buffer
 	buffer = make_unique<StructuredBuffer>(
 		numElements,
 		elementSize,
-		mGlobalResources->HeapManager->GetDefaultBuffersHeap(),
-		mGlobalResources->DescriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
@@ -292,42 +289,32 @@ void Carol::ShadowPass::InitShaders()
 		L"WRITE=1"
 	};
 
-	(*mGlobalResources->Shaders)[L"ShadowCullCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", shadowCullDefines, L"main", L"cs_6_6");
-	(*mGlobalResources->Shaders)[L"ShadowAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", shadowCullDefines, L"main", L"as_6_6");
-	(*mGlobalResources->Shaders)[L"ShadowStaticMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", shadowDefines, L"main", L"ms_6_6");
-	(*mGlobalResources->Shaders)[L"ShadowSkinnedMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", skinnedShadowDefines, L"main", L"ms_6_6");
+	gShaders[L"ShadowCullCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", shadowCullDefines, L"main", L"cs_6_6");
+	gShaders[L"ShadowAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", shadowCullDefines, L"main", L"as_6_6");
+	gShaders[L"ShadowStaticMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", shadowDefines, L"main", L"ms_6_6");
+	gShaders[L"ShadowSkinnedMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", skinnedShadowDefines, L"main", L"ms_6_6");
 }
 
 void Carol::ShadowPass::InitPSOs()
 {
-	auto shadowStaticPsoDesc = *mGlobalResources->BaseGraphicsPsoDesc;
-	auto shadowStaticAS = (*mGlobalResources->Shaders)[L"ShadowAS"].get();
-	auto shadowStaticMS = (*mGlobalResources->Shaders)[L"ShadowStaticMS"].get();
-	shadowStaticPsoDesc.AS = { reinterpret_cast<byte*>(shadowStaticAS->GetBufferPointer()),shadowStaticAS->GetBufferSize() };
-	shadowStaticPsoDesc.MS = { reinterpret_cast<byte*>(shadowStaticMS->GetBufferPointer()),shadowStaticMS->GetBufferSize() };
-	shadowStaticPsoDesc.NumRenderTargets = 0;
-	shadowStaticPsoDesc.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
-	shadowStaticPsoDesc.DSVFormat = GetDsvFormat(mShadowFormat);
-	shadowStaticPsoDesc.RasterizerState.DepthBias = 60000;
-	shadowStaticPsoDesc.RasterizerState.DepthBiasClamp = 0.01f;
-	shadowStaticPsoDesc.RasterizerState.SlopeScaledDepthBias = 4.0f;
-	auto shadowStaticPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(shadowStaticPsoDesc);
-    D3D12_PIPELINE_STATE_STREAM_DESC shadowStaticStreamDesc;
-    shadowStaticStreamDesc.pPipelineStateSubobjectStream = &shadowStaticPsoStream;
-    shadowStaticStreamDesc.SizeInBytes = sizeof(shadowStaticPsoStream);
-    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&shadowStaticStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"ShadowStatic"].GetAddressOf())));
+	auto shadowStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	shadowStaticMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
+	shadowStaticMeshPSO->SetDepthTargetFormat(GetDsvFormat(mShadowFormat));
+	shadowStaticMeshPSO->SetAS(gShaders[L"ShadowAS"].get());
+	shadowStaticMeshPSO->SetMS(gShaders[L"ShadowStaticMS"].get());
+	shadowStaticMeshPSO->Finalize();
+	gPSOs[L"ShadowStatic"] = std::move(shadowStaticMeshPSO);
 
-	auto shadowSkinnedPsoDesc = shadowStaticPsoDesc;
-	auto shadowSkinnedMS = (*mGlobalResources->Shaders)[L"ShadowSkinnedMS"].get();
-	shadowSkinnedPsoDesc.MS = { reinterpret_cast<byte*>(shadowSkinnedMS->GetBufferPointer()),shadowSkinnedMS->GetBufferSize() };
-	auto shadowSkinnedPsoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(shadowSkinnedPsoDesc);
-    D3D12_PIPELINE_STATE_STREAM_DESC shadowSkinnedStreamDesc;
-    shadowSkinnedStreamDesc.pPipelineStateSubobjectStream = &shadowSkinnedPsoStream;
-    shadowSkinnedStreamDesc.SizeInBytes = sizeof(shadowSkinnedPsoStream);
-    ThrowIfFailed(mGlobalResources->Device->CreatePipelineState(&shadowSkinnedStreamDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"ShadowSkinned"].GetAddressOf())));
+	auto shadowSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	shadowSkinnedMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
+	shadowSkinnedMeshPSO->SetDepthTargetFormat(GetDsvFormat(mShadowFormat));
+	shadowSkinnedMeshPSO->SetAS(gShaders[L"ShadowAS"].get());
+	shadowSkinnedMeshPSO->SetMS(gShaders[L"ShadowSkinnedMS"].get());
+	shadowSkinnedMeshPSO->Finalize();
+	gPSOs[L"ShadowSkinned"] = std::move(shadowSkinnedMeshPSO);
 
-	auto shadowCullPsoDesc = *mGlobalResources->BaseComputePsoDesc;
-	auto shadowCullCS = (*mGlobalResources->Shaders)[L"ShadowCullCS"].get();
-	shadowCullPsoDesc.CS = { reinterpret_cast<byte*>(shadowCullCS->GetBufferPointer()), shadowCullCS->GetBufferSize() };
-	ThrowIfFailed(mGlobalResources->Device->CreateComputePipelineState(&shadowCullPsoDesc, IID_PPV_ARGS((*mGlobalResources->PSOs)[L"ShadowCull"].GetAddressOf())));
+	auto shadowInstanceCullComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	shadowInstanceCullComputePSO->SetCS(gShaders[L"ShadowCullCS"].get());
+	shadowInstanceCullComputePSO->Finalize();
+	gPSOs[L"ShadowInstanceCull"] = std::move(shadowInstanceCullComputePSO);
 }

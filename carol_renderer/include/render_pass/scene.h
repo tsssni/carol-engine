@@ -9,72 +9,25 @@
 #include <unordered_map>
 #include <string>
 
+#define WARP_SIZE 32
+
 namespace Carol {
 
-	class HeapManager;
-	class HeapAllocInfo;
-	class CircularHeap;
-	class DescriptorManager;
 	class TextureManager;
 	class Model;
 	class Timer;
 	class Camera;
-
-	class OctreeNode
-	{
-	public:
-		std::vector<Mesh*> Meshes;
-		std::vector<std::unique_ptr<OctreeNode>> Children;
-		DirectX::BoundingBox BoundingBox;
-		DirectX::BoundingBox LooseBoundingBox;
-	};
-
-	class Octree
-	{
-	public:
-		Octree(DirectX::BoundingBox sceneBoundingBox, float looseFactor = 1.5f);
-		Octree(DirectX::XMVECTOR boxMin, DirectX::XMVECTOR boxMax, float looseFactor = 1.5f);
-
-		void Insert(Mesh* mesh);
-		void Delete(Mesh* mesh);
-		void Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
-	protected:
-		bool ProcessNode(OctreeNode* node, Mesh* mesh);
-		void ProcessContainment(OctreeNode* node, Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
-
-		DirectX::BoundingBox ExtendBoundingBox(const DirectX::BoundingBox& box);
-		void DevideBoundingBox(OctreeNode* node);
-		
-		std::unique_ptr<OctreeNode> mRootNode;
-		float mLooseFactor;
-	};
-
-	class SceneNode
-	{
-	public:
-		SceneNode();
-		std::wstring Name;
-		std::vector<Mesh*> Meshes;
-		std::vector<std::unique_ptr<SceneNode>> Children;
-		DirectX::XMFLOAT4X4 Transformation;
-	};
-
-	class RenderNode
-	{
-	public:
-		Mesh* Mesh;
-		D3D12_GPU_VIRTUAL_ADDRESS WorldGPUVirtualAddress;
-	};
+	class SceneNode;
 
 	class Scene
 	{
 	public:
-		Scene(std::wstring name, ID3D12Device* device, ID3D12GraphicsCommandList* cmdList, HeapManager* heapManager, DescriptorManager* descriptorManager);
+		Scene(std::wstring name);
 		Scene(const Scene&) = delete;
 		Scene(Scene&&) = delete;
 		Scene& operator=(const Scene&) = delete;
 
-		void DelayedDelete(uint32_t currFrame);
+		void DelayedDelete();
 		std::vector<std::wstring> GetAnimationClips(std::wstring modelName);
 		std::vector<std::wstring> GetModelNames();
 		bool IsAnyTransparentMeshes();
@@ -89,24 +42,33 @@ namespace Carol {
 
 		const std::unordered_map<std::wstring, Mesh*>& GetMeshes(MeshType type);
 		uint32_t GetMeshesCount(MeshType type);
-		
+		Mesh* GetSkyBox();
+
 		const std::unordered_map<std::wstring, std::unique_ptr<Model>>& GetModels();
 		uint32_t GetModelsCount();
-
-		Mesh* GetSkyBox();
 
 		void SetWorld(std::wstring modelName, DirectX::XMMATRIX world);
 		void SetAnimationClip(std::wstring modelName, std::wstring clipName);
 		void Update(Camera* camera, Timer* timer);
 		void Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
 
+		void ClearCullMark();
+		uint32_t GetMeshCBStartOffet(MeshType type);
+
+		uint32_t GetMeshCBIdx();
+		uint32_t GetCommandBufferIdx();
+		uint32_t GetInstanceFrustumCulledMarkBufferIdx();
+		uint32_t GetInstanceOcclusionPassedMarkBufferIdx();
+
+		void ExecuteIndirect(StructuredBuffer* indirectCmdBuffer);
+		void DrawSkyBox(ID3D12PipelineState* skyBoxPSO);
+
 	protected:
 		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot);
-
-		ID3D12Device* mDevice;
-		ID3D12GraphicsCommandList* mCommandList;
-		HeapManager* mHeapManager;
-		DescriptorManager* mDescriptorManager;
+		
+		void InitBuffers();
+		void TestBufferSize(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements);
+		void ResizeBuffer(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements, uint32_t elementSize, bool isConstant);
 
 		std::unique_ptr<Model> mSkyBox;
 		std::vector<Light> mLights;
@@ -115,5 +77,14 @@ namespace Carol {
 		std::unique_ptr<TextureManager> mTexManager;
 		std::unordered_map<std::wstring, std::unique_ptr<Model>> mModels;
 		std::vector<std::unordered_map<std::wstring, Mesh*>> mMeshes;
+
+		std::vector<std::unique_ptr<StructuredBuffer>> mIndirectCommandBuffer;
+		std::vector<std::unique_ptr<StructuredBuffer>> mMeshCB;
+		std::vector<std::unique_ptr<StructuredBuffer>> mSkinnedCB;
+
+		std::unique_ptr<RawBuffer> mInstanceFrustumCulledMarkBuffer;
+		std::unique_ptr<RawBuffer> mInstanceOcclusionPassedMarkBuffer;
+
+		uint32_t mMeshStartOffset[MESH_TYPE_COUNT];
 	};
 }

@@ -11,14 +11,13 @@
 
 namespace Carol
 {
-	class GlobalResources;
 	class Resource;
+	class DescriptorAllocInfo;
 
-	class Display : public RenderPass
+	class DisplayPass : public RenderPass
 	{
 	public:
-		Display(
-			GlobalResources* globalResources,
+		DisplayPass(
 			HWND hwnd,
 			IDXGIFactory* factory,
 			uint32_t width,
@@ -26,10 +25,10 @@ namespace Carol
 			uint32_t bufferCount,
 			DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM
 		);
-		Display(const Display&) = delete;
-		Display(Display&&) = delete;
-		Display& operator=(const Display&) = delete;
-		~Display();
+		DisplayPass(const DisplayPass&) = delete;
+		DisplayPass(DisplayPass&&) = delete;
+		DisplayPass& operator=(const DisplayPass&) = delete;
+		~DisplayPass();
 	
 		virtual IDXGISwapChain* GetSwapChain();
 		IDXGISwapChain** GetAddressOfSwapChain();
@@ -42,7 +41,6 @@ namespace Carol
 
 		virtual void Draw()override;
 		virtual void Update()override;
-		virtual void OnResize()override;
 		virtual void ReleaseIntermediateBuffers()override;
 
 		void Present();

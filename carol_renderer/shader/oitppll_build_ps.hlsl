@@ -17,9 +17,6 @@ struct PixelIn
 
 void main(PixelIn pin)
 {
-    
-    
-    
     RWStructuredBuffer<OitNode> oitNodeBuffer = ResourceDescriptorHeap[gOitBufferWIdx];
     RWByteAddressBuffer startOffsetBuffer = ResourceDescriptorHeap[gOitOffsetBufferWIdx];
     RWByteAddressBuffer counter = ResourceDescriptorHeap[gOitCounterBufferIdx];

@@ -1,5 +1,5 @@
 #pragma once
-#include <render_pass/global_resources.h>
+#include <global.h>
 #include <utils/d3dx12.h>
 #include <d3d12.h>
 #include <DirectXCollision.h>
@@ -13,9 +13,6 @@ namespace Carol
 {
 	class AnimationClip;
 	class SkinnedData;
-	class CircularHeap;
-	class HeapManager;
-	class DescriptorManager;
 	class TextureManager;
 	class StructuredBuffer;
 	class RawBuffer;
@@ -128,11 +125,7 @@ namespace Carol
 			std::vector<uint32_t>& indices,
 			bool isSkinned,
 			bool isTransparent,
-			Model* model,
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			HeapManager* heapManager,
-			DescriptorManager* descriptorManager);
+			Model* model);
 
 		void ReleaseIntermediateBuffer();
 
@@ -148,7 +141,7 @@ namespace Carol
 		OctreeNode* GetOctreeNode();
 
 		void Update(DirectX::XMMATRIX& world);
-		void ClearCullMark(ID3D12GraphicsCommandList* cmdList);
+		void ClearCullMark();
 
 		MeshConstants* GetMeshConstants();
 		void SetMeshCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr);
@@ -174,11 +167,6 @@ namespace Carol
 
 		void BoundingBoxCompare(const DirectX::XMVECTOR& vPos, DirectX::XMFLOAT3& boxMin, DirectX::XMFLOAT3& boxMax);
 		void RadiusCompare(const DirectX::XMVECTOR& pos, const DirectX::XMVECTOR& center, const DirectX::XMVECTOR& normalCone, float tanConeSpread, float& radius);
-
-		ID3D12Device* mDevice;
-		ID3D12GraphicsCommandList* mCommandList;
-		HeapManager* mHeapManager;
-		DescriptorManager* mDescriptorManager;
 
 		std::vector<Vertex> mVertices;
 		std::vector<uint32_t> mIndices;
@@ -208,10 +196,7 @@ namespace Carol
 	class Model
 	{
 	public:
-		Model(ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			HeapManager* heapManager,
-			DescriptorManager* descriptorManager);
+		Model();
 		~Model();
 		
 		bool IsSkinned();
@@ -233,14 +218,8 @@ namespace Carol
 		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBAddress();
 
 	protected:
-		ID3D12Device* mDevice;
-		ID3D12GraphicsCommandList* mCommandList;
-		HeapManager* mHeapManager;
-		DescriptorManager* mDescriptorManager;
-		
-		std::wstring mTexDir;
-
 		std::wstring mModelName;
+		std::wstring mTexDir;
 		std::unordered_map<std::wstring, std::unique_ptr<Mesh>> mMeshes;
 
 		bool mSkinned;

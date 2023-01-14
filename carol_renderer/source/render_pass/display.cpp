@@ -1,5 +1,5 @@
 #include <render_pass/display.h>
-#include <render_pass/global_resources.h>
+#include <global.h>
 #include <dx12/resource.h>
 #include <dx12/descriptor.h>
 #include <dx12/root_signature.h>
@@ -13,7 +13,7 @@ namespace Carol {
 }
 
 
-Carol::Display::~Display()
+Carol::DisplayPass::~DisplayPass()
 {
 	if (mBackBufferRtvAllocInfo->Allocator)
 	{
@@ -21,31 +21,29 @@ Carol::Display::~Display()
 	}
 }
 
-IDXGISwapChain* Carol::Display::GetSwapChain()
+IDXGISwapChain* Carol::DisplayPass::GetSwapChain()
 {
 	return mSwapChain.Get();
 }
 
-IDXGISwapChain** Carol::Display::GetAddressOfSwapChain()
+IDXGISwapChain** Carol::DisplayPass::GetAddressOfSwapChain()
 {
 	return mSwapChain.GetAddressOf();
 }
 
-uint32_t Carol::Display::GetBackBufferCount()
+uint32_t Carol::DisplayPass::GetBackBufferCount()
 {
 	return mBackBuffer.size();
 }
 
-Carol::Display::Display(
-	GlobalResources* globalResources,
+Carol::DisplayPass::DisplayPass(
 	HWND hwnd,
 	IDXGIFactory* factory,
 	uint32_t width,
 	uint32_t height,
 	uint32_t bufferCount,
 	DXGI_FORMAT backBufferFormat)
-	:RenderPass(globalResources),
-	mBackBuffer(bufferCount),
+	:mBackBuffer(bufferCount),
 	mBackBufferFormat(backBufferFormat),
 	mBackBufferRtvAllocInfo(make_unique<DescriptorAllocInfo>())
 {
@@ -70,74 +68,60 @@ Carol::Display::Display(
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	mSwapChain.Reset();
-	ThrowIfFailed(factory->CreateSwapChain(globalResources->CommandQueue, &swapChainDesc, mSwapChain.GetAddressOf()));
+	ThrowIfFailed(factory->CreateSwapChain(gCommandQueue.Get(), &swapChainDesc, mSwapChain.GetAddressOf()));
 }
 
-void Carol::Display::SetBackBufferIndex()
+void Carol::DisplayPass::SetBackBufferIndex()
 {
 	mCurrBackBufferIndex = (mCurrBackBufferIndex + 1) % mBackBuffer.size();
 }
 
-Carol::Resource* Carol::Display::GetCurrBackBuffer()
+Carol::Resource* Carol::DisplayPass::GetCurrBackBuffer()
 {
 	return mBackBuffer[mCurrBackBufferIndex].get();
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::Display::GetCurrBackBufferRtv()
+CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DisplayPass::GetCurrBackBufferRtv()
 {
-	return mGlobalResources->DescriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mCurrBackBufferIndex);
+	return gDescriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mCurrBackBufferIndex);
 }
 
-DXGI_FORMAT Carol::Display::GetBackBufferFormat()
+DXGI_FORMAT Carol::DisplayPass::GetBackBufferFormat()
 {
 	return mBackBufferFormat;
 }
 
-void Carol::Display::Draw()
+void Carol::DisplayPass::Draw()
 {
 }
 
-void Carol::Display::Update()
+void Carol::DisplayPass::Update()
 {
 }
 
-void Carol::Display::OnResize()
-{
-	static uint32_t width = 0;
-    static uint32_t height = 0;
-
-    if (width != *mGlobalResources->ClientWidth || height != *mGlobalResources->ClientHeight)
-    {
-        width = *mGlobalResources->ClientWidth;
-        height = *mGlobalResources->ClientHeight;
-
-        InitBuffers();
-    }
-}
-
-void Carol::Display::ReleaseIntermediateBuffers()
+void Carol::DisplayPass::ReleaseIntermediateBuffers()
 {
 }
 
-void Carol::Display::Present()
+void Carol::DisplayPass::Present()
 {
 	if (FAILED(mSwapChain->Present(0, 0)))
 	{
-		ThrowIfFailed(mGlobalResources->Device->GetDeviceRemovedReason());
+		ThrowIfFailed(gDevice->GetDeviceRemovedReason());
 	}
 
 	SetBackBufferIndex();
 }
 
-void Carol::Display::InitShaders()
+void Carol::DisplayPass::InitShaders()
 {
 }
 
-void Carol::Display::InitPSOs()
+void Carol::DisplayPass::InitPSOs()
 {
 }
 
-void Carol::Display::InitBuffers()
+void Carol::DisplayPass::InitBuffers()
 {
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
@@ -146,8 +130,8 @@ void Carol::Display::InitBuffers()
 
 	ThrowIfFailed(mSwapChain->ResizeBuffers(
 		mBackBuffer.size(),
-		*mGlobalResources->ClientWidth,
-		*mGlobalResources->ClientHeight,
+		mWidth,
+		mHeight,
 		mBackBufferFormat,
 		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
 	));
@@ -156,16 +140,16 @@ void Carol::Display::InitBuffers()
 	InitDescriptors();
 }
 
-void Carol::Display::InitDescriptors()
+void Carol::DisplayPass::InitDescriptors()
 {
 	if (!mBackBufferRtvAllocInfo->Allocator)
 	{
-		mGlobalResources->DescriptorManager->RtvAllocate(mBackBuffer.size(), mBackBufferRtvAllocInfo.get());
+		gDescriptorManager->RtvAllocate(mBackBuffer.size(), mBackBufferRtvAllocInfo.get());
 	}
 	
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
 		ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(mBackBuffer[i]->GetAddressOf())));
-		mGlobalResources->Device->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, mGlobalResources->DescriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), i));
+		gDevice->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, gDescriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), i));
 	}
 }

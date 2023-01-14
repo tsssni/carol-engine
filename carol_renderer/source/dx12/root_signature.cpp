@@ -3,15 +3,16 @@
 #include <dx12/resource.h>
 #include <dx12/shader.h>
 #include <dx12/sampler.h>
+#include <global.h>
 
 namespace Carol {
     using std::make_unique;
 }
 
-Carol::RootSignature::RootSignature(ID3D12Device* device)
+Carol::RootSignature::RootSignature()
 {
     Shader rootSignatureShader(L"shader\\root_signature.hlsl", {}, L"main", L"ms_6_6");
-    ThrowIfFailed(device->CreateRootSignature(0, rootSignatureShader.GetBufferPointer(), rootSignatureShader.GetBufferSize(), IID_PPV_ARGS(mRootSignature.GetAddressOf())));
+    ThrowIfFailed(gDevice->CreateRootSignature(0, rootSignatureShader.GetBufferPointer(), rootSignatureShader.GetBufferSize(), IID_PPV_ARGS(mRootSignature.GetAddressOf())));
 }
 
 ID3D12RootSignature* Carol::RootSignature::Get()

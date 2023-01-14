@@ -10,7 +10,6 @@
 namespace Carol
 {
 	class FastConstantBufferAllocator;
-	class Scene;
     class FramePass;
     class SsaoPass;
     class NormalPass;
@@ -96,13 +95,13 @@ namespace Carol
         std::vector<std::wstring> GetModelNames();
     protected:
 		void InitConstants();
-        void InitPSOs();
+        void InitPipelineStates();
+
         void InitFrame();
         void InitSsao();
         void InitNormal();
         void InitTaa();
         void InitMainLight();
-        void InitOitppll();
         void InitMeshes();
 		
 		void UpdateFrameCB();
@@ -111,14 +110,11 @@ namespace Carol
 
     protected:
 
-		std::unique_ptr<Scene> mScene;
-        std::unique_ptr<FramePass> mFrame;
         std::unique_ptr<SsaoPass> mSsao;
         std::unique_ptr<NormalPass> mNormal;
         std::unique_ptr<TaaPass> mTaa;
         std::unique_ptr<ShadowPass> mMainLight;
         std::unique_ptr<OitppllPass> mOitppll;
-        std::unique_ptr<MeshesPass> mMeshes;
 
 		std::unique_ptr<FrameConstants> mFrameConstants;
         std::unique_ptr<FastConstantBufferAllocator> mFrameCBAllocator;

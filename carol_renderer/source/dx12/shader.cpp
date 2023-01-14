@@ -28,12 +28,12 @@ Carol::Shader::Shader(const wstring& fileName, const vector<wstring>& defines, c
 }
 
 
-LPVOID Carol::Shader::GetBufferPointer()
+LPVOID Carol::Shader::GetBufferPointer()const
 {
     return mShader->GetBufferPointer();
 }
 
-size_t Carol::Shader::GetBufferSize()
+size_t Carol::Shader::GetBufferSize()const
 {
     return mShader->GetBufferSize();
 }

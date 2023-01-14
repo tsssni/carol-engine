@@ -17,8 +17,8 @@ namespace Carol
 			const std::wstring& entryPoint,
 			const std::wstring& target);
 
-		LPVOID GetBufferPointer();
-		size_t GetBufferSize();
+		LPVOID GetBufferPointer()const;
+		size_t GetBufferSize()const;
 
 		static void InitCompiler();
 	private:

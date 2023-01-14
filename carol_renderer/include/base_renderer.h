@@ -15,7 +15,7 @@ namespace Carol
 	class DescriptorManager;
     class Shader;
 	class RootSignature;
-	class Display;
+	class DisplayPass;
 	class Timer;
 	class Camera;
     class FrameConstants;
@@ -65,59 +65,35 @@ namespace Carol
 		virtual void InitCommandQueue();
 		virtual void InitCommandAllocator();
 		virtual void InitCommandList();
-		virtual void InitRootSignature();
+		virtual void InitCommandSignature();
 
+		virtual void InitRootSignature();
 		virtual void InitHeapManager();
 		virtual void InitDescriptorManager();
 		virtual void InitDisplay();
-
-		virtual void InitShaders();
-		virtual void InitPSOs();
 
 		virtual void FlushCommandQueue();
 
 	protected:
 		Microsoft::WRL::ComPtr<ID3D12Debug> mDebugLayer;
 		Microsoft::WRL::ComPtr<IDXGIFactory> mDxgiFactory;
-		Microsoft::WRL::ComPtr<ID3D12Device> mDevice;
 		Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
 		uint32_t mCpuFence;
 
-		Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
-		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
 		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mInitCommandAllocator;
-
-		std::unique_ptr<RootSignature> mRootSignature;
-		std::unique_ptr<HeapManager> mHeapManager;
-		std::unique_ptr<DescriptorManager> mDescriptorManager;
-
-        std::unordered_map<std::wstring, std::unique_ptr<Shader>> mShaders;
-        std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
-		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC mBaseGraphicsPsoDesc;
-		D3D12_COMPUTE_PIPELINE_STATE_DESC mBaseComputePsoDesc;
-
-        uint32_t mNumFrame = 3;
-        uint32_t mCurrFrame = 0;
         std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mFrameAllocator;
         std::vector<uint32_t> mGpuFence = { 0,0,0 };
 
-		std::unique_ptr<Display> mDisplay;
-
-		std::unique_ptr<Timer> mTimer;
+		uint32_t mClientWidth;
+		uint32_t mClientHeight;
 		std::unique_ptr<Camera> mCamera;
-
-		D3D12_VIEWPORT mScreenViewport;
-		D3D12_RECT mScissorRect;
+		std::unique_ptr<Timer> mTimer;
 
 		HWND mhWnd;
 		std::wstring mMainWndCaption = L"Carol";
 		D3D_DRIVER_TYPE md3dDriverType = D3D_DRIVER_TYPE_HARDWARE;
 
-		uint32_t mClientWidth = 800;
-		uint32_t mClientHeight = 600;		
 		DirectX::XMINT2 mLastMousePos;
-
-		std::unique_ptr<GlobalResources> mGlobalResources;
 
 		bool mPaused = false;
 		bool mMaximized = false;

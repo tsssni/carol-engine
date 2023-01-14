@@ -3,6 +3,7 @@
 #include <utils/bitset.h>
 #include <utils/buddy.h>
 #include <utils/common.h>
+#include <global.h>
 #include <assert.h>
 #include <cmath>
 
@@ -11,15 +12,15 @@ namespace Carol {
     using Microsoft::WRL::ComPtr;
 }
 
-Carol::Heap::Heap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag)
-    :mDevice(device), mType(type), mFlag(flag)
+Carol::Heap::Heap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag)
+    :mType(type), mFlag(flag), mDeletedResources(gNumFrame)
 {
   
 }
 
 void Carol::Heap::DeleteResource(HeapAllocInfo* info)
 {
-    mDeletedResources[mCurrFrame].push_back(*info);
+    mDeletedResources[gCurrFrame].push_back(*info);
 }
 
 void Carol::Heap::DeleteResourceImmediate(HeapAllocInfo* info)
@@ -27,17 +28,9 @@ void Carol::Heap::DeleteResourceImmediate(HeapAllocInfo* info)
     Deallocate(info);
 }
 
-void Carol::Heap::DelayedDelete(uint32_t currFrame)
+void Carol::Heap::DelayedDelete()
 {
-     mCurrFrame = currFrame;
-
-    if (mCurrFrame >= mDeletedResources.size())
-    {
-        // Frame index is added by one per frame, so just emplace back.
-        mDeletedResources.emplace_back();
-    }
-
-    for (auto& info : mDeletedResources[mCurrFrame])
+    for (auto& info : mDeletedResources[gCurrFrame])
     {
         if (info.MappedData)
         {
@@ -48,12 +41,12 @@ void Carol::Heap::DelayedDelete(uint32_t currFrame)
         Deallocate(&info);
     }
 
-    mDeletedResources[mCurrFrame].clear();
+    mDeletedResources[gCurrFrame].clear();
 }
 
 
-Carol::BuddyHeap::BuddyHeap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag, uint32_t heapSize)
-    :Heap(device,type,flag), mHeapSize(heapSize)
+Carol::BuddyHeap::BuddyHeap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag, uint32_t heapSize)
+    :Heap(type,flag), mHeapSize(heapSize)
 {
     Align();
     AddHeap();
@@ -121,9 +114,9 @@ bool Carol::BuddyHeap::Deallocate(HeapAllocInfo* info)
 
 void Carol::BuddyHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_RESOURCE_DESC* desc, HeapAllocInfo* info, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue)
 {
-    Allocate(mDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes, info);
+    Allocate(gDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes, info);
     
-    ThrowIfFailed(mDevice->CreatePlacedResource(
+    ThrowIfFailed(gDevice->CreatePlacedResource(
         mHeaps[info->Addr / mHeapSize].Get(),
         info->Addr % mHeapSize,
         desc,
@@ -158,11 +151,11 @@ void Carol::BuddyHeap::AddHeap()
     heapDesc.Alignment = 0;
     heapDesc.Flags = mFlag;
 
-    mDevice->CreateHeap(&heapDesc, IID_PPV_ARGS(mHeaps.back().GetAddressOf()));
+    gDevice->CreateHeap(&heapDesc, IID_PPV_ARGS(mHeaps.back().GetAddressOf()));
 }
 
-Carol::SegListHeap::SegListHeap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag, uint32_t maxPageSize)
-    :Heap(device, type, flag),mOrder(GetOrder(maxPageSize))
+Carol::SegListHeap::SegListHeap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag, uint32_t maxPageSize)
+    :Heap(type, flag),mOrder(GetOrder(maxPageSize))
 {
     mSegLists.resize(mOrder + 1);
     mBitsets.resize(mOrder + 1);
@@ -175,13 +168,13 @@ Carol::SegListHeap::SegListHeap(ID3D12Device* device, D3D12_HEAP_TYPE type, D3D1
 
 void Carol::SegListHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_RESOURCE_DESC* desc, HeapAllocInfo* info, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue)
 {
-    Allocate(mDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes, info);
+    Allocate(gDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes, info);
 
     auto order = GetOrder(info->Bytes);
     auto orderNumPages = 1 << (mOrder - order);
     auto heapIdx = info->Addr / (orderNumPages * (mPageSize << order));
 
-    ThrowIfFailed(mDevice->CreatePlacedResource(
+    ThrowIfFailed(gDevice->CreatePlacedResource(
         mSegLists[order][heapIdx].Get(),
         info->Addr % (orderNumPages * (mPageSize << order)),
         desc,
@@ -262,18 +255,18 @@ void Carol::SegListHeap::AddHeap(uint32_t order)
     desc.Alignment = 0;
     desc.Flags = mFlag;
 
-    ThrowIfFailed(mDevice->CreateHeap(
+    ThrowIfFailed(gDevice->CreateHeap(
         &desc,
         IID_PPV_ARGS(mSegLists[order].back().GetAddressOf())
     ));
 }
 
-Carol::HeapManager::HeapManager(ID3D12Device* device, uint32_t initDefaultBuffersHeapSize, uint32_t initUploadBuffersHeapSize, uint32_t initReadbackBuffersHeapSize, uint32_t texturesMaxPageSize)
+Carol::HeapManager::HeapManager(uint32_t initDefaultBuffersHeapSize, uint32_t initUploadBuffersHeapSize, uint32_t initReadbackBuffersHeapSize, uint32_t texturesMaxPageSize)
 {
-    mDefaultBuffersHeap = make_unique<BuddyHeap>(device, D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
-    mUploadBuffersHeap = make_unique<BuddyHeap>(device, D3D12_HEAP_TYPE_UPLOAD, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
-    mReadbackBuffersHeap = make_unique<BuddyHeap>(device, D3D12_HEAP_TYPE_READBACK, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
-    mTexturesHeap = make_unique<SegListHeap>(device, D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, texturesMaxPageSize);
+    mDefaultBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
+    mUploadBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_UPLOAD, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
+    mReadbackBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_READBACK, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
+    mTexturesHeap = make_unique<SegListHeap>(D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, texturesMaxPageSize);
 }
 
 Carol::Heap* Carol::HeapManager::GetDefaultBuffersHeap()
@@ -296,10 +289,10 @@ Carol::Heap* Carol::HeapManager::GetTexturesHeap()
     return mTexturesHeap.get();
 }
 
-void Carol::HeapManager::DelayedDelete(uint32_t currFrame)
+void Carol::HeapManager::DelayedDelete()
 {
-    mDefaultBuffersHeap->DelayedDelete(currFrame);
-    mUploadBuffersHeap->DelayedDelete(currFrame);
-    mReadbackBuffersHeap->DelayedDelete(currFrame);
-    mTexturesHeap->DelayedDelete(currFrame);
+    mDefaultBuffersHeap->DelayedDelete();
+    mUploadBuffersHeap->DelayedDelete();
+    mReadbackBuffersHeap->DelayedDelete();
+    mTexturesHeap->DelayedDelete();
 }

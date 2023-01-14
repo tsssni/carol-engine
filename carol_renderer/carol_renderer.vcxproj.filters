@@ -50,9 +50,6 @@
     <ClInclude Include="include\render_pass\shadow.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\render_pass\mesh.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="include\render_pass\oitppll.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -107,7 +104,7 @@
     <ClInclude Include="main.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\render_pass\global_resources.h">
+    <ClInclude Include="include\global.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\dx12\root_signature.h">
@@ -122,10 +119,22 @@
     <ClInclude Include="include\render_pass\frame.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\scene\scene.h">
+    <ClInclude Include="include\render_pass\scene.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\scene\material.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dx12\pipeline_state.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\dx12\indirect_command.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene\scene_node.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene\octree.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -155,9 +164,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\render_pass\shadow.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="source\render_pass\mesh.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\render_pass\oitppll.cpp">
@@ -205,10 +211,19 @@
     <ClCompile Include="source\render_pass\frame.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\scene\scene.cpp">
+    <ClCompile Include="source\render_pass\scene.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dx12\pipeline_state.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\render_pass\render_pass.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\scene\scene_node.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\scene\octree.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
