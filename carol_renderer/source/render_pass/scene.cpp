@@ -54,7 +54,7 @@ Carol::vector<Carol::wstring> Carol::Scene::GetAnimationClips(std::wstring model
 	return mModels[modelName]->GetAnimationClips();
 }
 
-std::vector<wstring> Carol::Scene::GetModelNames()
+Carol::vector<Carol::wstring> Carol::Scene::GetModelNames()
 {
 	vector<wstring> models;
 	for (auto& modelMapPair : mModels)

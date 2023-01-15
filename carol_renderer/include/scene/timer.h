@@ -1,8 +1,6 @@
 #pragma once
 #include <string>
 
-using std::wstring;
-
 namespace Carol
 {
 	class Timer
@@ -18,7 +16,7 @@ namespace Carol
 		void Stop();
 		void Tick();
 
-		wstring CalculateFrameStates(wstring& mainWindowCaption);
+		std::wstring CalculateFrameStates(std::wstring& mainWindowCaption);
 
 	private:
 		double mSecondsPerCount = 0.0f;

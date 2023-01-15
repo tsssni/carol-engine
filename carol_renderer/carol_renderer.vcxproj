@@ -30,6 +30,7 @@
     <ClInclude Include="include\dx12\sampler.h" />
     <ClInclude Include="include\dx12\shader.h" />
     <ClInclude Include="include\renderer.h" />
+    <ClInclude Include="include\render_pass.h" />
     <ClInclude Include="include\render_pass\display.h" />
     <ClInclude Include="include\render_pass\frame.h" />
     <ClInclude Include="include\render_pass\normal.h" />
@@ -39,21 +40,23 @@
     <ClInclude Include="include\render_pass\shadow.h" />
     <ClInclude Include="include\render_pass\ssao.h" />
     <ClInclude Include="include\render_pass\taa.h" />
+    <ClInclude Include="include\scene.h" />
     <ClInclude Include="include\scene\assimp.h" />
     <ClInclude Include="include\scene\camera.h" />
     <ClInclude Include="include\scene\light.h" />
     <ClInclude Include="include\scene\material.h" />
     <ClInclude Include="include\scene\model.h" />
     <ClInclude Include="include\render_pass\scene.h" />
-    <ClInclude Include="include\scene\octree.h" />
     <ClInclude Include="include\scene\scene_node.h" />
     <ClInclude Include="include\scene\skinned_data.h" />
     <ClInclude Include="include\scene\texture.h" />
     <ClInclude Include="include\scene\timer.h" />
+    <ClInclude Include="include\utils.h" />
     <ClInclude Include="include\utils\bitset.h" />
     <ClInclude Include="include\utils\buddy.h" />
     <ClInclude Include="include\utils\common.h" />
     <ClInclude Include="include\utils\d3dx12.h" />
+    <ClInclude Include="include\dx12.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="win32\framework.h" />
     <ClInclude Include="win32\resource.h" />
@@ -82,7 +85,6 @@
     <ClCompile Include="source\scene\camera.cpp" />
     <ClCompile Include="source\scene\model.cpp" />
     <ClCompile Include="source\render_pass\scene.cpp" />
-    <ClCompile Include="source\scene\octree.cpp" />
     <ClCompile Include="source\scene\scene_node.cpp" />
     <ClCompile Include="source\scene\skinned_data.cpp" />
     <ClCompile Include="source\scene\texture.cpp" />
@@ -330,7 +332,7 @@
       <PreprocessorDefinitions>_DEBUG;NOMINMAX;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDIr)include;C:\dxc_2022_12_16\inc;C:\assimp-5.2.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;C:\dxc_2022_12_16\inc;C:\assimp-5.2.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>

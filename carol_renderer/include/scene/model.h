@@ -1,7 +1,6 @@
 #pragma once
 #include <global.h>
 #include <utils/d3dx12.h>
-#include <d3d12.h>
 #include <DirectXCollision.h>
 #include <DirectXPackedVector.h>
 #include <vector>
@@ -94,7 +93,6 @@ namespace Carol
 	};
 
 	class Model;
-	class OctreeNode;
 
 	enum MeshType
 	{
@@ -135,10 +133,6 @@ namespace Carol
 		void SetMaterial(const Material& mat);
 		void SetDiffuseMapIdx(uint32_t idx);
 		void SetNormalMapIdx(uint32_t idx);
-
-		DirectX::BoundingBox GetBoundingBox();
-		void SetOctreeNode(OctreeNode* node);
-		OctreeNode* GetOctreeNode();
 
 		void Update(DirectX::XMMATRIX& world);
 		void ClearCullMark();
@@ -182,7 +176,6 @@ namespace Carol
 		Model* mModel;
 		Material mMaterial;
 
-		OctreeNode* mOctreeNode;
 		DirectX::BoundingBox mOriginalBoundingBox;
 		DirectX::BoundingBox mBoundingBox;
 
@@ -230,7 +223,7 @@ namespace Carol
 		std::vector<DirectX::XMFLOAT4X4> mBoneOffsets;
 
 		std::unordered_map<std::wstring, std::unique_ptr<AnimationClip>> mAnimationClips;
-		std::vector<std::vector<std::vector<DirectX::XMFLOAT4X4>>> mAnimationFrames;
+		std::vector<std::vector<std::vector<DirectX::XMFLOAT4X4>>> mCriticalFrames;
 
 		std::unique_ptr<SkinnedConstants> mSkinnedConstants;
 		D3D12_GPU_VIRTUAL_ADDRESS mSkinnedCBAddr;

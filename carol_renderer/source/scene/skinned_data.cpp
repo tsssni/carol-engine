@@ -1,5 +1,4 @@
 #include <scene/skinned_data.h>
-#include <dx12/heap.h>
 #include <cmath>
 
 namespace Carol {

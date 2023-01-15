@@ -48,8 +48,8 @@ Carol::AssimpModel::AssimpModel(
 
 	LoadAssimpSkinnedData(scene);
 	ProcessNode(scene->mRootNode, rootNode, scene);
-	mAnimationFrames.clear();
-	mAnimationFrames.shrink_to_fit();
+	mCriticalFrames.clear();
+	mCriticalFrames.shrink_to_fit();
 }
 
 void Carol::AssimpModel::ProcessNode(aiNode* node, SceneNode* sceneNode, const aiScene* scene)
@@ -352,7 +352,7 @@ void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 			frameTransforms.emplace_back(std::move(finalTransforms));
 		}
 
-		mAnimationFrames.emplace_back(std::move(frameTransforms));
+		mCriticalFrames.emplace_back(std::move(frameTransforms));
 	}
 }
 

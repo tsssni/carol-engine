@@ -82,21 +82,6 @@ void Carol::Mesh::SetNormalMapIdx(uint32_t idx)
 	mMeshConstants->NormalMapIdx = idx;
 }
 
-Carol::BoundingBox Carol::Mesh::GetBoundingBox()
-{
-	return mBoundingBox;
-}
-
-void Carol::Mesh::SetOctreeNode(OctreeNode* node)
-{
-	mOctreeNode = node;
-}
-
-Carol::OctreeNode* Carol::Mesh::GetOctreeNode()
-{
-	return mOctreeNode;
-}
-
 void Carol::Mesh::Update(XMMATRIX& world)
 {
 	mMeshConstants->FresnelR0 = mMaterial.FresnelR0;
@@ -364,7 +349,6 @@ void Carol::Mesh::LoadMeshletNormalCone()
 			mCullData[i].ApexOffset = centerToBottomDist + radius / tanConeSpread;
 		}
 	}
-
 }
 
 DirectX::XMVECTOR Carol::Mesh::LoadConeCenter(const Meshlet& meshlet)
@@ -670,7 +654,7 @@ const Carol::unordered_map<Carol::wstring, Carol::unique_ptr<Carol::Mesh>>& Caro
 
 const Carol::vector<Carol::vector<Carol::vector<Carol::XMFLOAT4X4>>>& Carol::Model::GetAnimationTransforms()
 {
-	return mAnimationFrames;
+	return mCriticalFrames;
 }
 
 Carol::vector<Carol::wstring> Carol::Model::GetAnimationClips()

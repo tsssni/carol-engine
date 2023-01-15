@@ -1,8 +1,6 @@
 #include <scene/texture.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
-#include <dx12/descriptor.h>
-#include <dx12/root_signature.h>
 #include <utils/common.h>
 #include <global.h>
 #include <DirectXTex.h>
@@ -14,7 +12,6 @@ namespace Carol {
 	using std::wstring;
 	using std::unordered_map;
 	using std::make_unique;
-	using std::make_shared;
 	using namespace DirectX;
 }
 
@@ -27,15 +24,15 @@ Carol::Texture::Texture(wstring fileName, bool isSrgb)
 
 	if (suffix == L"dds")
 	{
-		ThrowIfFailed(LoadFromDDSFile(fileName.c_str(), DirectX::DDS_FLAGS_FORCE_RGB, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromDDSFile(fileName.c_str(), DDS_FLAGS_FORCE_RGB, &metaData, scratchImage));
 	}
 	else if (suffix == L"tga")
 	{
-		ThrowIfFailed(DirectX::LoadFromTGAFile(fileName.c_str(), DirectX::TGA_FLAGS_FORCE_LINEAR, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromTGAFile(fileName.c_str(), TGA_FLAGS_FORCE_LINEAR, &metaData, scratchImage));
 	}
 	else
 	{
-		ThrowIfFailed(LoadFromWICFile(fileName.c_str(), DirectX::WIC_FLAGS_FORCE_RGB, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromWICFile(fileName.c_str(), WIC_FLAGS_FORCE_RGB, &metaData, scratchImage));
 	}
 
 	if (isSrgb)
@@ -125,7 +122,7 @@ uint32_t Carol::Texture::GetGpuSrvIdx(uint32_t planeSlice)
 	return mTexture->GetGpuSrvIdx(planeSlice);
 }
 
-	void Carol::Texture::ReleaseIntermediateBuffer()
+void Carol::Texture::ReleaseIntermediateBuffer()
 {
 	mTexture->ReleaseIntermediateBuffer();
 }
@@ -137,10 +134,12 @@ uint32_t Carol::Texture::GetRef()
 
 void Carol::Texture::AddRef()
 {
+	++mNumRef;
 }
 
 void Carol::Texture::DecRef()
 {
+	--mNumRef;
 }
 
 Carol::TextureManager::TextureManager()

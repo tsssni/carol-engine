@@ -1,10 +1,7 @@
 #include <render_pass/display.h>
 #include <global.h>
-#include <dx12/resource.h>
-#include <dx12/descriptor.h>
-#include <dx12/root_signature.h>
-#include <dx12/heap.h>
-#include <utils/Common.h>
+#include <dx12.h>
+#include <utils/common.h>
 #include <stdlib.h>
 
 namespace Carol {

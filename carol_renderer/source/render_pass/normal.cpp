@@ -3,11 +3,7 @@
 #include <render_pass/frame.h>
 #include <render_pass/scene.h>
 #include <render_pass/display.h>
-#include <dx12/resource.h>
-#include <dx12/heap.h>
-#include <dx12/descriptor.h>
-#include <dx12/shader.h>
-#include <dx12/pipeline_state.h>
+#include <dx12.h>
 #include <DirectXColors.h>
 
 namespace Carol

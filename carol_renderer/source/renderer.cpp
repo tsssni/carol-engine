@@ -1,32 +1,14 @@
 #include <renderer.h>
-#include <render_pass/display.h>
-#include <render_pass/frame.h>
-#include <render_pass/ssao.h>
-#include <render_pass/normal.h>
-#include <render_pass/taa.h>
-#include <render_pass/shadow.h>
-#include <render_pass/oitppll.h>
-#include <render_pass/scene.h>
-#include <dx12/resource.h>
-#include <dx12/heap.h>
-#include <dx12/descriptor.h>
-#include <dx12/root_signature.h>
-#include <dx12/shader.h>
-#include <scene/assimp.h>
-#include <scene/texture.h>
-#include <scene/timer.h>
-#include <scene/camera.h>
-#include <scene/skinned_data.h>
-#include <scene/scene_node.h>
-#include <utils/bitset.h>
-#include <utils/buddy.h>
-#include <utils/common.h>
-#include <utils/d3dx12.h>
+#include <render_pass.h>
+#include <dx12.h>
+#include <scene.h>
+#include <utils.h>
 #include <DirectXColors.h>
 
 namespace Carol {
 	using std::vector;
 	using std::unique_ptr;
+	using std::wstring;
 	using std::make_unique;
 	using namespace DirectX;
 
@@ -359,7 +341,7 @@ void Carol::Renderer::UnloadModel(wstring modelName)
 	gScene->UnloadModel(modelName);
 }
 
-Carol::vector<wstring> Carol::Renderer::GetAnimationNames(wstring modelName)
+Carol::vector<Carol::wstring> Carol::Renderer::GetAnimationNames(wstring modelName)
 {
 	return gScene->GetAnimationClips(modelName);
 }
@@ -369,7 +351,7 @@ void Carol::Renderer::SetAnimation(wstring modelName, wstring animationName)
 	gScene->SetAnimationClip(modelName, animationName);
 }
 
-Carol::vector<wstring> Carol::Renderer::GetModelNames()
+Carol::vector<Carol::wstring> Carol::Renderer::GetModelNames()
 {
 	return gScene->GetModelNames();
 }

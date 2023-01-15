@@ -134,7 +134,16 @@
     <ClInclude Include="include\scene\scene_node.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\scene\octree.h">
+    <ClInclude Include="include\dx12.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scene.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\render_pass.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\utils.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -221,9 +230,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\scene\scene_node.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="source\scene\octree.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,18 +1,8 @@
 #include <base_renderer.h>
-#include <render_pass/display.h>
-#include <dx12/resource.h>
-#include <dx12/heap.h>
-#include <dx12/descriptor.h>
-#include <dx12/pipeline_state.h>
-#include <dx12/root_signature.h>
-#include <dx12/shader.h>
-#include <dx12/indirect_command.h>
-#include <scene/timer.h>
-#include <scene/camera.h>
-#include <scene/skinned_data.h>
-#include <utils/bitset.h>
-#include <utils/buddy.h>
-#include <utils/common.h>
+#include <render_pass.h>
+#include <dx12.h>
+#include <scene.h>
+#include <utils.h>
 #include <DirectXMath.h>
 #include <memory>
 
@@ -20,6 +10,7 @@ namespace Carol
 {
 	using std::unique_ptr;
 	using std::unordered_map;
+	using std::wstring;
 	using std::vector;
 	using std::make_unique;
 	using std::to_wstring;

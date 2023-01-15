@@ -335,6 +335,7 @@ void Carol::DescriptorManager::GpuCbvSrvUavDeallocate(DescriptorAllocInfo* info)
 {
 	mCbvSrvUavAllocator->GpuDeallocate(info);
 }
+
 void Carol::DescriptorManager::RtvDeallocate(DescriptorAllocInfo* info)
 {
 	mRtvAllocator->CpuDeallocate(info);
@@ -359,6 +360,7 @@ void Carol::DescriptorManager::CreateUav(D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDe
 {
 	mCbvSrvUavAllocator->CreateUav(uavDesc, resource, counterResource, info, offset);
 }
+
 void Carol::DescriptorManager::CreateRtv(D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset)
 {
 	mRtvAllocator->CreateRtv(rtvDesc, resource, info, offset);

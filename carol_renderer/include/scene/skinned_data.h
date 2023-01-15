@@ -4,10 +4,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
-#include <string.h>
-#include <vector>
 #include <memory>
-#include <unordered_map>
 
 namespace Carol
 {

@@ -192,7 +192,7 @@ void Carol::Resource::CopySubresources(Heap* intermediateHeap, D3D12_SUBRESOURCE
 	UpdateSubresources(gCommandList.Get(), mResource.Get(), mIntermediateBuffer.Get(), 0, firstSubresource, numSubresources, subresources);
 	gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mResource.Get(), D3D12_RESOURCE_STATE_COPY_DEST, beforeState)));
 }
-#include <scene/model.h>
+
 void Carol::Resource::CopyData(const void* data, uint32_t byteSize, uint32_t offset)
 {
 	if (!mMappedData)
@@ -202,7 +202,6 @@ void Carol::Resource::CopyData(const void* data, uint32_t byteSize, uint32_t off
 	}
 
 	memcpy(mMappedData + offset, data, byteSize);
-	MeshConstants* mc = reinterpret_cast<MeshConstants*>(mMappedData + offset);
 }
 
 void Carol::Resource::ReleaseIntermediateBuffer()

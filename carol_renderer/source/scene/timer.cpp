@@ -1,6 +1,11 @@
 #include <scene/timer.h>
 #include <windows.h>
 
+namespace Carol
+{
+    using std::wstring;
+}
+
 Carol::Timer::Timer()
 {
     uint64_t countsPerSec;
@@ -53,8 +58,6 @@ void Carol::Timer::Start()
 
 void Carol::Timer::Stop()
 {
-    
-
     if (!mStopped)
     {   
         uint64_t stopTime;
@@ -86,7 +89,7 @@ void Carol::Timer::Tick()
     }
 }
 
-wstring Carol::Timer::CalculateFrameStates(wstring& mainWindowCaption)
+Carol::wstring Carol::Timer::CalculateFrameStates(wstring& mainWindowCaption)
 {
     static int frameCnt = 0;
     static float timeElapsed = 0.0f;
