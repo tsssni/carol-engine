@@ -43,9 +43,9 @@ struct MeshConstants
 void main( uint dtid : SV_DispatchThreadID )
 {
 #ifdef OCCLUSION
-    if (dtid < gMeshCount && !GetMark(dtid, gInstanceFrustumCulledMarkIdx) && !GetMark(dtid, gInstanceOcclusionPassedMarkIdx))
+    if (dtid < gMeshCount && !GetMark(gMeshOffset + dtid, gInstanceFrustumCulledMarkIdx) && !GetMark(gMeshOffset + dtid, gInstanceOcclusionPassedMarkIdx))
 #else
-    if (dtid < gMeshCount && !GetMark(dtid, gInstanceFrustumCulledMarkIdx))
+    if (dtid < gMeshCount && !GetMark(gMeshOffset + dtid, gInstanceFrustumCulledMarkIdx))
 #endif
     {
         StructuredBuffer<IndirectCommand> commandBuffer = ResourceDescriptorHeap[gCommandBufferIdx];

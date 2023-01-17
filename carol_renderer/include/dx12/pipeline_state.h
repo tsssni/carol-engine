@@ -9,7 +9,7 @@ namespace Carol
 	class PSO
 	{
 	public:
-		ID3D12PipelineState* Get();
+		ID3D12PipelineState* Get()const;
 	protected:
 		Microsoft::WRL::ComPtr<ID3D12PipelineState> mPSO;
 	};

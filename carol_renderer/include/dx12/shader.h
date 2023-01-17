@@ -3,6 +3,8 @@
 #include <dxcapi.h>
 #include <vector>
 #include <string>
+#include <string_view>
+#include <span>
 #include <memory>
 #include <wrl/client.h>
 
@@ -12,18 +14,18 @@ namespace Carol
 	{
 	public:
 		Shader(
-			const std::wstring& fileName,
-			const std::vector<std::wstring>& defines,
-			const std::wstring& entryPoint,
-			const std::wstring& target);
+			std::wstring_view fileName,
+			std::span<const std::wstring_view> defines,
+			std::wstring_view entryPoint,
+			std::wstring_view target);
 
 		LPVOID GetBufferPointer()const;
 		size_t GetBufferSize()const;
 
 		static void InitCompiler();
 	private:
-		std::vector<LPCWSTR> SetArgs(const std::vector<std::wstring>& defines, const std::wstring& entryPoint, const std::wstring& target);
-		Microsoft::WRL::ComPtr<IDxcResult> Compile(const std::wstring& fileName, std::vector<LPCWSTR>& args);
+		std::vector<LPCWSTR> SetArgs(std::span<const std::wstring_view> defines, std::wstring_view entryPoint, std::wstring_view target);
+		Microsoft::WRL::ComPtr<IDxcResult> Compile(std::wstring_view fileName, std::span<LPCWSTR> args);
 		void CheckError(Microsoft::WRL::ComPtr<IDxcResult>& result);
 		void OutputPdb(Microsoft::WRL::ComPtr<IDxcResult>& result);
 

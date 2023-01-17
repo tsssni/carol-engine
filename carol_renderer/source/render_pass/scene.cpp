@@ -14,6 +14,7 @@ namespace Carol
 {
 	using std::vector;
 	using std::wstring;
+	using std::wstring_view;
 	using std::unordered_map;
 	using std::unique_ptr;
 	using std::make_unique;
@@ -49,17 +50,17 @@ void Carol::Scene::DelayedDelete()
 	mTexManager->DelayedDelete();
 }
 
-Carol::vector<Carol::wstring> Carol::Scene::GetAnimationClips(std::wstring modelName)
+Carol::vector<Carol::wstring_view> Carol::Scene::GetAnimationClips(std::wstring modelName)
 {
 	return mModels[modelName]->GetAnimationClips();
 }
 
-Carol::vector<Carol::wstring> Carol::Scene::GetModelNames()
+Carol::vector<Carol::wstring_view> Carol::Scene::GetModelNames()
 {
-	vector<wstring> models;
-	for (auto& modelMapPair : mModels)
+	vector<wstring_view> models;
+	for (auto& [name, model] : mModels)
 	{
-		models.push_back(modelMapPair.first);
+		models.push_back(wstring_view(name.c_str(), name.size()));
 	}
 
 	return models;

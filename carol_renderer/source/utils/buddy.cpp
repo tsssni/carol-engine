@@ -65,22 +65,22 @@ bool Carol::Buddy::Allocate(uint32_t size, BuddyAllocInfo& info)
 	}
 }
 
-bool Carol::Buddy::Deallocate(BuddyAllocInfo info)
+void Carol::Buddy::Deallocate(BuddyAllocInfo& info)
 {
-	info.NumPages = 1 << GetOrder(info.NumPages);
-
-	if (!CheckIsAllocated(info))
+	if (info.NumPages > 0)
 	{
-		return false;
-	}
+		info.NumPages = 1 << GetOrder(info.NumPages);
 
-	if (BuddyMerge(info))
-	{
-		mFreeAreas[GetOrder(info.NumPages)].push_back(info);
-	}
+		if (CheckIsAllocated(info))
+		{
+			if (BuddyMerge(info))
+			{
+				mFreeAreas[GetOrder(info.NumPages)].push_back(info);
+			}
 
-	SetDeallocated(info);
-	return true;
+			SetDeallocated(info);
+		}
+	}
 }
 
 uint32_t Carol::Buddy::GetOrder(uint32_t size)

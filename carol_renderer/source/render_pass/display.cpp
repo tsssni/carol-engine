@@ -12,10 +12,8 @@ namespace Carol {
 
 Carol::DisplayPass::~DisplayPass()
 {
-	if (mBackBufferRtvAllocInfo->Allocator)
-	{
-		mBackBufferRtvAllocInfo->Allocator->CpuDeallocate(mBackBufferRtvAllocInfo.get());
-	}
+	
+	mBackBufferRtvAllocInfo->Allocator->CpuDeallocate(std::move(mBackBufferRtvAllocInfo));
 }
 
 IDXGISwapChain* Carol::DisplayPass::GetSwapChain()
@@ -141,7 +139,7 @@ void Carol::DisplayPass::InitDescriptors()
 {
 	if (!mBackBufferRtvAllocInfo->Allocator)
 	{
-		gDescriptorManager->RtvAllocate(mBackBuffer.size(), mBackBufferRtvAllocInfo.get());
+		mBackBufferRtvAllocInfo = gDescriptorManager->RtvAllocate(mBackBuffer.size());
 	}
 	
 	for (int i = 0; i < mBackBuffer.size(); ++i)

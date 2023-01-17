@@ -1,7 +1,7 @@
 #pragma once
 #include <render_pass/render_pass.h>
 #include <scene/light.h>
-#include <scene/model.h>
+#include <scene/mesh.h>
 #include <DirectXMath.h>
 #include <vector>
 #include <memory>
@@ -44,7 +44,7 @@ namespace Carol
         void Clear();
         void CullMeshes(bool hist);
         void DrawShadow(bool hist);
-        void DrawHiZ();
+        void GenerateHiZ();
 
 		void TestCommandBufferSize(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements);
 		void ResizeCommandBuffer(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements, uint32_t elementSize);

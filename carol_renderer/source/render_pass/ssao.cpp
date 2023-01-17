@@ -1,18 +1,18 @@
 #include <render_pass/ssao.h>
 #include <global.h>
-#include <render_pass/normal.h>
 #include <render_pass/frame.h>
-#include <render_pass/scene.h>
 #include <dx12.h>
 #include <scene/camera.h>
 #include <DirectXColors.h>
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
+#include <string_view>
 
 namespace Carol
 {
     using std::vector;
     using std::wstring;
+    using std::wstring_view;
     using std::make_unique;
     using namespace DirectX;
     using namespace DirectX::PackedVector;
@@ -192,9 +192,9 @@ void Carol::SsaoPass::InitRandomVectorMap()
 
 void Carol::SsaoPass::InitShaders()
 {
-    vector<wstring> nullDefines{};
+    vector<wstring_view> nullDefines{};
 
-    vector<wstring> skinnedDefines =
+    vector<wstring_view> skinnedDefines =
     {
         L"SKINNED=1"
     };

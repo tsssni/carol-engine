@@ -1,5 +1,6 @@
 #include "include/common.hlsli"
 #include "include/mesh.hlsli"
+#define OCCLUSION
 #include "include/cull.hlsli"
 
 struct MeshOut
@@ -19,6 +20,11 @@ void main(
     uint meshletIdx = payload.MeshletIndices[gid];
     StructuredBuffer<Meshlet> meshlets = ResourceDescriptorHeap[gMeshletBufferIdx];
     Meshlet meshlet = meshlets[meshletIdx];
+    
+    StructuredBuffer<CullData> cullData = ResourceDescriptorHeap[gCullDataBufferIdx];
+    CullData cd = cullData[1];
+    float4x4 worldViewProj = mul(gWorld, gViewProj);
+    bool a = HiZOcclusionTest(cd.Center, cd.Extents, worldViewProj, gHiZIdx);
     
     SetMeshOutputCounts(meshlet.VertexCount, meshlet.PrimCount);
     
@@ -46,6 +52,8 @@ void main(
      
         MeshOut mout;
         mout.PosH = mul(float4(min.PosL, 1.0f), worldViewProj);
+        mout.PosH.x += a;
+        mout.PosH.x -= a;
         
         verts[gtid] = mout;
     }

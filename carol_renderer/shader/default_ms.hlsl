@@ -60,7 +60,6 @@ void main(
 #ifdef SSAO
         mout.SsaoPosH = mul(float4(mout.PosW, 1.0f), gViewProjTex);
 #endif
-        
         verts[gtid] = mout;
     }
 }

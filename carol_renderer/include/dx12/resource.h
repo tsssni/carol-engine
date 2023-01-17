@@ -4,6 +4,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <memory>
+#include <span>
 
 namespace Carol
 {
@@ -28,12 +29,12 @@ namespace Carol
 			D3D12_CLEAR_VALUE* optimizedClearValue = nullptr);
 		virtual ~Resource();
 
-		ID3D12Resource* Get();
+		ID3D12Resource* Get()const;
 		ID3D12Resource** GetAddressOf();
 
-		byte* GetMappedData();
-		Heap* GetHeap();
-		D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress();
+		byte* GetMappedData()const;
+		Heap* GetHeap()const;
+		D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress()const;
 
 		void CopySubresources(
 			Heap* intermediateHeap,
@@ -55,7 +56,7 @@ namespace Carol
 
 	protected:
 		Microsoft::WRL::ComPtr<ID3D12Resource> mResource;
-		std::unique_ptr<HeapAllocInfo> mAllocInfo;
+		std::unique_ptr<HeapAllocInfo> mHeapAllocInfo;
 
 		Microsoft::WRL::ComPtr<ID3D12Resource> mIntermediateBuffer;
 		std::unique_ptr<HeapAllocInfo> mIntermediateBufferAllocInfo;
@@ -71,9 +72,9 @@ namespace Carol
 		Buffer& operator=(Buffer&& buffer);
 		~Buffer();
 
-		ID3D12Resource* Get();
-		ID3D12Resource** GetAddressOf();
-		D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress();
+		ID3D12Resource* Get()const;
+		ID3D12Resource** GetAddressOf()const;
+		D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress()const;
 
 		void CopySubresources(
 			Heap* intermediateHeap,
@@ -93,30 +94,38 @@ namespace Carol
 		void CopyData(const void* data, uint32_t byteSize, uint32_t offset = 0);
 		void ReleaseIntermediateBuffer();
 
-		D3D12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(uint32_t planeSlice = 0);
-		D3D12_CPU_DESCRIPTOR_HANDLE GetShaderCpuSrv(uint32_t planeSlice = 0);
-		D3D12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(uint32_t planeSlice = 0);
-		uint32_t GetGpuSrvIdx(uint32_t planeSlice = 0);
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(uint32_t planeSlice = 0)const;
+		D3D12_CPU_DESCRIPTOR_HANDLE GetShaderCpuSrv(uint32_t planeSlice = 0)const;
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(uint32_t planeSlice = 0)const;
+		uint32_t GetGpuSrvIdx(uint32_t planeSlice = 0)const;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE GetCpuUav(uint32_t mipSlice = 0, uint32_t planeSlice = 0);
-		D3D12_CPU_DESCRIPTOR_HANDLE GetShaderCpuUav(uint32_t mipSlice = 0, uint32_t planeSlice = 0);
-		D3D12_GPU_DESCRIPTOR_HANDLE GetGpuUav(uint32_t mipSlice = 0, uint32_t planeSlice = 0);
-		uint32_t GetGpuUavIdx(uint32_t mipSlice = 0, uint32_t planeSlice = 0);
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCpuUav(uint32_t mipSlice = 0, uint32_t planeSlice = 0)const;
+		D3D12_CPU_DESCRIPTOR_HANDLE GetShaderCpuUav(uint32_t mipSlice = 0, uint32_t planeSlice = 0)const;
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGpuUav(uint32_t mipSlice = 0, uint32_t planeSlice = 0)const;
+		uint32_t GetGpuUavIdx(uint32_t mipSlice = 0, uint32_t planeSlice = 0)const;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE GetRtv(uint32_t mipSlice = 0, uint32_t planeSlice = 0);
-		D3D12_CPU_DESCRIPTOR_HANDLE GetDsv(uint32_t mipSlice = 0);
+		D3D12_CPU_DESCRIPTOR_HANDLE GetRtv(uint32_t mipSlice = 0, uint32_t planeSlice = 0)const;
+		D3D12_CPU_DESCRIPTOR_HANDLE GetDsv(uint32_t mipSlice = 0)const;
 
 	protected:
 		void BindDescriptors();
-		void CopyCbvSrvUav();
 
 		virtual void BindSrv() = 0;
 		virtual void BindUav() = 0;
 		virtual void BindRtv() = 0;
 		virtual void BindDsv() = 0;
 
+		virtual void CreateCbvs(std::span<const D3D12_CONSTANT_BUFFER_VIEW_DESC> cbvDesc);
+		virtual void CreateSrvs(std::span<const D3D12_SHADER_RESOURCE_VIEW_DESC> srvDesc);
+		virtual void CreateUavs(std::span<const D3D12_UNORDERED_ACCESS_VIEW_DESC> uavDesc, bool counter);
+		virtual void CreateRtvs(std::span<const D3D12_RENDER_TARGET_VIEW_DESC> rtvDesc);
+		virtual void CreateDsvs(std::span<const D3D12_DEPTH_STENCIL_VIEW_DESC> dsvDesc);
+
 		std::unique_ptr<Resource> mResource;
 		D3D12_RESOURCE_DESC mResourceDesc;
+
+		std::unique_ptr<DescriptorAllocInfo> mCpuCbvAllocInfo;
+		std::unique_ptr<DescriptorAllocInfo> mGpuCbvAllocInfo;
 
 		std::unique_ptr<DescriptorAllocInfo> mCpuSrvAllocInfo;
 		std::unique_ptr<DescriptorAllocInfo> mGpuSrvAllocInfo;
@@ -172,7 +181,7 @@ namespace Carol
 		virtual void BindRtv()override;
 		virtual void BindDsv()override;
 
-		D3D12_RESOURCE_DIMENSION GetResourceDimension(ColorBufferViewDimension viewDimension);
+		D3D12_RESOURCE_DIMENSION GetResourceDimension(ColorBufferViewDimension viewDimension)const;
 
 		ColorBufferViewDimension mViewDimension;
 		DXGI_FORMAT mFormat;
@@ -205,12 +214,12 @@ namespace Carol
 		void ResetCounter();
 		void CopyElements(const void* data, uint32_t offset = 0, uint32_t numElements = 1);
 
-		uint32_t GetNumElements();
-		uint32_t GetElementSize();
-		uint32_t GetCounterOffset();
+		uint32_t GetNumElements()const;
+		uint32_t GetElementSize()const;
+		uint32_t GetCounterOffset()const;
 
-		D3D12_GPU_VIRTUAL_ADDRESS GetElementAddress(uint32_t offset);
-		bool IsConstant();
+		D3D12_GPU_VIRTUAL_ADDRESS GetElementAddress(uint32_t offset)const;
+		bool IsConstant()const;
 
 	protected:
 		virtual void BindSrv()override;
@@ -218,8 +227,8 @@ namespace Carol
 		virtual void BindRtv()override;
 		virtual void BindDsv()override;
 
-		uint32_t AlignForConstantBuffer(uint32_t byteSize);
-		uint32_t AlignForUavCounter(uint32_t byteSize);
+		uint32_t AlignForConstantBuffer(uint32_t byteSize)const;
+		uint32_t AlignForUavCounter(uint32_t byteSize)const;
 
 		uint32_t mNumElements;
 		uint32_t mElementSize;
@@ -267,6 +276,6 @@ namespace Carol
 		virtual void BindRtv()override;
 		virtual void BindDsv()override;
 
-		uint32_t AlignForRawBuffer(uint32_t byteSize);
+		uint32_t AlignForRawBuffer(uint32_t byteSize)const;
 	};
 }

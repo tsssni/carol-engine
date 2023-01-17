@@ -9,7 +9,7 @@ namespace Carol
 }
 
 
-ID3D12PipelineState* Carol::PSO::Get()
+ID3D12PipelineState* Carol::PSO::Get()const
 {
 	return mPSO.Get();
 }

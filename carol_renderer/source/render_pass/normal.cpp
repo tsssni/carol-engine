@@ -5,11 +5,13 @@
 #include <render_pass/display.h>
 #include <dx12.h>
 #include <DirectXColors.h>
+#include <string_view>
 
 namespace Carol
 {
     using std::vector;
     using std::wstring;
+    using std::wstring_view;
     using std::make_unique;
     using namespace DirectX;
 }
@@ -55,9 +57,9 @@ uint32_t Carol::NormalPass::GetNormalSrvIdx()
 
 void Carol::NormalPass::InitShaders()
 {
-    vector<wstring> nullDefines{};
+    vector<wstring_view> nullDefines{};
 
-    vector<wstring> skinnedDefines =
+    vector<wstring_view> skinnedDefines =
     {
         L"SKINNED=1"
     };

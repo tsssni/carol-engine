@@ -9,6 +9,7 @@ namespace Carol {
 	using std::vector;
 	using std::unique_ptr;
 	using std::wstring;
+	using std::wstring_view;
 	using std::make_unique;
 	using namespace DirectX;
 
@@ -75,22 +76,21 @@ void Carol::Renderer::InitPipelineStates()
 void Carol::Renderer::InitFrame()
 {
 	gFramePass = make_unique<FramePass>();
-	mOitppll = make_unique<OitppllPass>();
 }
 
 void Carol::Renderer::InitSsao()
 {
-	mSsao = make_unique<SsaoPass>();
+	mSsaoPass = make_unique<SsaoPass>();
 }
 
 void Carol::Renderer::InitNormal()
 {
-	mNormal = make_unique<NormalPass>();
+	mNormalPass = make_unique<NormalPass>();
 }
 
 void Carol::Renderer::InitTaa()
 {
-	mTaa = make_unique<TaaPass>();
+	mTaaPass = make_unique<TaaPass>();
 }
 
 void Carol::Renderer::InitMainLight()
@@ -98,7 +98,7 @@ void Carol::Renderer::InitMainLight()
 	Light light = {};
 	light.Direction = { 0.8f,-1.0f,1.0f };
 	light.Strength = { 0.8f,0.8f,0.8f };
-	mMainLight = make_unique<ShadowPass>(light, 2048, 2048);
+	mMainLightShadowPass = make_unique<ShadowPass>(light, 2048, 2048);
 }
 
 void Carol::Renderer::InitMeshes()
@@ -138,10 +138,10 @@ void Carol::Renderer::UpdateFrameCB()
 	XMStoreFloat4x4(&mFrameConstants->ViewProjTex, XMMatrixTranspose(viewProjTex));
 	
 	XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
-	mTaa->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
-	mTaa->SetHistViewProj(viewProj);
+	mTaaPass->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
+	mTaaPass->SetHistViewProj(viewProj);
 
-	XMMATRIX histViewProj = mTaa->GetHistViewProj();
+	XMMATRIX histViewProj = mTaaPass->GetHistViewProj();
 	XMMATRIX jitteredProj = XMLoadFloat4x4(&jitteredProj4x4f);
 	XMMATRIX jitteredViewProj = XMMatrixMultiply(view, jitteredProj);
 
@@ -154,13 +154,13 @@ void Carol::Renderer::UpdateFrameCB()
 	mFrameConstants->NearZ = mCamera->GetNearZ();
 	mFrameConstants->FarZ = mCamera->GetFarZ();
 	
-	mSsao->GetOffsetVectors(mFrameConstants->OffsetVectors);
-	auto blurWeights = mSsao->CalcGaussWeights(2.5f);
+	mSsaoPass->GetOffsetVectors(mFrameConstants->OffsetVectors);
+	auto blurWeights = mSsaoPass->CalcGaussWeights(2.5f);
 	mFrameConstants->BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
     mFrameConstants->BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
     mFrameConstants->BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
 
-	mFrameConstants->Lights[0] = mMainLight->GetLight();
+	mFrameConstants->Lights[0] = mMainLightShadowPass->GetLight();
 	mFrameConstants->MeshCBIdx = gScene->GetMeshCBIdx();
 
 	mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
@@ -176,7 +176,7 @@ void Carol::Renderer::DelayedDelete()
 void Carol::Renderer::ReleaseIntermediateBuffers()
 {
 	gScene->ReleaseIntermediateBuffers();
-	mSsao->ReleaseIntermediateBuffers();
+	mSsaoPass->ReleaseIntermediateBuffers();
 }
 
 void Carol::Renderer::Draw()
@@ -190,13 +190,12 @@ void Carol::Renderer::Draw()
 	gCommandList->SetGraphicsRootConstantBufferView(FRAME_CB, mFrameCBAddr);
 	gCommandList->SetComputeRootConstantBufferView(FRAME_CB, mFrameCBAddr);
 
-	mMainLight->Draw();
+	mMainLightShadowPass->Draw();
 	gFramePass->Cull();
-	mOitppll->Cull();
-	mNormal->Draw();
-	mSsao->Draw();
-	gFramePass->Draw(mOitppll.get());
-	mTaa->Draw();
+	mNormalPass->Draw();
+	mSsaoPass->Draw();
+	gFramePass->Draw();
+	mTaaPass->Draw();
 	
 	gCommandList->Close();
 	vector<ID3D12CommandList*> cmdLists{ gCommandList.Get()};
@@ -272,10 +271,9 @@ void Carol::Renderer::Update()
 	
 	DelayedDelete();
 	gScene->Update(mCamera.get(), mTimer.get());
-	mMainLight->Update();
-	mSsao->Update();
+	mMainLightShadowPass->Update();
+	mSsaoPass->Update();
 	gFramePass->Update();
-	mOitppll->Update();
 	UpdateFrameCB();
 }
 
@@ -289,10 +287,9 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 
 	BaseRenderer::OnResize(width, height);
 	gFramePass->OnResize(width, height);
-	mNormal->OnResize(width, height);
-	mSsao->OnResize(width, height);
-	mTaa->OnResize(width, height);
-	mOitppll->OnResize(width, height);
+	mNormalPass->OnResize(width, height);
+	mSsaoPass->OnResize(width, height);
+	mTaaPass->OnResize(width, height);
 
 	mFrameConstants->MeshCBIdx = gScene->GetMeshCBIdx();
 	mFrameConstants->CommandBufferIdx = gScene->GetCommandBufferIdx();
@@ -301,17 +298,17 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	
 	mFrameConstants->FrameMapIdx = gFramePass->GetFrameSrvIdx();
 	mFrameConstants->DepthStencilMapIdx = gFramePass->GetDepthStencilSrvIdx();
-	mFrameConstants->NormalMapIdx = mNormal->GetNormalSrvIdx();
-	mFrameConstants->MainLightShadowMapIdx = mMainLight->GetShadowSrvIdx();
-	mFrameConstants->OitBufferWIdx = mOitppll->GetPpllUavIdx();
-	mFrameConstants->OitOffsetBufferWIdx = mOitppll->GetOffsetUavIdx();
-	mFrameConstants->OitCounterIdx = mOitppll->GetCounterUavIdx();
-	mFrameConstants->OitBufferRIdx = mOitppll->GetPpllSrvIdx();
-	mFrameConstants->OitOffsetBufferRIdx = mOitppll->GetOffsetSrvIdx();
-	mFrameConstants->RandVecMapIdx = mSsao->GetRandVecSrvIdx();
-	mFrameConstants->AmbientMapIdx = mSsao->GetSsaoSrvIdx();
-	mFrameConstants->VelocityMapIdx = mTaa->GetVeloctiySrvIdx();
-	mFrameConstants->HistFrameMapIdx = mTaa->GetHistFrameSrvIdx();
+	mFrameConstants->NormalMapIdx = mNormalPass->GetNormalSrvIdx();
+	mFrameConstants->MainLightShadowMapIdx = mMainLightShadowPass->GetShadowSrvIdx();
+	mFrameConstants->OitBufferWIdx = gFramePass->GetPpllUavIdx();
+	mFrameConstants->OitOffsetBufferWIdx = gFramePass->GetOffsetUavIdx();
+	mFrameConstants->OitCounterIdx = gFramePass->GetCounterUavIdx();
+	mFrameConstants->OitBufferRIdx = gFramePass->GetPpllSrvIdx();
+	mFrameConstants->OitOffsetBufferRIdx = gFramePass->GetOffsetSrvIdx();
+	mFrameConstants->RandVecMapIdx = mSsaoPass->GetRandVecSrvIdx();
+	mFrameConstants->AmbientMapIdx = mSsaoPass->GetSsaoSrvIdx();
+	mFrameConstants->VelocityMapIdx = mTaaPass->GetVeloctiySrvIdx();
+	mFrameConstants->HistFrameMapIdx = mTaaPass->GetHistFrameSrvIdx();
 
 	gCommandList->Close();
 	vector<ID3D12CommandList*> cmdLists{ gCommandList.Get()};
@@ -341,7 +338,7 @@ void Carol::Renderer::UnloadModel(wstring modelName)
 	gScene->UnloadModel(modelName);
 }
 
-Carol::vector<Carol::wstring> Carol::Renderer::GetAnimationNames(wstring modelName)
+Carol::vector<Carol::wstring_view> Carol::Renderer::GetAnimationNames(wstring modelName)
 {
 	return gScene->GetAnimationClips(modelName);
 }
@@ -351,7 +348,7 @@ void Carol::Renderer::SetAnimation(wstring modelName, wstring animationName)
 	gScene->SetAnimationClip(modelName, animationName);
 }
 
-Carol::vector<Carol::wstring> Carol::Renderer::GetModelNames()
+Carol::vector<Carol::wstring_view> Carol::Renderer::GetModelNames()
 {
 	return gScene->GetModelNames();
 }

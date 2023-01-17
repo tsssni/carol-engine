@@ -4,6 +4,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <string_view>
 
 #define MAX_LIGHTS 16
 
@@ -15,7 +16,6 @@ namespace Carol
     class NormalPass;
     class TaaPass;
     class ShadowPass;
-    class OitppllPass;
     class MeshesPass;
     class TextureManager;
 
@@ -90,9 +90,9 @@ namespace Carol
 
         void LoadModel(std::wstring path, std::wstring textureDir, std::wstring modelName, DirectX::XMMATRIX world, bool isSkinned);
         void UnloadModel(std::wstring modelName);
-        std::vector<std::wstring> GetAnimationNames(std::wstring modelName);
+        std::vector<std::wstring_view> GetAnimationNames(std::wstring modelName);
         void SetAnimation(std::wstring modelName, std::wstring animationName);
-        std::vector<std::wstring> GetModelNames();
+        std::vector<std::wstring_view> GetModelNames();
     protected:
 		void InitConstants();
         void InitPipelineStates();
@@ -109,12 +109,10 @@ namespace Carol
         void ReleaseIntermediateBuffers();
 
     protected:
-
-        std::unique_ptr<SsaoPass> mSsao;
-        std::unique_ptr<NormalPass> mNormal;
-        std::unique_ptr<TaaPass> mTaa;
-        std::unique_ptr<ShadowPass> mMainLight;
-        std::unique_ptr<OitppllPass> mOitppll;
+        std::unique_ptr<SsaoPass> mSsaoPass;
+        std::unique_ptr<NormalPass> mNormalPass;
+        std::unique_ptr<TaaPass> mTaaPass;
+        std::unique_ptr<ShadowPass> mMainLightShadowPass;
 
 		std::unique_ptr<FrameConstants> mFrameConstants;
         std::unique_ptr<FastConstantBufferAllocator> mFrameCBAllocator;

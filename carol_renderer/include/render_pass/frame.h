@@ -1,7 +1,7 @@
 #pragma once
 #include <render_pass/render_pass.h>
 #include <scene/light.h>
-#include <scene/model.h>
+#include <scene/mesh.h>
 #include <DirectXMath.h>
 #include <memory>
 
@@ -11,7 +11,14 @@ namespace Carol
 {
 	class ColorBuffer;
 	class StructuredBuffer;
-	class OitppllPass;
+
+	class OitppllNode
+	{
+	public:
+		DirectX::XMFLOAT4 Color;
+		uint32_t Depth;
+		uint32_t Next;
+	};
 
 	class FramePass :public RenderPass
 	{
@@ -25,11 +32,10 @@ namespace Carol
 		FramePass(FramePass&&) = delete;
 		FramePass& operator=(const FramePass&) = delete;
 		
-		void Draw(OitppllPass* oitppllPass);
+		virtual void Draw()override;
+		void Cull();
 		virtual void Update()override;
 		virtual void ReleaseIntermediateBuffers()override;
-
-		void Cull();
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameRtv();
 		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameDsv();
@@ -42,8 +48,13 @@ namespace Carol
 		uint32_t GetHiZSrvIdx();
 		uint32_t GetHiZUavIdx();
 
+		uint32_t GetPpllUavIdx();
+		uint32_t GetOffsetUavIdx();
+		uint32_t GetCounterUavIdx();
+		uint32_t GetPpllSrvIdx();
+		uint32_t GetOffsetSrvIdx();
+
 	protected:
-		virtual void Draw()override;
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
 		virtual void InitBuffers()override;
@@ -51,10 +62,13 @@ namespace Carol
 		void TestCommandBufferSize(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements);
 		void ResizeCommandBuffer(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements, uint32_t elementSize);
 		
+		void DrawOpaque();
+		void DrawTransparent();
+
 		void Clear();
-        void CullMeshes(bool hist);
-		void DrawDepth(bool hist);
-		void DrawHiZ();
+        void CullInstances(bool hist, bool opaque);
+		void CullMeshlets(bool hist, bool opaque);
+		void GenerateHiZ();
 
 		enum
         {
@@ -76,10 +90,15 @@ namespace Carol
             CULL_IDX_COUNT
         };
 
+		std::vector<std::vector<std::unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
+
 		std::unique_ptr<ColorBuffer> mFrameMap;
 		std::unique_ptr<ColorBuffer> mDepthStencilMap;
 		std::unique_ptr<ColorBuffer> mHiZMap;
-		std::vector<std::vector<std::unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
+
+		std::unique_ptr<StructuredBuffer> mOitppllBuffer;
+		std::unique_ptr<RawBuffer> mStartOffsetBuffer; 
+		std::unique_ptr<RawBuffer> mCounterBuffer;
 
         std::vector<std::vector<uint32_t>> mCullIdx;
 		std::vector<uint32_t> mHiZIdx;

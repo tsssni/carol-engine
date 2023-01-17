@@ -8,10 +8,12 @@
 #include <utils/common.h>
 #include <DirectXColors.h>
 #include <memory>
+#include <string_view>
 
 namespace Carol {
 	using std::vector;
 	using std::wstring;
+	using std::wstring_view;
 	using std::unique_ptr;
 	using std::make_unique;
 	using namespace DirectX;
@@ -50,11 +52,11 @@ void Carol::ShadowPass::Draw()
 	gCommandList->RSSetViewports(1, &mViewport);
 	gCommandList->RSSetScissorRects(1, &mScissorRect);
 
-	DrawHiZ();
+	GenerateHiZ();
 	CullMeshes(true);
 	DrawShadow(true);
 
-	DrawHiZ();
+	GenerateHiZ();
 	CullMeshes(false);
 	DrawShadow(false);
 }
@@ -226,7 +228,7 @@ void Carol::ShadowPass::DrawShadow(bool hist)
 	}
 }
 
-void Carol::ShadowPass::DrawHiZ()
+void Carol::ShadowPass::GenerateHiZ()
 {
 	gCommandList->SetPipelineState(gPSOs[L"HiZGenerate"]->Get());
 
@@ -263,20 +265,20 @@ void Carol::ShadowPass::ResizeCommandBuffer(unique_ptr<StructuredBuffer>& buffer
 
 void Carol::ShadowPass::InitShaders()
 {
-	vector<wstring> nullDefines{};
+	vector<wstring_view> nullDefines{};
 
-	vector<wstring> shadowDefines =
+	vector<wstring_view> shadowDefines =
 	{
 		L"SHADOW=1"
 	};
 
-	vector<wstring> skinnedShadowDefines =
+	vector<wstring_view> skinnedShadowDefines =
 	{
 		L"SKINNED=1",
 		L"SHADOW=1"
 	};
 
-	vector<wstring> shadowCullDefines =
+	vector<wstring_view> shadowCullDefines =
 	{
 		L"SHADOW=1",
 		L"OCCLUSION=1",

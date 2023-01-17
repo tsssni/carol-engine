@@ -8,10 +8,4 @@ namespace Carol
 	{
 
 	};
-
-	class StaticSampler : Sampler
-	{
-	public:
-		static std::vector<CD3DX12_STATIC_SAMPLER_DESC>& GetDefaultStaticSamplers();
-	};
 }

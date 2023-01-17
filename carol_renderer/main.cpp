@@ -66,7 +66,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     try
     {
         renderer = new Carol::Renderer(hWnd,width,height);
-        renderer->LoadModel(L"C:\\Minotaur\\animation\\Minotaur@Attack.FBX", L"C:\\Minotaur\\texture", L"m", XMMatrixScaling(0.1f, 0.1f, 0.1f), false);
+        renderer->LoadModel(L"C:\\Minotaur\\animation\\Minotaur@Attack.FBX", L"C:\\Minotaur\\texture", L"m", XMMatrixScaling(0.1f, 0.1f, 0.1f), true);
         renderer->SetAnimation(L"m", L"Take 001");
 
 		// 主消息循环:
@@ -538,7 +538,7 @@ LRESULT AnimationWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         auto lbhWnd = GetDlgItem(hWnd, IDC_ANIMATION_LIST);
         for (auto& aniName : renderer->GetAnimationNames(loadModelName))
         {
-            SendMessage(lbhWnd, LB_ADDSTRING, 0, (LPARAM)aniName.c_str());
+            SendMessage(lbhWnd, LB_ADDSTRING, 0, (LPARAM)aniName.data());
         }
     }
 
@@ -587,7 +587,7 @@ LRESULT DeleteWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         auto lbhWnd = GetDlgItem(hWnd, IDC_DELETE_LIST);
         for (auto& modelName : renderer->GetModelNames())
         {
-            SendMessage(lbhWnd, LB_ADDSTRING, 0, (LPARAM)modelName.c_str());
+            SendMessage(lbhWnd, LB_ADDSTRING, 0, (LPARAM)modelName.data());
         }
     }
 

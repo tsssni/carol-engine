@@ -9,13 +9,11 @@ struct PixelIn
     float2 TexC : TEXCOORD;
 };
 
-void SortPixels(inout OitNode sortedPixels[MAX_SORTED_PIXELS])
+void SortPixels(inout OitNode sortedPixels[MAX_SORTED_PIXELS], uint count)
 {
-    [unroll]
-    for (int i = 0; i < MAX_SORTED_PIXELS - 1; ++i)
+    for (int i = 0; i < count - 1; ++i)
     {
-        [unroll]
-        for (int j = 0; j < MAX_SORTED_PIXELS - i - 1; ++j)
+        for (int j = 0; j < count - i - 1; ++j)
         {
             if (sortedPixels[j].DepthU > sortedPixels[j + 1].DepthU)
             {
@@ -37,49 +35,28 @@ float4 main(PixelIn pin) : SV_Target
     uint startOffsetAddr = pixelPos.y * gRenderTargetSize.x + pixelPos.x;
     uint offset = startOffsetBuffer[startOffsetAddr];
 
-    static OitNode sortedPixels[MAX_SORTED_PIXELS];
+    OitNode sortedPixels[MAX_SORTED_PIXELS];
 
     if (offset == 0xffffffff)
     {
         return float4(0.0f, 0.0f, 0.0f, 0.0f);
     }
 
-    int i = 0;
+    int count = 0;
 
-    // In order to unroll the circulation to accelerate the program
-    // some extra pixels with full transparent colors are added
-    [unroll]
-    for (i = 0; i < MAX_SORTED_PIXELS; ++i)
+    for (; count < MAX_SORTED_PIXELS && offset != 0xffffffff; ++count)
     {
-        [flatten]
-        if (offset != 0xffffffff)
-        {
-            sortedPixels[i] = oitNodeBuffer[offset];
-            offset = sortedPixels[i].NextU;
-        }
-        else
-        {
-            sortedPixels[i].ColorU = float4(0.0f, 0.0f, 0.0f, 0.0f);
-            sortedPixels[i].DepthU = 0xffffffff;
-        }
+        sortedPixels[count] = oitNodeBuffer[offset];
+        offset = sortedPixels[count].NextU;
     }
 
-    SortPixels(sortedPixels);
+    SortPixels(sortedPixels, count);
     float4 color = sortedPixels[0].ColorU;
 
-    [unroll]
-    for (i = 1; i < MAX_SORTED_PIXELS; ++i)
+    for (int i = 1; i < count; ++i)
     {
         float4 underColor = sortedPixels[i].ColorU;
-        
-        // Full transparent color will make the output dark
-        // because color will be multiplied by its alpha value
-        // multiple times, so we need to recify full transparent
-        // color here
-        float isFullTransparent = 1.0f - ceil(underColor.a);
-        float4 src = float4(underColor.rgb + isFullTransparent * color.rgb, underColor.a + (1 - underColor.a) * isFullTransparent);
-        
-        color.rgb = color.rgb * color.a + (1 - color.a) * src.rgb * src.a;
+        color.rgb = color.rgb * color.a + (1 - color.a) * underColor.rgb * underColor.a;
         color.a = color.a + underColor.a - color.a * underColor.a;
     }
 

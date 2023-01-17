@@ -19,7 +19,7 @@ namespace Carol
 	public:
 		Buddy(uint32_t size, uint32_t pageSize);
 		bool Allocate(uint32_t size, BuddyAllocInfo& info);
-		bool Deallocate(BuddyAllocInfo info);
+		void Deallocate(BuddyAllocInfo& info);
 	private:
 		uint32_t GetOrder(uint32_t size);
 		bool CheckIsAllocated(BuddyAllocInfo info);

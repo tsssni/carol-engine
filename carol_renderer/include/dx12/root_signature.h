@@ -21,7 +21,7 @@ namespace Carol
 	{
 	public:
 		RootSignature();
-		ID3D12RootSignature* Get();
+		ID3D12RootSignature* Get()const;
 
 		Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature;
 	};

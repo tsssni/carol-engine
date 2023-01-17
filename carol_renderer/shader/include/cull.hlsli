@@ -129,18 +129,18 @@ bool IsConeDegenerate(uint packedNormalCone)
     return (packedNormalCone >> 24) == 0xff;
 }
 
-float4 UnpackCone(uint packed)
+float4 UnpackCone(uint packedNormalCone)
 {
-    float4 v;
-    v.x = float((packed >> 0) & 0xFF);
-    v.y = float((packed >> 8) & 0xFF);
-    v.z = float((packed >> 16) & 0xFF);
-    v.w = float((packed >> 24) & 0xFF);
+    float4 normalCone;
+    normalCone.x = float((packedNormalCone >> 0) & 0xff);
+    normalCone.y = float((packedNormalCone >> 8) & 0xff);
+    normalCone.z = float((packedNormalCone >> 16) & 0xff);
+    normalCone.w = float((packedNormalCone >> 24) & 0xff);
 
-    v = v / 255.0;
-    v.xyz = v.xyz * 2.0 - 1.0;
+    normalCone = normalCone / 255.f;
+    normalCone.xyz = normalCone.xyz * 2.f - 1.f;
 
-    return v;
+    return normalCone;
 }
 
 bool NormalConeTest(float3 center, uint packedNormalCone, float apexOffset, float4x4 world, float3 viewPos)

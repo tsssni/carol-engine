@@ -15,7 +15,7 @@ Carol::RootSignature::RootSignature()
     ThrowIfFailed(gDevice->CreateRootSignature(0, rootSignatureShader.GetBufferPointer(), rootSignatureShader.GetBufferSize(), IID_PPV_ARGS(mRootSignature.GetAddressOf())));
 }
 
-ID3D12RootSignature* Carol::RootSignature::Get()
+ID3D12RootSignature* Carol::RootSignature::Get()const
 {
     return mRootSignature.Get();
 }

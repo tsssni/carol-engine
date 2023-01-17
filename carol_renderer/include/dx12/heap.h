@@ -25,19 +25,23 @@ namespace Carol
 	{
 	public:
 		Heap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag);
-		virtual void CreateResource(Microsoft::WRL::ComPtr<ID3D12Resource>* resource, D3D12_RESOURCE_DESC* desc, HeapAllocInfo* info, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue = nullptr) = 0;
-		virtual void DeleteResource(HeapAllocInfo* info);
-		virtual void DeleteResourceImmediate(HeapAllocInfo* info);
+
+		virtual std::unique_ptr<HeapAllocInfo> Allocate(const D3D12_RESOURCE_DESC* desc) = 0;
+		virtual void Deallocate(std::unique_ptr<HeapAllocInfo> info);
+
+		virtual void DeleteResourceImmediate(std::unique_ptr<HeapAllocInfo> info);
 		virtual void DelayedDelete();
 
+		virtual ID3D12Heap* GetHeap(const HeapAllocInfo* info)const = 0;
+		virtual uint32_t GetOffset(const HeapAllocInfo* info)const = 0;
+
 	protected:
-		virtual bool Allocate(uint32_t size, HeapAllocInfo* info) = 0;
-		virtual bool Deallocate(HeapAllocInfo* info) = 0;
+		virtual void Delete(std::unique_ptr<HeapAllocInfo> info) = 0;
 
 		D3D12_HEAP_TYPE mType;
 		D3D12_HEAP_FLAGS mFlag;
 
-		std::vector<std::vector<HeapAllocInfo>> mDeletedResources;
+		std::vector<std::vector<std::unique_ptr<HeapAllocInfo>>> mDeletedResources;
 	};
 
 	class BuddyHeap : public Heap
@@ -48,16 +52,12 @@ namespace Carol
 			D3D12_HEAP_FLAGS flag,
 			uint32_t heapSize = 1 << 26);
 
-		virtual void CreateResource(
-			Microsoft::WRL::ComPtr<ID3D12Resource>* resource,
-			D3D12_RESOURCE_DESC* desc,
-			HeapAllocInfo* info,
-			D3D12_RESOURCE_STATES initState,
-			D3D12_CLEAR_VALUE* optimizedClearValue = nullptr)override;
+		virtual std::unique_ptr<HeapAllocInfo> Allocate(const D3D12_RESOURCE_DESC* desc)override;
+		virtual ID3D12Heap* GetHeap(const HeapAllocInfo* info)const override;
+		virtual uint32_t GetOffset(const HeapAllocInfo* info)const override;
 
 	protected:
-		virtual bool Allocate(uint32_t size, HeapAllocInfo* info)override;
-		virtual bool Deallocate(HeapAllocInfo* info)override;
+		virtual void Delete(std::unique_ptr<HeapAllocInfo> info);
 
 		void Align();
 		void AddHeap();
@@ -77,18 +77,15 @@ namespace Carol
 			D3D12_HEAP_TYPE type,
 			D3D12_HEAP_FLAGS flag,
 			uint32_t maxPageSize = 1 << 26);
-		
-		virtual void CreateResource(
-			Microsoft::WRL::ComPtr<ID3D12Resource>* resource, 
-			D3D12_RESOURCE_DESC* desc, HeapAllocInfo* info, 
-			D3D12_RESOURCE_STATES initState, 
-			D3D12_CLEAR_VALUE* optimizedClearValue = nullptr)override;
+
+		virtual std::unique_ptr<HeapAllocInfo> Allocate(const D3D12_RESOURCE_DESC* desc)override;
+		virtual ID3D12Heap* GetHeap(const HeapAllocInfo* info)const override;
+		virtual uint32_t GetOffset(const HeapAllocInfo* info)const override;
 
 	protected:
-		virtual bool Allocate(uint32_t size, HeapAllocInfo* info)override;
-		virtual bool Deallocate(HeapAllocInfo* info)override;
+		virtual void Delete(std::unique_ptr<HeapAllocInfo> info);
 
-		uint32_t GetOrder(uint32_t size);
+		uint32_t GetOrder(uint32_t size)const;
 		void AddHeap(uint32_t order);
 
 		std::vector<std::vector<Microsoft::WRL::ComPtr<ID3D12Heap>>> mSegLists;

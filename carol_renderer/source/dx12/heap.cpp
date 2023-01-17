@@ -8,6 +8,7 @@
 #include <cmath>
 
 namespace Carol {
+    using std::unique_ptr;
     using std::make_unique;
     using Microsoft::WRL::ComPtr;
 }
@@ -18,27 +19,27 @@ Carol::Heap::Heap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag)
   
 }
 
-void Carol::Heap::DeleteResource(HeapAllocInfo* info)
+void Carol::Heap::Deallocate(unique_ptr<HeapAllocInfo> info)
 {
-    mDeletedResources[gCurrFrame].push_back(*info);
+	mDeletedResources[gCurrFrame].push_back(std::move(info));
 }
 
-void Carol::Heap::DeleteResourceImmediate(HeapAllocInfo* info)
+void Carol::Heap::DeleteResourceImmediate(unique_ptr<HeapAllocInfo> info)
 {
-    Deallocate(info);
+	Delete(std::move(info));
 }
 
 void Carol::Heap::DelayedDelete()
 {
     for (auto& info : mDeletedResources[gCurrFrame])
     {
-        if (info.MappedData)
+        if (info->MappedData)
         {
-            info.Resource->Unmap(0, nullptr);
-            info.MappedData = nullptr;
+            info->Resource->Unmap(0, nullptr);
+            info->MappedData = nullptr;
         }
 
-        Deallocate(&info);
+        Delete(std::move(info));
     }
 
     mDeletedResources[gCurrFrame].clear();
@@ -52,24 +53,23 @@ Carol::BuddyHeap::BuddyHeap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag, uint32_
     AddHeap();
 }
 
-bool Carol::BuddyHeap::Allocate(uint32_t size, HeapAllocInfo* info)
+Carol::unique_ptr<Carol::HeapAllocInfo> Carol::BuddyHeap::Allocate(const D3D12_RESOURCE_DESC* desc)
 {
-    if (size <= 0 || size > mHeapSize)
-    {
-        return false;
-    }
+    uint32_t size = gDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes;
 
     BuddyAllocInfo buddyInfo;
+    unique_ptr<HeapAllocInfo> heapInfo;
 
     for (int i = 0; i < mBuddies.size(); ++i)
     {
         if (mBuddies[i]->Allocate(size, buddyInfo))
         {
-            info->Heap = this;
-            info->Bytes = buddyInfo.NumPages * mPageSize;
-            info->Addr = i * mHeapSize + buddyInfo.PageId * mPageSize;
+            heapInfo = make_unique<HeapAllocInfo>();
+            heapInfo->Heap = this;
+            heapInfo->Bytes = buddyInfo.NumPages * mPageSize;
+            heapInfo->Addr = i * mHeapSize + buddyInfo.PageId * mPageSize;
 
-            return true;
+            return heapInfo;
         }
     }
 
@@ -77,55 +77,33 @@ bool Carol::BuddyHeap::Allocate(uint32_t size, HeapAllocInfo* info)
 
 	if (mBuddies.back()->Allocate(size, buddyInfo))
 	{
-        info->Heap = this;
-		info->Bytes = buddyInfo.NumPages * mPageSize;
-		info->Addr = (mBuddies.size() - 1) * mHeapSize + buddyInfo.PageId * mPageSize;
-
-		return true;
+		heapInfo = make_unique<HeapAllocInfo>();
+        heapInfo->Heap = this;
+		heapInfo->Bytes = buddyInfo.NumPages * mPageSize;
+		heapInfo->Addr = (mBuddies.size() - 1) * mHeapSize + buddyInfo.PageId * mPageSize;
 	}
 
-
-    return false;
+    return heapInfo;
 }
 
-bool Carol::BuddyHeap::Deallocate(HeapAllocInfo* info)
+ID3D12Heap* Carol::BuddyHeap::GetHeap(const HeapAllocInfo* info)const
 {
-    if (info->Bytes <= 0 || info->Bytes > mHeapSize)
-    {
-        return false;
-    }
+    return mHeaps[info->Addr / mHeapSize].Get();
+}
 
+uint32_t Carol::BuddyHeap::GetOffset(const HeapAllocInfo* info)const
+{
+    return info->Addr % mHeapSize;
+}
+
+void Carol::BuddyHeap::Delete(unique_ptr<HeapAllocInfo> info)
+{
     uint32_t buddyIdx = info->Addr / mHeapSize;
     uint32_t blockIdx = (info->Addr % mHeapSize) / mPageSize;
     uint32_t numBlocks = info->Bytes / mPageSize;
     BuddyAllocInfo buddyInfo(blockIdx, numBlocks);
 
-    if (mBuddies[buddyIdx]->Deallocate(buddyInfo))
-    {
-        info->Heap = nullptr;
-        info->Bytes = 0;
-		info->Addr = 0;
-
-        return true;
-    }
-    
-    return false;
-}
-
-void Carol::BuddyHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_RESOURCE_DESC* desc, HeapAllocInfo* info, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue)
-{
-    Allocate(gDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes, info);
-    
-    ThrowIfFailed(gDevice->CreatePlacedResource(
-        mHeaps[info->Addr / mHeapSize].Get(),
-        info->Addr % mHeapSize,
-        desc,
-        initState,
-        optimizedClearValue,
-        IID_PPV_ARGS(resource->GetAddressOf())
-    ));
-
-    info->Resource = *resource;
+    mBuddies[buddyIdx]->Deallocate(buddyInfo);
 }
 
 void Carol::BuddyHeap::Align()
@@ -166,79 +144,74 @@ Carol::SegListHeap::SegListHeap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag, uin
     }
 }
 
-void Carol::SegListHeap::CreateResource(ComPtr<ID3D12Resource>* resource, D3D12_RESOURCE_DESC* desc, HeapAllocInfo* info, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue)
+Carol::unique_ptr<Carol::HeapAllocInfo> Carol::SegListHeap::Allocate(const D3D12_RESOURCE_DESC* desc)
 {
-    Allocate(gDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes, info);
+    uint32_t size = gDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes;
+    unique_ptr<HeapAllocInfo> heapInfo;
 
-    auto order = GetOrder(info->Bytes);
-    auto orderNumPages = 1 << (mOrder - order);
-    auto heapIdx = info->Addr / (orderNumPages * (mPageSize << order));
-
-    ThrowIfFailed(gDevice->CreatePlacedResource(
-        mSegLists[order][heapIdx].Get(),
-        info->Addr % (orderNumPages * (mPageSize << order)),
-        desc,
-        initState,
-        optimizedClearValue,
-        IID_PPV_ARGS(resource->GetAddressOf())
-    ));
-    
-    info->Resource = *resource;
-}
-
-bool Carol::SegListHeap::Allocate(uint32_t size, HeapAllocInfo* info)
-{
-    if (size <= 0 || size > mPageSize << mOrder)
+    if (size > mPageSize << mOrder)
     {
-        return false;
+        return heapInfo;
     }
 
     auto order = GetOrder(size);
     auto orderNumPages = 1 << (mOrder - order);
 
-    for (uint32_t i = 0; i < mBitsets[order].size(); ++i)
+    for (int i = 0; i < mBitsets[order].size(); ++i)
     {
-        for (uint32_t j = 0; j < orderNumPages; ++j)
+        for (int j = 0; j < orderNumPages; ++j)
         {
             if (mBitsets[order][i]->IsPageIdle(j))
             {
-                info->Heap = this;
-                info->Addr = (i * orderNumPages + j) * (mPageSize << order);
-                info->Bytes = mPageSize << order;
+                heapInfo = make_unique<HeapAllocInfo>();
+                heapInfo->Heap = this;
+                heapInfo->Addr = (i * orderNumPages + j) * (mPageSize << order);
+                heapInfo->Bytes = mPageSize << order;
                 mBitsets[order][i]->Set(j);
 
-                return true;
+                return heapInfo;
             }
         }
     }
 
     AddHeap(order);
-    info->Heap = this;
-    info->Addr = (mSegLists[order].size() - 1) * orderNumPages * (mPageSize << order);
-    info->Bytes = mPageSize << order;
+    heapInfo = make_unique<HeapAllocInfo>();
+    heapInfo->Heap = this;
+    heapInfo->Addr = (mSegLists[order].size() - 1) * orderNumPages * (mPageSize << order);
+    heapInfo->Bytes = mPageSize << order;
     mBitsets[order].back()->Set(0);
 
-    return true;
+    return heapInfo;
 }
 
-bool Carol::SegListHeap::Deallocate(HeapAllocInfo* info)
+ID3D12Heap* Carol::SegListHeap::GetHeap(const HeapAllocInfo* info)const
 {
-    if (info->Bytes <= 0 || info->Bytes >= 1 << mOrder)
-    {
-        return false;
-    }
+    uint32_t order = GetOrder(info->Bytes); 
+    uint32_t orderNumPages = 1 << (mOrder - order);
+    uint32_t heapIdx = info->Addr / (orderNumPages * (mPageSize << order));
 
+    return mSegLists[order][heapIdx].Get();
+}
+
+uint32_t Carol::SegListHeap::GetOffset(const HeapAllocInfo* info)const
+{
+    uint32_t order = GetOrder(info->Bytes); 
+    uint32_t orderNumPages = 1 << (mOrder - order);
+
+    return info->Addr % (orderNumPages * (mPageSize << order));
+}
+
+void Carol::SegListHeap::Delete(unique_ptr<HeapAllocInfo> info)
+{
     auto order = GetOrder(info->Bytes);
     auto orderNumPages = 1 << (mOrder - order);
 
     auto heapIdx = info->Addr / (orderNumPages * (1 << order));
     auto pageIdx = ((info->Addr) % (orderNumPages * (1 << order))) / (1 << order);
     mBitsets[order][heapIdx]->Reset(pageIdx);
-
-    return true;
 }
 
-uint32_t Carol::SegListHeap::GetOrder(uint32_t size)
+uint32_t Carol::SegListHeap::GetOrder(uint32_t size)const
 {
     size = std::ceil(size * 1.0f / mPageSize);
 	return std::ceil(std::log2(size));

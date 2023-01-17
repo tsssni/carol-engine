@@ -8,6 +8,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <string_view>
 
 #define WARP_SIZE 32
 
@@ -28,8 +29,8 @@ namespace Carol {
 		Scene& operator=(const Scene&) = delete;
 
 		void DelayedDelete();
-		std::vector<std::wstring> GetAnimationClips(std::wstring modelName);
-		std::vector<std::wstring> GetModelNames();
+		std::vector<std::wstring_view> GetAnimationClips(std::wstring modelName);
+		std::vector<std::wstring_view> GetModelNames();
 		bool IsAnyTransparentMeshes();
 
 		void LoadModel(std::wstring name, std::wstring path, std::wstring textureDir, bool isSkinned);

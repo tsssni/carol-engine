@@ -14,7 +14,7 @@ namespace Carol
 	class DescriptorAllocInfo
 	{
 	public:
-		DescriptorAllocator* Allocator;
+		DescriptorAllocator* Allocator = nullptr;
 		uint32_t StartOffset = 0;
 		uint32_t NumDescriptors = 0;
 	};
@@ -25,47 +25,39 @@ namespace Carol
 		DescriptorAllocator(
 			D3D12_DESCRIPTOR_HEAP_TYPE type, 
 			uint32_t initNumCpuDescriptors = 2048,
-			uint32_t initNumGpuDescriptors = 2048);
+			uint32_t numGpuDescriptors = 65536);
 		virtual ~DescriptorAllocator();
 		
-		bool CpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
-		bool CpuDeallocate(DescriptorAllocInfo* info);
-		bool GpuAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
-		bool GpuDeallocate(DescriptorAllocInfo* info);
+		std::unique_ptr<DescriptorAllocInfo> CpuAllocate(uint32_t numDescriptors);
+		void CpuDeallocate(std::unique_ptr<DescriptorAllocInfo> info);
+		std::unique_ptr<DescriptorAllocInfo> GpuAllocate(uint32_t numDescriptors);
+		void GpuDeallocate(std::unique_ptr<DescriptorAllocInfo> info);
 		void DelayedDelete();
 
-		void CreateCbv(D3D12_CONSTANT_BUFFER_VIEW_DESC* cbvDesc, DescriptorAllocInfo* info, uint32_t offset = 0);
-		void CreateSrv(D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
-		void CreateUav(D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, Resource* resource, Resource* counterResource, DescriptorAllocInfo* info, uint32_t offset = 0);
-		void CreateRtv(D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
-		void CreateDsv(D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
+		ID3D12DescriptorHeap* GetGpuDescriptorHeap()const;
+		uint32_t GetDescriptorSize()const;
 
-		ID3D12DescriptorHeap* GetGpuDescriptorHeap();
-		uint32_t GetDescriptorSize();
-
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetShaderCpuHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
-		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
-		void CopyDescriptors(DescriptorAllocInfo* cpuInfo, DescriptorAllocInfo* shaderCpuInfo);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetShaderCpuHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
+		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
 
 	protected:
 		void AddCpuDescriptorHeap();
-		void ExpandGpuDescriptorHeap();
+		void InitGpuDescriptorHeap();
 
-		bool CpuDelete(DescriptorAllocInfo* info);
-		bool GpuDelete(DescriptorAllocInfo* info);
+		void CpuDelete(std::unique_ptr<DescriptorAllocInfo> info);
+		void GpuDelete(std::unique_ptr<DescriptorAllocInfo> info);
 
 		std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> mCpuDescriptorHeaps;
 		std::vector<std::unique_ptr<Buddy>> mCpuBuddies;
 		uint32_t mNumCpuDescriptorsPerHeap;
 
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mGpuDescriptorHeap;
-		std::vector<std::unique_ptr<Buddy>> mGpuBuddies;
-		uint32_t mNumGpuDescriptorsPerSection;
-		uint32_t mNumGpuDescriptors = 0;
+		std::unique_ptr<Buddy> mGpuBuddy;
+		uint32_t mNumGpuDescriptors;
 
-		std::vector<std::vector<DescriptorAllocInfo>> mCpuDeletedAllocInfo;
-		std::vector<std::vector<DescriptorAllocInfo>> mGpuDeletedAllocInfo;
+		std::vector<std::vector<std::unique_ptr<DescriptorAllocInfo>>> mCpuDeletedAllocInfo;
+		std::vector<std::vector<std::unique_ptr<DescriptorAllocInfo>>> mGpuDeletedAllocInfo;
 		uint32_t mCurrFrame;
 
 		D3D12_DESCRIPTOR_HEAP_TYPE mType;
@@ -85,35 +77,28 @@ namespace Carol
 		DescriptorManager(const DescriptorManager&) = delete;
 		DescriptorManager& operator=(const DescriptorManager&) = delete;
 
-		void CpuCbvSrvUavAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
-		void GpuCbvSrvUavAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
-		void RtvAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
-		void DsvAllocate(uint32_t numDescriptors, DescriptorAllocInfo* info);
+		std::unique_ptr<DescriptorAllocInfo> CpuCbvSrvUavAllocate(uint32_t numDescriptors);
+		std::unique_ptr<DescriptorAllocInfo> GpuCbvSrvUavAllocate(uint32_t numDescriptors);
+		std::unique_ptr<DescriptorAllocInfo> RtvAllocate(uint32_t numDescriptors);
+		std::unique_ptr<DescriptorAllocInfo> DsvAllocate(uint32_t numDescriptors);
 
-		void CpuCbvSrvUavDeallocate(DescriptorAllocInfo* info);
-		void GpuCbvSrvUavDeallocate(DescriptorAllocInfo* info);
-		void RtvDeallocate(DescriptorAllocInfo* info);
-		void DsvDeallocate(DescriptorAllocInfo* info);	
+		void CpuCbvSrvUavDeallocate(std::unique_ptr<DescriptorAllocInfo> info);
+		void GpuCbvSrvUavDeallocate(std::unique_ptr<DescriptorAllocInfo> info);
+		void RtvDeallocate(std::unique_ptr<DescriptorAllocInfo> info);
+		void DsvDeallocate(std::unique_ptr<DescriptorAllocInfo> info);	
 		void DelayedDelete();
 
-		void CreateCbv(D3D12_CONSTANT_BUFFER_VIEW_DESC* cbvDesc, DescriptorAllocInfo* info, uint32_t offset = 0);
-		void CreateSrv(D3D12_SHADER_RESOURCE_VIEW_DESC* srvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
-		void CreateUav(D3D12_UNORDERED_ACCESS_VIEW_DESC* uavDesc, Resource* resource, Resource* counterResource, DescriptorAllocInfo* info, uint32_t offset = 0);
-		void CreateRtv(D3D12_RENDER_TARGET_VIEW_DESC* rtvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
-		void CreateDsv(D3D12_DEPTH_STENCIL_VIEW_DESC* dsvDesc, Resource* resource, DescriptorAllocInfo* info, uint32_t offset = 0);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuCbvSrvUavHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetShaderCpuCbvSrvUavHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
+		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuCbvSrvUavHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtvHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
+		CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsvHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuCbvSrvUavHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetShaderCpuCbvSrvUavHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
-		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuCbvSrvUavHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtvHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsvHandle(DescriptorAllocInfo* info, uint32_t offset = 0);
+		uint32_t GetCbvSrvUavSize()const;
+		uint32_t GetRtvSize()const;
+		uint32_t GetDsvSize()const;
 
-		uint32_t GetCbvSrvUavSize();
-		uint32_t GetRtvSize();
-		uint32_t GetDsvSize();
-
-		ID3D12DescriptorHeap* GetResourceDescriptorHeap();
-		void CopyCbvSrvUav(DescriptorAllocInfo* cpuInfo, DescriptorAllocInfo* shaderCpuInfo);
+		ID3D12DescriptorHeap* GetResourceDescriptorHeap()const;
 	protected:
 		std::unique_ptr<DescriptorAllocator> mCbvSrvUavAllocator;
 		std::unique_ptr<DescriptorAllocator> mRtvAllocator;

@@ -5,12 +5,14 @@
 #include <scene/skinned_data.h>
 #include <scene/texture.h>
 #include <scene/scene_node.h>
+#include <scene/material.h>
 #include <utils/common.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <memory>
 #include <algorithm>
 #include <fstream>
+#include <span>
 
 #define aiProcess_Static aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_FixInfacingNormals | aiProcess_PreTransformVertices | aiProcess_ConvertToLeftHanded
 #define aiProcess_Skinned aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights | aiProcess_ConvertToLeftHanded
@@ -20,6 +22,9 @@ namespace Carol {
 	using std::wstring;
 	using std::unique_ptr;
 	using std::make_unique;
+	using std::unordered_map;
+	using std::pair;
+	using std::span;
 	using namespace DirectX;
 }
 
@@ -48,8 +53,7 @@ Carol::AssimpModel::AssimpModel(
 
 	LoadAssimpSkinnedData(scene);
 	ProcessNode(scene->mRootNode, rootNode, scene);
-	mCriticalFrames.clear();
-	mCriticalFrames.shrink_to_fit();
+	mFinalTransforms.clear();
 }
 
 void Carol::AssimpModel::ProcessNode(aiNode* node, SceneNode* sceneNode, const aiScene* scene)
@@ -77,16 +81,25 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(aiMesh* mesh, const aiScene* scene)
 	if (mMeshes.count(meshName) == 0)
 	{
 		vector<Vertex> vertices;
+		vector<pair<wstring, vector<vector<Vertex>>>> skinnedVertices;
 		vector<uint32_t> indices;
 
 		ReadMeshVerticesAndIndices(vertices, indices, mesh);
 		ReadMeshBones(vertices, mesh);
+
+		for (auto& [name, clip] : mAnimationClips)
+		{
+			auto skinnedVerticesPair = make_pair(name, vector<vector<Vertex>>());
+			GetSkinnedVertices(name, vertices, skinnedVerticesPair.second);
+			skinnedVertices.emplace_back(std::move(skinnedVerticesPair));
+		}
+
 		mMeshes[meshName] = make_unique<Mesh>(
 			vertices,
+			skinnedVertices,
 			indices,
 			mSkinned,
-			false,
-			this);
+			false);
 
 		ReadMeshMaterialAndTextures(mMeshes[meshName].get(), mesh, scene);
 	}
@@ -254,7 +267,7 @@ void Carol::AssimpModel::InsertBoneWeightToVertex(Vertex& vertex, uint32_t boneI
 
 void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 {
-	vector<vector<vector<XMFLOAT4X4>>> animationFrames;
+	unordered_map<wstring, vector<vector<XMFLOAT4X4>>> criticalFrames;
 	uint32_t boneCount = mBoneHierarchy.size();
 
 	for (int i = 0; i < scene->mNumAnimations; ++i)
@@ -318,12 +331,12 @@ void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 			
 		}
 
-		animationFrames.emplace_back();
-		animationClip->GetFrames(animationFrames.back());
-		mAnimationClips[StringToWString(animation->mName.C_Str())] = std::move(animationClip);
+		wstring clipName = StringToWString(animation->mName.C_Str());
+		mAnimationClips[clipName] = std::move(animationClip);
+		mAnimationClips[clipName]->GetCriticalFrames(criticalFrames[clipName]);
 	}
 
-	for (auto& frames : animationFrames)
+	for (auto& [name, frames] : criticalFrames)
 	{
 		vector<vector<XMFLOAT4X4>> frameTransforms;
 
@@ -352,7 +365,7 @@ void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 			frameTransforms.emplace_back(std::move(finalTransforms));
 		}
 
-		mCriticalFrames.emplace_back(std::move(frameTransforms));
+		mFinalTransforms[name] = std::move(frameTransforms);
 	}
 }
 

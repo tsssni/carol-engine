@@ -2,18 +2,17 @@
 #include <global.h>
 #include <render_pass/display.h>
 #include <render_pass/frame.h>
-#include <render_pass/shadow.h>
-#include <render_pass/oitppll.h>
-#include <render_pass/ssao.h>
 #include <render_pass/scene.h>
 #include <dx12.h>
 #include <utils/common.h>
 #include <DirectXColors.h>
 #include <cmath>
+#include <string_view>
 
 namespace Carol {
 	using std::vector;
 	using std::wstring;
+	using std::wstring_view;
 	using std::make_unique;
 	using Microsoft::WRL::ComPtr;
 }
@@ -39,9 +38,9 @@ void Carol::TaaPass::ReleaseIntermediateBuffers()
 
 void Carol::TaaPass::InitShaders()
 {
-	vector<wstring> nullDefines{};
+	vector<wstring_view> nullDefines{};
 
-	vector<wstring> skinnedDefines =
+	vector<wstring_view> skinnedDefines =
 	{
 		L"SKINNED=1"
 	};

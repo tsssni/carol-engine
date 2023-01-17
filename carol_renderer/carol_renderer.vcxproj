@@ -35,7 +35,6 @@
     <ClInclude Include="include\render_pass\frame.h" />
     <ClInclude Include="include\render_pass\normal.h" />
     <ClInclude Include="include\global.h" />
-    <ClInclude Include="include\render_pass\oitppll.h" />
     <ClInclude Include="include\render_pass\render_pass.h" />
     <ClInclude Include="include\render_pass\shadow.h" />
     <ClInclude Include="include\render_pass\ssao.h" />
@@ -45,6 +44,7 @@
     <ClInclude Include="include\scene\camera.h" />
     <ClInclude Include="include\scene\light.h" />
     <ClInclude Include="include\scene\material.h" />
+    <ClInclude Include="include\scene\mesh.h" />
     <ClInclude Include="include\scene\model.h" />
     <ClInclude Include="include\render_pass\scene.h" />
     <ClInclude Include="include\scene\scene_node.h" />
@@ -73,16 +73,15 @@
     <ClCompile Include="source\dx12\heap.cpp" />
     <ClCompile Include="source\dx12\resource.cpp" />
     <ClCompile Include="source\dx12\root_signature.cpp" />
-    <ClCompile Include="source\dx12\sampler.cpp" />
     <ClCompile Include="source\dx12\shader.cpp" />
     <ClCompile Include="source\renderer.cpp" />
     <ClCompile Include="source\render_pass\display.cpp" />
-    <ClCompile Include="source\render_pass\oitppll.cpp" />
     <ClCompile Include="source\render_pass\shadow.cpp" />
     <ClCompile Include="source\render_pass\ssao.cpp" />
     <ClCompile Include="source\render_pass\taa.cpp" />
     <ClCompile Include="source\scene\assimp.cpp" />
     <ClCompile Include="source\scene\camera.cpp" />
+    <ClCompile Include="source\scene\mesh.cpp" />
     <ClCompile Include="source\scene\model.cpp" />
     <ClCompile Include="source\render_pass\scene.cpp" />
     <ClCompile Include="source\scene\scene_node.cpp" />

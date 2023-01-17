@@ -53,7 +53,7 @@ namespace Carol
 		float GetClipEndTime()const;
 
 		void Interpolate(float t, std::vector<DirectX::XMFLOAT4X4>& boneTransforms)const;
-		void GetFrames(std::vector<std::vector<DirectX::XMFLOAT4X4>>& frames)const;
+		void GetCriticalFrames(std::vector<std::vector<DirectX::XMFLOAT4X4>>& frames)const;
 		std::vector<BoneAnimation> BoneAnimations; 	
 	};
 

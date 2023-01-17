@@ -198,7 +198,7 @@ void Carol::BaseRenderer::InitRootSignature()
 
 void Carol::BaseRenderer::InitHeapManager()
 {
-	gHeapManager = make_unique<HeapManager>();
+	gHeapManager = make_unique<HeapManager>(1 << 27);
 	StructuredBuffer::InitCounterResetBuffer(gHeapManager->GetUploadBuffersHeap());
 }
 

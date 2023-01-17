@@ -14,9 +14,6 @@ void main(
     
     if (dtid < gMeshletCount)
     {    
-#ifdef FRUSTUM_ONLY
-        visible = !GetMark(dtid, gMeshletFrustumCulledMarkBufferIdx);
-#else
         if(GetMark(dtid, gMeshletFrustumCulledMarkBufferIdx))
         {
             visible = false;
@@ -63,10 +60,11 @@ void main(
             }
         }
 #endif
-#endif
     }
 
-#ifndef TRANSPARENT
+#ifdef MESH_SHADER_DISABLED
+    DispatchMesh(0, 0, 0, sharedPayload);
+#else
     if (visible)
     {
         uint idx = WavePrefixCountBits(visible);
@@ -75,7 +73,5 @@ void main(
     
     uint visibleCount = WaveActiveCountBits(visible);
     DispatchMesh(visibleCount, 1, 1, sharedPayload);
-#else
-    DispatchMesh(0, 0, 0, sharedPayload);
 #endif
 }

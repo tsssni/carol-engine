@@ -5,6 +5,8 @@
 namespace Carol {
     using std::vector;
     using std::wstring;
+    using std::wstring_view;
+    using std::span;
     using std::ifstream;
     using std::ofstream;
     using Microsoft::WRL::ComPtr;
@@ -14,7 +16,7 @@ Carol::ComPtr<IDxcCompiler3> Carol::Shader::Compiler = nullptr;
 Carol::ComPtr<IDxcUtils> Carol::Shader::Utils = nullptr;
 Carol::ComPtr<IDxcIncludeHandler> Carol::Shader::IncludeHandler = nullptr;
 
-Carol::Shader::Shader(const wstring& fileName, const vector<wstring>& defines, const wstring& entryPoint, const wstring& target)
+Carol::Shader::Shader(wstring_view fileName, span<const wstring_view> defines, wstring_view entryPoint, wstring_view target)
 {
     auto args = SetArgs(defines, entryPoint, target);
     auto result = Compile(fileName, args);
@@ -45,7 +47,7 @@ void Carol::Shader::InitCompiler()
     ThrowIfFailed(Utils->CreateDefaultIncludeHandler(IncludeHandler.GetAddressOf()));
 }
 
-Carol::vector<LPCWSTR> Carol::Shader::SetArgs(const vector<wstring>& defines, const wstring& entryPoint, const wstring& target)
+Carol::vector<LPCWSTR> Carol::Shader::SetArgs(span<const wstring_view> defines, wstring_view entryPoint, wstring_view target)
 {
     vector<LPCWSTR> args;
 
@@ -57,10 +59,10 @@ Carol::vector<LPCWSTR> Carol::Shader::SetArgs(const vector<wstring>& defines, co
 #endif
 
     args.push_back(L"-E");
-    args.push_back(entryPoint.c_str());
+    args.push_back(entryPoint.data());
 
     args.push_back(L"-T");
-    args.push_back(target.c_str());
+    args.push_back(target.data());
 
     args.push_back(L"-I");
     args.push_back(L"shader");
@@ -68,7 +70,7 @@ Carol::vector<LPCWSTR> Carol::Shader::SetArgs(const vector<wstring>& defines, co
     for (auto& def : defines)
     {
         args.push_back(L"-D");
-        args.push_back(def.c_str());
+        args.push_back(def.data());
     }
 
     args.push_back(DXC_ARG_WARNINGS_ARE_ERRORS);
@@ -78,10 +80,11 @@ Carol::vector<LPCWSTR> Carol::Shader::SetArgs(const vector<wstring>& defines, co
     return args;
 }
 
-Carol::ComPtr<IDxcResult> Carol::Shader::Compile(const wstring& fileName, vector<LPCWSTR>& args)
+Carol::ComPtr<IDxcResult> Carol::Shader::Compile(wstring_view fileName, span<LPCWSTR> args)
 {
     ComPtr<IDxcBlobEncoding> sourceBlob;
-    ThrowIfFailed(Utils->LoadFile(fileName.c_str(), nullptr, sourceBlob.GetAddressOf()));
+    ThrowIfFailed(Utils->LoadFile(fileName.data(), nullptr, sourceBlob.GetAddressOf()));
+
     DxcBuffer sourceBuffer;
     sourceBuffer.Encoding = DXC_CP_ACP;
     sourceBuffer.Ptr = sourceBlob->GetBufferPointer();

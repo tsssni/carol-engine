@@ -177,7 +177,7 @@ void Carol::AnimationClip::Interpolate(float t, vector<DirectX::XMFLOAT4X4>& bon
 	}
 }
 
-void Carol::AnimationClip::GetFrames(std::vector<std::vector<DirectX::XMFLOAT4X4>>& frames) const
+void Carol::AnimationClip::GetCriticalFrames(std::vector<std::vector<DirectX::XMFLOAT4X4>>& frames) const
 {
 	int size = BoneAnimations.size();
 	int maxFrame = 0;
@@ -186,12 +186,13 @@ void Carol::AnimationClip::GetFrames(std::vector<std::vector<DirectX::XMFLOAT4X4
 	for (int i = 0; i < size; ++i)
 	{
 		BoneAnimations[i].GetFrames(M[i]);
+
 		if (M[i].size() > maxFrame)
 		{
 			maxFrame = M[i].size();
 		}
 	}
-	
+
 	frames.resize(maxFrame);
 	XMFLOAT4X4 identity;
 	XMStoreFloat4x4(&identity, XMMatrixIdentity());
