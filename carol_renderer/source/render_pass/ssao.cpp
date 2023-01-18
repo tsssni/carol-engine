@@ -8,6 +8,8 @@
 #include <DirectXPackedVector.h>
 #include <string_view>
 
+#define BLUR_RADIUS 5
+
 namespace Carol
 {
     using std::vector;
@@ -43,7 +45,12 @@ uint32_t Carol::SsaoPass::GetRandVecSrvIdx()
 
 uint32_t Carol::SsaoPass::GetSsaoSrvIdx()
 {
-    return mAmbientMap0->GetGpuSrvIdx();
+    return mAmbientMap->GetGpuSrvIdx();
+}
+
+uint32_t Carol::SsaoPass::GetSsaoUavIdx()
+{
+    return mAmbientMap->GetGpuUavIdx();
 }
 
 void Carol::SsaoPass::ReleaseIntermediateBuffers()
@@ -51,29 +58,34 @@ void Carol::SsaoPass::ReleaseIntermediateBuffers()
     mRandomVecMap->ReleaseIntermediateBuffer();
 }
 
+void Carol::SsaoPass::OnResize(uint32_t width, uint32_t height)
+{
+    if (mWidth != width >> 1 || mHeight != height >> 1)
+	{
+        mWidth = width >> 1;
+        mHeight = height >> 1;
+		mViewport = { 0.f,0.f,mWidth * 1.f,mHeight * 1.f,0.f,1.f };
+		mScissorRect = { 0,0,(long)mWidth,(long)mHeight };
+
+		InitBuffers();
+	}
+}
+
 void Carol::SsaoPass::Draw()
 {
-    DrawSsao();
-    DrawAmbientMap();
+    uint32_t groupWidth = ceilf(mWidth / 32.f);
+    uint32_t groupHeight = ceilf(mHeight / 32.f);
+
+    gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
+
+    gCommandList->SetPipelineState(gPSOs[L"Ssao"]->Get());
+    gCommandList->Dispatch(groupWidth, groupHeight , 1);
+
+    gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
 void Carol::SsaoPass::Update()
 {
-}
-
-void Carol::SsaoPass::DrawSsao()
-{
-    gCommandList->RSSetViewports(1, &mViewport);
-    gCommandList->RSSetScissorRects(1, &mScissorRect);
-
-    gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap0->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-    gCommandList->ClearRenderTargetView(mAmbientMap0->GetRtv(), DirectX::Colors::Red, 0, nullptr);
-    gCommandList->OMSetRenderTargets(1, GetRvaluePtr(mAmbientMap0->GetRtv()), true, nullptr);
-    
-    gCommandList->SetPipelineState(gPSOs[L"Ssao"]->Get());
-    static_cast<ID3D12GraphicsCommandList6*>(gCommandList.Get())->DispatchMesh(1, 1, 1);
-
-    gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap0->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }
 
 Carol::vector<float> Carol::SsaoPass::CalcGaussWeights(float sigma)
@@ -104,9 +116,7 @@ Carol::vector<float> Carol::SsaoPass::CalcGaussWeights(float sigma)
 
 void Carol::SsaoPass::InitBuffers()
 {
-    D3D12_CLEAR_VALUE optClearValue = CD3DX12_CLEAR_VALUE(mAmbientMapFormat, DirectX::Colors::Red);
-
-    mAmbientMap0 = make_unique<ColorBuffer>(
+    mAmbientMap = make_unique<ColorBuffer>(
         mWidth,
         mHeight,
         1,
@@ -114,19 +124,7 @@ void Carol::SsaoPass::InitBuffers()
         mAmbientMapFormat,
         gHeapManager->GetDefaultBuffersHeap(),
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
-        &optClearValue);
-
-	mAmbientMap1 = make_unique<ColorBuffer>(
-        mWidth,
-        mHeight,
-        1,
-        COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
-        mAmbientMapFormat,
-        gHeapManager->GetDefaultBuffersHeap(),
-        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-        D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
-        &optClearValue);
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 
 void Carol::SsaoPass::InitRandomVectors()
@@ -194,75 +192,18 @@ void Carol::SsaoPass::InitShaders()
 {
     vector<wstring_view> nullDefines{};
 
-    vector<wstring_view> skinnedDefines =
-    {
-        L"SKINNED=1"
-    };
-
-    gShaders[L"SsaoMS"] = make_unique<Shader>(L"shader\\ssao_ms.hlsl", nullDefines, L"main", L"ms_6_6");
-    gShaders[L"SsaoPS"] = make_unique<Shader>(L"shader\\ssao_ps.hlsl", nullDefines, L"main", L"ps_6_6");
-    gShaders[L"SsaoBlurPS"] = make_unique<Shader>(L"shader\\ssao_blur_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+    gShaders[L"SsaoCS"] = make_unique<Shader>(L"shader\\ssao_cs.hlsl", nullDefines, L"main", L"cs_6_6");
 }
 
 void Carol::SsaoPass::InitPSOs()
 {
-    auto ssaoMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-    ssaoMeshPSO->SetDepthStencilState(gDepthDisabledState);
-    ssaoMeshPSO->SetRenderTargetFormat(mAmbientMapFormat);
-    ssaoMeshPSO->SetMS(gShaders[L"SsaoMS"].get());
-    ssaoMeshPSO->SetPS(gShaders[L"SsaoPS"].get());
-    ssaoMeshPSO->Finalize();
-    gPSOs[L"Ssao"] = std::move(ssaoMeshPSO);
-
-	auto blurMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-    blurMeshPSO->SetDepthStencilState(gDepthDisabledState);
-    blurMeshPSO->SetRenderTargetFormat(mAmbientMapFormat);
-    blurMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
-    blurMeshPSO->SetPS(gShaders[L"SsaoBlurPS"].get());
-    blurMeshPSO->Finalize();
-    gPSOs[L"SsaoBlur"] = std::move(blurMeshPSO);
+    auto ssaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+    ssaoComputePSO->SetCS(gShaders[L"SsaoCS"].get());
+    ssaoComputePSO->Finalize();
+    gPSOs[L"Ssao"] = std::move(ssaoComputePSO);
 }
 
 void Carol::SsaoPass::GetOffsetVectors(DirectX::XMFLOAT4 offsets[14])
 {
     std::copy(&mOffsets[0], &mOffsets[14], offsets);
-}
-
-void Carol::SsaoPass::DrawAmbientMap()
-{
-    gCommandList->SetPipelineState(gPSOs[L"SsaoBlur"]->Get());
-
-    for (int i = 0; i < mBlurCount; ++i)
-    {
-        DrawAmbientMap(false);
-        DrawAmbientMap(true);
-    }
-}
-
-void Carol::SsaoPass::DrawAmbientMap(bool vertBlur)
-{
-    ID3D12Resource* output;
-    CD3DX12_CPU_DESCRIPTOR_HANDLE outputRtv;
-    uint32_t ssaoConstants[2] = { vertBlur };
-
-    if (!vertBlur)
-    {
-        output = mAmbientMap1->Get();
-        outputRtv = mAmbientMap1->GetRtv();
-        ssaoConstants[1] = mAmbientMap0->GetGpuSrvIdx();
-    }
-    else
-    {
-        output = mAmbientMap0->Get();
-        outputRtv = mAmbientMap0->GetRtv();
-        ssaoConstants[1] = mAmbientMap1->GetGpuSrvIdx();
-    }
-
-    gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-    gCommandList->ClearRenderTargetView(outputRtv, DirectX::Colors::Red, 0, nullptr);
-    gCommandList->OMSetRenderTargets(1, &outputRtv, true, nullptr);
-    gCommandList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, 2, ssaoConstants, 0);
-
-    static_cast<ID3D12GraphicsCommandList6*>(gCommandList.Get())->DispatchMesh(1, 1, 1);
-    gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(output, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
 }

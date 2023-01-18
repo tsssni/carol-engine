@@ -37,8 +37,7 @@ void main( uint2 dtid : SV_DispatchThreadID, uint2 gtid : SV_GroupThreadID)
 {    
     Texture2D hiZMap = ResourceDescriptorHeap[gHiZRIdx];
     uint2 size;
-    uint mip;
-    hiZMap.GetDimensions(0, size.x, size.y, mip);
+    hiZMap.GetDimensions(size.x, size.y);
         
     Init(dtid, size);
     uint srcWidth = size.x >> gSrcMip;
@@ -63,6 +62,6 @@ void main( uint2 dtid : SV_DispatchThreadID, uint2 gtid : SV_GroupThreadID)
             hiZMap[dtid >> i].r = GetMaxDepth(gtid, exp2(i - 1));
         }
         
-        GroupMemoryBarrierWithGroupSync();
+        DeviceMemoryBarrierWithGroupSync();
     }
 }

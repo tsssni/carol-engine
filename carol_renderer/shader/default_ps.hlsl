@@ -21,7 +21,7 @@ float4 main(PixelIn pin) : SV_Target
     Texture2D normalTex = ResourceDescriptorHeap[gNormalTextureIdx];
 
 #ifdef SSAO
-    Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapIdx];
+    Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapRIdx];
 #endif
     
     float4 texDiffuse = diffuseTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, pow(pin.PosH.z, 15.0f) * 8.0f);

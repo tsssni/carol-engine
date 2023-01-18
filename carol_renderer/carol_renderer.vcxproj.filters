@@ -260,9 +260,6 @@
     <None Include="shader\include\shadow.hlsli">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\ssao_ps.hlsl">
-      <Filter>着色器文件</Filter>
-    </None>
     <None Include="shader\taa_ps.hlsl">
       <Filter>着色器文件</Filter>
     </None>
@@ -286,14 +283,13 @@
     <None Include="shader\oitppll_ps.hlsl" />
     <None Include="shader\skybox_ms.hlsl" />
     <None Include="shader\skybox_ps.hlsl" />
-    <None Include="shader\ssao_blur_ps.hlsl" />
     <None Include="shader\velocity_ps.hlsl" />
     <None Include="shader\normals_ms.hlsl" />
     <None Include="shader\oitppll_build_ps.hlsl" />
-    <None Include="shader\ssao_ms.hlsl" />
     <None Include="shader\hiz_generate_cs.hlsl" />
     <None Include="shader\cull_cs.hlsl" />
     <None Include="shader\cull_as.hlsl" />
+    <None Include="shader\ssao_cs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="lib\dxcompiler.lib" />

@@ -22,6 +22,7 @@ namespace Carol
 		virtual void Draw()override;
 		virtual void Update()override;
 		virtual void ReleaseIntermediateBuffers()override;
+		virtual void OnResize(uint32_t width, uint32_t height)override;
 
 		void SetBlurCount(uint32_t blurCout);
 		std::vector<float> CalcGaussWeights(float sigma);
@@ -29,6 +30,7 @@ namespace Carol
 
 		uint32_t GetRandVecSrvIdx();
 		uint32_t GetSsaoSrvIdx();
+		uint32_t GetSsaoUavIdx();
 
 	protected:
 		virtual void InitShaders()override;
@@ -38,13 +40,8 @@ namespace Carol
 		void InitRandomVectors();
 		void InitRandomVectorMap();
 
-		void DrawSsao();
-		void DrawAmbientMap();
-		void DrawAmbientMap(bool vertBlur);
-
 		std::unique_ptr<ColorBuffer> mRandomVecMap;
-		std::unique_ptr<ColorBuffer> mAmbientMap0;
-		std::unique_ptr<ColorBuffer> mAmbientMap1;
+		std::unique_ptr<ColorBuffer> mAmbientMap;
 
 		DXGI_FORMAT mAmbientMapFormat = DXGI_FORMAT_R16_UNORM;
 		uint32_t mBlurCount;

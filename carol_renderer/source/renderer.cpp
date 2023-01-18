@@ -300,13 +300,17 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mFrameConstants->DepthStencilMapIdx = gFramePass->GetDepthStencilSrvIdx();
 	mFrameConstants->NormalMapIdx = mNormalPass->GetNormalSrvIdx();
 	mFrameConstants->MainLightShadowMapIdx = mMainLightShadowPass->GetShadowSrvIdx();
+	//OITPPLL
 	mFrameConstants->OitBufferWIdx = gFramePass->GetPpllUavIdx();
 	mFrameConstants->OitOffsetBufferWIdx = gFramePass->GetOffsetUavIdx();
 	mFrameConstants->OitCounterIdx = gFramePass->GetCounterUavIdx();
 	mFrameConstants->OitBufferRIdx = gFramePass->GetPpllSrvIdx();
 	mFrameConstants->OitOffsetBufferRIdx = gFramePass->GetOffsetSrvIdx();
+	// SSAO
 	mFrameConstants->RandVecMapIdx = mSsaoPass->GetRandVecSrvIdx();
-	mFrameConstants->AmbientMapIdx = mSsaoPass->GetSsaoSrvIdx();
+	mFrameConstants->AmbientMapWIdx = mSsaoPass->GetSsaoUavIdx();
+	mFrameConstants->AmbientMapRIdx = mSsaoPass->GetSsaoSrvIdx();
+	//TAA
 	mFrameConstants->VelocityMapIdx = mTaaPass->GetVeloctiySrvIdx();
 	mFrameConstants->HistFrameMapIdx = mTaaPass->GetHistFrameSrvIdx();
 

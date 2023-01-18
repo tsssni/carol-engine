@@ -38,6 +38,15 @@
 "mipLODBias = 0.0f,"\
 "maxAnisotropy = 8),"\
 "StaticSampler(s6,"\
+"filter = FILTER_MIN_MAG_MIP_LINEAR,"\
+"addressU = TEXTURE_ADDRESS_BORDER,"\
+"addressV = TEXTURE_ADDRESS_BORDER,"\
+"addressW = TEXTURE_ADDRESS_BORDER,"\
+"mipLODBias = 0.0f,"\
+"maxAnisotropy = 0,"\
+"comparisonFunc = COMPARISON_LESS_EQUAL,"\
+"borderColor = STATIC_BORDER_COLOR_OPAQUE_WHITE),"\
+"StaticSampler(s7,"\
 "filter = FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,"\
 "addressU = TEXTURE_ADDRESS_BORDER,"\
 "addressV = TEXTURE_ADDRESS_BORDER,"\

@@ -62,16 +62,21 @@ namespace Carol
 		uint32_t DepthStencilMapIdx;
 		uint32_t NormalMapIdx;
 		uint32_t MainLightShadowMapIdx;
+		// OITPPLL
 		uint32_t OitBufferWIdx;
 		uint32_t OitOffsetBufferWIdx;
 		uint32_t OitCounterIdx;
 		uint32_t OitBufferRIdx;
 		uint32_t OitOffsetBufferRIdx;
+		// SSAO
 		uint32_t RandVecMapIdx;
-		uint32_t AmbientMapIdx;
+		uint32_t AmbientMapWIdx;
+		uint32_t AmbientMapRIdx;
+		// TAA
 		uint32_t VelocityMapIdx;
 		uint32_t HistFrameMapIdx;
-		DirectX::XMFLOAT3 FramePad2;
+
+		DirectX::XMFLOAT2 FramePad2;
 	};
  
     class Renderer :public BaseRenderer

@@ -66,7 +66,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     try
     {
         renderer = new Carol::Renderer(hWnd,width,height);
-        renderer->LoadModel(L"C:\\Minotaur\\animation\\Minotaur@Attack.FBX", L"C:\\Minotaur\\texture", L"m", XMMatrixScaling(0.1f, 0.1f, 0.1f), true);
+        renderer->LoadModel(L"C:\\Minotaur\\animation\\Minotaur@Attack.FBX", L"C:\\Minotaur\\texture", L"m", XMMatrixScaling(0.1f, 0.1f, 0.1f), false);
         renderer->SetAnimation(L"m", L"Take 001");
 
 		// 主消息循环:

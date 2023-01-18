@@ -25,7 +25,7 @@ void main(PixelIn pin)
     Texture2D normalTex = ResourceDescriptorHeap[gNormalTextureIdx];
     Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
 #ifdef SSAO
-    Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapIdx];
+    Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapRIdx];
 #endif
     
     float2 ndcPos = pin.PosH.xy * gInvRenderTargetSize;

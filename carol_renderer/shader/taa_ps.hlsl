@@ -88,7 +88,7 @@ float4 main(PixelIn pin) : SV_Target
     for (int i = 0; i < 9; ++i)
     {
         float2 adjacentPos = pin.TexC + float2(dx[i], dy[i]) * gInvRenderTargetSize;
-        float adjacentZ = depthMap.Sample(gsamPointClamp, adjacentPos).r;
+        float adjacentZ = depthMap.Sample(gsamDepthMap, adjacentPos).r;
         
         if (adjacentZ < minZ)
         {

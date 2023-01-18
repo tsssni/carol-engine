@@ -50,10 +50,11 @@ cbuffer FrameCB : register(b3)
     uint gOitBufferRIdx;
     uint gOitOffsetBufferRIdx;
     uint gRandVecMapIdx;
-    uint gAmbientMapIdx;
+    uint gAmbientMapWIdx;
+    uint gAmbientMapRIdx;
     uint gVelocityMapIdx;
     uint gHistFrameMapIdx;
-    float3 gFramePad2;
+    float2 gFramePad2;
 }
 
 SamplerState gsamPointWrap : register(s0);
@@ -62,6 +63,7 @@ SamplerState gsamLinearWrap : register(s2);
 SamplerState gsamLinearClamp : register(s3);
 SamplerState gsamAnisotropicWrap : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
-SamplerComparisonState gsamShadow : register(s6);
+SamplerState gsamDepthMap : register(s6);
+SamplerComparisonState gsamShadow : register(s7);
 
 #endif
