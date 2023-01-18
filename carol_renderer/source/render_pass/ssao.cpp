@@ -73,8 +73,8 @@ void Carol::SsaoPass::OnResize(uint32_t width, uint32_t height)
 
 void Carol::SsaoPass::Draw()
 {
-    uint32_t groupWidth = ceilf(mWidth / 32.f);
-    uint32_t groupHeight = ceilf(mHeight / 32.f);
+    uint32_t groupWidth = ceilf(mWidth * 1.f / (32 - 2 * BLUR_RADIUS)); 
+    uint32_t groupHeight = ceilf(mHeight * 1.f / (32 - 2 * BLUR_RADIUS));
 
     gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
 
