@@ -4,6 +4,7 @@
 namespace Carol
 {
     using std::wstring;
+    using std::wstring_view;
 }
 
 Carol::Timer::Timer()
@@ -89,7 +90,7 @@ void Carol::Timer::Tick()
     }
 }
 
-Carol::wstring Carol::Timer::CalculateFrameStates(wstring& mainWindowCaption)
+Carol::wstring Carol::Timer::CalculateFrameStates(wstring_view mainWindowCaption)
 {
     static int frameCnt = 0;
     static float timeElapsed = 0.0f;
@@ -104,7 +105,7 @@ Carol::wstring Carol::Timer::CalculateFrameStates(wstring& mainWindowCaption)
         wstring fpsStr = std::to_wstring(fps);
         wstring mspfStr = std::to_wstring(mspf);
 
-        wstring windowText = mainWindowCaption +
+        wstring windowText = wstring(mainWindowCaption) +
             L"    fps: " + fpsStr +
             L"   mspf: " + mspfStr;
 

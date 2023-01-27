@@ -3,7 +3,6 @@
 
 namespace Carol {
 	using std::vector;
-	using std::make_unique;
 	using namespace DirectX;
 }
 

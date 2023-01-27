@@ -11,10 +11,6 @@ Carol::Camera::Camera()
     SetLens(0.25*XM_PI, 1.0f, 1.0f, 1000.0f);
 }
 
-Carol::Camera::~Camera()
-{
-}
-
 Carol::XMVECTOR Carol::Camera::GetPosition() const
 {
     return XMLoadFloat3(&mPosition);
@@ -322,10 +318,6 @@ void Carol::Camera::UpdateViewMatrix()
 Carol::OrthographicCamera::OrthographicCamera(XMFLOAT3 viewDir, XMFLOAT3 targetPos, float radius)
 {
     SetLens(viewDir, targetPos, radius);
-}
-
-Carol::OrthographicCamera::~OrthographicCamera()
-{
 }
 
 void Carol::OrthographicCamera::SetLens(XMFLOAT3 viewDir3f, XMFLOAT3 targetPos3f, float radius)

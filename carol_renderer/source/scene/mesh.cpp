@@ -121,11 +121,12 @@ void Carol::Mesh::ClearCullMark()
 	gCommandList->ClearUnorderedAccessViewUint(mMeshletOcclusionPassedMarkBuffer->GetGpuUav(), mMeshletOcclusionPassedMarkBuffer->GetCpuUav(), mMeshletOcclusionPassedMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
 }
 
-void Carol::Mesh::SetAnimationClip(const std::wstring& clipName)
+void Carol::Mesh::SetAnimationClip(std::wstring_view clipName)
 {
-	mMeshConstants->CullDataBufferIdx = mCullDataBuffer[clipName]->GetGpuSrvIdx();
-	mMeshConstants->Center = mBoundingBoxes[clipName].Center;
-	mMeshConstants->Extents = mBoundingBoxes[clipName].Extents;
+	wstring name(clipName);
+	mMeshConstants->CullDataBufferIdx = mCullDataBuffer[name]->GetGpuSrvIdx();
+	mMeshConstants->Center = mBoundingBoxes[name].Center;
+	mMeshConstants->Extents = mBoundingBoxes[name].Extents;
 }
 
 void Carol::Mesh::SetMeshCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr)
@@ -292,8 +293,9 @@ void Carol::Mesh::InitCullMark()
 	mMeshConstants->MeshletOcclusionCulledMarkBufferIdx = mMeshletOcclusionPassedMarkBuffer->GetGpuUavIdx();
 }
 
-void Carol::Mesh::LoadMeshletBoundingBox(const std::wstring& clipName, span<vector<Vertex>> vertices)
+void Carol::Mesh::LoadMeshletBoundingBox(wstring_view clipName, span<vector<Vertex>> vertices)
 {
+	wstring name(clipName);
 	XMFLOAT3 meshBoxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
 	XMFLOAT3 meshBoxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
 
@@ -316,15 +318,18 @@ void Carol::Mesh::LoadMeshletBoundingBox(const std::wstring& clipName, span<vect
 
 		BoundingBox box;
 		BoundingBox::CreateFromPoints(box, XMLoadFloat3(&meshletBoxMin), XMLoadFloat3(&meshletBoxMax));
-		mCullData[clipName][i].Center = box.Center;
-		mCullData[clipName][i].Extent = box.Extents;
+
+		mCullData[name][i].Center = box.Center;
+		mCullData[name][i].Extent = box.Extents;
 	}
 	
-	BoundingBox::CreateFromPoints(mBoundingBoxes[clipName], XMLoadFloat3(&meshBoxMin), XMLoadFloat3(&meshBoxMax));
+	BoundingBox::CreateFromPoints(mBoundingBoxes[name], XMLoadFloat3(&meshBoxMin), XMLoadFloat3(&meshBoxMax));
 }
 
-void Carol::Mesh::LoadMeshletNormalCone(const std::wstring& clipName, span<vector<Vertex>> vertices)
+void Carol::Mesh::LoadMeshletNormalCone(wstring_view clipName, span<vector<Vertex>> vertices)
 {
+	wstring name(clipName);
+
 	for (int i = 0; i < mMeshlets.size(); ++i)
 	{
 		auto& meshlet = mMeshlets[i];
@@ -333,14 +338,14 @@ void Carol::Mesh::LoadMeshletNormalCone(const std::wstring& clipName, span<vecto
 
 		if (cosConeSpread <= 0.f)
 		{
-			mCullData[clipName][i].NormalCone = { 0.f,0.f,0.f,1.f };
+			mCullData[name][i].NormalCone = { 0.f,0.f,0.f,1.f };
 		}
 		else
 		{
 			float sinConeSpread = std::sqrt(1.f - cosConeSpread * cosConeSpread);
 			float tanConeSpread = sinConeSpread / cosConeSpread;
 
-			mCullData[clipName][i].NormalCone = {
+			mCullData[name][i].NormalCone = {
 				(normalCone.m128_f32[2] + 1.f) * 0.5f,
 				(normalCone.m128_f32[1] + 1.f) * 0.5f,
 				(normalCone.m128_f32[0] + 1.f) * 0.5f,
@@ -348,13 +353,13 @@ void Carol::Mesh::LoadMeshletNormalCone(const std::wstring& clipName, span<vecto
 			};
 			
 			float bottomDist = LoadConeBottomDist(meshlet, normalCone, vertices);
-			XMVECTOR center = XMLoadFloat3(&mCullData[clipName][i].Center);
+			XMVECTOR center = XMLoadFloat3(&mCullData[name][i].Center);
 
 			float centerToBottomDist = XMVector3Dot(center, normalCone).m128_f32[0] - bottomDist;
 			XMVECTOR bottomCenter = center - centerToBottomDist * normalCone;
 			float radius = LoadBottomRadius(meshlet, bottomCenter, normalCone, tanConeSpread, vertices);
 			
-			mCullData[clipName][i].ApexOffset = centerToBottomDist + radius / tanConeSpread;
+			mCullData[name][i].ApexOffset = centerToBottomDist + radius / tanConeSpread;
 		}
 	}
 }

@@ -56,11 +56,4 @@ namespace Carol
 		void GetCriticalFrames(std::vector<std::vector<DirectX::XMFLOAT4X4>>& frames)const;
 		std::vector<BoneAnimation> BoneAnimations; 	
 	};
-
-	class SkinnedData
-	{
-	public:
-		DirectX::XMFLOAT4X4 FinalTransforms[256];
-		DirectX::XMFLOAT4X4 HistoryFinalTransforms[256];
-	};
 }

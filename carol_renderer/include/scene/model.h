@@ -15,7 +15,6 @@
 namespace Carol
 {
 	class AnimationClip;
-	class SkinnedData;
 	class TextureManager;
 	class Timer;
 
@@ -30,25 +29,25 @@ namespace Carol
 	{
 	public:
 		Model();
-		~Model();
+		virtual ~Model();
 		
 		bool IsSkinned();
-		void LoadGround(TextureManager* texManager);
-		void LoadSkyBox(TextureManager* texManager);
+		void LoadGround();
+		void LoadSkyBox();
 		
 		void ReleaseIntermediateBuffers();
 
-		Mesh* GetMesh(std::wstring meshName);
+		Mesh* GetMesh(std::wstring_view meshName);
 		const std::unordered_map<std::wstring, std::unique_ptr<Mesh>>& GetMeshes();
 
 		std::vector<std::wstring_view> GetAnimationClips();
-		void SetAnimationClip(const std::wstring& clipName);
+		void SetAnimationClip(std::wstring_view clipName);
 
 		SkinnedConstants* GetSkinnedConstants();
 		void SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr);
 
 		void Update(Timer* timer);
-		void GetSkinnedVertices(const std::wstring& clipName, const std::vector<Vertex>& vertices, std::vector<std::vector<Vertex>>& skinnedVertices);
+		void GetSkinnedVertices(std::wstring_view clipName, const std::vector<Vertex>& vertices, std::vector<std::vector<Vertex>>& skinnedVertices);
 
 	protected:
 		std::wstring mModelName;

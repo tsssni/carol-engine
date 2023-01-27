@@ -14,6 +14,7 @@ namespace Carol {
 	using namespace DirectX;
 
 	unique_ptr<Scene> gScene;
+	unique_ptr<TextureManager> gTextureManager;
 	unique_ptr<FramePass> gFramePass;
 
 	D3D12_RASTERIZER_DESC gCullDisabledState;
@@ -38,7 +39,7 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitMainLight();
 	InitSsao();
 	InitTaa();
-	InitMeshes();
+	InitScene();
 	OnResize(width, height, true);
 	ReleaseIntermediateBuffers();
 }
@@ -101,7 +102,7 @@ void Carol::Renderer::InitMainLight()
 	mMainLightShadowPass = make_unique<ShadowPass>(light, 2048, 2048);
 }
 
-void Carol::Renderer::InitMeshes()
+void Carol::Renderer::InitScene()
 {
 	gScene = make_unique<Scene>(L"Test");
 	
@@ -168,9 +169,9 @@ void Carol::Renderer::UpdateFrameCB()
 
 void Carol::Renderer::DelayedDelete()
 {
-	gScene->DelayedDelete();
 	gHeapManager->DelayedDelete();
 	gDescriptorManager->DelayedDelete();
+	gTextureManager->DelayedDelete();
 }
 
 void Carol::Renderer::ReleaseIntermediateBuffers()
@@ -347,7 +348,7 @@ Carol::vector<Carol::wstring_view> Carol::Renderer::GetAnimationNames(wstring mo
 	return gScene->GetAnimationClips(modelName);
 }
 
-void Carol::Renderer::SetAnimation(wstring modelName, wstring animationName)
+void Carol::Renderer::SetAnimation(wstring_view modelName, wstring_view animationName)
 {
 	gScene->SetAnimationClip(modelName, animationName);
 }

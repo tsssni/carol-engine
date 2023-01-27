@@ -81,7 +81,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			{
 				renderer->Tick();
 
-                if (!renderer->Paused())
+                if (!renderer->IsPaused())
                 {
 					renderer->CalcFrameState();
                     renderer->Update();
@@ -246,7 +246,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             {
 
                 // Restoring from minimized state?
-                if (renderer->Minimized())
+                if (renderer->IsIconic())
                 {
                     renderer->SetPaused(false);
                     renderer->SetMinimized(false);
@@ -254,13 +254,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
 
                 // Restoring from maximized state?
-                else if (renderer->Maximized())
+                else if (renderer->IsZoomed())
                 {
 					renderer->SetPaused(false);
                     renderer->SetMaximized(false);
                     renderer->OnResize(width, height);
                 }
-                else if (renderer->Resizing())
+                else if (renderer->IsResizing())
                 {
                     // If user is dragging the resize bars, we do not resize 
                     // the buffers here because as the user continuously 

@@ -1,8 +1,7 @@
 #pragma once
-#include <render_pass/display.h>
-#include <render_pass/frame.h>
-#include <render_pass/normal.h>
-#include <render_pass/scene.h>
-#include <render_pass/shadow.h>
-#include <render_pass/ssao.h>
-#include <render_pass/taa.h>
+#include <render_pass/display_pass.h>
+#include <render_pass/frame_pass.h>
+#include <render_pass/normal_pass.h>
+#include <render_pass/shadow_pass.h>
+#include <render_pass/ssao_pass.h>
+#include <render_pass/taa_pass.h>

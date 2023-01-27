@@ -112,7 +112,7 @@ namespace Carol
 
 		void Update(DirectX::XMMATRIX& world);
 		void ClearCullMark();
-		void SetAnimationClip(const std::wstring& clipName);
+		void SetAnimationClip(std::wstring_view clipName);
 
 		MeshConstants* GetMeshConstants();
 		void SetMeshCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr);
@@ -129,8 +129,8 @@ namespace Carol
 		void LoadCullData();
 		void InitCullMark();
 
-		void LoadMeshletBoundingBox(const std::wstring& clipName, std::span<std::vector<Vertex>> vertices);
-		void LoadMeshletNormalCone(const std::wstring& clipName, std::span<std::vector<Vertex>> vertices);
+		void LoadMeshletBoundingBox(std::wstring_view clipName, std::span<std::vector<Vertex>> vertices);
+		void LoadMeshletNormalCone(std::wstring_view clipName, std::span<std::vector<Vertex>> vertices);
 	
 		DirectX::XMVECTOR LoadConeCenter(const Meshlet& meshlet, std::span<std::vector<Vertex>> vertices);
 		float LoadConeSpread(const Meshlet& meshlet, const DirectX::XMVECTOR& normalCone, std::span<std::vector<Vertex>> vertices);

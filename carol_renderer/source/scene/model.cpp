@@ -9,8 +9,8 @@
 #include <utils/common.h>
 #include <global.h>
 #include <cmath>
-#include <ranges>
 #include <algorithm>
+#include <ranges>
 
 namespace Carol
 {
@@ -39,16 +39,15 @@ Carol::Model::~Model()
 
 void Carol::Model::ReleaseIntermediateBuffers()
 {
-	for (auto& meshMapPair : mMeshes)
+	for (auto& [name, mesh] : mMeshes)
 	{
-		auto& mesh = meshMapPair.second;
 		mesh->ReleaseIntermediateBuffer();
 	}
 }
 
-Carol::Mesh* Carol::Model::GetMesh(std::wstring meshName)
+Carol::Mesh* Carol::Model::GetMesh(wstring_view meshName)
 {
-	return mMeshes[meshName].get();
+	return mMeshes[meshName.data()].get();
 }
 
 const Carol::unordered_map<Carol::wstring, Carol::unique_ptr<Carol::Mesh>>& Carol::Model::GetMeshes()
@@ -68,9 +67,9 @@ Carol::vector<Carol::wstring_view> Carol::Model::GetAnimationClips()
 	return animations;
 }
 
-void Carol::Model::SetAnimationClip(const std::wstring& clipName)
+void Carol::Model::SetAnimationClip(wstring_view clipName)
 {
-	if (!mSkinned || mAnimationClips.count(clipName) == 0)
+	if (!mSkinned || mAnimationClips.count(clipName.data()) == 0)
 	{
 		return;
 	}
@@ -80,51 +79,54 @@ void Carol::Model::SetAnimationClip(const std::wstring& clipName)
 
 	for (auto& [name, mesh] : mMeshes)
 	{
-		mesh->SetAnimationClip(clipName);
+		mesh->SetAnimationClip(mClipName);
 	}
 }
 
 void Carol::Model::Update(Timer* timer)
 {
-	mTimePos += timer->DeltaTime();
-
-	if (mTimePos > mAnimationClips[mClipName]->GetClipEndTime())
+	if (mSkinned)
 	{
-		mTimePos = 0;
-	};
+		mTimePos += timer->DeltaTime();
 
-	auto& clip = mAnimationClips[mClipName];
-	uint32_t boneCount = mBoneHierarchy.size();
+		if (mTimePos > mAnimationClips[mClipName]->GetClipEndTime())
+		{
+			mTimePos = 0;
+		};
 
-	vector<XMFLOAT4X4> toParentTransforms(boneCount);
-	vector<XMFLOAT4X4> toRootTransforms(boneCount);
-	vector<XMFLOAT4X4> finalTransforms(boneCount);
-	clip->Interpolate(mTimePos, toParentTransforms);
+		auto& clip = mAnimationClips[mClipName];
+		uint32_t boneCount = mBoneHierarchy.size();
 
-	for (int i = 0; i < boneCount; ++i)
-	{
-		XMMATRIX toParent = XMLoadFloat4x4(&toParentTransforms[i]);
-		XMMATRIX parentToRoot = mBoneHierarchy[i] != -1 ? XMLoadFloat4x4(&toRootTransforms[mBoneHierarchy[i]]) : XMMatrixIdentity();
+		vector<XMFLOAT4X4> toParentTransforms(boneCount);
+		vector<XMFLOAT4X4> toRootTransforms(boneCount);
+		vector<XMFLOAT4X4> finalTransforms(boneCount);
+		clip->Interpolate(mTimePos, toParentTransforms);
 
-		XMMATRIX toRoot = toParent * parentToRoot;
-		XMStoreFloat4x4(&toRootTransforms[i], toRoot);
+		for (int i = 0; i < boneCount; ++i)
+		{
+			XMMATRIX toParent = XMLoadFloat4x4(&toParentTransforms[i]);
+			XMMATRIX parentToRoot = mBoneHierarchy[i] != -1 ? XMLoadFloat4x4(&toRootTransforms[mBoneHierarchy[i]]) : XMMatrixIdentity();
+
+			XMMATRIX toRoot = toParent * parentToRoot;
+			XMStoreFloat4x4(&toRootTransforms[i], toRoot);
+		}
+
+		for (int i = 0; i < boneCount; ++i)
+		{
+			XMMATRIX offset = XMLoadFloat4x4(&mBoneOffsets[i]);
+			XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[i]);
+
+			XMStoreFloat4x4(&finalTransforms[i], XMMatrixTranspose(XMMatrixMultiply(offset, toRoot)));
+		}
+
+		std::copy(std::begin(mSkinnedConstants->FinalTransforms), std::end(mSkinnedConstants->FinalTransforms), mSkinnedConstants->HistFinalTransforms);
+		std::copy(std::begin(finalTransforms), std::end(finalTransforms), mSkinnedConstants->FinalTransforms);
 	}
-
-	for (int i = 0; i < boneCount; ++i)
-	{
-		XMMATRIX offset = XMLoadFloat4x4(&mBoneOffsets[i]);
-		XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[i]);
-
-		XMStoreFloat4x4(&finalTransforms[i], XMMatrixTranspose(XMMatrixMultiply(offset, toRoot)));
-	}
-
-	std::copy(std::begin(mSkinnedConstants->FinalTransforms), std::end(mSkinnedConstants->FinalTransforms), mSkinnedConstants->HistFinalTransforms);
-	std::copy(std::begin(finalTransforms), std::end(finalTransforms), mSkinnedConstants->FinalTransforms);
 }
 
-void Carol::Model::GetSkinnedVertices(const wstring& clipName, const vector<Vertex>& vertices, vector<vector<Vertex>>& skinnedVertices)
+void Carol::Model::GetSkinnedVertices(wstring_view clipName, const vector<Vertex>& vertices, vector<vector<Vertex>>& skinnedVertices)
 {
-	auto& finalTransforms = mFinalTransforms[clipName];
+	auto& finalTransforms = mFinalTransforms[clipName.data()];
 	skinnedVertices.resize(finalTransforms.size());
 	std::ranges::for_each(skinnedVertices, [&](vector<Vertex>& v) {v.resize(vertices.size()); });
 
@@ -199,7 +201,7 @@ bool Carol::Model::IsSkinned()
 	return mSkinned;
 }
 
-void Carol::Model::LoadGround(TextureManager* texManager)
+void Carol::Model::LoadGround()
 {
 	XMFLOAT3 pos[4] =
 	{
@@ -237,11 +239,11 @@ void Carol::Model::LoadGround(TextureManager* texManager)
 		false,
 		false);
 
-	mMeshes[L"Ground"]->SetDiffuseMapIdx(texManager->LoadTexture(L"texture\\tile.dds"));
-	mMeshes[L"Ground"]->SetNormalMapIdx(texManager->LoadTexture(L"texture\\tile_nmap.dds"));
+	mMeshes[L"Ground"]->SetDiffuseMapIdx(gTextureManager->LoadTexture(L"texture\\tile.dds"));
+	mMeshes[L"Ground"]->SetNormalMapIdx(gTextureManager->LoadTexture(L"texture\\tile_nmap.dds"));
 }
 
-void Carol::Model::LoadSkyBox(TextureManager* texManager)
+void Carol::Model::LoadSkyBox()
 {
 	XMFLOAT3 pos[8] =
 	{
@@ -283,5 +285,5 @@ void Carol::Model::LoadSkyBox(TextureManager* texManager)
 		indices,
 		false,
 		false);
-	mMeshes[L"SkyBox"]->SetDiffuseMapIdx(texManager->LoadTexture(L"texture\\snowcube1024.dds"));
+	mMeshes[L"SkyBox"]->SetDiffuseMapIdx(gTextureManager->LoadTexture(L"texture\\snowcube1024.dds"));
 }

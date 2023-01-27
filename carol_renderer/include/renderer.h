@@ -17,7 +17,6 @@ namespace Carol
     class TaaPass;
     class ShadowPass;
     class MeshesPass;
-    class TextureManager;
 
 	class FrameConstants
 	{
@@ -96,7 +95,7 @@ namespace Carol
         void LoadModel(std::wstring path, std::wstring textureDir, std::wstring modelName, DirectX::XMMATRIX world, bool isSkinned);
         void UnloadModel(std::wstring modelName);
         std::vector<std::wstring_view> GetAnimationNames(std::wstring modelName);
-        void SetAnimation(std::wstring modelName, std::wstring animationName);
+        void SetAnimation(std::wstring_view modelName, std::wstring_view animationName);
         std::vector<std::wstring_view> GetModelNames();
     protected:
 		void InitConstants();
@@ -107,7 +106,7 @@ namespace Carol
         void InitNormal();
         void InitTaa();
         void InitMainLight();
-        void InitMeshes();
+        void InitScene();
 		
 		void UpdateFrameCB();
 		void DelayedDelete();

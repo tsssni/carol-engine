@@ -43,13 +43,13 @@ namespace Carol
 		virtual void OnResize(uint32_t width, uint32_t height, bool init = false);
 		
 		virtual void SetPaused(bool state);
-		virtual bool Paused();
+		virtual bool IsPaused();
 		virtual void SetMaximized(bool state);
-		virtual bool Maximized();
+		virtual bool IsZoomed();
 		virtual void SetMinimized(bool state);
-		virtual bool Minimized();
+		virtual bool IsIconic();
 		virtual void SetResizing(bool state);
-		virtual bool Resizing();
+		virtual bool IsResizing();
 
 	protected:
 		float AspectRatio();
@@ -70,6 +70,7 @@ namespace Carol
 		virtual void InitRootSignature();
 		virtual void InitHeapManager();
 		virtual void InitDescriptorManager();
+		virtual void InitTextureManager();
 		virtual void InitDisplay();
 
 		virtual void FlushCommandQueue();

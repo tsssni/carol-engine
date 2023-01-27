@@ -9,7 +9,6 @@
 #include <utils/common.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
-#include <memory>
 #include <algorithm>
 #include <fstream>
 #include <span>
@@ -20,6 +19,7 @@
 namespace Carol {
 	using std::vector;
 	using std::wstring;
+	using std::wstring_view;
 	using std::unique_ptr;
 	using std::make_unique;
 	using std::unordered_map;
@@ -30,11 +30,10 @@ namespace Carol {
 
 Carol::AssimpModel::AssimpModel(
 	SceneNode* rootNode,
-	wstring path,
-	wstring textureDir,
-	TextureManager* texManager,
+	wstring_view path,
+	wstring_view textureDir,
 	bool isSkinned)
-	:Model(), mTexManager(texManager)
+	:Model()
 {
 	Assimp::Importer mImporter;
 	const aiScene* scene = mImporter.ReadFile(WStringToString(path), isSkinned ? aiProcess_Skinned : aiProcess_Static);
@@ -499,10 +498,10 @@ void Carol::AssimpModel::LoadTexture(Mesh* mesh, aiString aiPath, aiTextureType 
 	switch (type)
 	{
 	case aiTextureType_DIFFUSE:
-		mesh->SetDiffuseMapIdx(mTexManager->LoadTexture(path));
+		mesh->SetDiffuseMapIdx(gTextureManager->LoadTexture(path));
 		break;
 	case aiTextureType_NORMALS:
-		mesh->SetNormalMapIdx(mTexManager->LoadTexture(path));
+		mesh->SetNormalMapIdx(gTextureManager->LoadTexture(path));
 		break;
 	}
 }

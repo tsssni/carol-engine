@@ -4,6 +4,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <string_view>
 
 namespace Carol
 {
@@ -12,7 +13,7 @@ namespace Carol
 	class Texture
 	{
 	public:
-		Texture(std::wstring fileName, bool isSrgb);
+		Texture(std::wstring_view fileName, bool isSrgb);
 
 		uint32_t GetGpuSrvIdx(uint32_t planeSlice = 0);
 		void ReleaseIntermediateBuffer();
@@ -30,9 +31,9 @@ namespace Carol
 	public:
 		TextureManager();
 
-		uint32_t LoadTexture(const std::wstring& fileName, bool isSrgb = false);
-		void UnloadTexture(const std::wstring& fileName);
-		void ReleaseIntermediateBuffers(const std::wstring& fileName);
+		uint32_t LoadTexture(std::wstring_view fileName, bool isSrgb = false);
+		void UnloadTexture(std::wstring_view fileName);
+		void ReleaseIntermediateBuffers(std::wstring_view fileName);
 
 		void DelayedDelete();
 

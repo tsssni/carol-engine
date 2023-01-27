@@ -10,29 +10,30 @@
 namespace Carol {
 	using std::vector;
 	using std::wstring;
+	using std::wstring_view;
 	using std::unordered_map;
 	using std::make_unique;
 	using namespace DirectX;
 }
 
-Carol::Texture::Texture(wstring fileName, bool isSrgb)
+Carol::Texture::Texture(wstring_view fileName, bool isSrgb)
 	:mNumRef(1)
 {
-	wstring suffix = fileName.substr(fileName.find_last_of(L'.') + 1, 3);
+	wstring_view suffix = fileName.substr(fileName.find_last_of(L'.') + 1, 3);
 	TexMetadata metaData;
 	ScratchImage scratchImage;
 
 	if (suffix == L"dds")
 	{
-		ThrowIfFailed(LoadFromDDSFile(fileName.c_str(), DDS_FLAGS_FORCE_RGB, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromDDSFile(fileName.data(), DDS_FLAGS_FORCE_RGB, &metaData, scratchImage));
 	}
 	else if (suffix == L"tga")
 	{
-		ThrowIfFailed(LoadFromTGAFile(fileName.c_str(), TGA_FLAGS_FORCE_LINEAR, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromTGAFile(fileName.data(), TGA_FLAGS_FORCE_LINEAR, &metaData, scratchImage));
 	}
 	else
 	{
-		ThrowIfFailed(LoadFromWICFile(fileName.c_str(), WIC_FLAGS_FORCE_RGB, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromWICFile(fileName.data(), WIC_FLAGS_FORCE_RGB, &metaData, scratchImage));
 	}
 
 	if (isSrgb)
@@ -147,28 +148,30 @@ Carol::TextureManager::TextureManager()
 {
 }
 
-uint32_t Carol::TextureManager::LoadTexture(const wstring& fileName, bool isSrgb)
+uint32_t Carol::TextureManager::LoadTexture(wstring_view fileName, bool isSrgb)
 {
 	if (fileName.size() == 0)
 	{
 		return -1;
 	}
 
-	if (mTextures.count(fileName) == 0)
+	wstring name(fileName);
+
+	if (mTextures.count(name) == 0)
 	{
-		mTextures[fileName] = make_unique<Texture>(fileName, false);
+		mTextures[name] = make_unique<Texture>(name, false);
 	}
 	else
 	{
-		mTextures[fileName]->AddRef();
+		mTextures[name]->AddRef();
 	}
 
-	return mTextures[fileName]->GetGpuSrvIdx();
+	return mTextures[name]->GetGpuSrvIdx();
 }
 
-void Carol::TextureManager::UnloadTexture(const wstring& fileName)
+void Carol::TextureManager::UnloadTexture(wstring_view fileName)
 {
-	mDeletedTextures[gCurrFrame].push_back(fileName);
+	mDeletedTextures[gCurrFrame].push_back(fileName.data());
 }
 
 void Carol::TextureManager::DelayedDelete()
@@ -185,14 +188,14 @@ void Carol::TextureManager::DelayedDelete()
 	mDeletedTextures[gCurrFrame].clear();
 }
 
-void Carol::TextureManager::ReleaseIntermediateBuffers(const std::wstring& fileName)
+void Carol::TextureManager::ReleaseIntermediateBuffers(wstring_view fileName)
 {
-	if (mTextures.count(fileName) == 0)
-	{
-		return;
-	}
+	wstring name(fileName);
 
-	mTextures[fileName]->ReleaseIntermediateBuffer();
+	if (mTextures.count(name) == 0)
+	{
+		mTextures[name]->ReleaseIntermediateBuffer();
+	}
 }
 
 

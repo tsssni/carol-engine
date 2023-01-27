@@ -9,7 +9,6 @@ namespace Carol
 	public:
 
 		Camera();
-		virtual ~Camera();
 		void SetLens(float fovY, float aspect, float zn, float zf);
 
 		virtual bool Contains(DirectX::BoundingBox boundingBox);
@@ -84,7 +83,6 @@ namespace Carol
 	{
 	public:
 		OrthographicCamera(DirectX::XMFLOAT3 viewDir, DirectX::XMFLOAT3 targetPos, float radius);
-		virtual ~OrthographicCamera();
 		void SetLens(DirectX::XMFLOAT3 viewDir3f, DirectX::XMFLOAT3 targetPos3f, float radius);
 		virtual bool Contains(DirectX::BoundingBox boundingBox);
 

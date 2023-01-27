@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <string_view>
 
 namespace Carol
 {
@@ -16,7 +17,7 @@ namespace Carol
 		void Stop();
 		void Tick();
 
-		std::wstring CalculateFrameStates(std::wstring& mainWindowCaption);
+		std::wstring CalculateFrameStates(std::wstring_view mainWindowCaption);
 
 	private:
 		double mSecondsPerCount = 0.0f;

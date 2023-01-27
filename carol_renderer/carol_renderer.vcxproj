@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\packages\Microsoft.Direct3D.D3D12.1.608.0\build\native\Microsoft.Direct3D.D3D12.props" Condition="Exists('..\packages\Microsoft.Direct3D.D3D12.1.608.0\build\native\Microsoft.Direct3D.D3D12.props')" />
+  <Import Project="..\packages\Microsoft.Direct3D.DXC.1.7.2212.23\build\native\Microsoft.Direct3D.DXC.props" Condition="Exists('..\packages\Microsoft.Direct3D.DXC.1.7.2212.23\build\native\Microsoft.Direct3D.DXC.props')" />
+  <Import Project="..\packages\Microsoft.Direct3D.D3D12.1.608.2\build\native\Microsoft.Direct3D.D3D12.props" Condition="Exists('..\packages\Microsoft.Direct3D.D3D12.1.608.2\build\native\Microsoft.Direct3D.D3D12.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -31,14 +32,14 @@
     <ClInclude Include="include\dx12\shader.h" />
     <ClInclude Include="include\renderer.h" />
     <ClInclude Include="include\render_pass.h" />
-    <ClInclude Include="include\render_pass\display.h" />
-    <ClInclude Include="include\render_pass\frame.h" />
-    <ClInclude Include="include\render_pass\normal.h" />
+    <ClInclude Include="include\render_pass\display_pass.h" />
+    <ClInclude Include="include\render_pass\frame_pass.h" />
+    <ClInclude Include="include\render_pass\normal_pass.h" />
     <ClInclude Include="include\global.h" />
     <ClInclude Include="include\render_pass\render_pass.h" />
-    <ClInclude Include="include\render_pass\shadow.h" />
-    <ClInclude Include="include\render_pass\ssao.h" />
-    <ClInclude Include="include\render_pass\taa.h" />
+    <ClInclude Include="include\render_pass\shadow_pass.h" />
+    <ClInclude Include="include\render_pass\ssao_pass.h" />
+    <ClInclude Include="include\render_pass\taa_pass.h" />
     <ClInclude Include="include\scene.h" />
     <ClInclude Include="include\scene\assimp.h" />
     <ClInclude Include="include\scene\camera.h" />
@@ -46,7 +47,7 @@
     <ClInclude Include="include\scene\material.h" />
     <ClInclude Include="include\scene\mesh.h" />
     <ClInclude Include="include\scene\model.h" />
-    <ClInclude Include="include\render_pass\scene.h" />
+    <ClInclude Include="include\scene\scene.h" />
     <ClInclude Include="include\scene\scene_node.h" />
     <ClInclude Include="include\scene\skinned_data.h" />
     <ClInclude Include="include\scene\texture.h" />
@@ -65,8 +66,8 @@
   <ItemGroup>
     <ClCompile Include="source\render_pass\render_pass.cpp" />
     <ClCompile Include="source\dx12\pipeline_state.cpp" />
-    <ClCompile Include="source\render_pass\frame.cpp" />
-    <ClCompile Include="source\render_pass\normal.cpp" />
+    <ClCompile Include="source\render_pass\frame_pass.cpp" />
+    <ClCompile Include="source\render_pass\normal_pass.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="source\base_renderer.cpp" />
     <ClCompile Include="source\dx12\descriptor.cpp" />
@@ -75,15 +76,15 @@
     <ClCompile Include="source\dx12\root_signature.cpp" />
     <ClCompile Include="source\dx12\shader.cpp" />
     <ClCompile Include="source\renderer.cpp" />
-    <ClCompile Include="source\render_pass\display.cpp" />
-    <ClCompile Include="source\render_pass\shadow.cpp" />
-    <ClCompile Include="source\render_pass\ssao.cpp" />
-    <ClCompile Include="source\render_pass\taa.cpp" />
+    <ClCompile Include="source\render_pass\display_pass.cpp" />
+    <ClCompile Include="source\render_pass\shadow_pass.cpp" />
+    <ClCompile Include="source\render_pass\ssao_pass.cpp" />
+    <ClCompile Include="source\render_pass\taa_pass.cpp" />
     <ClCompile Include="source\scene\assimp.cpp" />
     <ClCompile Include="source\scene\camera.cpp" />
     <ClCompile Include="source\scene\mesh.cpp" />
     <ClCompile Include="source\scene\model.cpp" />
-    <ClCompile Include="source\render_pass\scene.cpp" />
+    <ClCompile Include="source\scene\scene.cpp" />
     <ClCompile Include="source\scene\scene_node.cpp" />
     <ClCompile Include="source\scene\skinned_data.cpp" />
     <ClCompile Include="source\scene\texture.cpp" />
@@ -99,11 +100,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="assimp-vc143-mtd.dll" />
-    <None Include="bin\assimp-vc143-mtd.dll" />
-    <None Include="bin\dxcompiler.dll" />
-    <None Include="bin\dxil.dll" />
-    <None Include="dxcompiler.dll" />
-    <None Include="dxil.dll" />
     <None Include="packages.config" />
     <None Include="shader\cull_as.hlsl" />
     <None Include="shader\include\cull.hlsli" />
@@ -116,6 +112,7 @@
     <None Include="shader\velocity_ms.hlsl">
       <FileType>Document</FileType>
     </None>
+    <None Include="win32\Renderer.aps" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\include\light.hlsli" />
@@ -126,10 +123,6 @@
     <None Include="shader\include\screen.hlsli" />
     <None Include="shader\include\shadow.hlsli" />
     <None Include="shader\include\vertex_in.hlsli" />
-  </ItemGroup>
-  <ItemGroup>
-    <Library Include="lib\assimp-vc143-mtd.lib" />
-    <Library Include="lib\dxcompiler.lib" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\default_ms.hlsl">
@@ -188,12 +181,6 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
       <FileType>Document</FileType>
     </None>
-    <FxCompile Include="shader\normals_ps.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-    </FxCompile>
     <None Include="shader\oitppll_build_ps.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -237,6 +224,11 @@
       <FileType>Document</FileType>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="shader\normals_ps.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -244,6 +236,9 @@
     <RootNamespace>carol_renderer</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>carol_renderer</ProjectName>
+  </PropertyGroup>
+  <PropertyGroup Label="Globals" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Microsoft_Direct3D_D3D12_D3D12SDKPath>.\</Microsoft_Direct3D_D3D12_D3D12SDKPath>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -325,19 +320,23 @@
       <PreprocessorDefinitions>_DEBUG;NOMINMAX;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;C:\dxc_2022_12_16\inc;C:\assimp-5.2.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;C:\assimp-5.2.5\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;dxcompiler.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\assimp-5.2.5\build\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>d3d12.lib;dxgi.lib;dxguid.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
       <AdditionalIncludeDirectories>C:\carol_engine\carol_renderer\shader\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <ShaderModel>6.5</ShaderModel>
+      <ShaderModel>6.6</ShaderModel>
     </FxCompile>
+    <ProjectReference>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -357,15 +356,18 @@
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\packages\directxtex_desktop_win10.2022.10.18.1\build\native\directxtex_desktop_win10.targets" Condition="Exists('..\packages\directxtex_desktop_win10.2022.10.18.1\build\native\directxtex_desktop_win10.targets')" />
-    <Import Project="..\packages\Microsoft.Direct3D.D3D12.1.608.0\build\native\Microsoft.Direct3D.D3D12.targets" Condition="Exists('..\packages\Microsoft.Direct3D.D3D12.1.608.0\build\native\Microsoft.Direct3D.D3D12.targets')" />
+    <Import Project="..\packages\directxtex_desktop_win10.2022.12.18.1\build\native\directxtex_desktop_win10.targets" Condition="Exists('..\packages\directxtex_desktop_win10.2022.12.18.1\build\native\directxtex_desktop_win10.targets')" />
+    <Import Project="..\packages\Microsoft.Direct3D.D3D12.1.608.2\build\native\Microsoft.Direct3D.D3D12.targets" Condition="Exists('..\packages\Microsoft.Direct3D.D3D12.1.608.2\build\native\Microsoft.Direct3D.D3D12.targets')" />
+    <Import Project="..\packages\Microsoft.Direct3D.DXC.1.7.2212.23\build\native\Microsoft.Direct3D.DXC.targets" Condition="Exists('..\packages\Microsoft.Direct3D.DXC.1.7.2212.23\build\native\Microsoft.Direct3D.DXC.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>这台计算机上缺少此项目引用的 NuGet 程序包。使用“NuGet 程序包还原”可下载这些程序包。有关更多信息，请参见 http://go.microsoft.com/fwlink/?LinkID=322105。缺少的文件是 {0}。</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\packages\directxtex_desktop_win10.2022.10.18.1\build\native\directxtex_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtex_desktop_win10.2022.10.18.1\build\native\directxtex_desktop_win10.targets'))" />
-    <Error Condition="!Exists('..\packages\Microsoft.Direct3D.D3D12.1.608.0\build\native\Microsoft.Direct3D.D3D12.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Direct3D.D3D12.1.608.0\build\native\Microsoft.Direct3D.D3D12.props'))" />
-    <Error Condition="!Exists('..\packages\Microsoft.Direct3D.D3D12.1.608.0\build\native\Microsoft.Direct3D.D3D12.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Direct3D.D3D12.1.608.0\build\native\Microsoft.Direct3D.D3D12.targets'))" />
+    <Error Condition="!Exists('..\packages\directxtex_desktop_win10.2022.12.18.1\build\native\directxtex_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtex_desktop_win10.2022.12.18.1\build\native\directxtex_desktop_win10.targets'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.Direct3D.D3D12.1.608.2\build\native\Microsoft.Direct3D.D3D12.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Direct3D.D3D12.1.608.2\build\native\Microsoft.Direct3D.D3D12.props'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.Direct3D.D3D12.1.608.2\build\native\Microsoft.Direct3D.D3D12.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Direct3D.D3D12.1.608.2\build\native\Microsoft.Direct3D.D3D12.targets'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.Direct3D.DXC.1.7.2212.23\build\native\Microsoft.Direct3D.DXC.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Direct3D.DXC.1.7.2212.23\build\native\Microsoft.Direct3D.DXC.props'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.Direct3D.DXC.1.7.2212.23\build\native\Microsoft.Direct3D.DXC.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Direct3D.DXC.1.7.2212.23\build\native\Microsoft.Direct3D.DXC.targets'))" />
   </Target>
 </Project>

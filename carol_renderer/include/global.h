@@ -16,6 +16,7 @@ namespace Carol
 	class DescriptorManager;
 
 	class Scene;
+	class TextureManager;
 	class DisplayPass;
 	class FramePass;
 
@@ -32,6 +33,7 @@ namespace Carol
 	extern std::unordered_map<std::wstring, std::unique_ptr<PSO>> gPSOs;
 
 	extern std::unique_ptr<Scene> gScene;
+	extern std::unique_ptr<TextureManager> gTextureManager;
 	extern std::unique_ptr<DisplayPass> gDisplayPass;
 	extern std::unique_ptr<FramePass> gFramePass;
 

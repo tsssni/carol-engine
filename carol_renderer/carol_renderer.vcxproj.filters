@@ -38,16 +38,16 @@
     <ClInclude Include="include\dx12\shader.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\render_pass\ssao.h">
+    <ClInclude Include="include\render_pass\ssao_pass.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\render_pass\taa.h">
+    <ClInclude Include="include\render_pass\taa_pass.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\render_pass\display.h">
+    <ClInclude Include="include\render_pass\display_pass.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\render_pass\shadow.h">
+    <ClInclude Include="include\render_pass\shadow_pass.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\render_pass\render_pass.h">
@@ -110,13 +110,13 @@
     <ClInclude Include="include\scene\light.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\render_pass\normal.h">
+    <ClInclude Include="include\render_pass\normal_pass.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\render_pass\frame.h">
+    <ClInclude Include="include\render_pass\frame_pass.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\render_pass\scene.h">
+    <ClInclude Include="include\scene\scene.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\scene\material.h">
@@ -160,16 +160,16 @@
     <ClCompile Include="source\dx12\shader.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\render_pass\ssao.cpp">
+    <ClCompile Include="source\render_pass\ssao_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\render_pass\taa.cpp">
+    <ClCompile Include="source\render_pass\taa_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\render_pass\display.cpp">
+    <ClCompile Include="source\render_pass\display_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\render_pass\shadow.cpp">
+    <ClCompile Include="source\render_pass\shadow_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\scene\assimp.cpp">
@@ -208,13 +208,13 @@
     <ClCompile Include="source\dx12\root_signature.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\render_pass\normal.cpp">
+    <ClCompile Include="source\render_pass\normal_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\render_pass\frame.cpp">
+    <ClCompile Include="source\render_pass\frame_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\render_pass\scene.cpp">
+    <ClCompile Include="source\scene\scene.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\dx12\pipeline_state.cpp">
@@ -270,32 +270,52 @@
       <Filter>着色器文件</Filter>
     </None>
     <None Include="packages.config" />
-    <None Include="bin\assimp-vc143-mtd.dll" />
-    <None Include="bin\dxcompiler.dll" />
-    <None Include="bin\dxil.dll" />
     <None Include="assimp-vc143-mtd.dll" />
-    <None Include="dxcompiler.dll" />
-    <None Include="dxil.dll" />
-    <None Include="shader\include\cull.hlsli" />
-    <None Include="shader\default_ps.hlsl" />
-    <None Include="shader\default_ms.hlsl" />
-    <None Include="shader\screen_ms.hlsl" />
-    <None Include="shader\oitppll_ps.hlsl" />
-    <None Include="shader\skybox_ms.hlsl" />
-    <None Include="shader\skybox_ps.hlsl" />
-    <None Include="shader\velocity_ps.hlsl" />
-    <None Include="shader\normals_ms.hlsl" />
-    <None Include="shader\oitppll_build_ps.hlsl" />
-    <None Include="shader\hiz_generate_cs.hlsl" />
-    <None Include="shader\cull_cs.hlsl" />
-    <None Include="shader\cull_as.hlsl" />
-    <None Include="shader\ssao_cs.hlsl" />
-  </ItemGroup>
-  <ItemGroup>
-    <Library Include="lib\dxcompiler.lib" />
-    <Library Include="lib\assimp-vc143-mtd.lib" />
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="shader\normals_ps.hlsl" />
+    <None Include="shader\include\cull.hlsli">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\cull_as.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\cull_cs.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\default_ms.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\default_ps.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\hiz_generate_cs.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\normals_ms.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\oitppll_build_ps.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\oitppll_ps.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\screen_ms.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\skybox_ms.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\skybox_ps.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\ssao_cs.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="shader\velocity_ps.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
+    <None Include="win32\Renderer.aps" />
+    <None Include="shader\normals_ps.hlsl">
+      <Filter>着色器文件</Filter>
+    </None>
   </ItemGroup>
 </Project>

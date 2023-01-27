@@ -3,8 +3,6 @@
 #include <dx12.h>
 #include <scene.h>
 #include <utils.h>
-#include <DirectXMath.h>
-#include <memory>
 
 namespace Carol
 {
@@ -72,7 +70,8 @@ Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitCommandSignature();
 
 	InitHeapManager();
-	InitDescriptorManager();	
+	InitDescriptorManager();
+	InitTextureManager();
 	InitDisplay();
 }
 
@@ -207,6 +206,11 @@ void Carol::BaseRenderer::InitDescriptorManager()
 	gDescriptorManager = make_unique<DescriptorManager>();
 }
 
+void Carol::BaseRenderer::InitTextureManager()
+{
+	gTextureManager = make_unique<TextureManager>();
+}
+
 void Carol::BaseRenderer::InitDisplay()
 {
 	gDisplayPass = make_unique<DisplayPass>(mhWnd, mDxgiFactory.Get(), mClientWidth, mClientHeight, 2);
@@ -247,7 +251,7 @@ void Carol::BaseRenderer::SetPaused(bool state)
 	mPaused = state;
 }
 
-bool Carol::BaseRenderer::Paused()
+bool Carol::BaseRenderer::IsPaused()
 {
 	return mPaused;
 }
@@ -257,7 +261,7 @@ void Carol::BaseRenderer::SetMaximized(bool state)
 	mMaximized = state;
 }
 
-bool Carol::BaseRenderer::Maximized()
+bool Carol::BaseRenderer::IsZoomed()
 {
 	return mMaximized;
 }
@@ -267,7 +271,7 @@ void Carol::BaseRenderer::SetMinimized(bool state)
 	mMinimized = state;
 }
 
-bool Carol::BaseRenderer::Minimized()
+bool Carol::BaseRenderer::IsIconic()
 {
 	return mMinimized;
 }
@@ -277,7 +281,7 @@ void Carol::BaseRenderer::SetResizing(bool state)
 	mResizing = state;
 }
 
-bool Carol::BaseRenderer::Resizing()
+bool Carol::BaseRenderer::IsResizing()
 {
 	return mResizing;
 }

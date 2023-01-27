@@ -127,8 +127,7 @@ void Carol::MeshPSO::Finalize()
 	desc.pPipelineStateSubobjectStream = &psoStream;
 	desc.SizeInBytes = sizeof(psoStream);
 
-	ComPtr<ID3D12Device2> device = static_cast<ID3D12Device2*>(gDevice.Get());
-	device->CreatePipelineState(&desc, IID_PPV_ARGS(mPSO.GetAddressOf()));
+	static_cast<ID3D12Device2*>(gDevice.Get())->CreatePipelineState(&desc, IID_PPV_ARGS(mPSO.GetAddressOf()));
 }
 
 Carol::ComputePSO::ComputePSO(PSOInitState init)
