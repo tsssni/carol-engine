@@ -1,0 +1,6 @@
+[
+{
+  "directory": "c:\\Users\\86137\\Desktop\\carol_renderer",
+  "arguments": ["C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.34.31933\\bin\\HostX64\\x64\\cl.exe", "@C:\\Users\\86137\\AppData\\Local\\Temp\\.xmake\\230130\\_30814D13E59A45F1997AD97ED4628329.args.txt"],
+  "file": "src\\main.cpp"
+}]

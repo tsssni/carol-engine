@@ -1,0 +1,12 @@
+export module carol.renderer.scene;
+export import carol.renderer.scene.assimp;
+export import carol.renderer.scene.camera;
+export import carol.renderer.scene.light;
+export import carol.renderer.scene.material;
+export import carol.renderer.scene.mesh;
+export import carol.renderer.scene.model;
+export import carol.renderer.scene.scene;
+export import carol.renderer.scene.scene_node;
+export import carol.renderer.scene.skinned_animation;
+export import carol.renderer.scene.timer;
+export import carol.renderer.scene.texture;

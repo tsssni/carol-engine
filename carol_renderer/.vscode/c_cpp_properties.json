@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/packages/assimp/include",
+                "${workspaceFolder}/packages/D3D12 Agility/include",
+                "${workspaceFolder}/packages/DirectX Shader Compiler/include",
+                "${workspaceFolder}/packages/DirectXTex/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.22000.0",
+            "compilerPath": "C:/Microsoft Visual Studio/2022/Preview/VC/Tools/MSVC/14.35.32213/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}

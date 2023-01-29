@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "type": "xmake",
+            "request": "attach",
+            "name": "carol_renderer",
+            "target": "carol_renderer",
+            "cwd": "",
+            "stopAtEntry": false
+        }
+
+    ]
+}

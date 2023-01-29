@@ -1,0 +1,9 @@
+export module carol.renderer.dx12;
+export import carol.renderer.dx12.command;
+export import carol.renderer.dx12.descriptor;
+export import carol.renderer.dx12.heap;
+export import carol.renderer.dx12.indirect_command;
+export import carol.renderer.dx12.pipeline_state;
+export import carol.renderer.dx12.resource;
+export import carol.renderer.dx12.root_signature;
+export import carol.renderer.dx12.shader;
