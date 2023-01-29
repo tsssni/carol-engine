@@ -41,7 +41,6 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::CpuAll
 		if (mCpuBuddies[i]->Allocate(numDescriptors, buddyInfo))
 		{
 			descInfo = make_unique<DescriptorAllocInfo>();
-			descInfo->Allocator = this;
 			descInfo->StartOffset = mNumCpuDescriptorsPerHeap * i + buddyInfo.PageId;
 			descInfo->NumDescriptors = numDescriptors;
 
@@ -54,7 +53,6 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::CpuAll
 	if (mCpuBuddies.back()->Allocate(numDescriptors, buddyInfo))
 	{
 		descInfo = make_unique<DescriptorAllocInfo>();
-		descInfo->Allocator = this;
 		descInfo->StartOffset = mNumCpuDescriptorsPerHeap * (mCpuBuddies.size() - 1) + buddyInfo.PageId;
 		descInfo->NumDescriptors = numDescriptors;
 	}
@@ -64,7 +62,7 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::CpuAll
 
 void Carol::DescriptorAllocator::CpuDeallocate(unique_ptr<DescriptorAllocInfo> info)
 {
-	mCpuDeletedAllocInfo[mCurrFrame].emplace_back(std::move(info));
+	mCpuDeletedAllocInfo[gCurrFrame].emplace_back(std::move(info));
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorAllocator::GetCpuHandle(const DescriptorAllocInfo* info, uint32_t offset)const
@@ -84,7 +82,6 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::GpuAll
 		if (mGpuBuddy->Allocate(numDescriptors, buddyInfo))
 		{
 			descInfo = make_unique<DescriptorAllocInfo>();
-			descInfo->Allocator = this;
 			descInfo->StartOffset = buddyInfo.PageId;
 			descInfo->NumDescriptors = numDescriptors;
 
@@ -97,7 +94,7 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::GpuAll
 
 void Carol::DescriptorAllocator::GpuDeallocate(std::unique_ptr<DescriptorAllocInfo> info)
 {
-	mGpuDeletedAllocInfo[mCurrFrame].emplace_back(std::move(info));
+	mGpuDeletedAllocInfo[gCurrFrame].emplace_back(std::move(info));
 }
 
 void Carol::DescriptorAllocator::DelayedDelete()

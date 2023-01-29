@@ -21,8 +21,8 @@ namespace Carol
 	class SkinnedConstants
 	{
 	public:
-		DirectX::XMFLOAT4X4 FinalTransforms[256];
-		DirectX::XMFLOAT4X4 HistFinalTransforms[256];
+		DirectX::XMFLOAT4X4 FinalTransforms[256] = {};
+		DirectX::XMFLOAT4X4 HistFinalTransforms[256] = {};
 	};
 
 	class Model
@@ -54,8 +54,8 @@ namespace Carol
 		std::wstring mTexDir;
 		std::unordered_map<std::wstring, std::unique_ptr<Mesh>> mMeshes;
 
-		bool mSkinned;
-		float mTimePos;
+		bool mSkinned = false;
+		float mTimePos = 0.f;
 		std::wstring mClipName;
 
 		std::vector<int> mBoneHierarchy;
@@ -64,5 +64,7 @@ namespace Carol
 		std::unordered_map<std::wstring, std::unique_ptr<AnimationClip>> mAnimationClips;
 		std::unordered_map<std::wstring, std::vector<std::vector<DirectX::XMFLOAT4X4>>> mFinalTransforms;
 		std::unique_ptr<SkinnedConstants> mSkinnedConstants;
+
+		std::vector<std::wstring> mTexturePath;
 	};
 }

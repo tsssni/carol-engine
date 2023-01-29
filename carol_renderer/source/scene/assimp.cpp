@@ -41,15 +41,6 @@ Carol::AssimpModel::AssimpModel(
 	mTexDir = textureDir;
 	mSkinned = isSkinned;
 
-	uint32_t vertexCount = 0;
-	uint32_t indexCount = 0;
-
-	for (int i = 0; i < scene->mNumMeshes; ++i)
-	{
-		vertexCount += scene->mMeshes[i]->mNumVertices;
-		indexCount += scene->mMeshes[i]->mNumFaces * 3;
-	}
-
 	LoadAssimpSkinnedData(scene);
 	ProcessNode(scene->mRootNode, rootNode, scene);
 	mFinalTransforms.clear();
@@ -504,5 +495,7 @@ void Carol::AssimpModel::LoadTexture(Mesh* mesh, aiString aiPath, aiTextureType 
 		mesh->SetNormalMapIdx(gTextureManager->LoadTexture(path));
 		break;
 	}
+
+	mTexturePath.push_back(path);
 }
 

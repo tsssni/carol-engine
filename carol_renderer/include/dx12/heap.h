@@ -16,7 +16,7 @@ namespace Carol
 		Microsoft::WRL::ComPtr<ID3D12Resource> Resource;
 		byte* MappedData = nullptr;
 
-		Heap* Heap;
+		Heap* Heap = nullptr;
 		uint64_t Bytes = 0;
 		uint64_t Addr = 0;
 	};
@@ -65,9 +65,9 @@ namespace Carol
 		std::vector<Microsoft::WRL::ComPtr<ID3D12Heap>> mHeaps;
 		std::vector<std::unique_ptr<Buddy>> mBuddies;
 
-		uint32_t mHeapSize;
+		uint32_t mHeapSize = 0;
 		uint32_t mPageSize = 65536;
-		uint32_t mNumPages;
+		uint32_t mNumPages = 0;
 	};
 
 	class SegListHeap : public Heap
@@ -91,9 +91,9 @@ namespace Carol
 		std::vector<std::vector<Microsoft::WRL::ComPtr<ID3D12Heap>>> mSegLists;
 		std::vector<std::vector<std::unique_ptr<Bitset>>> mBitsets;
 
-		uint32_t mMaxNumPages;
+		uint32_t mMaxNumPages = 0;
 		uint32_t mPageSize = 65536;
-		uint32_t mOrder;
+		uint32_t mOrder = 0;
 	};
 
 	class HeapManager

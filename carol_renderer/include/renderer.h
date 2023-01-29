@@ -52,28 +52,28 @@ namespace Carol
 
 		Light Lights[MAX_LIGHTS];
 
-		uint32_t MeshCBIdx;
-		uint32_t CommandBufferIdx;
-		uint32_t InstanceFrustumCulledMarkIdx;
-		uint32_t InstanceOcclusionPassedMarkIdx;
+		uint32_t MeshCBIdx = 0;
+		uint32_t CommandBufferIdx = 0;
+		uint32_t InstanceFrustumCulledMarkIdx = 0;
+		uint32_t InstanceOcclusionPassedMarkIdx = 0;
 
-		uint32_t FrameMapIdx;
-		uint32_t DepthStencilMapIdx;
-		uint32_t NormalMapIdx;
-		uint32_t MainLightShadowMapIdx;
+		uint32_t FrameMapIdx = 0;
+		uint32_t DepthStencilMapIdx = 0;
+		uint32_t NormalMapIdx = 0;
+		uint32_t MainLightShadowMapIdx = 0;
 		// OITPPLL
-		uint32_t OitBufferWIdx;
-		uint32_t OitOffsetBufferWIdx;
-		uint32_t OitCounterIdx;
-		uint32_t OitBufferRIdx;
-		uint32_t OitOffsetBufferRIdx;
+		uint32_t OitBufferWIdx = 0;
+		uint32_t OitOffsetBufferWIdx = 0;
+		uint32_t OitCounterIdx = 0;
+		uint32_t OitBufferRIdx = 0;
+		uint32_t OitOffsetBufferRIdx = 0;
 		// SSAO
-		uint32_t RandVecMapIdx;
-		uint32_t AmbientMapWIdx;
-		uint32_t AmbientMapRIdx;
+		uint32_t RandVecMapIdx = 0;
+		uint32_t AmbientMapWIdx = 0;
+		uint32_t AmbientMapRIdx = 0;
 		// TAA
-		uint32_t VelocityMapIdx;
-		uint32_t HistFrameMapIdx;
+		uint32_t VelocityMapIdx = 0;
+		uint32_t HistFrameMapIdx = 0;
 
 		DirectX::XMFLOAT2 FramePad2;
 	};
@@ -82,6 +82,7 @@ namespace Carol
     {
     public:
 		Renderer(HWND hWnd, uint32_t width, uint32_t height);
+		~Renderer();
         
         virtual void Draw()override;
         virtual void Update()override;
@@ -92,9 +93,9 @@ namespace Carol
 		virtual void OnKeyboardInput()override;
         virtual void OnResize(uint32_t width, uint32_t height, bool init = false)override;
 
-        void LoadModel(std::wstring path, std::wstring textureDir, std::wstring modelName, DirectX::XMMATRIX world, bool isSkinned);
-        void UnloadModel(std::wstring modelName);
-        std::vector<std::wstring_view> GetAnimationNames(std::wstring modelName);
+        void LoadModel(std::wstring_view path, std::wstring_view textureDir, std::wstring_view modelName, DirectX::XMMATRIX world, bool isSkinned);
+        void UnloadModel(std::wstring_view modelName);
+        std::vector<std::wstring_view> GetAnimationNames(std::wstring_view modelName);
         void SetAnimation(std::wstring_view modelName, std::wstring_view animationName);
         std::vector<std::wstring_view> GetModelNames();
     protected:
@@ -109,7 +110,6 @@ namespace Carol
         void InitScene();
 		
 		void UpdateFrameCB();
-		void DelayedDelete();
         void ReleaseIntermediateBuffers();
 
     protected:

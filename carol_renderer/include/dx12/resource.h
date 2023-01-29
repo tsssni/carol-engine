@@ -122,7 +122,7 @@ namespace Carol
 		virtual void CreateDsvs(std::span<const D3D12_DEPTH_STENCIL_VIEW_DESC> dsvDesc);
 
 		std::unique_ptr<Resource> mResource;
-		D3D12_RESOURCE_DESC mResourceDesc;
+		D3D12_RESOURCE_DESC mResourceDesc = {};
 
 		std::unique_ptr<DescriptorAllocInfo> mCpuCbvAllocInfo;
 		std::unique_ptr<DescriptorAllocInfo> mGpuCbvAllocInfo;
@@ -186,13 +186,13 @@ namespace Carol
 		ColorBufferViewDimension mViewDimension;
 		DXGI_FORMAT mFormat;
 
-		uint32_t mViewMipLevels;
-		uint32_t mMostDetailedMip;
-		float mResourceMinLODClamp;
+		uint32_t mViewMipLevels = 1;
+		uint32_t mMostDetailedMip = 0;
+		float mResourceMinLODClamp = 0.f;
 
-		uint32_t mViewArraySize;
-		uint32_t mFirstArraySlice;
-		uint32_t mPlaneSize;
+		uint32_t mViewArraySize = 0;
+		uint32_t mFirstArraySlice = 0;
+		uint32_t mPlaneSize = 0;
 	};
 
 	class StructuredBuffer : public Buffer
@@ -230,13 +230,13 @@ namespace Carol
 		uint32_t AlignForConstantBuffer(uint32_t byteSize)const;
 		uint32_t AlignForUavCounter(uint32_t byteSize)const;
 
-		uint32_t mNumElements;
-		uint32_t mElementSize;
-		bool mIsConstant;
+		uint32_t mNumElements = 0;
+		uint32_t mElementSize = 0;
+		bool mIsConstant = false;
 
-		uint32_t mCounterOffset;
-		uint32_t mViewNumElements;
-		uint32_t mFirstElement;
+		uint32_t mCounterOffset = 0;
+		uint32_t mViewNumElements = 0;
+		uint32_t mFirstElement = 0;
 
 		static std::unique_ptr<Resource> sCounterResetBuffer;
 	};

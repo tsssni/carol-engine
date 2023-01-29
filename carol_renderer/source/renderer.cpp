@@ -14,7 +14,6 @@ namespace Carol {
 	using namespace DirectX;
 
 	unique_ptr<Scene> gScene;
-	unique_ptr<TextureManager> gTextureManager;
 	unique_ptr<FramePass> gFramePass;
 
 	D3D12_RASTERIZER_DESC gCullDisabledState;
@@ -27,7 +26,7 @@ namespace Carol {
 }
 
 Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
-	:BaseRenderer(hWnd, width, height)
+	:BaseRenderer(hWnd)
 {
 	ThrowIfFailed(mInitCommandAllocator->Reset());
 	ThrowIfFailed(gCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
@@ -42,6 +41,10 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitScene();
 	OnResize(width, height, true);
 	ReleaseIntermediateBuffers();
+}
+
+Carol::Renderer::~Renderer()
+{
 }
 
 void Carol::Renderer::InitConstants()
@@ -167,13 +170,6 @@ void Carol::Renderer::UpdateFrameCB()
 	mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
 }
 
-void Carol::Renderer::DelayedDelete()
-{
-	gHeapManager->DelayedDelete();
-	gDescriptorManager->DelayedDelete();
-	gTextureManager->DelayedDelete();
-}
-
 void Carol::Renderer::ReleaseIntermediateBuffers()
 {
 	gScene->ReleaseIntermediateBuffers();
@@ -198,7 +194,7 @@ void Carol::Renderer::Draw()
 	gFramePass->Draw();
 	mTaaPass->Draw();
 	
-	gCommandList->Close();
+	ThrowIfFailed(gCommandList->Close());
 	vector<ID3D12CommandList*> cmdLists{ gCommandList.Get()};
 	gCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 
@@ -270,10 +266,11 @@ void Carol::Renderer::Update()
 	ThrowIfFailed(mFrameAllocator[gCurrFrame]->Reset());
 	ThrowIfFailed(gCommandList->Reset(mFrameAllocator[gCurrFrame].Get(), nullptr));
 	
-	DelayedDelete();
+	gDescriptorManager->DelayedDelete();
+	gHeapManager->DelayedDelete();
+
 	gScene->Update(mCamera.get(), mTimer.get());
 	mMainLightShadowPass->Update();
-	mSsaoPass->Update();
 	gFramePass->Update();
 	UpdateFrameCB();
 }
@@ -321,8 +318,9 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	FlushCommandQueue();
 }
 
-void Carol::Renderer::LoadModel(wstring path, wstring textureDir, wstring modelName, DirectX::XMMATRIX world, bool isSkinned)
+void Carol::Renderer::LoadModel(wstring_view path, wstring_view textureDir, wstring_view modelName, DirectX::XMMATRIX world, bool isSkinned)
 {
+	FlushCommandQueue();
 	ThrowIfFailed(mInitCommandAllocator->Reset());
 	ThrowIfFailed(gCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
 
@@ -337,13 +335,13 @@ void Carol::Renderer::LoadModel(wstring path, wstring textureDir, wstring modelN
 	gScene->ReleaseIntermediateBuffers(modelName);
 }
 
-void Carol::Renderer::UnloadModel(wstring modelName)
+void Carol::Renderer::UnloadModel(wstring_view modelName)
 {
 	FlushCommandQueue();
 	gScene->UnloadModel(modelName);
 }
 
-Carol::vector<Carol::wstring_view> Carol::Renderer::GetAnimationNames(wstring modelName)
+Carol::vector<Carol::wstring_view> Carol::Renderer::GetAnimationNames(wstring_view modelName)
 {
 	return gScene->GetAnimationClips(modelName);
 }

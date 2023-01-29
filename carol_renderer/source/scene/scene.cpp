@@ -78,11 +78,9 @@ void Carol::Scene::LoadModel(wstring_view name, wstring_view path, wstring_view 
 		textureDir,
 		isSkinned);
 
-	for (auto& meshMapPair : mModels[node->Name]->GetMeshes())
+	for (auto& [name, mesh] : mModels[node->Name]->GetMeshes())
 	{
-		wstring meshName = node->Name + L'_' + meshMapPair.first;
-		auto& mesh = meshMapPair.second;
-
+		wstring meshName = node->Name + L'_' + name;
 		uint32_t type = mesh->IsSkinned() | (mesh->IsTransparent() << 1);
 		mMeshes[type][meshName] = mesh.get();
 	}
@@ -100,10 +98,9 @@ void Carol::Scene::LoadGround()
 	node->Children.push_back(make_unique<SceneNode>());
 	node->Children[0]->Meshes.push_back(mModels[L"Ground"]->GetMesh(L"Ground"));
 
-	for (auto& meshMapPair : mModels[L"Ground"]->GetMeshes())
+	for (auto& [name, mesh] : mModels[L"Ground"]->GetMeshes())
 	{
-		wstring meshName = L"Ground_" + meshMapPair.first;
-		auto& mesh = meshMapPair.second;
+		wstring meshName = L"Ground_" + name;
 		mMeshes[OPAQUE_STATIC][meshName] = mesh.get();
 	}
 }
@@ -127,13 +124,11 @@ void Carol::Scene::UnloadModel(wstring_view modelName)
 
 	wstring name(modelName);
 
-	for (auto& meshMapPair : mModels[name]->GetMeshes())
+	for (auto& [meshName, mesh] : mModels[name]->GetMeshes())
 	{
-		wstring meshName = name + L"_" + meshMapPair.first;
-		auto& mesh = meshMapPair.second;
-
+		wstring modelMeshName = name + L"_" + meshName;
 		uint32_t type = mesh->IsSkinned() | (mesh->IsTransparent() << 1);
-		mMeshes[type].erase(meshName);
+		mMeshes[type].erase(modelMeshName);
 	}
 
 	mModels.erase(name);
@@ -205,9 +200,8 @@ void Carol::Scene::ClearCullMark()
 
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
-		for (auto& meshMapPair : GetMeshes((MeshType)i))
+		for (auto& [name, mesh] : GetMeshes((MeshType)i))
 		{
-			auto& mesh = meshMapPair.second;
 			mesh->ClearCullMark();
 		}
 	}
@@ -258,9 +252,8 @@ void Carol::Scene::DrawSkyBox(ID3D12PipelineState* skyBoxPSO)
 
 void Carol::Scene::Update(Camera* camera, Timer* timer)
 {
-	for (auto& modelMapPair : mModels)
+	for (auto& [name, model] : mModels)
 	{
-		auto& model = modelMapPair.second;
 		model->Update(timer);
 	}
 
@@ -287,10 +280,8 @@ void Carol::Scene::Update(Camera* camera, Timer* timer)
 	TestBufferSize(mSkinnedCB[gCurrFrame], GetModelsCount());
 
 	int modelIdx = 0;
-	for (auto& modelMapPair : GetModels())
+	for (auto& [name, model] : GetModels())
 	{
-		auto& model = modelMapPair.second;
-
 		if (model->IsSkinned())
 		{
 			mSkinnedCB[gCurrFrame]->CopyElements(model->GetSkinnedConstants(), modelIdx);
@@ -302,9 +293,8 @@ void Carol::Scene::Update(Camera* camera, Timer* timer)
 	int meshIdx = 0;
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
-		for (auto& meshMapPair : GetMeshes(MeshType(i)))
+		for (auto& [name, mesh] : GetMeshes(MeshType(i)))
 		{
-			auto& mesh = meshMapPair.second;
 			mMeshCB[gCurrFrame]->CopyElements(mesh->GetMeshConstants(), meshIdx);
 			mesh->SetMeshCBAddress(mMeshCB[gCurrFrame]->GetElementAddress(meshIdx));
 

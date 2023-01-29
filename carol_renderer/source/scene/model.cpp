@@ -35,6 +35,10 @@ Carol::Model::Model()
 
 Carol::Model::~Model()
 {
+	for (auto& path : mTexturePath)
+	{
+		gTextureManager->UnloadTexture(path);
+	}
 }
 
 void Carol::Model::ReleaseIntermediateBuffers()

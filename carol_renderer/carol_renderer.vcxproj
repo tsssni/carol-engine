@@ -58,7 +58,6 @@
     <ClInclude Include="include\utils\common.h" />
     <ClInclude Include="include\utils\d3dx12.h" />
     <ClInclude Include="include\dx12.h" />
-    <ClInclude Include="main.h" />
     <ClInclude Include="win32\framework.h" />
     <ClInclude Include="win32\resource.h" />
     <ClInclude Include="win32\targetver.h" />

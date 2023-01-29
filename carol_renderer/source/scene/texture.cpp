@@ -144,7 +144,6 @@ void Carol::Texture::DecRef()
 }
 
 Carol::TextureManager::TextureManager()
-	:mDeletedTextures(gNumFrame)
 {
 }
 
@@ -171,21 +170,13 @@ uint32_t Carol::TextureManager::LoadTexture(wstring_view fileName, bool isSrgb)
 
 void Carol::TextureManager::UnloadTexture(wstring_view fileName)
 {
-	mDeletedTextures[gCurrFrame].push_back(fileName.data());
-}
+	wstring name(fileName);
+	mTextures[name]->DecRef();
 
-void Carol::TextureManager::DelayedDelete()
-{
-	for (auto& fileName : mDeletedTextures[gCurrFrame])
+	if (mTextures[name]->GetRef() == 0)
 	{
-		mTextures[fileName]->DecRef();
-		if (mTextures[fileName]->GetRef() == 0)
-		{
-			mTextures.erase(fileName);
-		}
+		mTextures.erase(name);
 	}
-
-	mDeletedTextures[gCurrFrame].clear();
 }
 
 void Carol::TextureManager::ReleaseIntermediateBuffers(wstring_view fileName)

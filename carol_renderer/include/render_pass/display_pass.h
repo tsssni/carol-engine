@@ -20,8 +20,6 @@ namespace Carol
 		DisplayPass(
 			HWND hwnd,
 			IDXGIFactory* factory,
-			uint32_t width,
-			uint32_t height,
 			uint32_t bufferCount,
 			DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM
 		);

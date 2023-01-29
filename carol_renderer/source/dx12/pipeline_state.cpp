@@ -15,6 +15,7 @@ ID3D12PipelineState* Carol::PSO::Get()const
 }
 
 Carol::MeshPSO::MeshPSO(PSOInitState init)
+	:mPSODesc()
 {
 	if (init == PSO_DEFAULT)
 	{
@@ -131,6 +132,7 @@ void Carol::MeshPSO::Finalize()
 }
 
 Carol::ComputePSO::ComputePSO(PSOInitState init)
+	:mPSODesc()
 {
 	if (init == PSO_DEFAULT)
 	{

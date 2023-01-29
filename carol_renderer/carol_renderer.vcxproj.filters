@@ -98,9 +98,6 @@
     <ClInclude Include="include\renderer.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="main.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="include\global.h">
       <Filter>头文件</Filter>
     </ClInclude>

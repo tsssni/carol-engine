@@ -256,30 +256,47 @@ Carol::Buffer& Carol::Buffer::operator=(Buffer&& buffer)
 
 Carol::Buffer::~Buffer()
 {
-	static auto cpuDeallocate = [](unique_ptr<DescriptorAllocInfo>& info)
+	static auto cpuCbvSrvUavDeallocate = [](unique_ptr<DescriptorAllocInfo>& info)
 	{
 		if (info)
 		{
-			info->Allocator->CpuDeallocate(std::move(info));
+			gDescriptorManager->CpuCbvSrvUavDeallocate(std::move(info));
 		}
 	};
 
-	static auto gpuDeallocate = [](unique_ptr<DescriptorAllocInfo>& info)
+	static auto gpuCbvSrvUavDeallocate = [](unique_ptr<DescriptorAllocInfo>& info)
 	{
 		if (info)
 		{
-			info->Allocator->GpuDeallocate(std::move(info));
+			gDescriptorManager->GpuCbvSrvUavDeallocate(std::move(info));
 		}
 	};
 
-	cpuDeallocate(mCpuCbvAllocInfo);
-	gpuDeallocate(mGpuCbvAllocInfo);
-	cpuDeallocate(mCpuSrvAllocInfo);
-	gpuDeallocate(mGpuSrvAllocInfo);
-	cpuDeallocate(mCpuUavAllocInfo);
-	gpuDeallocate(mGpuUavAllocInfo);
-	cpuDeallocate(mRtvAllocInfo);
-	cpuDeallocate(mDsvAllocInfo);
+	static auto rtvDeallocate = [](unique_ptr<DescriptorAllocInfo>& info)
+	{
+		if (info)
+		{
+			gDescriptorManager->RtvDeallocate(std::move(info));
+		}
+	};
+
+	static auto dsvDeallocate = [](unique_ptr<DescriptorAllocInfo>& info)
+	{
+		if (info)
+		{
+			gDescriptorManager->DsvDeallocate(std::move(info));
+		}
+	};
+
+
+	cpuCbvSrvUavDeallocate(mCpuCbvAllocInfo);
+	gpuCbvSrvUavDeallocate(mGpuCbvAllocInfo);
+	cpuCbvSrvUavDeallocate(mCpuSrvAllocInfo);
+	gpuCbvSrvUavDeallocate(mGpuSrvAllocInfo);
+	cpuCbvSrvUavDeallocate(mCpuUavAllocInfo);
+	gpuCbvSrvUavDeallocate(mGpuUavAllocInfo);
+	rtvDeallocate(mRtvAllocInfo);
+	dsvDeallocate(mDsvAllocInfo);
 }
 
 ID3D12Resource* Carol::Buffer::Get()const
@@ -1060,7 +1077,7 @@ void Carol::StructuredBuffer::InitCounterResetBuffer(Heap* heap)
 	sCounterResetBuffer = make_unique<Resource>(
 		GetRvaluePtr(CD3DX12_RESOURCE_DESC::Buffer(sizeof(uint32_t))),
 		heap,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 	uint32_t zero = 0;
 	sCounterResetBuffer->CopyData(&zero, sizeof(uint32_t));

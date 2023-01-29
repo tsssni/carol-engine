@@ -206,8 +206,8 @@ void Carol::SegListHeap::Delete(unique_ptr<HeapAllocInfo> info)
     auto order = GetOrder(info->Bytes);
     auto orderNumPages = 1 << (mOrder - order);
 
-    auto heapIdx = info->Addr / (orderNumPages * (1 << order));
-    auto pageIdx = ((info->Addr) % (orderNumPages * (1 << order))) / (1 << order);
+    auto heapIdx = info->Addr / (orderNumPages * mPageSize * (1u << order));
+    auto pageIdx = ((info->Addr) % (orderNumPages * mPageSize * (1u << order))) / (1u << order);
     mBitsets[order][heapIdx]->Reset(pageIdx);
 }
 

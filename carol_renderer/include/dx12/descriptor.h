@@ -14,7 +14,6 @@ namespace Carol
 	class DescriptorAllocInfo
 	{
 	public:
-		DescriptorAllocator* Allocator = nullptr;
 		uint32_t StartOffset = 0;
 		uint32_t NumDescriptors = 0;
 	};
@@ -50,18 +49,17 @@ namespace Carol
 
 		std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> mCpuDescriptorHeaps;
 		std::vector<std::unique_ptr<Buddy>> mCpuBuddies;
-		uint32_t mNumCpuDescriptorsPerHeap;
+		uint32_t mNumCpuDescriptorsPerHeap = 0;
 
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mGpuDescriptorHeap;
 		std::unique_ptr<Buddy> mGpuBuddy;
-		uint32_t mNumGpuDescriptors;
+		uint32_t mNumGpuDescriptors = 0;
 
 		std::vector<std::vector<std::unique_ptr<DescriptorAllocInfo>>> mCpuDeletedAllocInfo;
 		std::vector<std::vector<std::unique_ptr<DescriptorAllocInfo>>> mGpuDeletedAllocInfo;
-		uint32_t mCurrFrame;
 
 		D3D12_DESCRIPTOR_HEAP_TYPE mType;
-		uint32_t mDescriptorSize;
+		uint32_t mDescriptorSize = 0;
 	};
 
 	class DescriptorManager

@@ -65,14 +65,12 @@ void Carol::FramePass::Draw()
 
 void Carol::FramePass::Update()
 {
-	uint32_t currFrame = gCurrFrame;
-
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(i);
-		TestCommandBufferSize(mCulledCommandBuffer[currFrame][i], gScene->GetMeshesCount(type));
+		TestCommandBufferSize(mCulledCommandBuffer[gCurrFrame][i], gScene->GetMeshesCount(type));
 
-		mCullIdx[i][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[currFrame][i]->GetGpuUavIdx();
+		mCullIdx[i][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[gCurrFrame][i]->GetGpuUavIdx();
 		mCullIdx[i][CULL_MESH_COUNT] = gScene->GetMeshesCount(type);
 		mCullIdx[i][CULL_MESH_OFFSET] = gScene->GetMeshCBStartOffet(type);
 		mCullIdx[i][CULL_HIZ_IDX] = mHiZMap->GetGpuSrvIdx();

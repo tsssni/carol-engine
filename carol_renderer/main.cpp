@@ -1,10 +1,13 @@
 ﻿// MainWindow.cpp : 定义应用程序的入口点。
 //
 
-#include "main.h"
+#include "win32/resource.h"
 #include "win32/framework.h"
 #include <renderer.h>
-#include <utils/common.h>
+#include <dx12.h>
+#include <render_pass.h>
+#include <scene.h>
+#include <utils.h>
 #include <windowsx.h>
 #include <ShlObj.h>
 #include <DirectXMath.h>
@@ -66,8 +69,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     try
     {
         renderer = new Carol::Renderer(hWnd,width,height);
-        renderer->LoadModel(L"C:\\Minotaur\\animation\\Minotaur@Attack.FBX", L"C:\\Minotaur\\texture", L"m", XMMatrixScaling(0.1f, 0.1f, 0.1f), false);
-        renderer->SetAnimation(L"m", L"Take 001");
 
 		// 主消息循环:
         while (msg.message != WM_QUIT)
@@ -95,6 +96,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			}
 		}
         
+        delete renderer;
         return (int) msg.wParam;
 
     }

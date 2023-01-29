@@ -24,10 +24,11 @@ namespace Carol
 	class BaseRenderer
 	{
 	public:
-		BaseRenderer(HWND hWnd, uint32_t width, uint32_t height);
+		BaseRenderer(HWND hWnd);
 		BaseRenderer(const BaseRenderer&) = delete;
 		BaseRenderer(BaseRenderer&&) = delete;
 		BaseRenderer& operator=(const BaseRenderer&) = delete;
+		~BaseRenderer();
 
 		virtual void CalcFrameState();
 		virtual void Update() = 0;
@@ -79,14 +80,14 @@ namespace Carol
 		Microsoft::WRL::ComPtr<ID3D12Debug> mDebugLayer;
 		Microsoft::WRL::ComPtr<IDXGIFactory> mDxgiFactory;
 		Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
-		uint32_t mCpuFence;
+		uint32_t mCpuFence = 0;
 
 		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mInitCommandAllocator;
         std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mFrameAllocator;
         std::vector<uint32_t> mGpuFence = { 0,0,0 };
 
-		uint32_t mClientWidth;
-		uint32_t mClientHeight;
+		uint32_t mClientWidth = 0;
+		uint32_t mClientHeight = 0;
 		std::unique_ptr<Camera> mCamera;
 		std::unique_ptr<Timer> mTimer;
 
@@ -94,7 +95,7 @@ namespace Carol
 		std::wstring mMainWndCaption = L"Carol";
 		D3D_DRIVER_TYPE md3dDriverType = D3D_DRIVER_TYPE_HARDWARE;
 
-		DirectX::XMINT2 mLastMousePos;
+		DirectX::XMINT2 mLastMousePos = { 0,0 };
 
 		bool mPaused = false;
 		bool mMaximized = false;

@@ -29,16 +29,16 @@ namespace Carol
 		DirectX::XMFLOAT3 FresnelR0 = { 0.5f,0.5f,0.5f };
 		float Roughness = 0.5f;
 
-		uint32_t MeshletCount;
-		uint32_t VertexBufferIdx;
-		uint32_t MeshletBufferIdx;
-		uint32_t CullDataBufferIdx;
+		uint32_t MeshletCount = 0;
+		uint32_t VertexBufferIdx = 0;
+		uint32_t MeshletBufferIdx = 0;
+		uint32_t CullDataBufferIdx = 0;
 
-		uint32_t MeshletFrustumCulledMarkBufferIdx;
-		uint32_t MeshletOcclusionCulledMarkBufferIdx;
+		uint32_t MeshletFrustumCulledMarkBufferIdx = 0;
+		uint32_t MeshletOcclusionCulledMarkBufferIdx = 0;
 
-		uint32_t DiffuseMapIdx;
-		uint32_t NormalMapIdx;
+		uint32_t DiffuseMapIdx = 0;
+		uint32_t NormalMapIdx = 0;
 	};
 
 	class Vertex
@@ -55,8 +55,8 @@ namespace Carol
 	class Meshlet
 	{
 	public:
-		uint32_t Vertices[64];
-		uint32_t Prims[126];
+		uint32_t Vertices[64] = {};
+		uint32_t Prims[126] = {};
 		uint32_t VertexCount = 0;
 		uint32_t PrimCount = 0;
 	};
@@ -67,7 +67,7 @@ namespace Carol
 		DirectX::XMFLOAT3 Center;
 		DirectX::XMFLOAT3 Extent;
 		DirectX::PackedVector::XMCOLOR NormalCone;
-		float ApexOffset;
+		float ApexOffset = 0.f;
 	};
 
 	enum MeshType
@@ -154,10 +154,10 @@ namespace Carol
 		std::unordered_map<std::wstring, DirectX::BoundingBox> mBoundingBoxes;
 
 		std::unique_ptr<MeshConstants> mMeshConstants;
-		D3D12_GPU_VIRTUAL_ADDRESS mMeshCBAddr;
-		D3D12_GPU_VIRTUAL_ADDRESS mSkinnedCBAddr;
+		D3D12_GPU_VIRTUAL_ADDRESS mMeshCBAddr = 0;
+		D3D12_GPU_VIRTUAL_ADDRESS mSkinnedCBAddr = 0;
 		
-		bool mSkinned;
-		bool mTransparent;
+		bool mSkinned = false;
+		bool mTransparent = false;
 	};
 }

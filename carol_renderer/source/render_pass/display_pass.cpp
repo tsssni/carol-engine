@@ -12,7 +12,7 @@ namespace Carol {
 
 Carol::DisplayPass::~DisplayPass()
 {
-	mBackBufferRtvAllocInfo->Allocator->CpuDeallocate(std::move(mBackBufferRtvAllocInfo));
+	gDescriptorManager->RtvDeallocate(std::move(mBackBufferRtvAllocInfo));
 }
 
 IDXGISwapChain* Carol::DisplayPass::GetSwapChain()
@@ -33,8 +33,6 @@ uint32_t Carol::DisplayPass::GetBackBufferCount()
 Carol::DisplayPass::DisplayPass(
 	HWND hwnd,
 	IDXGIFactory* factory,
-	uint32_t width,
-	uint32_t height,
 	uint32_t bufferCount,
 	DXGI_FORMAT backBufferFormat)
 	:mBackBuffer(bufferCount),
@@ -45,8 +43,8 @@ Carol::DisplayPass::DisplayPass(
 	mBackBuffer.resize(bufferCount);
 
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
-	swapChainDesc.BufferDesc.Width = width;
-	swapChainDesc.BufferDesc.Height = height;
+	swapChainDesc.BufferDesc.Width = 0;
+	swapChainDesc.BufferDesc.Height = 0;
 	swapChainDesc.BufferDesc.RefreshRate.Numerator = 144;
 	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
 	swapChainDesc.BufferDesc.Format = backBufferFormat;
@@ -136,7 +134,7 @@ void Carol::DisplayPass::InitBuffers()
 
 void Carol::DisplayPass::InitDescriptors()
 {
-	if (!mBackBufferRtvAllocInfo->Allocator)
+	if (!mBackBufferRtvAllocInfo->NumDescriptors)
 	{
 		mBackBufferRtvAllocInfo = gDescriptorManager->RtvAllocate(mBackBuffer.size());
 	}

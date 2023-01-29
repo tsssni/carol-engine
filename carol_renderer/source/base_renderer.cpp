@@ -23,6 +23,7 @@ namespace Carol
 	
 	unique_ptr<HeapManager> gHeapManager;
 	unique_ptr<DescriptorManager> gDescriptorManager;
+	unique_ptr<TextureManager> gTextureManager;
 
 	unordered_map<wstring, unique_ptr<Shader>> gShaders;
 	unordered_map<wstring, unique_ptr<PSO>> gPSOs;
@@ -49,7 +50,7 @@ void Carol::BaseRenderer::InitCamera()
 	mCamera->SetPosition(0.0f, 5.0f, -5.0f);
 }
 
-Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
+Carol::BaseRenderer::BaseRenderer(HWND hWnd)
 	:mhWnd(hWnd)
 {
 	InitTimer();
@@ -73,6 +74,11 @@ Carol::BaseRenderer::BaseRenderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitDescriptorManager();
 	InitTextureManager();
 	InitDisplay();
+}
+
+Carol::BaseRenderer::~BaseRenderer()
+{
+	FlushCommandQueue();
 }
 
 void Carol::BaseRenderer::CalcFrameState()
@@ -213,7 +219,7 @@ void Carol::BaseRenderer::InitTextureManager()
 
 void Carol::BaseRenderer::InitDisplay()
 {
-	gDisplayPass = make_unique<DisplayPass>(mhWnd, mDxgiFactory.Get(), mClientWidth, mClientHeight, 2);
+	gDisplayPass = make_unique<DisplayPass>(mhWnd, mDxgiFactory.Get(), 2);
 }
 
 void Carol::BaseRenderer::Tick()

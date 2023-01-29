@@ -35,11 +35,8 @@ namespace Carol
 		void UnloadTexture(std::wstring_view fileName);
 		void ReleaseIntermediateBuffers(std::wstring_view fileName);
 
-		void DelayedDelete();
-
 	protected:
 		std::unordered_map<std::wstring, std::unique_ptr<Texture>> mTextures;
-		std::vector<std::vector<std::wstring>> mDeletedTextures;
 	};
 }
 
