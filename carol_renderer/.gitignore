@@ -2,6 +2,7 @@
 .xmake/
 build/
 packages/
+shader/pdb/
 
 # MacOS Cache
 .DS_Store
