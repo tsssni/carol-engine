@@ -12,6 +12,7 @@ Support:
 - Shader model 6.6
 - Viedo memory management via buddy system and segregated free lists
 - GPU-driven frustum culling, normal cone backface culling and Hi-Z occlusion culling
+- CSM
 - SSAO
 - TAA
 - OIT via per-pixel linked-list
