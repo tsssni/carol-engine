@@ -109,11 +109,6 @@ namespace Carol
 
         }
 
-		virtual void ReleaseIntermediateBuffers()override
-        {
-
-        }
-
 		void Present()
         {
             if (FAILED(mSwapChain->Present(0, 0)))

@@ -1,6 +1,9 @@
 #ifndef ROOT_SIGNATURE_HEADER
 #define ROOT_SIGNATURE_HEADER
 
+#define MAX_LIGHTS 16
+#define MAIN_LIGHT_SPLIT_LEVEL 5
+
 #include "light.hlsli"
 
 cbuffer FrameCB : register(b3)
@@ -34,6 +37,7 @@ cbuffer FrameCB : register(b3)
     float gSurfaceEplison;
 
     Light gLights[MAX_LIGHTS];
+    float4 gMainLightSplitZ[2];
     
     uint gMeshCBIdx;
     uint gCommandBufferIdx;
@@ -43,18 +47,24 @@ cbuffer FrameCB : register(b3)
     uint gFrameMapIdx;
     uint gDepthStencilMapIdx;
     uint gNormalMapIdx;
-    uint gMainLightShadowMapIdx;
+    float gFramePad2;
+
+    uint4 gMainLightShadowMapIdx[2];
+    
     uint gOitBufferWIdx;
     uint gOitOffsetBufferWIdx;
     uint gOitCounterBufferIdx;
     uint gOitBufferRIdx;
     uint gOitOffsetBufferRIdx;
+    
     uint gRandVecMapIdx;
     uint gAmbientMapWIdx;
     uint gAmbientMapRIdx;
+    
     uint gVelocityMapIdx;
     uint gHistFrameMapIdx;
-    float2 gFramePad2;
+    
+    float2 gFramePad3;
 }
 
 SamplerState gsamPointWrap : register(s0);

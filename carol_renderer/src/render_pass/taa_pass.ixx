@@ -49,11 +49,6 @@ namespace Carol
 
         }
 
-		virtual void ReleaseIntermediateBuffers()override
-        {
-
-        }
-
 		void GetHalton(float& proj0,float& proj1)
         {
             static int i = 0;
@@ -94,37 +89,66 @@ namespace Carol
                 L"SKINNED=1"
             };
 
-            gShaders[L"TaaVelocityStaticMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", nullDefines, L"main", L"ms_6_6");
-            gShaders[L"TaaVelocityPS"] = make_unique<Shader>(L"shader\\velocity_ps.hlsl", nullDefines, L"main", L"ps_6_6");
-            gShaders[L"TaaVelocitySkinnedMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
-            gShaders[L"TaaOutputPS"] = make_unique<Shader>(L"shader\\taa_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+            if (gShaders.count(L"TaaVelocityStaticMS") == 0)
+            {
+                gShaders[L"TaaVelocityStaticMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+            }
+
+            if (gShaders.count(L"TaaVelocityPS") == 0)
+            {
+                gShaders[L"TaaVelocityPS"] = make_unique<Shader>(L"shader\\velocity_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+            }
+
+            if (gShaders.count(L"TaaVelocitySkinnedMS") == 0)
+            {
+                gShaders[L"TaaVelocitySkinnedMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+            }
+
+            if (gShaders.count(L"TaaOutputPS") == 0)
+            {
+                gShaders[L"TaaOutputPS"] = make_unique<Shader>(L"shader\\taa_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+            }
         }
 
 		virtual void InitPSOs()override
         {
-            auto velocityStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            velocityStaticMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, gFramePass->GetFrameDsvFormat());
-            velocityStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
-            velocityStaticMeshPSO->SetMS(gShaders[L"TaaVelocityStaticMS"].get());
-            velocityStaticMeshPSO->SetPS(gShaders[L"TaaVelocityPS"].get());
-            velocityStaticMeshPSO->Finalize();
-            gPSOs[L"VelocityStatic"] = std::move(velocityStaticMeshPSO);
+            if (gPSOs.count(L"VelocityStatic") == 0)
+            {
+                auto velocityStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                velocityStaticMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, gFramePass->GetFrameDsvFormat());
+                velocityStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
+                velocityStaticMeshPSO->SetMS(gShaders[L"TaaVelocityStaticMS"].get());
+                velocityStaticMeshPSO->SetPS(gShaders[L"TaaVelocityPS"].get());
+                velocityStaticMeshPSO->Finalize();
+            
+                gPSOs[L"VelocityStatic"] = std::move(velocityStaticMeshPSO);
+            }
 
-            auto velocitySkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            velocitySkinnedMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, gFramePass->GetFrameDsvFormat());
-            velocitySkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
-            velocitySkinnedMeshPSO->SetMS(gShaders[L"TaaVelocitySkinnedMS"].get());
-            velocitySkinnedMeshPSO->SetPS(gShaders[L"TaaVelocityPS"].get());
-            velocitySkinnedMeshPSO->Finalize();
-            gPSOs[L"VelocitySkinned"] = std::move(velocitySkinnedMeshPSO);
+            if (gPSOs.count(L"VelocitySkinned") == 0)
+            {
+                auto velocitySkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                velocitySkinnedMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, gFramePass->GetFrameDsvFormat());
+                velocitySkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
+                velocitySkinnedMeshPSO->SetMS(gShaders[L"TaaVelocitySkinnedMS"].get());
+                velocitySkinnedMeshPSO->SetPS(gShaders[L"TaaVelocityPS"].get());
+                velocitySkinnedMeshPSO->Finalize();
 
-            auto outputMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            outputMeshPSO->SetDepthStencilState(gDepthDisabledState);
-            outputMeshPSO->SetRenderTargetFormat(gFramePass->GetFrameRtvFormat());
-            outputMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
-            outputMeshPSO->SetPS(gShaders[L"TaaOutputPS"].get());
-            outputMeshPSO->Finalize();
-            gPSOs[L"TaaOutput"] = std::move(outputMeshPSO);
+            
+                gPSOs[L"VelocitySkinned"] = std::move(velocitySkinnedMeshPSO);
+            }
+
+            if (gPSOs[L"TaaOutput"] == 0)
+            {
+                auto outputMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                outputMeshPSO->SetDepthStencilState(gDepthDisabledState);
+                outputMeshPSO->SetRenderTargetFormat(gFramePass->GetFrameRtvFormat());
+                outputMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
+                outputMeshPSO->SetPS(gShaders[L"TaaOutputPS"].get());
+                outputMeshPSO->Finalize();
+                
+            
+                gPSOs[L"TaaOutput"] = std::move(outputMeshPSO);
+            }
         }
 
 		virtual void InitBuffers()override

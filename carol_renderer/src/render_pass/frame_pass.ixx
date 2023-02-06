@@ -121,11 +121,6 @@ namespace Carol
             mHiZIdx[HIZ_W_IDX] = mHiZMap->GetGpuUavIdx();
         }
 
-        virtual void ReleaseIntermediateBuffers() override
-        {
-
-        }
-
         D3D12_CPU_DESCRIPTOR_HANDLE GetFrameRtv()
         {
             return mFrameMap->GetRtv();
@@ -229,112 +224,212 @@ namespace Carol
                 L"MESH_SHADER_DISABLED=1"
             };
             
-            gShaders[L"OpaqueStaticMS"] = make_unique<Shader>(L"shader\\default_ms.hlsl", staticDefines, L"main", L"ms_6_6");
-            gShaders[L"OpaquePS"] = make_unique<Shader>(L"shader\\default_ps.hlsl", staticDefines, L"main", L"ps_6_6");
-            gShaders[L"OpaqueSkinnedMS"] = make_unique<Shader>(L"shader\\default_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+            if (gShaders.count(L"OpaqueStaticMS") == 0)
+            {
+                gShaders[L"OpaqueStaticMS"] = make_unique<Shader>(L"shader\\opaque_ms.hlsl", staticDefines, L"main", L"ms_6_6");
+            }
 
-            gShaders[L"ScreenMS"] = make_unique<Shader>(L"shader\\screen_ms.hlsl", nullDefines, L"main", L"ms_6_6");
-            gShaders[L"SkyBoxMS"] = make_unique<Shader>(L"shader\\skybox_ms.hlsl", staticDefines, L"main", L"ms_6_6");
-            gShaders[L"SkyBoxPS"] = make_unique<Shader>(L"shader\\skybox_ps.hlsl", staticDefines, L"main", L"ps_6_6");
+            if (gShaders.count(L"OpaquePS") == 0)
+            {
+                gShaders[L"OpaquePS"] = make_unique<Shader>(L"shader\\opaque_ps.hlsl", staticDefines, L"main", L"ps_6_6");
+            }
 
-            gShaders[L"HiZGenerateCS"] = make_unique<Shader>(L"shader\\hiz_generate_cs.hlsl", nullDefines, L"main", L"cs_6_6");
-            gShaders[L"FrameCullCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", cullDefines, L"main", L"cs_6_6");
-            gShaders[L"CullAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullDefines, L"main", L"as_6_6");
-            gShaders[L"CullWriteAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullWriteDefines, L"main", L"as_6_6");
-            gShaders[L"DepthStaticMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", nullDefines, L"main", L"ms_6_6");
-            gShaders[L"DepthSkinnedMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+            if (gShaders.count(L"OpaqueSkinnedMS") == 0)
+            {
+                gShaders[L"OpaqueSkinnedMS"] = make_unique<Shader>(L"shader\\opaque_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+            }
 
-            gShaders[L"BuildOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", staticDefines, L"main", L"ps_6_6");
-            gShaders[L"DrawOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_ps.hlsl", nullDefines, L"main", L"ps_6_6");
-            gShaders[L"TransparentCullWriteAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", meshShaderDisabledCullWriteDefines, L"main", L"as_6_6");
+            if (gShaders.count(L"ScreenMS") == 0)
+            {
+                gShaders[L"ScreenMS"] = make_unique<Shader>(L"shader\\screen_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+            }
+
+            if (gShaders.count(L"SkyBoxMS") == 0)
+            {
+                gShaders[L"SkyBoxMS"] = make_unique<Shader>(L"shader\\skybox_ms.hlsl", staticDefines, L"main", L"ms_6_6");
+            }
+
+            if (gShaders.count(L"SkyBoxPS") == 0)
+            {
+                gShaders[L"SkyBoxPS"] = make_unique<Shader>(L"shader\\skybox_ps.hlsl", staticDefines, L"main", L"ps_6_6");
+            }
+
+            if (gShaders.count(L"HiZGenerateCS") == 0)
+            {
+                gShaders[L"HiZGenerateCS"] = make_unique<Shader>(L"shader\\hiz_generate_cs.hlsl", nullDefines, L"main", L"cs_6_6");
+            }
+
+            if (gShaders.count(L"FrameCullCS") == 0)
+            {
+                gShaders[L"FrameCullCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", cullDefines, L"main", L"cs_6_6");
+            }
+
+            if (gShaders.count(L"CullAS") == 0)
+            {
+                gShaders[L"CullAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullDefines, L"main", L"as_6_6");
+            }
+
+            if (gShaders.count(L"CullWriteAS") == 0)
+            {
+                gShaders[L"CullWriteAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", cullWriteDefines, L"main", L"as_6_6");
+            }
+
+            if (gShaders.count(L"DepthStaticMS") == 0)
+            {
+                gShaders[L"DepthStaticMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+            }
+
+            if (gShaders.count(L"DepthSkinnedMS") == 0)
+            {
+                gShaders[L"DepthSkinnedMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+            }
+
+            if (gShaders.count(L"BuildOitppllPS") == 0)
+            {
+                gShaders[L"BuildOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", staticDefines, L"main", L"ps_6_6");
+            }
+
+            if (gShaders.count(L"DrawOitppllPS") == 0)
+            {
+                gShaders[L"DrawOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+            }
+
+            if (gShaders.count(L"TransparentCullWriteAS") == 0)
+            {
+                gShaders[L"TransparentCullWriteAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", meshShaderDisabledCullWriteDefines, L"main", L"as_6_6");
+            }
         }
 
         virtual void InitPSOs() override
         {
-            auto cullStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            cullStaticMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthStencilFormat));
-            cullStaticMeshPSO->SetAS(gShaders[L"CullWriteAS"].get());
-            cullStaticMeshPSO->SetMS(gShaders[L"DepthStaticMS"].get());
-            cullStaticMeshPSO->Finalize();
-            gPSOs[L"OpaqueStaticMeshletCull"] = std::move(cullStaticMeshPSO);
+            if (gPSOs.count(L"OpaqueStaticMeshletCull") == 0)
+            {
+                auto cullStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                cullStaticMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthStencilFormat));
+                cullStaticMeshPSO->SetAS(gShaders[L"CullWriteAS"].get());
+                cullStaticMeshPSO->SetMS(gShaders[L"DepthStaticMS"].get());
+                cullStaticMeshPSO->Finalize();
+            
+                gPSOs[L"OpaqueStaticMeshletCull"] = std::move(cullStaticMeshPSO);
+            }
 
-            auto cullSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            cullSkinnedMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthStencilFormat));
-            cullSkinnedMeshPSO->SetAS(gShaders[L"CullWriteAS"].get());
-            cullSkinnedMeshPSO->SetMS(gShaders[L"DepthSkinnedMS"].get());
-            cullSkinnedMeshPSO->Finalize();
-            gPSOs[L"OpaqueSkinnedMeshletCull"] = std::move(cullSkinnedMeshPSO);
+            if (gPSOs.count(L"OpaqueSkinnedMeshletCull") == 0)
+            {
+                auto cullSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                cullSkinnedMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthStencilFormat));
+                cullSkinnedMeshPSO->SetAS(gShaders[L"CullWriteAS"].get());
+                cullSkinnedMeshPSO->SetMS(gShaders[L"DepthSkinnedMS"].get());
+                cullSkinnedMeshPSO->Finalize();
+            
+                gPSOs[L"OpaqueSkinnedMeshletCull"] = std::move(cullSkinnedMeshPSO);
+            }
 
-            auto opaqueStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            opaqueStaticMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
-            opaqueStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
-            opaqueStaticMeshPSO->SetMS(gShaders[L"OpaqueStaticMS"].get());
-            opaqueStaticMeshPSO->SetPS(gShaders[L"OpaquePS"].get());
-            opaqueStaticMeshPSO->Finalize();
-            gPSOs[L"OpaqueStatic"] = std::move(opaqueStaticMeshPSO);
+            if (gPSOs.count(L"OpaqueStatic") == 0)
+            {
+                auto opaqueStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                opaqueStaticMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
+                opaqueStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
+                opaqueStaticMeshPSO->SetMS(gShaders[L"OpaqueStaticMS"].get());
+                opaqueStaticMeshPSO->SetPS(gShaders[L"OpaquePS"].get());
+                opaqueStaticMeshPSO->Finalize();
+            
+                gPSOs[L"OpaqueStatic"] = std::move(opaqueStaticMeshPSO);
+            }
 
-            auto opaqueSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            opaqueSkinnedMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
-            opaqueSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
-            opaqueSkinnedMeshPSO->SetMS(gShaders[L"OpaqueSkinnedMS"].get());
-            opaqueSkinnedMeshPSO->SetPS(gShaders[L"OpaquePS"].get());
-            opaqueSkinnedMeshPSO->Finalize();
-            gPSOs[L"OpaqueSkinned"] = std::move(opaqueSkinnedMeshPSO);
+            if (gPSOs.count(L"OpaqueSkinned") == 0)
+            {
+                auto opaqueSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                opaqueSkinnedMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
+                opaqueSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
+                opaqueSkinnedMeshPSO->SetMS(gShaders[L"OpaqueSkinnedMS"].get());
+                opaqueSkinnedMeshPSO->SetPS(gShaders[L"OpaquePS"].get());
+                opaqueSkinnedMeshPSO->Finalize();
+            
+                gPSOs[L"OpaqueSkinned"] = std::move(opaqueSkinnedMeshPSO);
+            }
 
-            auto skyBoxMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            skyBoxMeshPSO->SetDepthStencilState(gDepthLessEqualState);
-            skyBoxMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
-            skyBoxMeshPSO->SetMS(gShaders[L"SkyBoxMS"].get());
-            skyBoxMeshPSO->SetPS(gShaders[L"SkyBoxPS"].get());
-            skyBoxMeshPSO->Finalize();
-            gPSOs[L"SkyBox"] = std::move(skyBoxMeshPSO);
+            if (gPSOs.count(L"SkyBox") == 0)
+            {
+                auto skyBoxMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                skyBoxMeshPSO->SetDepthStencilState(gDepthLessEqualState);
+                skyBoxMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
+                skyBoxMeshPSO->SetMS(gShaders[L"SkyBoxMS"].get());
+                skyBoxMeshPSO->SetPS(gShaders[L"SkyBoxPS"].get());
+                skyBoxMeshPSO->Finalize();
+            
+                gPSOs[L"SkyBox"] = std::move(skyBoxMeshPSO);
+            }
 
-            auto hiZGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-            hiZGenerateComputePSO->SetCS(gShaders[L"HiZGenerateCS"].get());
-            hiZGenerateComputePSO->Finalize();
-            gPSOs[L"HiZGenerate"] = std::move(hiZGenerateComputePSO);
+            if (gPSOs.count(L"HiZGenerate") == 0)
+            {
+                auto hiZGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+                hiZGenerateComputePSO->SetCS(gShaders[L"HiZGenerateCS"].get());
+                hiZGenerateComputePSO->Finalize();
+            
+                gPSOs[L"HiZGenerate"] = std::move(hiZGenerateComputePSO);
+            }
 
-            auto cullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-            cullInstanceComputePSO->SetCS(gShaders[L"FrameCullCS"].get());
-            cullInstanceComputePSO->Finalize();
-            gPSOs[L"FrameCullInstances"] = std::move(cullInstanceComputePSO);
+            if (gPSOs.count(L"FrameCullInstances") == 0)
+            {
+                auto cullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+                cullInstanceComputePSO->SetCS(gShaders[L"FrameCullCS"].get());
+                cullInstanceComputePSO->Finalize();
+            
+                gPSOs[L"FrameCullInstances"] = std::move(cullInstanceComputePSO);
+            }
 
-            auto buildStaticOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            buildStaticOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
-            buildStaticOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
-            buildStaticOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-            buildStaticOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
-            buildStaticOitppllMeshPSO->SetMS(gShaders[L"OpaqueStaticMS"].get());
-            buildStaticOitppllMeshPSO->SetPS(gShaders[L"BuildOitppllPS"].get());
-            buildStaticOitppllMeshPSO->Finalize();
-            gPSOs[L"BuildStaticOitppll"] = std::move(buildStaticOitppllMeshPSO);
+            if (gPSOs.count(L"BuildStaticOitppll") == 0)
+            {
+                auto buildStaticOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                buildStaticOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
+                buildStaticOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+                buildStaticOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+                buildStaticOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
+                buildStaticOitppllMeshPSO->SetMS(gShaders[L"OpaqueStaticMS"].get());
+                buildStaticOitppllMeshPSO->SetPS(gShaders[L"BuildOitppllPS"].get());
+                buildStaticOitppllMeshPSO->Finalize();
+            
+                gPSOs[L"BuildStaticOitppll"] = std::move(buildStaticOitppllMeshPSO);
+            }
 
-            auto buildSkinnedOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            buildSkinnedOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
-            buildSkinnedOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
-            buildSkinnedOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-            buildSkinnedOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
-            buildSkinnedOitppllMeshPSO->SetMS(gShaders[L"OpaqueSkinnedMS"].get());
-            buildSkinnedOitppllMeshPSO->SetPS(gShaders[L"BuildOitppllPS"].get());
-            buildSkinnedOitppllMeshPSO->Finalize();
-            gPSOs[L"BuildSkinnedOitppll"] = std::move(buildSkinnedOitppllMeshPSO);
+            if (gPSOs.count(L"BuildSkinnedOitppll") == 0)
+            {
+                auto buildSkinnedOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                buildSkinnedOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
+                buildSkinnedOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+                buildSkinnedOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+                buildSkinnedOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
+                buildSkinnedOitppllMeshPSO->SetMS(gShaders[L"OpaqueSkinnedMS"].get());
+                buildSkinnedOitppllMeshPSO->SetPS(gShaders[L"BuildOitppllPS"].get());
+                buildSkinnedOitppllMeshPSO->Finalize();
+                
+                gPSOs[L"BuildSkinnedOitppll"] = std::move(buildSkinnedOitppllMeshPSO);
+            }
 
-            auto drawOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            drawOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
-            drawOitppllMeshPSO->SetBlendState(gAlphaBlendState);
-            drawOitppllMeshPSO->SetRenderTargetFormat(mFrameFormat);
-            drawOitppllMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
-            drawOitppllMeshPSO->SetPS(gShaders[L"DrawOitppllPS"].get());
-            drawOitppllMeshPSO->Finalize();
-            gPSOs[L"DrawOitppll"] = std::move(drawOitppllMeshPSO);
+            if (gPSOs.count(L"DrawOitppll") == 0)
+            {
+                auto drawOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                drawOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+                drawOitppllMeshPSO->SetBlendState(gAlphaBlendState);
+                drawOitppllMeshPSO->SetRenderTargetFormat(mFrameFormat);
+                drawOitppllMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
+                drawOitppllMeshPSO->SetPS(gShaders[L"DrawOitppllPS"].get());
+                drawOitppllMeshPSO->Finalize();
+            
+                gPSOs[L"DrawOitppll"] = std::move(drawOitppllMeshPSO);
+            }
 
-            auto oitppllMeshletCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            oitppllMeshletCullMeshPSO->SetRasterizerState(gCullDisabledState);
-            oitppllMeshletCullMeshPSO->SetDepthStencilState(gDepthDisabledState);
-            oitppllMeshletCullMeshPSO->SetAS(gShaders[L"TransparentCullWriteAS"].get());
-            oitppllMeshletCullMeshPSO->SetMS(gShaders[L"DepthStaticMS"].get());
-            oitppllMeshletCullMeshPSO->Finalize();
-            gPSOs[L"TransparentMeshletCull"] = std::move(oitppllMeshletCullMeshPSO);
+            if (gPSOs.count(L"TransparentMeshletCull") == 0)
+            {
+                auto oitppllMeshletCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                oitppllMeshletCullMeshPSO->SetRasterizerState(gCullDisabledState);
+                oitppllMeshletCullMeshPSO->SetDepthStencilState(gDepthDisabledState);
+                oitppllMeshletCullMeshPSO->SetAS(gShaders[L"TransparentCullWriteAS"].get());
+                oitppllMeshletCullMeshPSO->SetMS(gShaders[L"DepthStaticMS"].get());
+                oitppllMeshletCullMeshPSO->Finalize();
+                
+                gPSOs[L"TransparentMeshletCull"] = std::move(oitppllMeshletCullMeshPSO);
+            }
         }
 
         virtual void InitBuffers() override

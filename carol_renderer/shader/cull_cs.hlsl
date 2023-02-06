@@ -32,10 +32,11 @@ struct MeshConstants
     
     uint MeshDiffuseMapIdx;
     uint MeshNormalMapIdx;
-    
-    float4 ConstantPad0;
-    float4 ConstantPad1;
-    float4 ConstantPad2;
+
+    // Padding for 256 byte
+    float4 MeshConstantsPad0;
+    float4 MeshConstantsPad1;
+    float4 MeshConstantsPad2;
 };
 
 

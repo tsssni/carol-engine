@@ -14,6 +14,7 @@ import <string>;
 import <string_view>;
 
 #define MAX_LIGHTS 16
+#define MAIN_LIGHT_SPLIT_LEVEL 5
 
 namespace Carol
 {
@@ -60,6 +61,8 @@ namespace Carol
         float SurfaceEplison = 0.05f;
 
         Light Lights[MAX_LIGHTS];
+        float MainLightSplitZ[MAIN_LIGHT_SPLIT_LEVEL + 1];
+		float FramePad2[2];
 
         uint32_t MeshCBIdx = 0;
         uint32_t CommandBufferIdx = 0;
@@ -69,22 +72,29 @@ namespace Carol
         uint32_t FrameMapIdx = 0;
         uint32_t DepthStencilMapIdx = 0;
         uint32_t NormalMapIdx = 0;
-        uint32_t MainLightShadowMapIdx = 0;
+        float FramePad3;
+
+        // Main Light
+        uint32_t MainLightShadowMapIdx[MAIN_LIGHT_SPLIT_LEVEL] = { 0 };
+		float FramePad4[3];
+
         // OITPPLL
         uint32_t OitBufferWIdx = 0;
         uint32_t OitOffsetBufferWIdx = 0;
         uint32_t OitCounterIdx = 0;
         uint32_t OitBufferRIdx = 0;
         uint32_t OitOffsetBufferRIdx = 0;
+
         // SSAO
         uint32_t RandVecMapIdx = 0;
         uint32_t AmbientMapWIdx = 0;
         uint32_t AmbientMapRIdx = 0;
+
         // TAA
         uint32_t VelocityMapIdx = 0;
         uint32_t HistFrameMapIdx = 0;
 
-        XMFLOAT2 FramePad2;
+        float FramePad5[2];
     };
 
     class BaseRenderer
@@ -200,7 +210,7 @@ namespace Carol
             mClientHeight = height;
 
             mTimer->Start();
-            mCamera->SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 1000.0f);
+            dynamic_cast<PerspectiveCamera*>(mCamera.get())->SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 1000.0f);
             gDisplayPass->OnResize(mClientWidth, mClientHeight);
         }
 
@@ -258,7 +268,7 @@ namespace Carol
 
         virtual void InitCamera()
         {
-            mCamera = make_unique<Camera>();
+            mCamera = make_unique<PerspectiveCamera>();
             mCamera->SetPosition(0.0f, 5.0f, -5.0f);
         }
 
@@ -497,10 +507,12 @@ namespace Carol
             gDescriptorManager->DelayedDelete();
             gHeapManager->DelayedDelete();
 
-            gScene->Update(mCamera.get(), mTimer.get());
-            mMainLightShadowPass->Update();
-            gFramePass->Update();
+            mCamera->UpdateViewMatrix();
+            mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), 0.85f);
             UpdateFrameCB();
+
+            gScene->Update(mCamera.get(), mTimer.get());
+            gFramePass->Update();
         }
 
         virtual void OnMouseDown(WPARAM btnState, int x, int y) override
@@ -571,17 +583,25 @@ namespace Carol
             mFrameConstants->FrameMapIdx = gFramePass->GetFrameSrvIdx();
             mFrameConstants->DepthStencilMapIdx = gFramePass->GetDepthStencilSrvIdx();
             mFrameConstants->NormalMapIdx = mNormalPass->GetNormalSrvIdx();
-            mFrameConstants->MainLightShadowMapIdx = mMainLightShadowPass->GetShadowSrvIdx();
+            
+            // Main light
+            for (int i = 0; i < mMainLightShadowPass->GetSplitLevel(); ++i)
+            {
+                mFrameConstants->MainLightShadowMapIdx[i] = mMainLightShadowPass->GetShadowSrvIdx(i);
+            }
+
             //OITPPLL
             mFrameConstants->OitBufferWIdx = gFramePass->GetPpllUavIdx();
             mFrameConstants->OitOffsetBufferWIdx = gFramePass->GetOffsetUavIdx();
             mFrameConstants->OitCounterIdx = gFramePass->GetCounterUavIdx();
             mFrameConstants->OitBufferRIdx = gFramePass->GetPpllSrvIdx();
             mFrameConstants->OitOffsetBufferRIdx = gFramePass->GetOffsetSrvIdx();
+            
             // SSAO
             mFrameConstants->RandVecMapIdx = mSsaoPass->GetRandVecSrvIdx();
             mFrameConstants->AmbientMapWIdx = mSsaoPass->GetSsaoUavIdx();
             mFrameConstants->AmbientMapRIdx = mSsaoPass->GetSsaoSrvIdx();
+            
             //TAA
             mFrameConstants->VelocityMapIdx = mTaaPass->GetVeloctiySrvIdx();
             mFrameConstants->HistFrameMapIdx = mTaaPass->GetHistFrameSrvIdx();
@@ -686,7 +706,7 @@ namespace Carol
             Light light = {};
             light.Direction = { 0.8f,-1.0f,1.0f };
             light.Strength = { 0.8f,0.8f,0.8f };
-            mMainLightShadowPass = make_unique<ShadowPass>(light, 2048, 2048);
+            mMainLightShadowPass = make_unique<CascadedShadowPass>(light);
         }
 
         void InitScene()
@@ -699,8 +719,6 @@ namespace Carol
 
         void UpdateFrameCB()
         {
-            mCamera->UpdateViewMatrix();
-
             XMMATRIX view = mCamera->GetView();
             XMMATRIX invView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(view)), view);
             XMMATRIX proj = mCamera->GetProj();
@@ -748,9 +766,17 @@ namespace Carol
             mFrameConstants->BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
             mFrameConstants->BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
 
-            mFrameConstants->Lights[0] = mMainLightShadowPass->GetLight();
-            mFrameConstants->MeshCBIdx = gScene->GetMeshCBIdx();
+            for (int i = 0; i < mMainLightShadowPass->GetSplitLevel(); ++i)
+            {
+                mFrameConstants->Lights[i] = mMainLightShadowPass->GetLight(i);
+            }
 
+            for (int i = 0; i < mMainLightShadowPass->GetSplitLevel() + 1; ++i)
+            {
+                mFrameConstants->MainLightSplitZ[i] = mMainLightShadowPass->GetSplitZ(i);
+            }
+
+            mFrameConstants->MeshCBIdx = gScene->GetMeshCBIdx();
             mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
         }
 
@@ -764,7 +790,7 @@ namespace Carol
         unique_ptr<SsaoPass> mSsaoPass;
         unique_ptr<NormalPass> mNormalPass;
         unique_ptr<TaaPass> mTaaPass;
-        unique_ptr<ShadowPass> mMainLightShadowPass;
+        unique_ptr<CascadedShadowPass> mMainLightShadowPass;
 
         unique_ptr<FrameConstants> mFrameConstants;
         unique_ptr<FastConstantBufferAllocator> mFrameCBAllocator;

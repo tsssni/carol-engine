@@ -12,7 +12,7 @@ target("carol_renderer")
         "src/**.rc")
     
     if is_config("toolchain","msvc") then
-        add_cxxflags("/utf-8","/EHsc","/W0","/MDd","/MP","/translateInclude")
+        add_cxxflags("/utf-8","/EHsc","/wd4005","/wd5106","/MDd","/MP","/translateInclude")
     end
 
     add_includedirs(

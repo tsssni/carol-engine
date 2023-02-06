@@ -1,7 +1,6 @@
 #include "include/common.hlsli"
 #include "include/mesh.hlsli"
 #include "include/texture.hlsli"
-#include "include/oitppll.hlsli"
 #include "include/shadow.hlsli"
 
 struct PixelIn
@@ -10,33 +9,24 @@ struct PixelIn
     float3 PosW : POSITION0;
     float3 NormalW : NORMAL;
     float3 TangentW : TANGENT;
-    float2 TexC : TEXCOORD;
+    float2 TexC : TEXCOORD; 
 #ifdef SSAO
     float4 SsaoPosH : POSITION1;
 #endif
+
 };
 
-void main(PixelIn pin)
+float4 main(PixelIn pin) : SV_Target
 {
-    RWStructuredBuffer<OitNode> oitNodeBuffer = ResourceDescriptorHeap[gOitBufferWIdx];
-    RWByteAddressBuffer startOffsetBuffer = ResourceDescriptorHeap[gOitOffsetBufferWIdx];
-    RWByteAddressBuffer counter = ResourceDescriptorHeap[gOitCounterBufferIdx];
-    
     Texture2D diffuseTex = ResourceDescriptorHeap[gDiffuseTextureIdx];
     Texture2D normalTex = ResourceDescriptorHeap[gNormalTextureIdx];
-    Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
+
 #ifdef SSAO
     Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapRIdx];
 #endif
     
-    float2 ndcPos = pin.PosH.xy * gInvRenderTargetSize;
-    if (pin.PosH.z > depthMap.Sample(gsamAnisotropicWrap, ndcPos).r)
-    {
-        return;
-    }
-
     float4 texDiffuse = diffuseTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z));
-
+    
     LightMaterialData lightMat;
     lightMat.fresnelR0 = gFresnelR0;
     lightMat.diffuseAlbedo = texDiffuse.rgb;
@@ -44,13 +34,13 @@ void main(PixelIn pin)
 
     float3 texNormal = normalTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).rgb;
     texNormal = TexNormalToWorldSpace(texNormal, pin.NormalW, pin.TangentW);
-
+    
     float3 ambient = 0.4f * texDiffuse.rgb;
-
+    
 #ifdef SSAO
     pin.SsaoPosH /= pin.SsaoPosH.w;
     float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
-    ambient*=ambientAccess;
+    ambient *= ambientAccess;
 #endif
 
     float shadowFactor = 1.f;
@@ -98,20 +88,6 @@ void main(PixelIn pin)
             break;
         }
     }
-
-    OitNode link;
-    link.ColorU = float4(ambient + litColor.rgb, 0.6f);
-    link.DepthU = pin.PosH.z * 0xffffffff;
-
-    uint pixelCount;
-    counter.InterlockedAdd(0, 1, pixelCount);
-
-    uint2 pixelPos = uint2(pin.PosH.x - 0.5f, pin.PosH.y - 0.5f);
-
-    uint pixelCountAddr = 4 * (pixelPos.y * gRenderTargetSize.x + pixelPos.x);
-    uint oldStartOffset;
-    startOffsetBuffer.InterlockedExchange(pixelCountAddr, pixelCount, oldStartOffset);
-
-    link.NextU = oldStartOffset;
-    oitNodeBuffer[pixelCount] = link;
+    
+    return float4(ambient + litColor.rgb, 1.0f);
 }

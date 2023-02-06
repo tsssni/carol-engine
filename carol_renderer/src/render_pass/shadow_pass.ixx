@@ -8,6 +8,7 @@ import <DirectXColors.h>;
 import <vector>;
 import <memory>;
 import <string_view>;
+import <cmath>;
 
 namespace Carol
 {
@@ -18,13 +19,13 @@ namespace Carol
     using std::wstring_view;
     using namespace DirectX;
 
-    export class ShadowPass : public RenderPass
+    class ShadowPass : public RenderPass
     {
     public:
         ShadowPass(
             Light light,
-            uint32_t width = 1024,
-            uint32_t height = 1024,
+            uint32_t width = 512,
+            uint32_t height = 512,
             uint32_t depthBias = 60000,
             float depthBiasClamp = 0.01f,
             float slopeScaledDepthBias = 4.f,
@@ -42,7 +43,6 @@ namespace Carol
               mHiZFormat(hiZFormat)
         {
             InitLightView();
-            InitCamera();
             InitShaders();
             InitPSOs();
             OnResize(width, height);
@@ -63,7 +63,7 @@ namespace Carol
             DrawShadow(false);
         }
 
-        virtual void Update() override
+        virtual void Update(uint32_t lightIdx)
         {
             XMMATRIX view = mCamera->GetView();
             XMMATRIX proj = mCamera->GetProj();
@@ -88,18 +88,14 @@ namespace Carol
                 mCullIdx[i][CULL_MESH_COUNT] = gScene->GetMeshesCount(type);
                 mCullIdx[i][CULL_MESH_OFFSET] = gScene->GetMeshCBStartOffet(type);
                 mCullIdx[i][CULL_HIZ_IDX] = mHiZMap->GetGpuSrvIdx();
-                mCullIdx[i][CULL_LIGHT_IDX] = 0;
+                mCullIdx[i][CULL_LIGHT_IDX] = lightIdx;
             }
 
             mHiZIdx[HIZ_DEPTH_IDX] = mShadowMap->GetGpuSrvIdx();
             mHiZIdx[HIZ_R_IDX] = mHiZMap->GetGpuSrvIdx();
             mHiZIdx[HIZ_W_IDX] = mHiZMap->GetGpuUavIdx();
         }
-
-        virtual void ReleaseIntermediateBuffers() override
-        {
-        }
-
+ 
         uint32_t GetShadowSrvIdx()
         {
             return mShadowMap->GetGpuSrvIdx();
@@ -111,6 +107,11 @@ namespace Carol
         }
 
     protected:
+        virtual void Update()override
+        {
+
+        }
+
         virtual void InitShaders() override
         {
             vector<wstring_view> nullDefines{};
@@ -217,11 +218,7 @@ namespace Carol
             mScissorRect = {0, 0, (int)mWidth, (int)mHeight};
         }
 
-        void InitCamera()
-        {
-            mLight->Position = XMFLOAT3(-mLight->Direction.x * 140.f, -mLight->Direction.y * 140.f, -mLight->Direction.z * 140.f);
-            mCamera = make_unique<OrthographicCamera>(mLight->Direction, XMFLOAT3{0.0f, 0.0f, 0.0f}, 70.0f);
-        }
+        virtual void InitCamera() = 0;
 
         void Clear()
         {
@@ -352,5 +349,191 @@ namespace Carol
 
         DXGI_FORMAT mShadowFormat;
         DXGI_FORMAT mHiZFormat;
+    };
+
+    class DirectLightShadowPass : public ShadowPass
+    {
+    public:
+		DirectLightShadowPass(
+            Light light,
+            uint32_t width = 512,
+            uint32_t height = 512,
+            uint32_t depthBias = 60000,
+            float depthBiasClamp = 0.01f,
+            float slopeScaledDepthBias = 4.f,
+            DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
+            DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT)
+            :ShadowPass(light, width, height, depthBias, depthBiasClamp, slopeScaledDepthBias, shadowFormat, hiZFormat)
+        {
+            InitCamera();
+        }
+
+        void Update(uint32_t lightIdx, const PerspectiveCamera* camera, float zn, float zf)
+        {
+            static float dx[4] = { -1.f,1.f,-1.f,1.f };
+            static float dy[4] = { -1.f,-1.f,1.f,1.f };
+
+            XMFLOAT4 pointNear;
+            pointNear.z = zn;
+            pointNear.y = zn * tanf(0.5f * camera->GetFovY());
+            pointNear.x = zn * tanf(0.5f * camera->GetFovX());
+            
+            XMFLOAT4 pointFar;
+            pointFar.z = zf;
+            pointFar.y = zf * tanf(0.5f * camera->GetFovY());
+            pointFar.x = zf * tanf(0.5f * camera->GetFovX());
+
+            vector<XMFLOAT4> frustumSliceExtremaPoints;
+            XMMATRIX perspView = camera->GetView();
+            XMMATRIX invPerspView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(perspView)), perspView);
+            XMMATRIX orthoView = mCamera->GetView();
+            XMMATRIX invOrthoView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(orthoView)), orthoView);
+
+            for (int i = 0; i < 4; ++i)
+            {
+                XMFLOAT4 point;
+                
+                point = { pointNear.x* dx[i], pointNear.y* dy[i], pointNear.z, 1.f };
+                XMStoreFloat4(&point, XMVector4Transform(XMLoadFloat4(&point), XMMatrixMultiply(invPerspView, orthoView)));
+                frustumSliceExtremaPoints.push_back(point);
+
+                point = { pointFar.x* dx[i], pointFar.y* dy[i], pointFar.z, 1.f };
+                XMStoreFloat4(&point, XMVector4Transform(XMLoadFloat4(&point), XMMatrixMultiply(invPerspView, orthoView)));
+                frustumSliceExtremaPoints.push_back(point);
+            }
+
+            XMFLOAT4 boxMin = { D3D12_FLOAT32_MAX,D3D12_FLOAT32_MAX,D3D12_FLOAT32_MAX,1.f };
+            XMFLOAT4 boxMax = { -D3D12_FLOAT32_MAX,-D3D12_FLOAT32_MAX,-D3D12_FLOAT32_MAX,1.f };
+
+            for (auto& point : frustumSliceExtremaPoints)
+            {
+                boxMin.x = fmin(boxMin.x, point.x);
+                boxMin.y = fmin(boxMin.y, point.y);
+                boxMin.z = fmin(boxMin.z, point.z);
+
+                boxMax.x = fmax(boxMax.x, point.x);
+                boxMax.y = fmax(boxMax.y, point.y);
+                boxMax.z = fmax(boxMax.z, point.z);
+            }
+            
+            XMFLOAT4 center;
+            XMStoreFloat4(&center, XMVector4Transform(0.5f * (XMLoadFloat4(&boxMin) + XMLoadFloat4(&boxMax)), invOrthoView));
+
+            dynamic_cast<OrthographicCamera*>(mCamera.get())->SetLens(boxMax.x - boxMin.x, boxMax.y - boxMin.y, 1.f, boxMax.z);
+            mCamera->LookAt(XMLoadFloat4(&center) - 0.5f * (boxMax.z - boxMin.z) * XMLoadFloat3(&mLight->Direction), XMLoadFloat4(&center), { 0.f,0.f,1.f,0.f });
+            mCamera->UpdateViewMatrix();
+
+            ShadowPass::Update(lightIdx);
+        }
+
+    protected:
+        virtual void InitCamera()override
+        {
+        	mLight->Position = XMFLOAT3(-mLight->Direction.x * 140.f, -mLight->Direction.y * 140.f, -mLight->Direction.z * 140.f);
+            mCamera = make_unique<OrthographicCamera>(70, 0, 280);
+            mCamera->LookAt(mLight->Position, { 0.f,0.f,0.f }, { 0.f,0.f,1.f });
+            mCamera->UpdateViewMatrix();
+        }
+    };
+
+    export class CascadedShadowPass : public RenderPass
+    {
+	public:
+        CascadedShadowPass(
+            Light light,
+            uint32_t splitLevel = 5,
+            uint32_t width = 512,
+            uint32_t height = 512,
+            uint32_t depthBias = 60000,
+            float depthBiasClamp = 0.01f,
+            float slopeScaledDepthBias = 4.f,
+            DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
+            DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT)
+            :mSplitLevel(splitLevel),
+            mSplitZ(splitLevel + 1),
+            mShadow(splitLevel)
+        {
+            for (auto& shadow : mShadow)
+            {
+                shadow = make_unique<DirectLightShadowPass>(
+                    light,
+                    width,
+                    height,
+                    depthBias,
+                    depthBiasClamp,
+                    slopeScaledDepthBias,
+                    shadowFormat,
+                    hiZFormat);
+            }
+        }
+
+		virtual void Draw()
+        {
+            for (auto& shadow : mShadow)
+            {
+                shadow->Draw();
+            }
+        }
+
+        void Update(const PerspectiveCamera* camera, float logWeight = 0.5f, float bias = 0.f)
+        {
+            float nearZ = camera->GetNearZ();
+            float farZ = camera->GetFarZ();
+
+            for (int i = 0; i < mSplitLevel + 1; ++i)
+            {
+                mSplitZ[i] = logWeight * nearZ * pow(farZ / nearZ, 1.f * i / mSplitLevel) + (1 - logWeight) * (nearZ + (farZ - nearZ) * (1.f * i / mSplitLevel)) + bias;
+            }
+
+            for (int i = 0; i < mSplitLevel; ++i)
+            {
+                mShadow[i]->Update(i, camera, mSplitZ[i], mSplitZ[i + 1]);
+            }
+        }
+
+        uint32_t GetSplitLevel()
+        {
+            return mSplitLevel;
+        }
+
+        float GetSplitZ(uint32_t idx)
+        {
+            return mSplitZ[idx];
+        }
+        
+        uint32_t GetShadowSrvIdx(uint32_t idx)
+        {
+            return mShadow[idx]->GetShadowSrvIdx();
+        }
+
+        const Light& GetLight(uint32_t idx)
+        {
+            return mShadow[idx]->GetLight();
+        }
+
+	protected:
+        virtual void Update()
+        {
+
+        }
+
+		virtual void InitShaders()
+        {
+
+        }
+
+		virtual void InitPSOs()
+        {
+
+        }
+
+		virtual void InitBuffers()
+        {
+
+        }
+
+        uint32_t mSplitLevel;
+        std::vector<float> mSplitZ;
+        std::vector<std::unique_ptr<DirectLightShadowPass>> mShadow;
     };
 }

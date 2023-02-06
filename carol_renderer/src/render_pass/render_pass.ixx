@@ -22,7 +22,6 @@ namespace Carol
                 InitBuffers();
             }
         }
-		virtual void ReleaseIntermediateBuffers() = 0;
 
 	protected:
 		virtual void InitShaders() = 0;

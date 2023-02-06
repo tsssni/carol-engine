@@ -13,32 +13,11 @@ namespace Carol
         {
             XMStoreFloat4x4(&mView, XMMatrixIdentity());
             XMStoreFloat4x4(&mProj, XMMatrixIdentity());
-            SetLens(0.25*XM_PI, 1.0f, 1.0f, 1000.0f);
         }
 
-		void SetLens(float fovY, float aspect, float zn, float zf)
-        {
-            mFovY = fovY;
-            mAspect = aspect;
-            mNearZ = zn;
-            mFarZ = zf;
+        virtual bool Contains(const BoundingBox &boundingBox) const = 0;
 
-            mNearWindowHeight = 2.0f * zn * tan(0.5f * fovY);
-            mFarWindowHeight = 2.0f * zf * tan(0.5f * fovY);
-
-            XMMATRIX proj = XMMatrixPerspectiveFovLH(fovY, aspect, zn, zf);
-            mBoundingFrustrum = BoundingFrustum(proj);
-
-            XMStoreFloat4x4(&mProj, proj);
-        }
-
-		virtual bool Contains(BoundingBox boundingBox)
-        {
-            boundingBox.Transform(boundingBox, XMLoadFloat4x4(&mView));
-            return mBoundingFrustrum.Contains(boundingBox) != DirectX::DISJOINT;
-        }
-
-		XMVECTOR GetPosition()const
+        XMVECTOR GetPosition()const
         {
             return XMLoadFloat3(&mPosition);
         }
@@ -60,22 +39,6 @@ namespace Carol
             mViewDirty = true;
         }
 
-		float GetAspect()const
-        {
-            return mAspect;
-        }
-
-		float GetFovY()const
-        {
-            return mFovY;
-        }
-
-		float GetFovX()const
-        {
-            float halfWidth = 0.5f * GetNearWindowWidth();
-            return 2.0f * atan(halfWidth / mNearZ);
-        }
-
 		float GetNearZ()const
         {
             return mNearZ;
@@ -86,26 +49,6 @@ namespace Carol
             return mFarZ;
         }
 
-		float GetNearWindowWidth()const
-        {
-            return mAspect * mNearWindowHeight;
-        }
-
-		float GetNearWindowHeight()const
-        {
-            return mNearWindowHeight;
-        }
-
-		float GetFarWindowWidth()const
-        {
-            return mAspect * mFarWindowHeight;
-        }
-
-		float GetFarWindowHeight()const
-        {
-            return mFarWindowHeight;
-        }
-		
 		XMVECTOR GetRight()const
         {
             return XMLoadFloat3(&mRight);
@@ -138,7 +81,7 @@ namespace Carol
 
 		void LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp)
         {
-            auto look = XMVector3Normalize(XMVectorSubtract(pos, target));
+            auto look = XMVector3Normalize(XMVectorSubtract(target, pos));
             auto right = XMVector3Normalize(XMVector3Cross(worldUp, look));
             auto up = XMVector3Normalize(XMVector3Cross(look, right));
 
@@ -266,14 +209,14 @@ namespace Carol
 
 		void Rotate(XMFLOAT3 axis, float angle)
         {
-    XMMATRIX R = XMMatrixRotationAxis(XMLoadFloat3(&axis), angle);
+            XMMATRIX R = XMMatrixRotationAxis(XMLoadFloat3(&axis), angle);
 
-    XMStoreFloat3(&mRight, XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
-    XMStoreFloat3(&mUp, XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
-    XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
+            XMStoreFloat3(&mRight, XMVector3TransformNormal(XMLoadFloat3(&mRight), R));
+            XMStoreFloat3(&mUp, XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
+            XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
 
-    mViewDirty = true;
-}
+            mViewDirty = true;
+        }
 
 		void UpdateViewMatrix()
         {
@@ -321,69 +264,145 @@ namespace Carol
         }
 
 	protected:
-		XMFLOAT3 mPosition = { 0.0f, 0.0f, 0.0f };
-		XMFLOAT3 mRight = { 1.0f, 0.0f, 0.0f };
-		XMFLOAT3 mUp = { 0.0f, 1.0f, 0.0f };
-		XMFLOAT3 mLook = { 0.0f, 0.0f, 1.0f };
+		XMFLOAT3 mPosition = { 0.f, 0.f, 0.f };
+		XMFLOAT3 mRight = { 1.f, 0.f, 0.f };
+		XMFLOAT3 mUp = { 0.f, 1.f, 0.f };
+		XMFLOAT3 mLook = { 0.f, 0.f, 1.f };
 
-		float mAspect = 0.0f;
-		float mFovY = 0.0f;
-		float mNearWindowHeight = 0.0f;
-		float mFarWindowHeight = 0.0f;
-		float mNearZ = 0.0f;
-		float mFarZ = 0.0f;
+		float mNearZ = 0.f;
+		float mFarZ = 0.f;
 		bool mViewDirty = true;
 
 		XMFLOAT4X4 mView;
 		XMFLOAT4X4 mProj;
+	};
 
-		BoundingFrustum mBoundingFrustrum;
+    export class PerspectiveCamera : public Camera
+	{
+	public:
+		PerspectiveCamera()
+        {
+            SetLens(0.25 * XM_PI, 1.f, 1.f, 1000.f);
+        }
+
+		PerspectiveCamera(float fovY, float aspect, float zn, float zf)
+        {
+            SetLens(fovY, aspect, zn, zf);
+        }
+
+		void SetLens(float fovY, float aspect, float zn, float zf)
+        {
+            mFovY = fovY;
+            mAspect = aspect;
+            mNearZ = zn;
+            mFarZ = zf;
+
+            mNearWindowHeight = 2.0f * zn * tan(0.5f * fovY);
+            mFarWindowHeight = 2.0f * zf * tan(0.5f * fovY);
+
+            XMMATRIX proj = XMMatrixPerspectiveFovLH(fovY, aspect, zn, zf);
+            mBoundingFrustrum = BoundingFrustum(proj);
+
+            XMStoreFloat4x4(&mProj, proj);
+        }
+
+		virtual bool Contains(const DirectX::BoundingBox& boundingBox)const override
+        {
+            BoundingBox box;
+            boundingBox.Transform(box, XMLoadFloat4x4(&mView));
+            return mBoundingFrustrum.Contains(box) != DirectX::DISJOINT;
+        }
+
+		float GetAspect()const
+        {
+            return mAspect;
+        }
+
+		float GetFovY()const
+        {
+            return mFovY;
+        }
+
+		float GetFovX()const
+        {
+            float halfWidth = 0.5f * GetNearWindowWidth();
+            return 2.0f * atan(halfWidth / mNearZ);
+        }
+		
+		float GetNearWindowWidth()const
+        {
+            return mAspect * mNearWindowHeight;
+        }
+
+		float GetNearWindowHeight()const
+        {
+            return mNearWindowHeight;
+        }
+
+		float GetFarWindowWidth()const
+        {
+            return mAspect * mFarWindowHeight;
+        }
+
+		float GetFarWindowHeight()const
+        {
+            return mFarWindowHeight;
+        }
+
+	protected:
+		float mAspect = 0.0f;
+		float mFovY = 0.0f;
+		float mNearWindowHeight = 0.0f;
+		float mFarWindowHeight = 0.0f;
+
+		DirectX::BoundingFrustum mBoundingFrustrum;
 	};
 
 	export class OrthographicCamera : public Camera
 	{
 	public:
-		OrthographicCamera(XMFLOAT3 viewDir, XMFLOAT3 targetPos, float radius)
+		OrthographicCamera()
         {
-            SetLens(viewDir, targetPos, radius);
+            SetLens(140.f, 1.f, 1000.f);
         }
 
-		void SetLens(XMFLOAT3 viewDir3f, XMFLOAT3 targetPos3f, float radius)
+		OrthographicCamera(float radius, float zn, float zf)
         {
-            XMVECTOR viewDir = XMLoadFloat3(&viewDir3f);
-            XMVECTOR targetPos = XMLoadFloat3(&targetPos3f);
-            XMVECTOR viewPos = targetPos - 2.0f * radius * viewDir;
-            XMMATRIX view = XMMatrixLookAtLH(viewPos, targetPos, { 0.0f,1.0f,0.0f,0.0f });
-            XMStoreFloat4x4(&mView, view);
+            SetLens(radius, zn, zf);
+        }
 
-            XMFLOAT3 rectCenter;
-            XMStoreFloat3(&rectCenter, XMVector3TransformCoord(targetPos, view));
+		OrthographicCamera(float width, float height, float zn, float zf)
+        {
+            SetLens(width, height, zn, zf);
+        }
 
-            float l = rectCenter.x - radius;
-            float b = rectCenter.y - radius;
-            float n = rectCenter.z - radius;
-            float r = rectCenter.x + radius;
-            float t = rectCenter.y + radius;
-            float f = rectCenter.z + radius;
-            
-            mNearZ = n;
-            mFarZ = f;
-            XMMATRIX proj = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+		void SetLens(float radius, float zn, float zf)
+        {
+            SetLens(radius * 2, radius * 2, zn, zf);
+        }
+
+		void SetLens(float width, float height, float zn, float zf)
+        {
+            mNearZ = zn;
+            mFarZ = zf;
+
+            XMMATRIX proj = XMMatrixOrthographicLH(width, height, zn, zf);
             XMStoreFloat4x4(&mProj, proj);
 
             mBoundingBox = BoundingBox(
-                { (l + r) / 2,(b + t) / 2,(n + f) / 2 },
-                { (r - l) / 2,(t - b) / 2,(f - n) / 2 }
+                { 0, 0, (zn + zf) / 2 },
+                { width / 2,height / 2,(zn + zf) / 2 }
             );
         }
 
-		virtual bool Contains(BoundingBox boundingBox)
+		virtual bool Contains(const DirectX::BoundingBox& boundingBox)const override
         {
-            boundingBox.Transform(boundingBox, XMLoadFloat4x4(&mView));
-            return mBoundingBox.Contains(boundingBox) != DirectX::DISJOINT;
+            BoundingBox box;
+            boundingBox.Transform(box, XMLoadFloat4x4(&mView));
+            return mBoundingBox.Contains(box) != DirectX::DISJOINT;
         }
 
 	protected:
-		BoundingBox mBoundingBox;
+		DirectX::BoundingBox mBoundingBox;
 	};
 }

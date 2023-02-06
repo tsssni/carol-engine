@@ -55,11 +55,6 @@ namespace Carol
 
         }
 
-		virtual void ReleaseIntermediateBuffers()override
-        {
-
-        }
-
 		uint32_t GetNormalSrvIdx()
         {
             return mNormalMap->GetGpuSrvIdx();
@@ -75,28 +70,47 @@ namespace Carol
                 L"SKINNED=1"
             };
 
-            gShaders[L"NormalsStaticMS"] = make_unique<Shader>(L"shader\\normals_ms.hlsl", nullDefines, L"main", L"ms_6_6");
-            gShaders[L"NormalsPS"] = make_unique<Shader>(L"shader\\normals_ps.hlsl", nullDefines, L"main", L"ps_6_6");
-            gShaders[L"NormalsSkinnedMS"] = make_unique<Shader>(L"shader\\normals_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+            if (gShaders.count(L"NormalsStaticMS") == 0)
+            {
+                gShaders[L"NormalsStaticMS"] = make_unique<Shader>(L"shader\\normals_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+            }
+
+            if (gShaders.count(L"NormalsPS") == 0)
+            {
+                gShaders[L"NormalsPS"] = make_unique<Shader>(L"shader\\normals_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+            }
+
+            if (gShaders.count(L"NormalsSkinnedMS") == 0)
+            {
+                gShaders[L"NormalsSkinnedMS"] = make_unique<Shader>(L"shader\\normals_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+            }
         }
 
 		virtual void InitPSOs()override
         {
-            auto normalsStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            normalsStaticMeshPSO->SetRenderTargetFormat(mNormalMapFormat, gFramePass->GetFrameDsvFormat());
-            normalsStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
-            normalsStaticMeshPSO->SetMS(gShaders[L"NormalsStaticMS"].get());
-            normalsStaticMeshPSO->SetPS(gShaders[L"NormalsPS"].get());
-            normalsStaticMeshPSO->Finalize();
-            gPSOs[L"NormalsStatic"] = std::move(normalsStaticMeshPSO);
+            if (gPSOs.count(L"NormalsStatic") == 0)
+            {
+                auto normalsStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                normalsStaticMeshPSO->SetRenderTargetFormat(mNormalMapFormat, gFramePass->GetFrameDsvFormat());
+                normalsStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
+                normalsStaticMeshPSO->SetMS(gShaders[L"NormalsStaticMS"].get());
+                normalsStaticMeshPSO->SetPS(gShaders[L"NormalsPS"].get());
+                normalsStaticMeshPSO->Finalize();
 
-            auto normalsSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-            normalsSkinnedMeshPSO->SetRenderTargetFormat(mNormalMapFormat, gFramePass->GetFrameDsvFormat());
-            normalsSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
-            normalsSkinnedMeshPSO->SetMS(gShaders[L"NormalsSkinnedMS"].get());
-            normalsSkinnedMeshPSO->SetPS(gShaders[L"NormalsPS"].get());
-            normalsSkinnedMeshPSO->Finalize();
-            gPSOs[L"NormalsSkinned"] = std::move(normalsSkinnedMeshPSO);
+                gPSOs[L"NormalsStatic"] = std::move(normalsStaticMeshPSO);
+            }
+
+            if (gPSOs.count(L"NormalsSkinned") == 0)
+            {
+                auto normalsSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                normalsSkinnedMeshPSO->SetRenderTargetFormat(mNormalMapFormat, gFramePass->GetFrameDsvFormat());
+                normalsSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
+                normalsSkinnedMeshPSO->SetMS(gShaders[L"NormalsSkinnedMS"].get());
+                normalsSkinnedMeshPSO->SetPS(gShaders[L"NormalsPS"].get());
+                normalsSkinnedMeshPSO->Finalize();
+                
+                gPSOs[L"NormalsSkinned"] = std::move(normalsSkinnedMeshPSO);
+            }
         }
 
 		virtual void InitBuffers()override

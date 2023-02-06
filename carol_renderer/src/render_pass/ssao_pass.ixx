@@ -58,10 +58,10 @@ namespace Carol
 
         virtual void Update() override
         {
-
+            
         }
 
-        virtual void ReleaseIntermediateBuffers() override
+        void ReleaseIntermediateBuffers()
         {
             mRandomVecMap->ReleaseIntermediateBuffer();
         }
@@ -130,15 +130,22 @@ namespace Carol
         {
             vector<wstring_view> nullDefines{};
 
-            gShaders[L"SsaoCS"] = make_unique<Shader>(L"shader\\ssao_cs.hlsl", nullDefines, L"main", L"cs_6_6");
+            if (gShaders.count(L"SsaoCS") == 0)
+            {
+                gShaders[L"SsaoCS"] = make_unique<Shader>(L"shader\\ssao_cs.hlsl", nullDefines, L"main", L"cs_6_6");
+            }
         }
 
         virtual void InitPSOs() override
         {
-            auto ssaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-            ssaoComputePSO->SetCS(gShaders[L"SsaoCS"].get());
-            ssaoComputePSO->Finalize();
-            gPSOs[L"Ssao"] = std::move(ssaoComputePSO);
+            if (gPSOs.count(L"Ssao") == 0)
+            {
+                auto ssaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+                ssaoComputePSO->SetCS(gShaders[L"SsaoCS"].get());
+                ssaoComputePSO->Finalize();
+            
+                gPSOs[L"Ssao"] = std::move(ssaoComputePSO);
+            }
         }
         
         virtual void InitBuffers() override
