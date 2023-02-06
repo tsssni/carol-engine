@@ -2,6 +2,7 @@
 #include <utils/d3dx12.h>
 #include <wrl/client.h>
 #include <memory>
+#include <string_view>
 
 namespace Carol
 {
@@ -11,7 +12,6 @@ namespace Carol
 		virtual void Draw() = 0;
 		virtual void Update() = 0;
 		virtual void OnResize(uint32_t width, uint32_t height);
-		virtual void ReleaseIntermediateBuffers() = 0;
 
 	protected:
 		virtual void InitShaders() = 0;

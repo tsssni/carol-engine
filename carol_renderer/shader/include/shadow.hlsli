@@ -1,5 +1,8 @@
 #ifndef SHADOW_HEADER
 #define SHADOW_HEADER
+
+#define CSM_BLEND_BORDER 0.2f
+
 #include "common.hlsli"
 
 float CalcShadowFactor(float4 shadowPosH, uint shadowMapIdx)

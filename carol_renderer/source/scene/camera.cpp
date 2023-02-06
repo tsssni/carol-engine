@@ -8,7 +8,6 @@ Carol::Camera::Camera()
 {
     XMStoreFloat4x4(&mView, XMMatrixIdentity());
     XMStoreFloat4x4(&mProj, XMMatrixIdentity());
-    SetLens(0.25*XM_PI, 1.0f, 1.0f, 1000.0f);
 }
 
 Carol::XMVECTOR Carol::Camera::GetPosition() const
@@ -63,77 +62,9 @@ Carol::XMFLOAT3 Carol::Camera::GetLook3f() const
     return mLook;
 }
 
-float Carol::Camera::GetNearZ() const
-{
-    return mNearZ;
-}
-
-float Carol::Camera::GetFarZ() const
-{
-    return mFarZ;
-}
-
-float Carol::Camera::GetAspect() const
-{
-    return mAspect;
-}
-
-float Carol::Camera::GetFovY() const
-{
-    return mFovY;
-}
-
-float Carol::Camera::GetFovX() const
-{
-    float halfWidth = 0.5f * GetNearWindowWidth();
-    return 2.0f * atan(halfWidth / mNearZ);
-}
-
-float Carol::Camera::GetNearWindowWidth() const
-{
-    return mAspect * mNearWindowHeight;
-}
-
-float Carol::Camera::GetNearWindowHeight() const
-{
-    return mNearWindowHeight;
-}
-
-float Carol::Camera::GetFarWindowWidth() const
-{
-    return mAspect * mFarWindowHeight;
-}
-
-float Carol::Camera::GetFarWindowHeight() const
-{
-    return mFarWindowHeight;
-}
-
-void Carol::Camera::SetLens(float fovY, float aspect, float zn, float zf)
-{
-    mFovY = fovY;
-    mAspect = aspect;
-    mNearZ = zn;
-    mFarZ = zf;
-
-    mNearWindowHeight = 2.0f * zn * tan(0.5f * fovY);
-    mFarWindowHeight = 2.0f * zf * tan(0.5f * fovY);
-
-    XMMATRIX proj = XMMatrixPerspectiveFovLH(fovY, aspect, zn, zf);
-    mBoundingFrustrum = BoundingFrustum(proj);
-
-    XMStoreFloat4x4(&mProj, proj);
-}
-
-bool Carol::Camera::Contains(DirectX::BoundingBox boundingBox)
-{
-    boundingBox.Transform(boundingBox, XMLoadFloat4x4(&mView));
-    return mBoundingFrustrum.Contains(boundingBox) != DirectX::DISJOINT;
-}
-
 void Carol::Camera::LookAt(FXMVECTOR pos, FXMVECTOR target, FXMVECTOR worldUp)
 {
-    auto look = XMVector3Normalize(XMVectorSubtract(pos, target));
+    auto look = XMVector3Normalize(XMVectorSubtract(target, pos));
     auto right = XMVector3Normalize(XMVector3Cross(worldUp, look));
     auto up = XMVector3Normalize(XMVector3Cross(look, right));
 
@@ -315,42 +246,122 @@ void Carol::Camera::UpdateViewMatrix()
     }
 }
 
-Carol::OrthographicCamera::OrthographicCamera(XMFLOAT3 viewDir, XMFLOAT3 targetPos, float radius)
+float Carol::Camera::GetNearZ() const
 {
-    SetLens(viewDir, targetPos, radius);
+    return mNearZ;
 }
 
-void Carol::OrthographicCamera::SetLens(XMFLOAT3 viewDir3f, XMFLOAT3 targetPos3f, float radius)
+float Carol::Camera::GetFarZ() const
 {
-    XMVECTOR viewDir = XMLoadFloat3(&viewDir3f);
-    XMVECTOR targetPos = XMLoadFloat3(&targetPos3f);
-    XMVECTOR viewPos = targetPos - 2.0f * radius * viewDir;
-    XMMATRIX view = XMMatrixLookAtLH(viewPos, targetPos, { 0.0f,1.0f,0.0f,0.0f });
-    XMStoreFloat4x4(&mView, view);
+    return mFarZ;
+}
 
-    XMFLOAT3 rectCenter;
-    XMStoreFloat3(&rectCenter, XMVector3TransformCoord(targetPos, view));
+float Carol::PerspectiveCamera::GetAspect() const
+{
+    return mAspect;
+}
 
-    float l = rectCenter.x - radius;
-    float b = rectCenter.y - radius;
-    float n = rectCenter.z - radius;
-    float r = rectCenter.x + radius;
-    float t = rectCenter.y + radius;
-    float f = rectCenter.z + radius;
-    
-    mNearZ = n;
-    mFarZ = f;
-    XMMATRIX proj = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+float Carol::PerspectiveCamera::GetFovY() const
+{
+    return mFovY;
+}
+
+float Carol::PerspectiveCamera::GetFovX() const
+{
+    float halfWidth = 0.5f * GetNearWindowWidth();
+    return 2.0f * atan(halfWidth / mNearZ);
+}
+
+float Carol::PerspectiveCamera::GetNearWindowWidth() const
+{
+    return mAspect * mNearWindowHeight;
+}
+
+float Carol::PerspectiveCamera::GetNearWindowHeight() const
+{
+    return mNearWindowHeight;
+}
+
+float Carol::PerspectiveCamera::GetFarWindowWidth() const
+{
+    return mAspect * mFarWindowHeight;
+}
+
+float Carol::PerspectiveCamera::GetFarWindowHeight() const
+{
+    return mFarWindowHeight;
+}
+
+Carol::PerspectiveCamera::PerspectiveCamera()
+{
+    SetLens(0.25 * XM_PI, 1.f, 1.f, 1000.f);
+}
+
+Carol::PerspectiveCamera::PerspectiveCamera(float fovY, float aspect, float zn, float zf)
+{
+    SetLens(fovY, aspect, zn, zf);
+}
+
+void Carol::PerspectiveCamera::SetLens(float fovY, float aspect, float zn, float zf)
+{
+    mFovY = fovY;
+    mAspect = aspect;
+    mNearZ = zn;
+    mFarZ = zf;
+
+    mNearWindowHeight = 2.0f * zn * tan(0.5f * fovY);
+    mFarWindowHeight = 2.0f * zf * tan(0.5f * fovY);
+
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(fovY, aspect, zn, zf);
+    mBoundingFrustrum = BoundingFrustum(proj);
+
+    XMStoreFloat4x4(&mProj, proj);
+}
+
+bool Carol::PerspectiveCamera::Contains(const DirectX::BoundingBox& boundingBox)const
+{
+    BoundingBox box;
+    boundingBox.Transform(box, XMLoadFloat4x4(&mView));
+    return mBoundingFrustrum.Contains(box) != DirectX::DISJOINT;
+}
+
+Carol::OrthographicCamera::OrthographicCamera()
+{
+    SetLens(140.f, 0.f, 1000.f);
+}
+
+Carol::OrthographicCamera::OrthographicCamera(float radius, float zn, float zf)
+{
+    SetLens(radius, zn, zf);
+}
+
+Carol::OrthographicCamera::OrthographicCamera(float width, float height, float zn, float zf)
+{
+    SetLens(width, height, zn, zf);
+}
+
+void Carol::OrthographicCamera::SetLens(float radius, float zn, float zf)
+{
+    SetLens(radius * 2, radius * 2, zn, zf);
+}
+
+void Carol::OrthographicCamera::SetLens(float width, float height, float zn, float zf)
+{
+    mNearZ = zn;
+    mFarZ = zf;
+
+    XMMATRIX proj = XMMatrixOrthographicLH(width, height, zn, zf);
     XMStoreFloat4x4(&mProj, proj);
 
     mBoundingBox = BoundingBox(
-        { (l + r) / 2,(b + t) / 2,(n + f) / 2 },
-        { (r - l) / 2,(t - b) / 2,(f - n) / 2 }
+        { 0, 0, (zn + zf) / 2 },
+        { width / 2,height / 2,(zn + zf) / 2 }
     );
 }
 
-bool Carol::OrthographicCamera::Contains(DirectX::BoundingBox boundingBox)
+bool Carol::OrthographicCamera::Contains(const DirectX::BoundingBox& boundingBox)const
 {
-    boundingBox.Transform(boundingBox, XMLoadFloat4x4(&mView));
-    return mBoundingBox.Contains(boundingBox) != DirectX::DISJOINT;
+    BoundingBox box;
+    boundingBox.Transform(box, XMLoadFloat4x4(&mView));
+    return mBoundingBox.Contains(box) != DirectX::DISJOINT;
 }

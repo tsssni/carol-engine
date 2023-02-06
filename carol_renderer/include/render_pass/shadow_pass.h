@@ -5,6 +5,7 @@
 #include <DirectXMath.h>
 #include <vector>
 #include <memory>
+#include <span>
 
 #define MAX_LIGHTS 16
 
@@ -13,14 +14,15 @@ namespace Carol
     class ColorBuffer;
     class StructuredBuffer;
     class Camera; 
+    class PerspectiveCamera;
 
     class ShadowPass : public RenderPass
     {
     public:
         ShadowPass(
             Light light,
-            uint32_t width = 1024,
-            uint32_t height = 1024,
+            uint32_t width = 512,
+            uint32_t height = 512,
             uint32_t depthBias = 60000,
             float depthBiasClamp = 0.01f,
             float slopeScaledDepthBias = 4.f,
@@ -28,18 +30,19 @@ namespace Carol
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
         virtual void Draw()override;
-        virtual void Update()override;
-        virtual void ReleaseIntermediateBuffers()override;
+        virtual void Update(uint32_t lightIdx);
 
         uint32_t GetShadowSrvIdx();
         const Light& GetLight();
+
     protected:
+        virtual void Update()override;
 		virtual void InitShaders()override;
 		virtual void InitPSOs()override;
         virtual void InitBuffers()override;
         
-        void InitLightView();
-        void InitCamera();
+        void InitLightViewport();
+        virtual void InitCamera() = 0;
         
         void Clear();
         void CullInstances(bool hist);
@@ -87,5 +90,56 @@ namespace Carol
 
         DXGI_FORMAT mShadowFormat;
         DXGI_FORMAT mHiZFormat;
+    };
+
+    class DirectLightShadowPass : public ShadowPass
+    {
+    public:
+		DirectLightShadowPass(
+		Light light,
+		uint32_t width = 512,
+		uint32_t height = 512,
+		uint32_t depthBias = 60000,
+		float depthBiasClamp = 0.01f,
+		float slopeScaledDepthBias = 4.f,
+		DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
+		DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
+
+        void Update(uint32_t lightIdx, const PerspectiveCamera* camera, float zn, float zf);
+    protected:
+        virtual void InitCamera()override;
+    };
+
+    class CascadedShadowPass : public RenderPass
+    {
+	public:
+        CascadedShadowPass(
+            Light light,
+            uint32_t splitLevel = 5,
+            uint32_t width = 512,
+            uint32_t height = 512,
+            uint32_t depthBias = 60000,
+            float depthBiasClamp = 0.01f,
+            float slopeScaledDepthBias = 4.f,
+            DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
+            DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
+
+		virtual void Draw();
+        void Update(const PerspectiveCamera* camera, float logWeight = 0.5f, float bias = 0.f);
+        
+        uint32_t GetSplitLevel();
+        float GetSplitZ(uint32_t idx);
+        
+        uint32_t GetShadowSrvIdx(uint32_t idx);
+        const Light& GetLight(uint32_t idx);
+	protected:
+        virtual void Update();
+		virtual void InitShaders();
+		virtual void InitPSOs();
+		virtual void InitBuffers();
+
+        uint32_t mSplitLevel;
+        std::vector<float> mSplitZ;
+        std::vector<std::unique_ptr<DirectLightShadowPass>> mShadow;
     };
 }

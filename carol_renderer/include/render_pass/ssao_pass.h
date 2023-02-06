@@ -21,9 +21,9 @@ namespace Carol
 
 		virtual void Draw()override;
 		virtual void Update()override;
-		virtual void ReleaseIntermediateBuffers()override;
 		virtual void OnResize(uint32_t width, uint32_t height)override;
 
+		void ReleaseIntermediateBuffers();
 		std::vector<float> CalcGaussWeights(float sigma);
 		void GetOffsetVectors(DirectX::XMFLOAT4 offsets[14]);
 

@@ -48,7 +48,7 @@ namespace Carol {
 
 		void SetWorld(std::wstring_view modelName, DirectX::XMMATRIX world);
 		void SetAnimationClip(std::wstring_view modelName, std::wstring_view clipName);
-		void Update(Camera* camera, Timer* timer);
+		void Update(Timer* timer);
 		void Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
 
 		void ClearCullMark();

@@ -36,7 +36,6 @@ namespace Carol
 		virtual void Draw()override;
 		void Cull();
 		virtual void Update()override;
-		virtual void ReleaseIntermediateBuffers()override;
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameRtv();
 		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameDsv();

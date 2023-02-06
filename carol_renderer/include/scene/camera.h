@@ -7,27 +7,17 @@ namespace Carol
 	class Camera
 	{
 	public:
-
 		Camera();
-		void SetLens(float fovY, float aspect, float zn, float zf);
 
-		virtual bool Contains(DirectX::BoundingBox boundingBox);
+		virtual bool Contains(const DirectX::BoundingBox& boundingBox)const = 0;
 
 		DirectX::XMVECTOR GetPosition()const;
 		DirectX::XMFLOAT3 GetPosition3f()const;
 		void SetPosition(float x, float y, float z);
 		void SetPosition(const DirectX::XMFLOAT3& v);
 
-		float GetAspect()const;
-		float GetFovY()const;
-		float GetFovX()const;
-
 		float GetNearZ()const;
 		float GetFarZ()const;
-		float GetNearWindowWidth()const;
-		float GetNearWindowHeight()const;
-		float GetFarWindowWidth()const;
-		float GetFarWindowHeight()const;
 		
 		DirectX::XMVECTOR GetRight()const;
 		DirectX::XMFLOAT3 GetRight3f()const;
@@ -64,17 +54,38 @@ namespace Carol
 		DirectX::XMFLOAT3 mRight = { 1.0f, 0.0f, 0.0f };
 		DirectX::XMFLOAT3 mUp = { 0.0f, 1.0f, 0.0f };
 		DirectX::XMFLOAT3 mLook = { 0.0f, 0.0f, 1.0f };
-
-		float mAspect = 0.0f;
-		float mFovY = 0.0f;
-		float mNearWindowHeight = 0.0f;
-		float mFarWindowHeight = 0.0f;
-		float mNearZ = 0.0f;
-		float mFarZ = 0.0f;
+		
+		float mNearZ = 0.f;
+		float mFarZ = 0.f;
 		bool mViewDirty = true;
 
 		DirectX::XMFLOAT4X4 mView;
 		DirectX::XMFLOAT4X4 mProj;
+	};
+
+	class PerspectiveCamera : public Camera
+	{
+	public:
+		PerspectiveCamera();
+		PerspectiveCamera(float fovY, float aspect, float zn, float zf);
+
+		void SetLens(float fovY, float aspect, float zn, float zf);
+		virtual bool Contains(const DirectX::BoundingBox& boundingBox)const override;
+
+		float GetAspect()const;
+		float GetFovY()const;
+		float GetFovX()const;
+		
+		float GetNearWindowWidth()const;
+		float GetNearWindowHeight()const;
+		float GetFarWindowWidth()const;
+		float GetFarWindowHeight()const;
+
+	protected:
+		float mAspect = 0.0f;
+		float mFovY = 0.0f;
+		float mNearWindowHeight = 0.0f;
+		float mFarWindowHeight = 0.0f;
 
 		DirectX::BoundingFrustum mBoundingFrustrum;
 	};
@@ -82,9 +93,14 @@ namespace Carol
 	class OrthographicCamera : public Camera
 	{
 	public:
-		OrthographicCamera(DirectX::XMFLOAT3 viewDir, DirectX::XMFLOAT3 targetPos, float radius);
-		void SetLens(DirectX::XMFLOAT3 viewDir3f, DirectX::XMFLOAT3 targetPos3f, float radius);
-		virtual bool Contains(DirectX::BoundingBox boundingBox);
+		OrthographicCamera();
+		OrthographicCamera(float radius, float zn, float zf);
+		OrthographicCamera(float width, float height, float zn, float zf);
+
+		void SetLens(float radius, float zn, float zf);
+		void SetLens(float width, float height, float zn, float zf);
+
+		virtual bool Contains(const DirectX::BoundingBox& boundingBox)const override;
 
 	protected:
 		DirectX::BoundingBox mBoundingBox;

@@ -39,7 +39,6 @@ namespace Carol
 
 		virtual void Draw()override;
 		virtual void Update()override;
-		virtual void ReleaseIntermediateBuffers()override;
 
 		void Present();
 	private:

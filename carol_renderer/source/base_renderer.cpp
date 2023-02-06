@@ -46,7 +46,7 @@ void Carol::BaseRenderer::InitTimer()
 
 void Carol::BaseRenderer::InitCamera()
 {
-	mCamera = make_unique<Camera>();
+	mCamera = make_unique<PerspectiveCamera>();
 	mCamera->SetPosition(0.0f, 5.0f, -5.0f);
 }
 
@@ -248,7 +248,7 @@ void Carol::BaseRenderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mClientHeight = height;
 
 	mTimer->Start();
-	mCamera->SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 1000.0f);
+	dynamic_cast<PerspectiveCamera*>(mCamera.get())->SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 1000.0f);
 	gDisplayPass->OnResize(mClientWidth, mClientHeight);
 }
 

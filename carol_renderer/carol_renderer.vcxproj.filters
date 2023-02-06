@@ -277,10 +277,10 @@
     <None Include="shader\cull_cs.hlsl">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\default_ms.hlsl">
+    <None Include="shader\opaque_ms.hlsl">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\default_ps.hlsl">
+    <None Include="shader\opaque_ps.hlsl">
       <Filter>着色器文件</Filter>
     </None>
     <None Include="shader\hiz_generate_cs.hlsl">
@@ -314,5 +314,6 @@
     <None Include="shader\normals_ps.hlsl">
       <Filter>着色器文件</Filter>
     </None>
+    <None Include="shader\include\texture.hlsli" />
   </ItemGroup>
 </Project>

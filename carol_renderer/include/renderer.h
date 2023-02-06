@@ -7,6 +7,7 @@
 #include <string_view>
 
 #define MAX_LIGHTS 16
+#define MAIN_LIGHT_SPLIT_LEVEL 5
 
 namespace Carol
 {
@@ -15,7 +16,7 @@ namespace Carol
     class SsaoPass;
     class NormalPass;
     class TaaPass;
-    class ShadowPass;
+    class CascadedShadowPass;
     class MeshesPass;
 
 	class FrameConstants
@@ -51,6 +52,8 @@ namespace Carol
 		float SurfaceEplison = 0.05f;
 
 		Light Lights[MAX_LIGHTS];
+		float MainLightSplitZ[MAIN_LIGHT_SPLIT_LEVEL + 1];
+		float FramePad2[2];
 
 		uint32_t MeshCBIdx = 0;
 		uint32_t CommandBufferIdx = 0;
@@ -60,22 +63,29 @@ namespace Carol
 		uint32_t FrameMapIdx = 0;
 		uint32_t DepthStencilMapIdx = 0;
 		uint32_t NormalMapIdx = 0;
-		uint32_t MainLightShadowMapIdx = 0;
+		float FramePad3;
+
+		// Main light
+		uint32_t MainLightShadowMapIdx[MAIN_LIGHT_SPLIT_LEVEL] = { 0 };
+		float FramePad4[3];
+
 		// OITPPLL
 		uint32_t OitBufferWIdx = 0;
 		uint32_t OitOffsetBufferWIdx = 0;
 		uint32_t OitCounterIdx = 0;
 		uint32_t OitBufferRIdx = 0;
 		uint32_t OitOffsetBufferRIdx = 0;
+
 		// SSAO
 		uint32_t RandVecMapIdx = 0;
 		uint32_t AmbientMapWIdx = 0;
 		uint32_t AmbientMapRIdx = 0;
+		
 		// TAA
 		uint32_t VelocityMapIdx = 0;
 		uint32_t HistFrameMapIdx = 0;
 
-		DirectX::XMFLOAT2 FramePad2;
+		float FramePad5[2];
 	};
  
     class Renderer :public BaseRenderer
@@ -116,7 +126,7 @@ namespace Carol
         std::unique_ptr<SsaoPass> mSsaoPass;
         std::unique_ptr<NormalPass> mNormalPass;
         std::unique_ptr<TaaPass> mTaaPass;
-        std::unique_ptr<ShadowPass> mMainLightShadowPass;
+        std::unique_ptr<CascadedShadowPass> mMainLightShadowPass;
 
 		std::unique_ptr<FrameConstants> mFrameConstants;
         std::unique_ptr<FastConstantBufferAllocator> mFrameCBAllocator;

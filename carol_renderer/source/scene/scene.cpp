@@ -250,7 +250,7 @@ void Carol::Scene::DrawSkyBox(ID3D12PipelineState* skyBoxPSO)
 	static_cast<ID3D12GraphicsCommandList6*>(gCommandList.Get())->DispatchMesh(1, 1, 1);
 }
 
-void Carol::Scene::Update(Camera* camera, Timer* timer)
+void Carol::Scene::Update(Timer* timer)
 {
 	for (auto& [name, model] : mModels)
 	{
@@ -315,7 +315,6 @@ void Carol::Scene::Update(Camera* camera, Timer* timer)
 
 	mMeshCB[gCurrFrame]->CopyElements(GetSkyBox()->GetMeshConstants(), meshIdx);
 	GetSkyBox()->SetMeshCBAddress(mMeshCB[gCurrFrame]->GetElementAddress(meshIdx));
-
 }
 
 void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot)

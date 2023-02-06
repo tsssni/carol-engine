@@ -186,15 +186,22 @@ void Carol::SsaoPass::InitShaders()
 {
     vector<wstring_view> nullDefines{};
 
-    gShaders[L"SsaoCS"] = make_unique<Shader>(L"shader\\ssao_cs.hlsl", nullDefines, L"main", L"cs_6_6");
+    if (gShaders.count(L"SsaoCS") == 0)
+    {
+        gShaders[L"SsaoCS"] = make_unique<Shader>(L"shader\\ssao_cs.hlsl", nullDefines, L"main", L"cs_6_6");
+    }
 }
 
 void Carol::SsaoPass::InitPSOs()
 {
-    auto ssaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-    ssaoComputePSO->SetCS(gShaders[L"SsaoCS"].get());
-    ssaoComputePSO->Finalize();
-    gPSOs[L"Ssao"] = std::move(ssaoComputePSO);
+	if (gPSOs.count(L"Ssao") == 0)
+    {
+		auto ssaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+		ssaoComputePSO->SetCS(gShaders[L"SsaoCS"].get());
+		ssaoComputePSO->Finalize();
+    
+        gPSOs[L"Ssao"] = std::move(ssaoComputePSO);
+    }
 }
 
 void Carol::SsaoPass::GetOffsetVectors(XMFLOAT4 offsets[14])

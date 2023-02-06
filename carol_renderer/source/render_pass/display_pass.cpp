@@ -91,10 +91,6 @@ void Carol::DisplayPass::Update()
 {
 }
 
-void Carol::DisplayPass::ReleaseIntermediateBuffers()
-{
-}
-
 void Carol::DisplayPass::Present()
 {
 	if (FAILED(mSwapChain->Present(0, 0)))

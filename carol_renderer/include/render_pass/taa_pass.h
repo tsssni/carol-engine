@@ -20,7 +20,6 @@ namespace Carol
 
 		virtual void Draw()override;
 		virtual void Update()override;
-		virtual void ReleaseIntermediateBuffers()override;
 
 		void GetHalton(float& proj0,float& proj1);
 		void SetHistViewProj(DirectX::XMMATRIX& histViewProj);
