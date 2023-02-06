@@ -74,9 +74,14 @@ float4 main(PixelIn pin) : SV_Target
 
             if (i < MAIN_LIGHT_SPLIT_LEVEL - 1 && (mainLightSplitZ[i + 1] - pin.PosH.w) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) < CSM_BLEND_BORDER)
             {
-                float nextLevelShadowFactor = CalcShadowFactor(mul(float4(pin.PosW, 1.0f), gLights[i + 1].ViewProjTex), mainLightShadowMapIdx[i + 1]);
-                float weight = (mainLightSplitZ[i + 1] - pin.PosH.w) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) / CSM_BLEND_BORDER;
-                shadowFactor = weight * shadowFactor + (1.f - weight) * nextLevelShadowFactor;
+                float4 nextLevelShadowPos = mul(float4(pin.PosW, 1.0f), gLights[i + 1].ViewProjTex);
+                
+                if (!CheckOutOfBounds(nextLevelShadowPos.xy / nextLevelShadowPos.w))
+                {
+                    float nextLevelShadowFactor = CalcShadowFactor(nextLevelShadowPos, mainLightShadowMapIdx[i + 1]);
+                    float weight = (mainLightSplitZ[i + 1] - pin.PosH.w) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) / CSM_BLEND_BORDER;
+                    shadowFactor = weight * shadowFactor + (1.f - weight) * nextLevelShadowFactor;
+                }
             }
             
             litColor = float4(shadowFactor * ComputeDirectionalLight(gLights[i], lightMat, texNormal, normalize(gEyePosW - pin.PosW)), 1.f);
