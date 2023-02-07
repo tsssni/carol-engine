@@ -302,36 +302,36 @@ void Carol::ShadowPass::InitShaders()
 
 void Carol::ShadowPass::InitPSOs()
 {
-	auto shadowStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	shadowStaticMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
-	shadowStaticMeshPSO->SetDepthTargetFormat(GetDsvFormat(mShadowFormat));
-	shadowStaticMeshPSO->SetAS(gShaders[L"ShadowAS"].get());
-	shadowStaticMeshPSO->SetMS(gShaders[L"ShadowStaticMS"].get());
-	shadowStaticMeshPSO->Finalize();
-
 	if (gPSOs.count(L"ShadowStatic") == 0)
 	{
+		auto shadowStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+		shadowStaticMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
+		shadowStaticMeshPSO->SetDepthTargetFormat(GetDsvFormat(mShadowFormat));
+		shadowStaticMeshPSO->SetAS(gShaders[L"ShadowAS"].get());
+		shadowStaticMeshPSO->SetMS(gShaders[L"ShadowStaticMS"].get());
+		shadowStaticMeshPSO->Finalize();
+	
 		gPSOs[L"ShadowStatic"] = std::move(shadowStaticMeshPSO);
 	}
 
-	auto shadowSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	shadowSkinnedMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
-	shadowSkinnedMeshPSO->SetDepthTargetFormat(GetDsvFormat(mShadowFormat));
-	shadowSkinnedMeshPSO->SetAS(gShaders[L"ShadowAS"].get());
-	shadowSkinnedMeshPSO->SetMS(gShaders[L"ShadowSkinnedMS"].get());
-	shadowSkinnedMeshPSO->Finalize();
-
 	if (gPSOs.count(L"ShadowSkinned") == 0)
 	{
+		auto shadowSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+		shadowSkinnedMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
+		shadowSkinnedMeshPSO->SetDepthTargetFormat(GetDsvFormat(mShadowFormat));
+		shadowSkinnedMeshPSO->SetAS(gShaders[L"ShadowAS"].get());
+		shadowSkinnedMeshPSO->SetMS(gShaders[L"ShadowSkinnedMS"].get());
+		shadowSkinnedMeshPSO->Finalize();
+	
 		gPSOs[L"ShadowSkinned"] = std::move(shadowSkinnedMeshPSO);
 	}
 
-	auto shadowInstanceCullComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	shadowInstanceCullComputePSO->SetCS(gShaders[L"ShadowCullCS"].get());
-	shadowInstanceCullComputePSO->Finalize();
-
 	if (gPSOs.count(L"ShadowInstanceCull") == 0)
 	{
+		auto shadowInstanceCullComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+		shadowInstanceCullComputePSO->SetCS(gShaders[L"ShadowCullCS"].get());
+		shadowInstanceCullComputePSO->Finalize();
+
 		gPSOs[L"ShadowInstanceCull"] = std::move(shadowInstanceCullComputePSO);
 	}
 }

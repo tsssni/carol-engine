@@ -68,11 +68,9 @@ float4 main(PixelIn pin) : SV_Target
     [unroll]
     for (int i = 0; i < MAIN_LIGHT_SPLIT_LEVEL; ++i)
     {
-        float4 shadowPos = mul(float4(pin.PosW, 1.0f), gLights[i].ViewProjTex);
-        
         if (pin.PosH.w >= mainLightSplitZ[i] && pin.PosH.w < mainLightSplitZ[i + 1])
         {
-            shadowFactor = CalcShadowFactor(shadowPos, mainLightShadowMapIdx[i]);
+            shadowFactor = CalcShadowFactor(mul(float4(pin.PosW, 1.0f), gLights[i].ViewProjTex), mainLightShadowMapIdx[i]);
 
             if (i < MAIN_LIGHT_SPLIT_LEVEL - 1 && (mainLightSplitZ[i + 1] - pin.PosH.w) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) < CSM_BLEND_BORDER)
             {

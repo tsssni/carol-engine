@@ -9,9 +9,9 @@ float LOD(float depth)
 bool CheckOutOfBounds(float3 pos)
 {
     return 
-    pos.x < 0.f || pos.x >= 1.f 
-    || pos.y < 0.f || pos.y >= 1.f
-    || pos.z < 0.f || pos.z >= 1.f;
+    pos.x < 0.01f || pos.x >= 0.99f 
+    || pos.y < 0.01f || pos.y >= 0.99f
+    || pos.z < 0.01f || pos.z >= 0.99f;
 }
 
 #endif
