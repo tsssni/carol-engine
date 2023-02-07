@@ -86,7 +86,7 @@ void main(PixelIn pin)
             {
                 float4 nextLevelShadowPos = mul(float4(pin.PosW, 1.0f), gLights[i + 1].ViewProjTex);
                 
-                if (!CheckOutOfBounds(nextLevelShadowPos.xy / nextLevelShadowPos.w))
+                if (!CheckOutOfBounds(nextLevelShadowPos.xyz / nextLevelShadowPos.w))
                 {
                     float nextLevelShadowFactor = CalcShadowFactor(nextLevelShadowPos, mainLightShadowMapIdx[i + 1]);
                     float weight = (mainLightSplitZ[i + 1] - pin.PosH.w) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) / CSM_BLEND_BORDER;
