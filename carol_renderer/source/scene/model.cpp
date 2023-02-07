@@ -243,8 +243,11 @@ void Carol::Model::LoadGround()
 		false,
 		false);
 
-	mMeshes[L"Ground"]->SetDiffuseMapIdx(gTextureManager->LoadTexture(L"texture\\tile.dds"));
-	mMeshes[L"Ground"]->SetNormalMapIdx(gTextureManager->LoadTexture(L"texture\\tile_nmap.dds"));
+	mMeshes[L"Ground"]->SetDiffuseMapIdx(gTextureManager->LoadTexture(L"texture\\default_diffuse_map.png"));
+	mMeshes[L"Ground"]->SetNormalMapIdx(gTextureManager->LoadTexture(L"texture\\default_normal_map.png"));
+
+	mTexturePath.push_back(L"texture\\default_diffuse_map.png");
+	mTexturePath.push_back(L"texture\\default_normal_map.png");
 }
 
 void Carol::Model::LoadSkyBox()
@@ -290,4 +293,5 @@ void Carol::Model::LoadSkyBox()
 		false,
 		false);
 	mMeshes[L"SkyBox"]->SetDiffuseMapIdx(gTextureManager->LoadTexture(L"texture\\snowcube1024.dds"));
+	mTexturePath.push_back(L"texture\\snowcube1024.dds");
 }

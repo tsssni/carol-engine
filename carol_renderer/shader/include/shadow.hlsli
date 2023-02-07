@@ -29,7 +29,7 @@ float CalcShadowFactor(float4 shadowPosH, uint shadowMapIdx)
         float2(-dx,  +dx), float2(0.0f,  +dx), float2(dx,  +dx)
     };
 
-    
+    [unroll]
     for(int i = 0; i < 9; ++i)
     {
         percentLit += gShadowMap.SampleCmpLevelZero(gsamShadow,
