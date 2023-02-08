@@ -56,7 +56,7 @@ void Carol::RenderPass::Init(ID3D12Device* device)
 	ThrowIfFailed(device->CreateCommandSignature(&cmdSigDesc, sRootSignature->Get(), IID_PPV_ARGS(sCommandSignature.GetAddressOf())));
 }
 
-Carol::RootSignature* Carol::RenderPass::GetRootSignature()
+const Carol::RootSignature* Carol::RenderPass::GetRootSignature()
 {
 	return sRootSignature.get();
 }

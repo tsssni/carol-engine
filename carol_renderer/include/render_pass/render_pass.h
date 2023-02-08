@@ -23,7 +23,7 @@ namespace Carol
 			DescriptorManager* descriptorManager);
 
 		static void Init(ID3D12Device* device);
-		static RootSignature* GetRootSignature();
+		static const RootSignature* GetRootSignature();
 
 	protected:
 		virtual void InitShaders() = 0;

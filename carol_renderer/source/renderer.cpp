@@ -144,6 +144,8 @@ void Carol::Renderer::InitScene()
 
 void Carol::Renderer::UpdateFrameCB()
 {
+	mCamera->UpdateViewMatrix();
+
 	XMMATRIX view = mCamera->GetView();
 	XMMATRIX invView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(view)), view);
 	XMMATRIX proj = mCamera->GetProj();
@@ -316,11 +318,10 @@ void Carol::Renderer::Update()
 	mDescriptorManager->DelayedDelete();
 	mHeapManager->DelayedDelete();
 
-	mCamera->UpdateViewMatrix();
-	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), 0.85f);
 	UpdateFrameCB();
 
 	mScene->Update(mTimer.get());
+	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), 0.85f);
 	mFramePass->Update();
 }
 

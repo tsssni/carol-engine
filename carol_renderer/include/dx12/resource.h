@@ -64,7 +64,7 @@ namespace Carol
 	protected:
 		Microsoft::WRL::ComPtr<ID3D12Resource> mResource;
 		std::unique_ptr<HeapAllocInfo> mHeapAllocInfo;
-		D3D12_RESOURCE_STATES mState;
+		D3D12_RESOURCE_STATES mState = D3D12_RESOURCE_STATE_COMMON;
 
 		Microsoft::WRL::ComPtr<ID3D12Resource> mIntermediateBuffer;
 		std::unique_ptr<HeapAllocInfo> mIntermediateBufferAllocInfo;
