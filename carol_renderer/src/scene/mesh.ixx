@@ -127,7 +127,12 @@ namespace Carol
             span<pair<wstring, vector<vector<Vertex>>>> skinnedVertices,
             span<uint32_t> indices,
             bool isSkinned,
-            bool isTransparent)
+            bool isTransparent,
+            ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager)
             : mVertices(vertices),
               mSkinnedVertices(skinnedVertices),
               mIndices(indices),
@@ -136,10 +141,10 @@ namespace Carol
               mSkinned(isSkinned),
               mTransparent(isTransparent)
         {
-            LoadVertices();
-            LoadMeshlets();
-            LoadCullData();
-            InitCullMark();
+            LoadVertices(device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+            LoadMeshlets(device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+            LoadCullData(device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+            InitCullMark(device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
         }
 
         void ReleaseIntermediateBuffer()
@@ -162,12 +167,12 @@ namespace Carol
             }
         }
 
-        const Material *GetMaterial()
+        const Material *GetMaterial()const
         {
             return mMaterial.get();
         }
 
-        uint32_t GetMeshletSize()
+        uint32_t GetMeshletSize()const
         {
             return mMeshConstants->MeshletCount;
         }
@@ -195,11 +200,11 @@ namespace Carol
             XMStoreFloat4x4(&mMeshConstants->World, XMMatrixTranspose(world));
         }
 
-        void ClearCullMark()
+        void ClearCullMark(ID3D12GraphicsCommandList* cmdList)
         {
             static const uint32_t cullMarkClearValue = 0;
-            gCommandList->ClearUnorderedAccessViewUint(mMeshletFrustumCulledMarkBuffer->GetGpuUav(), mMeshletFrustumCulledMarkBuffer->GetCpuUav(), mMeshletFrustumCulledMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
-            gCommandList->ClearUnorderedAccessViewUint(mMeshletOcclusionPassedMarkBuffer->GetGpuUav(), mMeshletOcclusionPassedMarkBuffer->GetCpuUav(), mMeshletOcclusionPassedMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
+            cmdList->ClearUnorderedAccessViewUint(mMeshletFrustumCulledMarkBuffer->GetGpuUav(), mMeshletFrustumCulledMarkBuffer->GetCpuUav(), mMeshletFrustumCulledMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
+            cmdList->ClearUnorderedAccessViewUint(mMeshletOcclusionPassedMarkBuffer->GetGpuUav(), mMeshletOcclusionPassedMarkBuffer->GetCpuUav(), mMeshletOcclusionPassedMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
         }
 
         void SetAnimationClip(wstring_view clipName)
@@ -210,7 +215,7 @@ namespace Carol
             mMeshConstants->Extents = mBoundingBoxes[name].Extents;
         }
 
-        MeshConstants *GetMeshConstants()
+        const MeshConstants *GetMeshConstants()const
         {
             return mMeshConstants.get();
         }
@@ -225,40 +230,52 @@ namespace Carol
             mSkinnedCBAddr = addr;
         }
 
-        D3D12_GPU_VIRTUAL_ADDRESS GetMeshCBAddress()
+        D3D12_GPU_VIRTUAL_ADDRESS GetMeshCBAddress()const
         {
             return mMeshCBAddr;
         }
 
-        D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBAddress()
+        D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBAddress()const
         {
             return mSkinnedCBAddr;
         }
 
-        bool IsSkinned()
+        bool IsSkinned()const
         {
             return mSkinned;
         }
 
-        bool IsTransparent()
+        bool IsTransparent()const
         {
             return mTransparent;
         }
 
     protected:
-        void LoadVertices()
+        void LoadVertices(
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         {
             mVertexBuffer = make_unique<StructuredBuffer>(
                 mVertices.size(),
                 sizeof(Vertex),
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                defaultBuffersHeap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-            mVertexBuffer->CopySubresources(gHeapManager->GetUploadBuffersHeap(), mVertices.data(), mVertices.size() * sizeof(Vertex), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            mVertexBuffer->CopySubresources(cmdList, uploadBuffersHeap, mVertices.data(), mVertices.size() * sizeof(Vertex));
             mMeshConstants->VertexBufferIdx = mVertexBuffer->GetGpuSrvIdx();
         }
 
-        void LoadMeshlets()
+        void LoadMeshlets(
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         {
             Meshlet meshlet = {};
             vector<uint8_t> vertices(mVertices.size(), 0xff);
@@ -310,15 +327,22 @@ namespace Carol
             mMeshletBuffer = make_unique<StructuredBuffer>(
                 mMeshlets.size(),
                 sizeof(Meshlet),
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                defaultBuffersHeap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-            mMeshletBuffer->CopySubresources(gHeapManager->GetUploadBuffersHeap(), mMeshlets.data(), mMeshlets.size() * sizeof(Meshlet), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            mMeshletBuffer->CopySubresources(cmdList, uploadBuffersHeap, mMeshlets.data(), mMeshlets.size() * sizeof(Meshlet));
             mMeshConstants->MeshletBufferIdx = mMeshletBuffer->GetGpuSrvIdx();
             mMeshConstants->MeshletCount = mMeshlets.size();
         }
 
-        void LoadCullData()
+        void LoadCullData(
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         {
             static wstring staticName = L"mesh";
             vector<vector<Vertex>> vertices;
@@ -340,10 +364,12 @@ namespace Carol
                 mCullDataBuffer[name] = make_unique<StructuredBuffer>(
                     mCullData[name].size(),
                     sizeof(CullData),
-                    gHeapManager->GetDefaultBuffersHeap(),
+                    device,
+                    defaultBuffersHeap,
+                    descriptorManager,
                     D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-                mCullDataBuffer[name]->CopySubresources(gHeapManager->GetUploadBuffersHeap(), mCullData[name].data(), mCullData[name].size() * sizeof(CullData), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                mCullDataBuffer[name]->CopySubresources(cmdList, uploadBuffersHeap, mCullData[name].data(), mCullData[name].size() * sizeof(CullData));
             }
 
             if (!mSkinned)
@@ -354,13 +380,20 @@ namespace Carol
             }
         }
 
-        void InitCullMark()
+        void InitCullMark(
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         {
             uint32_t byteSize = ceilf(mMeshlets.size() / 8.f);
 
             mMeshletFrustumCulledMarkBuffer = make_unique<RawBuffer>(
                 byteSize,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                defaultBuffersHeap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
@@ -368,7 +401,9 @@ namespace Carol
 
             mMeshletOcclusionPassedMarkBuffer = make_unique<RawBuffer>(
                 byteSize,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                defaultBuffersHeap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 

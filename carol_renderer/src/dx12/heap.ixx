@@ -5,11 +5,14 @@ import <wrl/client.h>;
 import <vector>;
 import <memory>;
 import <cmath>;
+import <mutex>;
 
 namespace Carol
 {
 	using Microsoft::WRL::ComPtr;
+	using std::lock_guard;
 	using std::make_unique;
+	using std::mutex;
 	using std::unique_ptr;
 	using std::vector;
 
@@ -73,6 +76,7 @@ namespace Carol
 		D3D12_HEAP_FLAGS mFlag;
 
 		vector<vector<unique_ptr<HeapAllocInfo>>> mDeletedResources;
+		mutex mAllocatorMutex;
 	};
 
 	export class BuddyHeap : public Heap
@@ -81,16 +85,32 @@ namespace Carol
 		BuddyHeap(
 			D3D12_HEAP_TYPE type,
 			D3D12_HEAP_FLAGS flag,
+			ID3D12Device* device,
 			uint32_t heapSize = 1 << 26)
 			: Heap(type, flag), mHeapSize(heapSize)
 		{
 			Align();
-			AddHeap();
+			AddHeap(device);
+		}
+
+		~BuddyHeap()
+		{
+			for (auto& deletedResources : mDeletedResources)
+			{
+				for (auto& info : deletedResources)
+				{
+					Delete(std::move(info));
+				}
+			}
 		}
 
 		virtual unique_ptr<HeapAllocInfo> Allocate(const D3D12_RESOURCE_DESC *desc) override
 		{
-			uint32_t size = gDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes;
+			lock_guard<mutex> lock(mAllocatorMutex);
+
+			ComPtr<ID3D12Device> device;
+			mHeaps.back()->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+			uint32_t size = device->GetResourceAllocationInfo(0, 1, desc).SizeInBytes;
 
 			BuddyAllocInfo buddyInfo;
 			unique_ptr<HeapAllocInfo> heapInfo;
@@ -108,7 +128,7 @@ namespace Carol
 				}
 			}
 
-			AddHeap();
+			AddHeap(device.Get());
 
 			if (mBuddies.back()->Allocate(size, buddyInfo))
 			{
@@ -134,6 +154,8 @@ namespace Carol
 	protected:
 		virtual void Delete(unique_ptr<HeapAllocInfo> info)
 		{
+			lock_guard<mutex> lock(mAllocatorMutex);
+
 			uint32_t buddyIdx = info->Addr / mHeapSize;
 			uint32_t blockIdx = (info->Addr % mHeapSize) / mPageSize;
 			uint32_t numBlocks = info->Bytes / mPageSize;
@@ -154,7 +176,7 @@ namespace Carol
 			mNumPages = mHeapSize / mPageSize;
 		}
 
-		void AddHeap()
+		void AddHeap(ID3D12Device* device)
 		{
 			mHeaps.emplace_back();
 			mBuddies.emplace_back(make_unique<Buddy>(mHeapSize, mPageSize));
@@ -165,7 +187,7 @@ namespace Carol
 			heapDesc.Alignment = 0;
 			heapDesc.Flags = mFlag;
 
-			gDevice->CreateHeap(&heapDesc, IID_PPV_ARGS(mHeaps.back().GetAddressOf()));
+			device->CreateHeap(&heapDesc, IID_PPV_ARGS(mHeaps.back().GetAddressOf()));
 		}
 
 		vector<ComPtr<ID3D12Heap>> mHeaps;
@@ -182,6 +204,7 @@ namespace Carol
 		SegListHeap(
 			D3D12_HEAP_TYPE type,
 			D3D12_HEAP_FLAGS flag,
+			ID3D12Device* device,
 			uint32_t maxPageSize = 1 << 26)
 			: Heap(type, flag), mOrder(GetOrder(maxPageSize))
 		{
@@ -190,13 +213,29 @@ namespace Carol
 
 			for (int i = 0; i <= mOrder; ++i)
 			{
-				AddHeap(i);
+				AddHeap(i, device);
+			}
+		}
+
+		~SegListHeap()
+		{
+			for (auto& deletedResources : mDeletedResources)
+			{
+				for (auto& info : deletedResources)
+				{
+					Delete(std::move(info));
+				}
 			}
 		}
 
 		virtual unique_ptr<HeapAllocInfo> Allocate(const D3D12_RESOURCE_DESC *desc) override
 		{
-			uint32_t size = gDevice->GetResourceAllocationInfo(0, 1, desc).SizeInBytes;
+			lock_guard<mutex> lock(mAllocatorMutex);
+
+			ComPtr<ID3D12Device> device;
+			mSegLists.back().back()->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+
+			uint32_t size = device->GetResourceAllocationInfo(0, 1, desc).SizeInBytes;
 			unique_ptr<HeapAllocInfo> heapInfo;
 
 			if (size > mPageSize << mOrder)
@@ -224,7 +263,7 @@ namespace Carol
 				}
 			}
 
-			AddHeap(order);
+			AddHeap(order, device.Get());
 			heapInfo = make_unique<HeapAllocInfo>();
 			heapInfo->Heap = this;
 			heapInfo->Addr = (mSegLists[order].size() - 1) * orderNumPages * (mPageSize << order);
@@ -254,6 +293,8 @@ namespace Carol
 	protected:
 		virtual void Delete(unique_ptr<HeapAllocInfo> info)
 		{
+			lock_guard<mutex> lock(mAllocatorMutex);
+
 			auto order = GetOrder(info->Bytes);
 			auto orderNumPages = 1 << (mOrder - order);
 
@@ -268,7 +309,7 @@ namespace Carol
 			return ceil(log2(size));
 		}
 
-		void AddHeap(uint32_t order)
+		void AddHeap(uint32_t order, ID3D12Device* device)
 		{
 			mSegLists[order].emplace_back();
 			mBitsets[order].emplace_back(make_unique<Bitset>(1 << (mOrder - order)));
@@ -279,7 +320,8 @@ namespace Carol
 			desc.Alignment = 0;
 			desc.Flags = mFlag;
 
-			ThrowIfFailed(gDevice->CreateHeap(
+			ThrowIfFailed(
+				device->CreateHeap(
 				&desc,
 				IID_PPV_ARGS(mSegLists[order].back().GetAddressOf())));
 		}
@@ -296,15 +338,16 @@ namespace Carol
 	{
 	public:
 		HeapManager(
+			ID3D12Device* device,
 			uint32_t initDefaultBuffersHeapSize = 1 << 26,
 			uint32_t initUploadBuffersHeapSize = 1 << 26,
 			uint32_t initReadbackBuffersHeapSize = 1 << 26,
 			uint32_t texturesMaxPageSize = 1 << 26)
 		{
-			mDefaultBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
-			mUploadBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_UPLOAD, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
-			mReadbackBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_READBACK, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
-			mTexturesHeap = make_unique<SegListHeap>(D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, texturesMaxPageSize);
+			mDefaultBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, device, initDefaultBuffersHeapSize);
+			mUploadBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_UPLOAD, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, device, initDefaultBuffersHeapSize);
+			mReadbackBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_READBACK, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, device, initDefaultBuffersHeapSize);
+			mTexturesHeap = make_unique<SegListHeap>(D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, device, texturesMaxPageSize);
 		}
 
 		Heap *GetDefaultBuffersHeap()
@@ -341,6 +384,4 @@ namespace Carol
 		unique_ptr<Heap> mReadbackBuffersHeap;
 		unique_ptr<Heap> mTexturesHeap;
 	};
-
-	export unique_ptr<HeapManager> gHeapManager;
 }

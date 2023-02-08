@@ -22,7 +22,14 @@ namespace Carol
     class Texture
     {
     public:
-        Texture(wstring_view fileName, bool isSrgb)
+        Texture(
+            wstring_view fileName,
+            bool isSrgb,
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         	:mNumRef(1)
         {
             wstring_view suffix = fileName.substr(fileName.find_last_of(L'.') + 1, 3);
@@ -105,7 +112,9 @@ namespace Carol
                 depthOrArraySize,
                 viewDimension,
                 metaData.format,
-                gHeapManager->GetTexturesHeap(),
+                device,
+                defaultBuffersHeap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_FLAG_NONE,
                 nullptr,
@@ -121,7 +130,7 @@ namespace Carol
                 subresources[i].pData = images[i].pixels;
             }
 
-            mTexture->CopySubresources(gHeapManager->GetUploadBuffersHeap(), subresources.data(), 0, subresources.size(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            mTexture->CopySubresources(cmdList, uploadBuffersHeap, subresources.data(), 0, subresources.size());
         }
 
         uint32_t GetGpuSrvIdx(uint32_t planeSlice = 0)
@@ -160,7 +169,14 @@ namespace Carol
         {
         }
 
-        uint32_t LoadTexture(wstring_view fileName, bool isSrgb = false)
+        uint32_t LoadTexture(
+            wstring_view fileName,
+            bool isSrgb,
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         {
             if (fileName.size() == 0)
             {
@@ -171,7 +187,14 @@ namespace Carol
 
             if (mTextures.count(name) == 0)
             {
-                mTextures[name] = make_unique<Texture>(name, false);
+                mTextures[name] = make_unique<Texture>(
+                    name,
+                    isSrgb,
+                    device,
+                    cmdList,
+                    defaultBuffersHeap,
+                    uploadBuffersHeap,
+                    descriptorManager);
             }
             else
             {

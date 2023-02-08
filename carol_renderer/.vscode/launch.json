@@ -4,7 +4,7 @@
 
         {
             "type": "xmake",
-            "request": "attach",
+            "request": "launch",
             "name": "carol_renderer",
             "target": "carol_renderer",
             "cwd": "",

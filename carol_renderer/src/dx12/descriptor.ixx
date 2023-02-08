@@ -5,20 +5,24 @@ import <wrl/client.h>;
 import <vector>;
 import <memory>;
 import <unordered_map>;
+import <mutex>;
 
 namespace Carol
 {
 	using Microsoft::WRL::ComPtr;
+	using std::lock_guard;
 	using std::make_unique;
+	using std::mutex;
 	using std::unique_ptr;
 	using std::unordered_map;
 	using std::vector;
 
-	class DescriptorAllocator;
+	class DescriptorManager;
 
 	export class DescriptorAllocInfo
 	{
 	public:
+		DescriptorManager *Manager = nullptr;
 		uint32_t StartOffset = 0;
 		uint32_t NumDescriptors = 0;
 	};
@@ -28,6 +32,7 @@ namespace Carol
 	public:
 		DescriptorAllocator(
 			D3D12_DESCRIPTOR_HEAP_TYPE type,
+			ID3D12Device* device,
 			uint32_t initNumCpuDescriptors = 2048,
 			uint32_t numGpuDescriptors = 65536)
 			:mType(type),
@@ -36,13 +41,34 @@ namespace Carol
 			mCpuDeletedAllocInfo(gNumFrame),
 			mGpuDeletedAllocInfo(gNumFrame)
 		{
-			mDescriptorSize = gDevice->GetDescriptorHandleIncrementSize(type);
-			AddCpuDescriptorHeap();
-			InitGpuDescriptorHeap();
+			mDescriptorSize = device->GetDescriptorHandleIncrementSize(type);
+			AddCpuDescriptorHeap(device);
+			InitGpuDescriptorHeap(device);
+		}
+
+		~DescriptorAllocator()
+		{
+			for (auto& deletedInfo : mCpuDeletedAllocInfo)
+			{
+				for (auto& info : deletedInfo)
+				{
+					CpuDelete(std::move(info));
+				}
+			}
+
+			for (auto& deletedInfo : mGpuDeletedAllocInfo)
+			{
+				for (auto& info : deletedInfo)
+				{
+					GpuDelete(std::move(info));
+				}
+			}
 		}
 
 		unique_ptr<DescriptorAllocInfo> CpuAllocate(uint32_t numDescriptors)
 		{
+			lock_guard<mutex> lock(mCpuAllocatorMutex);
+
 			BuddyAllocInfo buddyInfo;
 			unique_ptr<DescriptorAllocInfo> descInfo;
 
@@ -58,7 +84,9 @@ namespace Carol
 				}
 			}
 
-			AddCpuDescriptorHeap();
+			ComPtr<ID3D12Device> device;
+			mCpuDescriptorHeaps.back()->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+			AddCpuDescriptorHeap(device.Get());
 
 			if (mCpuBuddies.back()->Allocate(numDescriptors, buddyInfo))
 			{
@@ -77,6 +105,8 @@ namespace Carol
 
 		unique_ptr<DescriptorAllocInfo> GpuAllocate(uint32_t numDescriptors)
 		{
+			lock_guard<mutex> lock(mGpuAllocatorMutex);
+
 			BuddyAllocInfo buddyInfo;
 			unique_ptr<DescriptorAllocInfo> descInfo;
 			
@@ -144,7 +174,7 @@ namespace Carol
 		}
 
 	protected:
-		void AddCpuDescriptorHeap()
+		void AddCpuDescriptorHeap(ID3D12Device* device)
 		{
 			mCpuDescriptorHeaps.emplace_back();
 			mCpuBuddies.emplace_back(make_unique<Buddy>(mNumCpuDescriptorsPerHeap, 1u));
@@ -155,10 +185,10 @@ namespace Carol
 			descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 			descHeapDesc.NodeMask = 0;
 
-			ThrowIfFailed(gDevice->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(mCpuDescriptorHeaps.back().GetAddressOf())));
+			ThrowIfFailed(device->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(mCpuDescriptorHeaps.back().GetAddressOf())));
 		}
 
-		void InitGpuDescriptorHeap()
+		void InitGpuDescriptorHeap(ID3D12Device* device)
 		{
 			if (mType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
 			{
@@ -170,12 +200,14 @@ namespace Carol
 				descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 				descHeapDesc.NodeMask = 0;
 
-				ThrowIfFailed(gDevice->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(mGpuDescriptorHeap.GetAddressOf())));
+				ThrowIfFailed(device->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(mGpuDescriptorHeap.GetAddressOf())));
 			}
 		}
 
 		void CpuDelete(unique_ptr<DescriptorAllocInfo> info)
 		{
+			lock_guard<mutex> lock(mCpuAllocatorMutex);
+
 			if (info)
 			{
 				uint32_t buddyIdx = info->StartOffset / mNumCpuDescriptorsPerHeap;
@@ -188,6 +220,8 @@ namespace Carol
 
 		void GpuDelete(unique_ptr<DescriptorAllocInfo> info)
 		{
+			lock_guard<mutex> lock(mGpuAllocatorMutex);
+
 			if (info)
 			{
 				BuddyAllocInfo buddyInfo(info->StartOffset, info->NumDescriptors);
@@ -208,20 +242,24 @@ namespace Carol
 
 		D3D12_DESCRIPTOR_HEAP_TYPE mType;
 		uint32_t mDescriptorSize = 0;
+
+		mutex mCpuAllocatorMutex;
+		mutex mGpuAllocatorMutex;
 	};
 
 	export class DescriptorManager
 	{
 	public:
 		DescriptorManager(
+			ID3D12Device* device,
 			uint32_t initCpuCbvSrvUavHeapSize = 2048,
 			uint32_t initGpuCbvSrvUavHeapSize = 65536,
 			uint32_t initRtvHeapSize = 2048,
 			uint32_t initDsvHeapSize = 2048)
 		{
-			mCbvSrvUavAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initCpuCbvSrvUavHeapSize, initGpuCbvSrvUavHeapSize);
-			mRtvAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, initRtvHeapSize, 0);
-			mDsvAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, initDsvHeapSize, 0);
+			mCbvSrvUavAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, device, initCpuCbvSrvUavHeapSize, initGpuCbvSrvUavHeapSize);
+			mRtvAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, device, initRtvHeapSize, 0);
+			mDsvAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, device, initDsvHeapSize, 0);
 		}
 
 		DescriptorManager(DescriptorManager &&manager)
@@ -237,22 +275,34 @@ namespace Carol
 
 		unique_ptr<DescriptorAllocInfo> CpuCbvSrvUavAllocate(uint32_t numDescriptors)
 		{
-			return mCbvSrvUavAllocator->CpuAllocate(numDescriptors);
+			auto info = mCbvSrvUavAllocator->CpuAllocate(numDescriptors);
+			info->Manager = this;
+
+			return info;
 		}
 
 		unique_ptr<DescriptorAllocInfo> GpuCbvSrvUavAllocate(uint32_t numDescriptors)
 		{
-			return mCbvSrvUavAllocator->GpuAllocate(numDescriptors);
+			auto info = mCbvSrvUavAllocator->GpuAllocate(numDescriptors);
+			info->Manager = this;
+
+			return info;
 		}
 
 		unique_ptr<DescriptorAllocInfo> RtvAllocate(uint32_t numDescriptors)
 		{
-			return mRtvAllocator->CpuAllocate(numDescriptors);
+			auto info = mRtvAllocator->CpuAllocate(numDescriptors);
+			info->Manager = this;
+
+			return info;
 		}
 
 		unique_ptr<DescriptorAllocInfo> DsvAllocate(uint32_t numDescriptors)
 		{
-			return mDsvAllocator->CpuAllocate(numDescriptors);
+			auto info = mDsvAllocator->CpuAllocate(numDescriptors);
+			info->Manager = this;
+
+			return info;
 		}
 
 		void CpuCbvSrvUavDeallocate(unique_ptr<DescriptorAllocInfo> info)
@@ -332,6 +382,4 @@ namespace Carol
 		unique_ptr<DescriptorAllocator> mRtvAllocator;
 		unique_ptr<DescriptorAllocator> mDsvAllocator;
 	};
-
-	export unique_ptr<DescriptorManager> gDescriptorManager;
 }

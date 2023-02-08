@@ -28,37 +28,42 @@ namespace Carol
     {
     public:
         SsaoPass(
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager,
             uint32_t blurCount = 3,
             DXGI_FORMAT ambientMapFormat = DXGI_FORMAT_R16_UNORM)
              :mBlurCount(blurCount), 
             mAmbientMapFormat(ambientMapFormat)
         {
             InitShaders();
-            InitPSOs();
+            InitPSOs(device);
             InitRandomVectors();
-            InitRandomVectorMap();
+            InitRandomVectorMap(
+                device,
+                cmdList,
+                defaultBuffersHeap,
+                uploadBuffersHeap,
+                descriptorManager);
         }
 
         SsaoPass(const SsaoPass &) = delete;
         SsaoPass(SsaoPass &&) = delete;
         SsaoPass &operator=(const SsaoPass &) = delete;
 
-        virtual void Draw() override
+        virtual void Draw(ID3D12GraphicsCommandList* cmdList)
         {
             uint32_t groupWidth = ceilf(mWidth * 1.f / (32 - 2 * BLUR_RADIUS)); 
             uint32_t groupHeight = ceilf(mHeight * 1.f / (32 - 2 * BLUR_RADIUS));
 
-            gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
+            mAmbientMap->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-            gCommandList->SetPipelineState(gPSOs[L"Ssao"]->Get());
-            gCommandList->Dispatch(groupWidth, groupHeight , 1);
-
-            gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mAmbientMap->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
-        }
-
-        virtual void Update() override
-        {
+            cmdList->SetPipelineState(gPSOs[L"Ssao"]->Get());
+            cmdList->Dispatch(groupWidth, groupHeight , 1);
             
+            mAmbientMap->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         }
 
         void ReleaseIntermediateBuffers()
@@ -66,20 +71,25 @@ namespace Carol
             mRandomVecMap->ReleaseIntermediateBuffer();
         }
 
-        virtual void OnResize(uint32_t width, uint32_t height) override
+        virtual void OnResize(
+        uint32_t width,
+        uint32_t height,
+        ID3D12Device* device,
+        Heap* heap,
+        DescriptorManager* descriptorManager)
+    {
+        if (mWidth != width >> 1 || mHeight != height >> 1)
         {
-            if (mWidth != width >> 1 || mHeight != height >> 1)
-            {
-                mWidth = width >> 1;
-                mHeight = height >> 1;
-                mViewport = { 0.f,0.f,mWidth * 1.f,mHeight * 1.f,0.f,1.f };
-                mScissorRect = { 0,0,(long)mWidth,(long)mHeight };
+            mWidth = width >> 1;
+            mHeight = height >> 1;
+            mViewport = { 0.f,0.f,mWidth * 1.f,mHeight * 1.f,0.f,1.f };
+            mScissorRect = { 0,0,(long)mWidth,(long)mHeight };
 
-                InitBuffers();
-            }
+            InitBuffers(device, heap, descriptorManager);
         }
+    }
 
-        std::vector<float> CalcGaussWeights(float sigma)
+        vector<float> CalcGaussWeights(float sigma)
         {
             static int maxGaussRadius = 5;
 
@@ -105,22 +115,22 @@ namespace Carol
             return weights;
         }
 
-        void GetOffsetVectors(XMFLOAT4 offsets[14])
+        void GetOffsetVectors(XMFLOAT4 offsets[14])const
         {
             std::copy(&mOffsets[0], &mOffsets[14], offsets);
         }
 
-        uint32_t GetRandVecSrvIdx()
+        uint32_t GetRandVecSrvIdx()const
         {
             return mRandomVecMap->GetGpuSrvIdx();
         }
 
-        uint32_t GetSsaoSrvIdx()
+        uint32_t GetSsaoSrvIdx()const
         {
             return mAmbientMap->GetGpuSrvIdx();
         }
 
-        uint32_t GetSsaoUavIdx()
+        uint32_t GetSsaoUavIdx()const
         {
             return mAmbientMap->GetGpuUavIdx();
         }
@@ -136,19 +146,20 @@ namespace Carol
             }
         }
 
-        virtual void InitPSOs() override
+        virtual void InitPSOs(ID3D12Device* device) override
         {
             if (gPSOs.count(L"Ssao") == 0)
             {
                 auto ssaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+                ssaoComputePSO->SetRootSignature(sRootSignature.get());
                 ssaoComputePSO->SetCS(gShaders[L"SsaoCS"].get());
-                ssaoComputePSO->Finalize();
+                ssaoComputePSO->Finalize(device);
             
                 gPSOs[L"Ssao"] = std::move(ssaoComputePSO);
             }
         }
         
-        virtual void InitBuffers() override
+        virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager) override
         {
             mAmbientMap = make_unique<ColorBuffer>(
                 mWidth,
@@ -156,7 +167,9 @@ namespace Carol
                 1,
                 COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
                 mAmbientMapFormat,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
         }
@@ -194,7 +207,12 @@ namespace Carol
             }
         }
 
-        void InitRandomVectorMap()
+        void InitRandomVectorMap(
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         { 
             mRandomVecMap = make_unique<ColorBuffer>(
                 256,
@@ -202,7 +220,9 @@ namespace Carol
                 1,
                 COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
                 DXGI_FORMAT_R8G8B8A8_UNORM,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                defaultBuffersHeap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
             XMCOLOR initData[256 * 256];
@@ -219,7 +239,7 @@ namespace Carol
             subresource.pData = initData;
             subresource.RowPitch = 256 * sizeof(XMCOLOR);
             subresource.SlicePitch = subresource.RowPitch * 256;
-            mRandomVecMap->CopySubresources(gHeapManager->GetUploadBuffersHeap(), &subresource, 0, 1, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            mRandomVecMap->CopySubresources(cmdList, uploadBuffersHeap, &subresource, 0, 1);
         }
 
         unique_ptr<ColorBuffer> mRandomVecMap;

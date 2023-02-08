@@ -20,42 +20,52 @@ namespace Carol
     export class NormalPass : public RenderPass
 	{
 	public:
-		NormalPass(DXGI_FORMAT normalMapFormat = DXGI_FORMAT_R8G8B8A8_SNORM)
-        	:mNormalMapFormat(normalMapFormat)
+		NormalPass(
+            ID3D12Device* device,
+            DXGI_FORMAT frameDsvFormat,
+            DXGI_FORMAT normalMapFormat = DXGI_FORMAT_R8G8B8A8_SNORM)
+        	:mNormalMapFormat(normalMapFormat),
+            mFrameDsvFormat(frameDsvFormat),
+            mIndirectCommandBuffer(MESH_TYPE_COUNT)
         {
             InitShaders();
-            InitPSOs();
+            InitPSOs(device);
         }
 
 		NormalPass(const NormalPass&) = delete;
 		NormalPass(NormalPass&&) = delete;
 		NormalPass& operator=(const NormalPass&) = delete;
 
-		virtual void Draw()override
+		virtual void Draw(ID3D12GraphicsCommandList* cmdList)
         {
-            gCommandList->RSSetViewports(1, &mViewport);
-            gCommandList->RSSetScissorRects(1, &mScissorRect);
+            cmdList->RSSetViewports(1, &mViewport);
+            cmdList->RSSetScissorRects(1, &mScissorRect);
 
-            gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mNormalMap->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-            gCommandList->ClearRenderTargetView(mNormalMap->GetRtv(), DirectX::Colors::Blue, 0, nullptr);
-            gCommandList->ClearDepthStencilView(gFramePass->GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
-            gCommandList->OMSetRenderTargets(1, GetRvaluePtr(mNormalMap->GetRtv()), true, GetRvaluePtr(gFramePass->GetFrameDsv()));
+            cmdList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mNormalMap->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)));
+            cmdList->ClearRenderTargetView(mNormalMap->GetRtv(), DirectX::Colors::Blue, 0, nullptr);
+            cmdList->ClearDepthStencilView(mFrameDsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+            cmdList->OMSetRenderTargets(1, GetRvaluePtr(mNormalMap->GetRtv()), true, &mFrameDsv);
 
-            gCommandList->SetPipelineState(gPSOs[L"NormalsStatic"]->Get());
-            gScene->ExecuteIndirect(gFramePass->GetIndirectCommandBuffer(OPAQUE_STATIC));
+            cmdList->SetPipelineState(gPSOs[L"NormalsStatic"]->Get());
+            ExecuteIndirect(cmdList, mIndirectCommandBuffer[OPAQUE_STATIC]);
             
-            gCommandList->SetPipelineState(gPSOs[L"NormalsSkinned"]->Get());
-            gScene->ExecuteIndirect(gFramePass->GetIndirectCommandBuffer(OPAQUE_SKINNED));
+            cmdList->SetPipelineState(gPSOs[L"NormalsSkinned"]->Get());
+            ExecuteIndirect(cmdList, mIndirectCommandBuffer[OPAQUE_SKINNED]);
 
-            gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mNormalMap->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+            cmdList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mNormalMap->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
         }
-
-		virtual void Update()override
+        
+        void SetIndirectCommandBuffer(MeshType type, const StructuredBuffer* indirectCommandBuffer)
         {
-
+            mIndirectCommandBuffer[type] = indirectCommandBuffer;
+        }
+  
+		void SetFrameDsv(D3D12_CPU_DESCRIPTOR_HANDLE frameDsv)
+        {
+            mFrameDsv = frameDsv;
         }
 
-		uint32_t GetNormalSrvIdx()
+		uint32_t GetNormalSrvIdx()const
         {
             return mNormalMap->GetGpuSrvIdx();
         }
@@ -86,16 +96,17 @@ namespace Carol
             }
         }
 
-		virtual void InitPSOs()override
+		virtual void InitPSOs(ID3D12Device* device)override
         {
             if (gPSOs.count(L"NormalsStatic") == 0)
             {
                 auto normalsStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-                normalsStaticMeshPSO->SetRenderTargetFormat(mNormalMapFormat, gFramePass->GetFrameDsvFormat());
+                normalsStaticMeshPSO->SetRootSignature(sRootSignature.get());
+                normalsStaticMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mFrameDsvFormat);
                 normalsStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
                 normalsStaticMeshPSO->SetMS(gShaders[L"NormalsStaticMS"].get());
                 normalsStaticMeshPSO->SetPS(gShaders[L"NormalsPS"].get());
-                normalsStaticMeshPSO->Finalize();
+                normalsStaticMeshPSO->Finalize(device);
 
                 gPSOs[L"NormalsStatic"] = std::move(normalsStaticMeshPSO);
             }
@@ -103,17 +114,18 @@ namespace Carol
             if (gPSOs.count(L"NormalsSkinned") == 0)
             {
                 auto normalsSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-                normalsSkinnedMeshPSO->SetRenderTargetFormat(mNormalMapFormat, gFramePass->GetFrameDsvFormat());
+                normalsSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
+                normalsSkinnedMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mFrameDsvFormat);
                 normalsSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
                 normalsSkinnedMeshPSO->SetMS(gShaders[L"NormalsSkinnedMS"].get());
                 normalsSkinnedMeshPSO->SetPS(gShaders[L"NormalsPS"].get());
-                normalsSkinnedMeshPSO->Finalize();
+                normalsSkinnedMeshPSO->Finalize(device);
                 
                 gPSOs[L"NormalsSkinned"] = std::move(normalsSkinnedMeshPSO);
             }
         }
 
-		virtual void InitBuffers()override
+		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override
         {
             D3D12_CLEAR_VALUE optClearValue  = CD3DX12_CLEAR_VALUE(mNormalMapFormat, DirectX::Colors::Blue);
             mNormalMap = make_unique<ColorBuffer>(
@@ -122,7 +134,9 @@ namespace Carol
                 1,
                 COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
                 mNormalMapFormat,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
                 &optClearValue);
@@ -130,5 +144,9 @@ namespace Carol
 
 		unique_ptr<ColorBuffer> mNormalMap;
 		DXGI_FORMAT mNormalMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	};
+
+        vector<const StructuredBuffer*> mIndirectCommandBuffer;
+		D3D12_CPU_DESCRIPTOR_HANDLE mFrameDsv;
+        DXGI_FORMAT mFrameDsvFormat;
+    };
 }

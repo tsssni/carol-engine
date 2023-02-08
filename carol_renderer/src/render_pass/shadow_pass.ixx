@@ -23,6 +23,10 @@ namespace Carol
     {
     public:
         ShadowPass(
+            ID3D12Device* device,
+            Heap* heap,
+            DescriptorManager* descriptorManager,
+            Scene* scene,
             Light light,
             uint32_t width = 512,
             uint32_t height = 512,
@@ -32,6 +36,7 @@ namespace Carol
             DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT)
             : mLight(make_unique<Light>(light)),
+              mScene(scene),
               mDepthBias(depthBias),
               mDepthBiasClamp(depthBiasClamp),
               mSlopeScaledDepthBias(slopeScaledDepthBias),
@@ -44,26 +49,31 @@ namespace Carol
         {
             InitLightView();
             InitShaders();
-            InitPSOs();
-            OnResize(width, height);
+            InitPSOs(device);
+            OnResize(
+                width,
+                height,
+                device,
+                heap,
+                descriptorManager);
         }
 
-        virtual void Draw() override
+        virtual void Draw(ID3D12GraphicsCommandList* cmdList) override
         {
-            Clear();
-            gCommandList->RSSetViewports(1, &mViewport);
-            gCommandList->RSSetScissorRects(1, &mScissorRect);
+            Clear(cmdList);
+            cmdList->RSSetViewports(1, &mViewport);
+            cmdList->RSSetScissorRects(1, &mScissorRect);
 
-            GenerateHiZ();
-            CullInstances(true);
-            DrawShadow(true);
+            GenerateHiZ(cmdList);
+            CullInstances(true, cmdList);
+            DrawShadow(true, cmdList);
 
-            GenerateHiZ();
-            CullInstances(false);
-            DrawShadow(false);
+            GenerateHiZ(cmdList);
+            CullInstances(false, cmdList);
+            DrawShadow(false, cmdList);
         }
 
-        virtual void Update(uint32_t lightIdx)
+        void Update(uint32_t lightIdx)
         {
             XMMATRIX view = mCamera->GetView();
             XMMATRIX proj = mCamera->GetProj();
@@ -82,11 +92,11 @@ namespace Carol
             for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
             {
                 MeshType type = MeshType(OPAQUE_MESH_START + i);
-                TestCommandBufferSize(mCulledCommandBuffer[gCurrFrame][type], gScene->GetMeshesCount(type));
+                TestCommandBufferSize(mCulledCommandBuffer[gCurrFrame][type], mScene->GetMeshesCount(type));
 
                 mCullIdx[i][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[gCurrFrame][i]->GetGpuUavIdx();
-                mCullIdx[i][CULL_MESH_COUNT] = gScene->GetMeshesCount(type);
-                mCullIdx[i][CULL_MESH_OFFSET] = gScene->GetMeshCBStartOffet(type);
+                mCullIdx[i][CULL_MESH_COUNT] = mScene->GetMeshesCount(type);
+                mCullIdx[i][CULL_MESH_OFFSET] = mScene->GetMeshCBStartOffet(type);
                 mCullIdx[i][CULL_HIZ_IDX] = mHiZMap->GetGpuSrvIdx();
                 mCullIdx[i][CULL_LIGHT_IDX] = lightIdx;
             }
@@ -96,21 +106,17 @@ namespace Carol
             mHiZIdx[HIZ_W_IDX] = mHiZMap->GetGpuUavIdx();
         }
  
-        uint32_t GetShadowSrvIdx()
+        uint32_t GetShadowSrvIdx()const
         {
             return mShadowMap->GetGpuSrvIdx();
         }
 
-        const Light &GetLight()
+        const Light &GetLight()const
         {
             return *mLight;
         }
 
     protected:
-        virtual void Update()override
-        {
-
-        }
 
         virtual void InitShaders() override
         {
@@ -152,16 +158,17 @@ namespace Carol
             }
         }
 
-        virtual void InitPSOs() override
+        virtual void InitPSOs(ID3D12Device* device) override
         {
             if (gPSOs.count(L"ShadowStatic") == 0)
             {
                 auto shadowStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                shadowStaticMeshPSO->SetRootSignature(sRootSignature.get());
                 shadowStaticMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
                 shadowStaticMeshPSO->SetDepthTargetFormat(GetDsvFormat(mShadowFormat));
                 shadowStaticMeshPSO->SetAS(gShaders[L"ShadowAS"].get());
                 shadowStaticMeshPSO->SetMS(gShaders[L"ShadowStaticMS"].get());
-                shadowStaticMeshPSO->Finalize();
+                shadowStaticMeshPSO->Finalize(device);
             
                 gPSOs[L"ShadowStatic"] = std::move(shadowStaticMeshPSO);
             }
@@ -169,11 +176,12 @@ namespace Carol
             if (gPSOs.count(L"ShadowSkinned") == 0)
             {
                 auto shadowSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                shadowSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
                 shadowSkinnedMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
                 shadowSkinnedMeshPSO->SetDepthTargetFormat(GetDsvFormat(mShadowFormat));
                 shadowSkinnedMeshPSO->SetAS(gShaders[L"ShadowAS"].get());
                 shadowSkinnedMeshPSO->SetMS(gShaders[L"ShadowSkinnedMS"].get());
-                shadowSkinnedMeshPSO->Finalize();
+                shadowSkinnedMeshPSO->Finalize(device);
             
                 gPSOs[L"ShadowSkinned"] = std::move(shadowSkinnedMeshPSO);
             }
@@ -181,14 +189,15 @@ namespace Carol
             if (gPSOs.count(L"ShadowInstanceCull") == 0)
             {
                 auto shadowInstanceCullComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+                shadowInstanceCullComputePSO->SetRootSignature(sRootSignature.get());
                 shadowInstanceCullComputePSO->SetCS(gShaders[L"ShadowCullCS"].get());
-                shadowInstanceCullComputePSO->Finalize();
+                shadowInstanceCullComputePSO->Finalize(device);
 
                 gPSOs[L"ShadowInstanceCull"] = std::move(shadowInstanceCullComputePSO);
             }
         }
 
-        virtual void InitBuffers() override
+        virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override
         {
             D3D12_CLEAR_VALUE optClearValue;
             optClearValue.Format = GetDsvFormat(mShadowFormat);
@@ -201,7 +210,9 @@ namespace Carol
                 1,
                 COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
                 mShadowFormat,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_DEPTH_WRITE,
                 D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
                 &optClearValue);
@@ -212,7 +223,9 @@ namespace Carol
                 1,
                 COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
                 mHiZFormat,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_COMMON,
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                 nullptr,
@@ -224,7 +237,13 @@ namespace Carol
 
                 for (int j = 0; j < OPAQUE_MESH_TYPE_COUNT; ++j)
                 {
-                    ResizeCommandBuffer(mCulledCommandBuffer[i][j], 1024, sizeof(IndirectCommand));
+                    ResizeCommandBuffer(
+                        mCulledCommandBuffer[i][j],
+                        1024,
+                        sizeof(IndirectCommand),
+                        device,
+                        heap,
+                        descriptorManager);
                 }
             }
 
@@ -247,21 +266,21 @@ namespace Carol
 
         virtual void InitCamera() = 0;
 
-        void Clear()
+        void Clear(ID3D12GraphicsCommandList* cmdList)
         {
-            gScene->ClearCullMark();
+            mScene->ClearCullMark(cmdList);
 
             for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
             {
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_COPY_DEST)));
-                mCulledCommandBuffer[gCurrFrame][i]->ResetCounter();
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
+                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
+                mCulledCommandBuffer[gCurrFrame][i]->ResetCounter(cmdList);
+                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
             }
         }
 
-        void CullInstances(bool hist)
+        void CullInstances(bool hist, ID3D12GraphicsCommandList* cmdList)
         {
-            gCommandList->SetPipelineState(gPSOs[L"ShadowInstanceCull"]->Get());
+            cmdList->SetPipelineState(gPSOs[L"ShadowInstanceCull"]->Get());
 
             for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
             {
@@ -273,19 +292,19 @@ namespace Carol
                 mCullIdx[i][CULL_HIST] = hist;
                 uint32_t count = ceilf(mCullIdx[i][CULL_MESH_COUNT] / 32.f);
 
-                gCommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
-                gCommandList->Dispatch(count, 1, 1);
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mCulledCommandBuffer[gCurrFrame][i]->Get())));
+                cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
+                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                cmdList->Dispatch(count, 1, 1);
+                mCulledCommandBuffer[gCurrFrame][i]->UavBarrier(cmdList);
             }
         }
 
-        void DrawShadow(bool hist)
+        void DrawShadow(bool hist, ID3D12GraphicsCommandList* cmdList)
         {
-            gCommandList->ClearDepthStencilView(mShadowMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-            gCommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mShadowMap->GetDsv()));
+            cmdList->ClearDepthStencilView(mShadowMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+            cmdList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mShadowMap->GetDsv()));
 
-            ID3D12PipelineState *pso[] = {gPSOs[L"ShadowStatic"]->Get(), gPSOs[L"ShadowSkinned"]->Get()};
+            ID3D12PipelineState* pso[] = {gPSOs[L"ShadowStatic"]->Get(), gPSOs[L"ShadowSkinned"]->Get()};
 
             for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
             {
@@ -296,44 +315,60 @@ namespace Carol
 
                 mCullIdx[i][CULL_HIST] = hist;
 
-                gCommandList->SetPipelineState(pso[i]);
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
-                gCommandList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-                gScene->ExecuteIndirect(mCulledCommandBuffer[gCurrFrame][i].get());
+                cmdList->SetPipelineState(pso[i]);
+                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+                cmdList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
+                ExecuteIndirect(cmdList, mCulledCommandBuffer[gCurrFrame][i].get());
             }
         }
 
-        void GenerateHiZ()
+        void GenerateHiZ(ID3D12GraphicsCommandList* cmdList)
         {
-            gCommandList->SetPipelineState(gPSOs[L"HiZGenerate"]->Get());
+            cmdList->SetPipelineState(gPSOs[L"HiZGenerate"]->Get());
 
             for (int i = 0; i < mHiZMipLevels - 1; i += 5)
             {
                 mHiZIdx[HIZ_SRC_MIP] = i;
                 mHiZIdx[HIZ_NUM_MIP_LEVEL] = i + 5 >= mHiZMipLevels ? mHiZMipLevels - i - 1 : 5;
-                gCommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, HIZ_IDX_COUNT, mHiZIdx.data(), 0);
-
+                cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, HIZ_IDX_COUNT, mHiZIdx.data(), 0);
+                
                 uint32_t width = ceilf((mWidth >> i) / 32.f);
                 uint32_t height = ceilf((mHeight >> i) / 32.f);
-                gCommandList->Dispatch(width, height, 1);
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mHiZMap->Get())));
+                cmdList->Dispatch(width, height, 1);
+                mHiZMap->UavBarrier(cmdList);
             }
         }
 
-        void TestCommandBufferSize(unique_ptr<StructuredBuffer> &buffer, uint32_t numElements)
+        void TestCommandBufferSize(
+            std::unique_ptr<StructuredBuffer>& buffer,
+            uint32_t numElements)
         {
             if (buffer->GetNumElements() < numElements)
             {
-                ResizeCommandBuffer(buffer, numElements, buffer->GetElementSize());
+                ResizeCommandBuffer(
+                    buffer,
+                    numElements,
+                    buffer->GetElementSize(),
+                    buffer->GetDevice().Get(),
+                    buffer->GetHeap(),
+                    buffer->GetDescriptorManager());
             }
         }
 
-        void ResizeCommandBuffer(unique_ptr<StructuredBuffer> &buffer, uint32_t numElements, uint32_t elementSize)
+        void ResizeCommandBuffer(
+            std::unique_ptr<StructuredBuffer>& buffer,
+            uint32_t numElements,
+            uint32_t elementSize,
+            ID3D12Device* device,
+            Heap* heap,
+            DescriptorManager* descriptorManager)
         {
             buffer = make_unique<StructuredBuffer>(
                 numElements,
                 elementSize,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
         }
@@ -364,6 +399,8 @@ namespace Carol
         unique_ptr<ColorBuffer> mHiZMap;
         vector<vector<unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
 
+        Scene *mScene;
+
         uint32_t mDepthBias;
         float mDepthBiasClamp;
         float mSlopeScaledDepthBias;
@@ -382,6 +419,10 @@ namespace Carol
     {
     public:
 		DirectLightShadowPass(
+            ID3D12Device* device,
+            Heap* heap,
+            DescriptorManager* descriptorManager,
+            Scene* scene,
             Light light,
             uint32_t width = 512,
             uint32_t height = 512,
@@ -390,7 +431,19 @@ namespace Carol
             float slopeScaledDepthBias = 4.f,
             DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT)
-            :ShadowPass(light, width, height, depthBias, depthBiasClamp, slopeScaledDepthBias, shadowFormat, hiZFormat)
+            :ShadowPass(
+                device,
+                heap,
+                descriptorManager,
+                scene,
+                light, 
+                width, 
+                height, 
+                depthBias, 
+                depthBiasClamp, 
+                slopeScaledDepthBias, 
+                shadowFormat, 
+                hiZFormat)
         {
             InitCamera();
         }
@@ -467,6 +520,10 @@ namespace Carol
     {
 	public:
         CascadedShadowPass(
+            ID3D12Device* device,
+            Heap* heap,
+            DescriptorManager* descriptorManager,
+            Scene* scene,
             Light light,
             uint32_t splitLevel = 5,
             uint32_t width = 512,
@@ -483,6 +540,10 @@ namespace Carol
             for (auto& shadow : mShadow)
             {
                 shadow = make_unique<DirectLightShadowPass>(
+                    device,
+                    heap,
+                    descriptorManager,
+                    scene,
                     light,
                     width,
                     height,
@@ -494,11 +555,11 @@ namespace Carol
             }
         }
 
-		virtual void Draw()
+		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override
         {
             for (auto& shadow : mShadow)
             {
-                shadow->Draw();
+                shadow->Draw(cmdList);
             }
         }
 
@@ -518,43 +579,38 @@ namespace Carol
             }
         }
 
-        uint32_t GetSplitLevel()
+        uint32_t GetSplitLevel()const
         {
             return mSplitLevel;
         }
 
-        float GetSplitZ(uint32_t idx)
+        float GetSplitZ(uint32_t idx)const
         {
             return mSplitZ[idx];
         }
         
-        uint32_t GetShadowSrvIdx(uint32_t idx)
+        uint32_t GetShadowSrvIdx(uint32_t idx)const
         {
             return mShadow[idx]->GetShadowSrvIdx();
         }
 
-        const Light& GetLight(uint32_t idx)
+        const Light& GetLight(uint32_t idx)const
         {
             return mShadow[idx]->GetLight();
         }
 
 	protected:
-        virtual void Update()
+		virtual void InitShaders()override
         {
 
         }
 
-		virtual void InitShaders()
+        virtual void InitPSOs(ID3D12Device* device)override
         {
 
         }
 
-		virtual void InitPSOs()
-        {
-
-        }
-
-		virtual void InitBuffers()
+		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override
         {
 
         }

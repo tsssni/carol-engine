@@ -36,10 +36,15 @@ namespace Carol
     {
     public:
         FramePass(
+            ID3D12Device* device,
+            Heap* heap,
+            DescriptorManager* descriptorManager,
+            Scene* scene,
             DXGI_FORMAT frameFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
             DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT)
-            :mCulledCommandBuffer(gNumFrame),
+            :mScene(scene),
+            mCulledCommandBuffer(gNumFrame),
             mCullIdx(MESH_TYPE_COUNT),
             mHiZIdx(HIZ_IDX_COUNT),
             mFrameFormat(frameFormat),
@@ -47,7 +52,7 @@ namespace Carol
             mHiZFormat(hiZFormat)
         {
             InitShaders();
-            InitPSOs();
+            InitPSOs(device);
             
             for (int i = 0; i < gNumFrame; ++i)
             {
@@ -55,7 +60,13 @@ namespace Carol
 
                 for (int j = 0; j < MESH_TYPE_COUNT; ++j)
                 {
-                    ResizeCommandBuffer(mCulledCommandBuffer[i][j], 1024, sizeof(IndirectCommand));
+                    ResizeCommandBuffer(
+                        mCulledCommandBuffer[i][j],
+                        1024,
+                        sizeof(IndirectCommand),
+                        device,
+                        heap,
+                        descriptorManager);
                 }
             }
 
@@ -69,50 +80,52 @@ namespace Carol
         FramePass(FramePass &&) = delete;
         FramePass &operator=(const FramePass &) = delete;
 
-        virtual void Draw() override
+        virtual void Draw(ID3D12GraphicsCommandList* cmdList) override
         {
-            gCommandList->RSSetViewports(1, &mViewport);
-            gCommandList->RSSetScissorRects(1, &mScissorRect);
+            cmdList->RSSetViewports(1, &mViewport);
+            cmdList->RSSetScissorRects(1, &mScissorRect);
 
-            gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mFrameMap->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)));
-            gCommandList->ClearRenderTargetView(GetFrameRtv(), Colors::Gray, 0, nullptr);
-            gCommandList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
-            gCommandList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, GetRvaluePtr(GetFrameDsv()));
+            mFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+            cmdList->ClearRenderTargetView(GetFrameRtv(), Colors::Gray, 0, nullptr);
+            cmdList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+            cmdList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, GetRvaluePtr(GetFrameDsv()));
 
-            DrawOpaque();
-            DrawTransparent();
+            DrawOpaque(cmdList);
+            DrawTransparent(cmdList);
             
-            gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mFrameMap->Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+            mFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         }
 
-        void Cull()
+        void Cull(ID3D12GraphicsCommandList* cmdList)
         {
-            Clear();
-            gCommandList->RSSetViewports(1, &mViewport);
-            gCommandList->RSSetScissorRects(1, &mScissorRect);
+            Clear(cmdList);
+            cmdList->RSSetViewports(1, &mViewport);
+            cmdList->RSSetScissorRects(1, &mScissorRect);
 
-            GenerateHiZ();
-            CullInstances(true, true);
-            CullMeshlets(true, true);
+            GenerateHiZ(cmdList);
+            CullInstances(cmdList, true, true);
+            CullMeshlets(cmdList, true, true);
 
-            GenerateHiZ();
-            CullInstances(false, true);
-            CullMeshlets(false, true);
+            GenerateHiZ(cmdList);
+            CullInstances(cmdList, false, true);
+            CullMeshlets(cmdList, false, true);
 
-            CullInstances(false, false);
-            CullMeshlets(false, false);
+            CullInstances(cmdList, false, false);
+            CullMeshlets(cmdList, false, false);
         }
 
-        virtual void Update() override
+        virtual void Update()
         {
             for (int i = 0; i < MESH_TYPE_COUNT; ++i)
             {
                 MeshType type = MeshType(i);
-                TestCommandBufferSize(mCulledCommandBuffer[gCurrFrame][i], gScene->GetMeshesCount(type));
+                TestCommandBufferSize(
+                    mCulledCommandBuffer[gCurrFrame][i],
+                    mScene->GetMeshesCount(type));
 
                 mCullIdx[i][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[gCurrFrame][i]->GetGpuUavIdx();
-                mCullIdx[i][CULL_MESH_COUNT] = gScene->GetMeshesCount(type);
-                mCullIdx[i][CULL_MESH_OFFSET] = gScene->GetMeshCBStartOffet(type);
+                mCullIdx[i][CULL_MESH_COUNT] = mScene->GetMeshesCount(type);
+                mCullIdx[i][CULL_MESH_OFFSET] = mScene->GetMeshCBStartOffet(type);
                 mCullIdx[i][CULL_HIZ_IDX] = mHiZMap->GetGpuSrvIdx();
             }
 
@@ -121,72 +134,72 @@ namespace Carol
             mHiZIdx[HIZ_W_IDX] = mHiZMap->GetGpuUavIdx();
         }
 
-        D3D12_CPU_DESCRIPTOR_HANDLE GetFrameRtv()
+        D3D12_CPU_DESCRIPTOR_HANDLE GetFrameRtv()const
         {
             return mFrameMap->GetRtv();
         }
 
-        D3D12_CPU_DESCRIPTOR_HANDLE GetFrameDsv()
+        D3D12_CPU_DESCRIPTOR_HANDLE GetFrameDsv()const
         {
             return mDepthStencilMap->GetDsv();
         }
 
-        DXGI_FORMAT GetFrameRtvFormat()
+        DXGI_FORMAT GetFrameFormat()const
         {
             return mFrameFormat;
         }
 
-        DXGI_FORMAT GetFrameDsvFormat()
+        DXGI_FORMAT GetFrameDsvFormat()const
         {
             return GetDsvFormat(mDepthStencilFormat);
         }
 
-        StructuredBuffer *GetIndirectCommandBuffer(MeshType type)
+        const StructuredBuffer *GetIndirectCommandBuffer(MeshType type)const
         {
             return mCulledCommandBuffer[gCurrFrame][type].get();
         }
 
-        uint32_t GetFrameSrvIdx()
+        uint32_t GetFrameSrvIdx()const
         {
             return mFrameMap->GetGpuSrvIdx();
         }
 
-        uint32_t GetDepthStencilSrvIdx()
+        uint32_t GetDepthStencilSrvIdx()const
         {
             return mDepthStencilMap->GetGpuSrvIdx();
         }
 
-        uint32_t GetHiZSrvIdx()
+        uint32_t GetHiZSrvIdx()const
         {
             return mHiZMap->GetGpuSrvIdx();
         }
 
-        uint32_t GetHiZUavIdx()
+        uint32_t GetHiZUavIdx()const
         {
             return mHiZMap->GetGpuUavIdx();
         }
 
-        uint32_t GetPpllUavIdx()
+        uint32_t GetPpllUavIdx()const
         {
             return mOitppllBuffer->GetGpuUavIdx();
         }
 
-        uint32_t GetOffsetUavIdx()
+        uint32_t GetOffsetUavIdx()const
         {
             return mStartOffsetBuffer->GetGpuUavIdx();
         }
 
-        uint32_t GetCounterUavIdx()
+        uint32_t GetCounterUavIdx()const
         {
             return mCounterBuffer->GetGpuUavIdx();
         }
 
-        uint32_t GetPpllSrvIdx()
+        uint32_t GetPpllSrvIdx()const
         {
             return mOitppllBuffer->GetGpuSrvIdx();
         }
 
-        uint32_t GetOffsetSrvIdx()
+        uint32_t GetOffsetSrvIdx()const
         {
             return mStartOffsetBuffer->GetGpuSrvIdx();
         }
@@ -300,15 +313,16 @@ namespace Carol
             }
         }
 
-        virtual void InitPSOs() override
+        virtual void InitPSOs(ID3D12Device* device) override
         {
             if (gPSOs.count(L"OpaqueStaticMeshletCull") == 0)
             {
                 auto cullStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                cullStaticMeshPSO->SetRootSignature(sRootSignature.get());
                 cullStaticMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthStencilFormat));
                 cullStaticMeshPSO->SetAS(gShaders[L"CullWriteAS"].get());
                 cullStaticMeshPSO->SetMS(gShaders[L"DepthStaticMS"].get());
-                cullStaticMeshPSO->Finalize();
+                cullStaticMeshPSO->Finalize(device);
             
                 gPSOs[L"OpaqueStaticMeshletCull"] = std::move(cullStaticMeshPSO);
             }
@@ -316,10 +330,11 @@ namespace Carol
             if (gPSOs.count(L"OpaqueSkinnedMeshletCull") == 0)
             {
                 auto cullSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                cullSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
                 cullSkinnedMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthStencilFormat));
                 cullSkinnedMeshPSO->SetAS(gShaders[L"CullWriteAS"].get());
                 cullSkinnedMeshPSO->SetMS(gShaders[L"DepthSkinnedMS"].get());
-                cullSkinnedMeshPSO->Finalize();
+                cullSkinnedMeshPSO->Finalize(device);
             
                 gPSOs[L"OpaqueSkinnedMeshletCull"] = std::move(cullSkinnedMeshPSO);
             }
@@ -327,11 +342,12 @@ namespace Carol
             if (gPSOs.count(L"OpaqueStatic") == 0)
             {
                 auto opaqueStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                opaqueStaticMeshPSO->SetRootSignature(sRootSignature.get());
                 opaqueStaticMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
                 opaqueStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
                 opaqueStaticMeshPSO->SetMS(gShaders[L"OpaqueStaticMS"].get());
                 opaqueStaticMeshPSO->SetPS(gShaders[L"OpaquePS"].get());
-                opaqueStaticMeshPSO->Finalize();
+                opaqueStaticMeshPSO->Finalize(device);
             
                 gPSOs[L"OpaqueStatic"] = std::move(opaqueStaticMeshPSO);
             }
@@ -339,11 +355,12 @@ namespace Carol
             if (gPSOs.count(L"OpaqueSkinned") == 0)
             {
                 auto opaqueSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                opaqueSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
                 opaqueSkinnedMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
                 opaqueSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
                 opaqueSkinnedMeshPSO->SetMS(gShaders[L"OpaqueSkinnedMS"].get());
                 opaqueSkinnedMeshPSO->SetPS(gShaders[L"OpaquePS"].get());
-                opaqueSkinnedMeshPSO->Finalize();
+                opaqueSkinnedMeshPSO->Finalize(device);
             
                 gPSOs[L"OpaqueSkinned"] = std::move(opaqueSkinnedMeshPSO);
             }
@@ -351,11 +368,12 @@ namespace Carol
             if (gPSOs.count(L"SkyBox") == 0)
             {
                 auto skyBoxMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                skyBoxMeshPSO->SetRootSignature(sRootSignature.get());
                 skyBoxMeshPSO->SetDepthStencilState(gDepthLessEqualState);
                 skyBoxMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
                 skyBoxMeshPSO->SetMS(gShaders[L"SkyBoxMS"].get());
                 skyBoxMeshPSO->SetPS(gShaders[L"SkyBoxPS"].get());
-                skyBoxMeshPSO->Finalize();
+                skyBoxMeshPSO->Finalize(device);
             
                 gPSOs[L"SkyBox"] = std::move(skyBoxMeshPSO);
             }
@@ -363,8 +381,9 @@ namespace Carol
             if (gPSOs.count(L"HiZGenerate") == 0)
             {
                 auto hiZGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+                hiZGenerateComputePSO->SetRootSignature(sRootSignature.get());
                 hiZGenerateComputePSO->SetCS(gShaders[L"HiZGenerateCS"].get());
-                hiZGenerateComputePSO->Finalize();
+                hiZGenerateComputePSO->Finalize(device);
             
                 gPSOs[L"HiZGenerate"] = std::move(hiZGenerateComputePSO);
             }
@@ -372,8 +391,9 @@ namespace Carol
             if (gPSOs.count(L"FrameCullInstances") == 0)
             {
                 auto cullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+                cullInstanceComputePSO->SetRootSignature(sRootSignature.get());
                 cullInstanceComputePSO->SetCS(gShaders[L"FrameCullCS"].get());
-                cullInstanceComputePSO->Finalize();
+                cullInstanceComputePSO->Finalize(device);
             
                 gPSOs[L"FrameCullInstances"] = std::move(cullInstanceComputePSO);
             }
@@ -381,13 +401,14 @@ namespace Carol
             if (gPSOs.count(L"BuildStaticOitppll") == 0)
             {
                 auto buildStaticOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                buildStaticOitppllMeshPSO->SetRootSignature(sRootSignature.get());
                 buildStaticOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
                 buildStaticOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
                 buildStaticOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
                 buildStaticOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
                 buildStaticOitppllMeshPSO->SetMS(gShaders[L"OpaqueStaticMS"].get());
                 buildStaticOitppllMeshPSO->SetPS(gShaders[L"BuildOitppllPS"].get());
-                buildStaticOitppllMeshPSO->Finalize();
+                buildStaticOitppllMeshPSO->Finalize(device);
             
                 gPSOs[L"BuildStaticOitppll"] = std::move(buildStaticOitppllMeshPSO);
             }
@@ -395,13 +416,14 @@ namespace Carol
             if (gPSOs.count(L"BuildSkinnedOitppll") == 0)
             {
                 auto buildSkinnedOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                buildSkinnedOitppllMeshPSO->SetRootSignature(sRootSignature.get());
                 buildSkinnedOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
                 buildSkinnedOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
                 buildSkinnedOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
                 buildSkinnedOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
                 buildSkinnedOitppllMeshPSO->SetMS(gShaders[L"OpaqueSkinnedMS"].get());
                 buildSkinnedOitppllMeshPSO->SetPS(gShaders[L"BuildOitppllPS"].get());
-                buildSkinnedOitppllMeshPSO->Finalize();
+                buildSkinnedOitppllMeshPSO->Finalize(device);
                 
                 gPSOs[L"BuildSkinnedOitppll"] = std::move(buildSkinnedOitppllMeshPSO);
             }
@@ -409,12 +431,13 @@ namespace Carol
             if (gPSOs.count(L"DrawOitppll") == 0)
             {
                 auto drawOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                drawOitppllMeshPSO->SetRootSignature(sRootSignature.get());
                 drawOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
                 drawOitppllMeshPSO->SetBlendState(gAlphaBlendState);
                 drawOitppllMeshPSO->SetRenderTargetFormat(mFrameFormat);
                 drawOitppllMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
                 drawOitppllMeshPSO->SetPS(gShaders[L"DrawOitppllPS"].get());
-                drawOitppllMeshPSO->Finalize();
+                drawOitppllMeshPSO->Finalize(device);
             
                 gPSOs[L"DrawOitppll"] = std::move(drawOitppllMeshPSO);
             }
@@ -422,17 +445,18 @@ namespace Carol
             if (gPSOs.count(L"TransparentMeshletCull") == 0)
             {
                 auto oitppllMeshletCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+                oitppllMeshletCullMeshPSO->SetRootSignature(sRootSignature.get());
                 oitppllMeshletCullMeshPSO->SetRasterizerState(gCullDisabledState);
                 oitppllMeshletCullMeshPSO->SetDepthStencilState(gDepthDisabledState);
                 oitppllMeshletCullMeshPSO->SetAS(gShaders[L"TransparentCullWriteAS"].get());
                 oitppllMeshletCullMeshPSO->SetMS(gShaders[L"DepthStaticMS"].get());
-                oitppllMeshletCullMeshPSO->Finalize();
+                oitppllMeshletCullMeshPSO->Finalize(device);
                 
                 gPSOs[L"TransparentMeshletCull"] = std::move(oitppllMeshletCullMeshPSO);
             }
         }
 
-        virtual void InitBuffers() override
+        virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)
         {
             mHiZMipLevels = fmax(ceilf(log2f(mWidth)), ceilf(log2f(mHeight)));
 
@@ -443,7 +467,9 @@ namespace Carol
                 1,
                 COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
                 mFrameFormat,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
                 &frameOptClearValue);
@@ -455,7 +481,9 @@ namespace Carol
                 1,
                 COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
                 mDepthStencilFormat,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_DEPTH_WRITE,
                 D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
                 &depthStencilOptClearValue);
@@ -466,7 +494,9 @@ namespace Carol
                 1,
                 COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
                 mHiZFormat,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_COMMON,
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                 nullptr,
@@ -475,54 +505,77 @@ namespace Carol
             mOitppllBuffer = make_unique<StructuredBuffer>(
                 mWidth * mHeight * 4,
                 sizeof(OitppllNode),
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
             mStartOffsetBuffer = make_unique<RawBuffer>(
                 mWidth * mHeight * sizeof(uint32_t),
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
             
             mCounterBuffer = make_unique<RawBuffer>(
                 sizeof(uint32_t),
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
         }
 
-        void TestCommandBufferSize(unique_ptr<StructuredBuffer> &buffer, uint32_t numElements)
+        void TestCommandBufferSize(
+            unique_ptr<StructuredBuffer>& buffer,
+            uint32_t numElements)
         {
             if (buffer->GetNumElements() < numElements)
             {
-                ResizeCommandBuffer(buffer, numElements, buffer->GetElementSize());
+                ResizeCommandBuffer(
+                    buffer,
+                    numElements,
+                    buffer->GetElementSize(),
+                    buffer->GetDevice().Get(),
+                    buffer->GetHeap(),
+                    buffer->GetDescriptorManager());
             }
         }
 
-        void ResizeCommandBuffer(unique_ptr<StructuredBuffer> &buffer, uint32_t numElements, uint32_t elementSize)
+        void ResizeCommandBuffer(
+            unique_ptr<StructuredBuffer>& buffer,
+            uint32_t numElements,
+            uint32_t elementSize,
+            ID3D12Device* device,
+            Heap* heap,
+            DescriptorManager* descriptorManager)
         {
             buffer = make_unique<StructuredBuffer>(
                 numElements,
                 elementSize,
-                gHeapManager->GetDefaultBuffersHeap(),
+                device,
+                heap,
+                descriptorManager,
                 D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
         }
 
-        void DrawOpaque()
+        void DrawOpaque(ID3D12GraphicsCommandList* cmdList)
         {
-            gCommandList->SetPipelineState(gPSOs[L"OpaqueStatic"]->Get());
-            gScene->ExecuteIndirect(GetIndirectCommandBuffer(OPAQUE_STATIC));
+            cmdList->SetPipelineState(gPSOs[L"OpaqueStatic"]->Get());
+            ExecuteIndirect(cmdList, GetIndirectCommandBuffer(OPAQUE_STATIC));
 
-            gCommandList->SetPipelineState(gPSOs[L"OpaqueSkinned"]->Get());
-            gScene->ExecuteIndirect(GetIndirectCommandBuffer(OPAQUE_SKINNED));
-            gScene->DrawSkyBox(gPSOs[L"SkyBox"]->Get());
+            cmdList->SetPipelineState(gPSOs[L"OpaqueSkinned"]->Get());
+            ExecuteIndirect(cmdList, GetIndirectCommandBuffer(OPAQUE_SKINNED));
+            
+            DrawSkyBox(cmdList, mScene->GetSkyBox()->GetMeshCBAddress());
         }
 
-        void DrawTransparent()
+        void DrawTransparent(ID3D12GraphicsCommandList* cmdList)
         {
-            if (!gScene->IsAnyTransparentMeshes())
+            if (!mScene->IsAnyTransparentMeshes())
             {
                 return;
             }
@@ -530,42 +583,49 @@ namespace Carol
             constexpr uint32_t initOffsetValue = UINT32_MAX;
             constexpr uint32_t initCounterValue = 0;
 
-            gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mOitppllBuffer->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
-            gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mStartOffsetBuffer->Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
+            mOitppllBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            mStartOffsetBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-            gCommandList->ClearUnorderedAccessViewUint(mStartOffsetBuffer->GetGpuUav(), mStartOffsetBuffer->GetCpuUav(), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
-            gCommandList->ClearUnorderedAccessViewUint(mCounterBuffer->GetGpuUav(), mCounterBuffer->GetCpuUav(), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
+            cmdList->ClearUnorderedAccessViewUint(mStartOffsetBuffer->GetGpuUav(), mStartOffsetBuffer->GetCpuUav(), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
+            cmdList->ClearUnorderedAccessViewUint(mCounterBuffer->GetGpuUav(), mCounterBuffer->GetCpuUav(), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
             
-            gCommandList->SetPipelineState(gPSOs[L"BuildStaticOitppll"]->Get());
-            gScene->ExecuteIndirect(GetIndirectCommandBuffer(TRANSPARENT_STATIC));
+            cmdList->SetPipelineState(gPSOs[L"BuildStaticOitppll"]->Get());
+            ExecuteIndirect(cmdList, GetIndirectCommandBuffer(TRANSPARENT_STATIC));
             
-            gCommandList->SetPipelineState(gPSOs[L"BuildSkinnedOitppll"]->Get());
-            gScene->ExecuteIndirect(GetIndirectCommandBuffer(TRANSPARENT_SKINNED));
+            cmdList->SetPipelineState(gPSOs[L"BuildSkinnedOitppll"]->Get());
+            ExecuteIndirect(cmdList, GetIndirectCommandBuffer(TRANSPARENT_SKINNED));
 
-            gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mOitppllBuffer->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
-            gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mStartOffsetBuffer->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)));
+            mOitppllBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+            mStartOffsetBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-            gCommandList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, nullptr);
-            gCommandList->SetPipelineState(gPSOs[L"DrawOitppll"]->Get());
-            static_cast<ID3D12GraphicsCommandList6*>(gCommandList.Get())->DispatchMesh(1, 1, 1);
+            cmdList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, nullptr);
+            cmdList->SetPipelineState(gPSOs[L"DrawOitppll"]->Get());
+            static_cast<ID3D12GraphicsCommandList6*>(cmdList)->DispatchMesh(1, 1, 1);
         }
 
-        void Clear()
+        void DrawSkyBox(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_VIRTUAL_ADDRESS skyBoxMeshCBAddr)
         {
-            gScene->ClearCullMark();
+            cmdList->SetPipelineState(gPSOs[L"SkyBox"]->Get());
+            cmdList->SetGraphicsRootConstantBufferView(MESH_CB, skyBoxMeshCBAddr);
+            static_cast<ID3D12GraphicsCommandList6*>(cmdList)->DispatchMesh(1, 1, 1);
+        }
+
+        void Clear(ID3D12GraphicsCommandList* cmdList)
+        {
+            mScene->ClearCullMark(cmdList);
 
             for (int i = 0; i < MESH_TYPE_COUNT; ++i)
             {
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_COPY_DEST)));
-                mCulledCommandBuffer[gCurrFrame][i]->ResetCounter();
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
+                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
+                mCulledCommandBuffer[gCurrFrame][i]->ResetCounter(cmdList);
+                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
             }
         }
 
-        void CullInstances(bool hist, bool opaque)
+        void CullInstances(ID3D12GraphicsCommandList* cmdList, bool hist, bool opaque)
         {
-            gCommandList->SetPipelineState(gPSOs[L"FrameCullInstances"]->Get());
-            
+            cmdList->SetPipelineState(gPSOs[L"FrameCullInstances"]->Get());
+	
             uint32_t start = opaque ? OPAQUE_MESH_START : TRANSPARENT_MESH_START;
             uint32_t end = start + (opaque ? OPAQUE_MESH_TYPE_COUNT : TRANSPARENT_MESH_TYPE_COUNT);
 
@@ -579,15 +639,14 @@ namespace Carol
                 mCullIdx[i][CULL_HIST] = hist;
                 uint32_t count = ceilf(mCullIdx[i][CULL_MESH_COUNT] / 32.f);
 
-                mCullIdx[i][CULL_HIST] = hist;
-                gCommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_UNORDERED_ACCESS)));
-                gCommandList->Dispatch(count, 1, 1);
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mCulledCommandBuffer[gCurrFrame][i]->Get())));
+                cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
+                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                cmdList->Dispatch(count, 1, 1);
+                mCulledCommandBuffer[gCurrFrame][i]->UavBarrier(cmdList);
             }
         }
 
-        void CullMeshlets(bool hist, bool opaque)
+        void CullMeshlets(ID3D12GraphicsCommandList* cmdList, bool hist, bool opaque)
         {
             ID3D12PipelineState* pso[] = {
                 gPSOs[L"OpaqueStaticMeshletCull"]->Get(),
@@ -600,8 +659,8 @@ namespace Carol
 
             if (opaque)
             {
-                gCommandList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-                gCommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(GetFrameDsv()));
+                cmdList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+                cmdList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(GetFrameDsv()));
             }
 
             for (int i = start; i < end; ++i)
@@ -613,27 +672,27 @@ namespace Carol
 
                 mCullIdx[i][CULL_HIST] = hist;
 
-                gCommandList->SetPipelineState(pso[i]);
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::Transition(mCulledCommandBuffer[gCurrFrame][i]->Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT)));
-                gCommandList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-                gScene->ExecuteIndirect(mCulledCommandBuffer[gCurrFrame][i].get());
+                cmdList->SetPipelineState(pso[i]);
+                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+                cmdList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
+                ExecuteIndirect(cmdList, mCulledCommandBuffer[gCurrFrame][i].get());
             }
         }
 
-        void GenerateHiZ()
+        void GenerateHiZ(ID3D12GraphicsCommandList* cmdList)
         {
-            gCommandList->SetPipelineState(gPSOs[L"HiZGenerate"]->Get());
+            cmdList->SetPipelineState(gPSOs[L"HiZGenerate"]->Get());
 
             for (int i = 0; i < mHiZMipLevels - 1; i += 5)
             {
                 mHiZIdx[HIZ_SRC_MIP] = i;
                 mHiZIdx[HIZ_NUM_MIP_LEVEL] = i + 5 >= mHiZMipLevels ? mHiZMipLevels - i - 1 : 5;
-                gCommandList->SetComputeRoot32BitConstants(PASS_CONSTANTS, mHiZIdx.size(), mHiZIdx.data(), 0);
+                cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, mHiZIdx.size(), mHiZIdx.data(), 0);
                 
                 uint32_t width = ceilf((mWidth >> i) / 32.f);
                 uint32_t height = ceilf((mHeight >> i) / 32.f);
-                gCommandList->Dispatch(width, height, 1);
-                gCommandList->ResourceBarrier(1, GetRvaluePtr(CD3DX12_RESOURCE_BARRIER::UAV(mHiZMap->Get())));
+                cmdList->Dispatch(width, height, 1);
+                mHiZMap->UavBarrier(cmdList);
             }
         }
 
@@ -657,6 +716,7 @@ namespace Carol
             CULL_IDX_COUNT
         };
 
+        Scene *mScene;
         vector<vector<unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
 
         unique_ptr<ColorBuffer> mFrameMap;
@@ -675,6 +735,4 @@ namespace Carol
         DXGI_FORMAT mDepthStencilFormat;
         DXGI_FORMAT mHiZFormat;
     };
-
-    export unique_ptr<FramePass> gFramePass;
 }

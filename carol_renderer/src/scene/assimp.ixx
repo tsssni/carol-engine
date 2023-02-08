@@ -41,8 +41,14 @@ namespace Carol
             SceneNode *rootNode,
             wstring_view path,
             wstring_view textureDir,
-            bool isSkinned)
-            :Model()
+            bool isSkinned,
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager,
+            TextureManager* textureManager)
+            :Model(textureManager)
         {
             Assimp::Importer mImporter;
             const aiScene* scene = mImporter.ReadFile(WStringToString(path), isSkinned ? aiProcess_Skinned : aiProcess_Static);
@@ -51,7 +57,15 @@ namespace Carol
             mSkinned = isSkinned;
 
             LoadAssimpSkinnedData(scene);
-            ProcessNode(scene->mRootNode, rootNode, scene);
+            ProcessNode(
+                scene->mRootNode,
+                rootNode,
+                scene,
+                device,
+                cmdList,
+                defaultBuffersHeap,
+                uploadBuffersHeap,
+                descriptorManager);
             mFinalTransforms.clear();
         }
 
@@ -60,7 +74,15 @@ namespace Carol
         AssimpModel &operator=(const AssimpModel &) = delete;
 
     protected:
-        void ProcessNode(aiNode *node, SceneNode *sceneNode, const aiScene *scene)
+        void ProcessNode(
+            aiNode* node,
+            SceneNode* sceneNode,
+            const aiScene* scene,
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         {
             sceneNode->Name = StringToWString(node->mName.C_Str());
             XMStoreFloat4x4(&sceneNode->Transformation, aiMatrix4x4ToXM(node->mTransformation));
@@ -68,17 +90,40 @@ namespace Carol
             for (int i = 0; i < node->mNumMeshes; ++i)
             {
                 aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-                sceneNode->Meshes.push_back(ProcessMesh(mesh, scene));
+                sceneNode->Meshes.push_back(
+                    ProcessMesh(
+                        mesh,
+                        scene,
+                        device,
+                        cmdList,
+                        defaultBuffersHeap,
+                        uploadBuffersHeap,
+                        descriptorManager));
             }
 
             for (int i = 0; i < node->mNumChildren; ++i)
             {
                 sceneNode->Children.push_back(make_unique<SceneNode>());
-                ProcessNode(node->mChildren[i], sceneNode->Children[i].get(), scene);
+                ProcessNode(
+                    node->mChildren[i],
+                    sceneNode->Children[i].get(),
+                    scene,
+                    device,
+                    cmdList,
+                    defaultBuffersHeap,
+                    uploadBuffersHeap,
+                    descriptorManager);
             }
         }
 
-        Mesh *ProcessMesh(aiMesh *mesh, const aiScene *scene)
+        Mesh* ProcessMesh(
+            aiMesh* mesh,
+            const aiScene* scene,
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         {	
             wstring meshName = StringToWString(mesh->mName.C_Str());
 
@@ -103,14 +148,27 @@ namespace Carol
                     skinnedVertices,
                     indices,
                     mSkinned,
-                    false);
+                    false,
+                    device,
+                    cmdList,
+                    defaultBuffersHeap,
+                    uploadBuffersHeap,
+                    descriptorManager);
 
-                ReadMeshMaterialAndTextures(mMeshes[meshName].get(), mesh, scene);
+                ReadMeshMaterialAndTextures(
+                    mMeshes[meshName].get(),
+                    mesh,
+                    scene,
+                    device,
+                    cmdList,
+                    defaultBuffersHeap,
+                    uploadBuffersHeap,
+                    descriptorManager);
             }
 
             return mMeshes[meshName].get();
         }
-
+        
         void LoadAssimpSkinnedData(const aiScene *scene)
         {
             ReadBones(scene->mRootNode, scene);
@@ -372,7 +430,15 @@ namespace Carol
 
         }
 
-        void ReadMeshMaterialAndTextures(Mesh *mesh, aiMesh *aimesh, const aiScene *scene)
+        void ReadMeshMaterialAndTextures(
+            Mesh *mesh,
+            aiMesh *aimesh,
+            const aiScene *scene,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager)
         {
             Material mat;
             auto* matData = scene->mMaterials[aimesh->mMaterialIndex];
@@ -386,7 +452,14 @@ namespace Carol
             mat.Roughness = mat.Roughness < 0.f ? 0.f : mat.Roughness;
             
             mesh->SetMaterial(mat);
-            ReadTexture(mesh, matData);
+            ReadTexture(
+                mesh,
+                matData,
+                device,
+                cmdList,
+                defaultBuffersHeap,
+                uploadBuffersHeap,
+                descriptorManager);
         }
 
         void ReadMeshBones(vector<Vertex> &vertices, aiMesh *mesh)
@@ -430,7 +503,14 @@ namespace Carol
             }
         }
 
-        void ReadTexture(Mesh *mesh, aiMaterial *matData)
+        void ReadTexture(
+            Mesh *mesh,
+            aiMaterial *matData,
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         {
             aiString diffusePath;
             aiString normalPath;
@@ -438,11 +518,19 @@ namespace Carol
             matData->GetTexture(aiTextureType_DIFFUSE, 0, &diffusePath);
             matData->GetTexture(aiTextureType_NORMALS, 0, &normalPath);
 
-            LoadTexture(mesh, diffusePath, aiTextureType_DIFFUSE);
-            LoadTexture(mesh, normalPath, aiTextureType_NORMALS);
+            LoadTexture(mesh, diffusePath, aiTextureType_DIFFUSE, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+            LoadTexture(mesh, normalPath, aiTextureType_NORMALS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
         }
 
-        void LoadTexture(Mesh *mesh, aiString aiPath, aiTextureType type)
+        void LoadTexture(
+            Mesh *mesh, 
+            aiString aiPath, 
+            aiTextureType type,
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         {
             wstring path = StringToWString(aiPath.C_Str());
             const static wstring defaultDiffuseMapPath = L"texture\\default_diffuse_map.png";
@@ -474,10 +562,10 @@ namespace Carol
             switch (type)
             {
             case aiTextureType_DIFFUSE:
-                mesh->SetDiffuseMapIdx(gTextureManager->LoadTexture(path));
+                mesh->SetDiffuseMapIdx(mTextureManager->LoadTexture(path, false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
                 break;
             case aiTextureType_NORMALS:
-                mesh->SetNormalMapIdx(gTextureManager->LoadTexture(path));
+                mesh->SetNormalMapIdx(mTextureManager->LoadTexture(path, false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
                 break;
             }
 

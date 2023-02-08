@@ -19,17 +19,17 @@ namespace Carol
     using std::vector;
 
     export class DisplayPass : public RenderPass
-	{
-	public:
-		DisplayPass(
-			HWND hwnd,
-			IDXGIFactory* factory,
-			uint32_t bufferCount,
-			DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM
-		)
-        :mBackBuffer(bufferCount),
-        mBackBufferFormat(backBufferFormat),
-        mBackBufferRtvAllocInfo(make_unique<DescriptorAllocInfo>())
+    {
+    public:
+        DisplayPass(
+            HWND hwnd,
+            IDXGIFactory *factory,
+            ID3D12CommandQueue *cmdQueue,
+            uint32_t bufferCount,
+            DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM)
+            : mBackBuffer(bufferCount),
+              mBackBufferFormat(backBufferFormat),
+              mBackBufferRtvAllocInfo(make_unique<DescriptorAllocInfo>())
         {
             mBackBufferFormat = backBufferFormat;
             mBackBuffer.resize(bufferCount);
@@ -52,85 +52,80 @@ namespace Carol
             swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
             mSwapChain.Reset();
-            ThrowIfFailed(factory->CreateSwapChain(gCommandQueue.Get(), &swapChainDesc, mSwapChain.GetAddressOf()));
+            ThrowIfFailed(factory->CreateSwapChain(cmdQueue, &swapChainDesc, mSwapChain.GetAddressOf()));
         }
 
-		DisplayPass(const DisplayPass&) = delete;
-		DisplayPass(DisplayPass&&) = delete;
-		DisplayPass& operator=(const DisplayPass&) = delete;
+        DisplayPass(const DisplayPass &) = delete;
+        DisplayPass(DisplayPass &&) = delete;
+        DisplayPass &operator=(const DisplayPass &) = delete;
 
-		~DisplayPass()
+        ~DisplayPass()
         {
-            gDescriptorManager->RtvDeallocate(std::move(mBackBufferRtvAllocInfo));
+            mBackBufferRtvAllocInfo->Manager->RtvDeallocate(std::move(mBackBufferRtvAllocInfo));
         }
-	
-		virtual IDXGISwapChain* GetSwapChain()
+
+        virtual IDXGISwapChain *GetSwapChain()
         {
             return mSwapChain.Get();
         }
 
-		IDXGISwapChain** GetAddressOfSwapChain()
+        IDXGISwapChain **GetAddressOfSwapChain()
         {
             return mSwapChain.GetAddressOf();
         }
 
-		void SetBackBufferIndex()
+        void SetBackBufferIndex()
         {
             mCurrBackBufferIndex = (mCurrBackBufferIndex + 1) % mBackBuffer.size();
         }
 
-		uint32_t GetBackBufferCount()
+        uint32_t GetBackBufferCount()
         {
             return mBackBuffer.size();
         }
 
-		Resource* GetCurrBackBuffer()
+        Resource *GetCurrBackBuffer()
         {
             return mBackBuffer[mCurrBackBufferIndex].get();
         }
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCurrBackBufferRtv()
+        CD3DX12_CPU_DESCRIPTOR_HANDLE GetCurrBackBufferRtv()
         {
-            return gDescriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mCurrBackBufferIndex);
+            return mBackBufferRtvAllocInfo->Manager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mCurrBackBufferIndex);
         }
 
-		DXGI_FORMAT GetBackBufferFormat()
+        DXGI_FORMAT GetBackBufferFormat()
         {
             return mBackBufferFormat;
         }
 
-		virtual void Draw()override
+        virtual void Draw(ID3D12GraphicsCommandList *cmdList) override
         {
-
         }
 
-		virtual void Update()override
+        void Present()
         {
+            ComPtr<ID3D12Device> device;
+            mSwapChain->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
 
-        }
-
-		void Present()
-        {
             if (FAILED(mSwapChain->Present(0, 0)))
             {
-                ThrowIfFailed(gDevice->GetDeviceRemovedReason());
+                ThrowIfFailed(device->GetDeviceRemovedReason());
             }
 
             SetBackBufferIndex();
         }
 
-	private:
-		virtual void InitShaders()override
+    private:
+        virtual void InitShaders() override
         {
-
         }
 
-		virtual void InitPSOs()override
+        virtual void InitPSOs(ID3D12Device *device) override
         {
-
         }
 
-		virtual void InitBuffers()override
+        virtual void InitBuffers(ID3D12Device *device, Heap *heap, DescriptorManager *descriptorManager) override
         {
             for (int i = 0; i < mBackBuffer.size(); ++i)
             {
@@ -142,34 +137,34 @@ namespace Carol
                 mWidth,
                 mHeight,
                 mBackBufferFormat,
-                DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
-            ));
+                DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
             mCurrBackBufferIndex = 0;
-            InitDescriptors();
+            InitDescriptors(descriptorManager);
         }
 
-		void InitDescriptors()
+        void InitDescriptors(DescriptorManager *descriptorManager)
         {
+            ComPtr<ID3D12Device> device;
+            mSwapChain->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+
             if (!mBackBufferRtvAllocInfo->NumDescriptors)
             {
-                mBackBufferRtvAllocInfo = gDescriptorManager->RtvAllocate(mBackBuffer.size());
+                mBackBufferRtvAllocInfo = descriptorManager->RtvAllocate(mBackBuffer.size());
             }
-            
+
             for (int i = 0; i < mBackBuffer.size(); ++i)
             {
                 ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(mBackBuffer[i]->GetAddressOf())));
-                gDevice->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, gDescriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), i));
+                device->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, descriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), i));
             }
         }
 
-		ComPtr<IDXGISwapChain> mSwapChain;
-		uint32_t mCurrBackBufferIndex;
+        ComPtr<IDXGISwapChain> mSwapChain;
+        uint32_t mCurrBackBufferIndex;
 
-		vector<unique_ptr<Resource>> mBackBuffer;
-		unique_ptr<DescriptorAllocInfo> mBackBufferRtvAllocInfo;
-		DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-	};
-
-    export unique_ptr<DisplayPass> gDisplayPass;
+        vector<unique_ptr<Resource>> mBackBuffer;
+        unique_ptr<DescriptorAllocInfo> mBackBufferRtvAllocInfo;
+        DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    };
 }

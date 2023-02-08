@@ -42,8 +42,8 @@ namespace Carol
     export class Model
     {
     public:
-        Model()
-            : mSkinnedConstants(make_unique<SkinnedConstants>())
+        Model(TextureManager* textureManager)
+            : mSkinnedConstants(make_unique<SkinnedConstants>()), mTextureManager(textureManager)
         {
         }
 
@@ -51,16 +51,22 @@ namespace Carol
         {
             for (auto& path : mTexturePath)
             {
-                gTextureManager->UnloadTexture(path);
+                mTextureManager->UnloadTexture(path);
             }
         }
 
-        bool IsSkinned()
+        bool IsSkinned()const
         {
             return mSkinned;
         }
 
-        void LoadGround()
+        void LoadGround(
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager
+        )
         {
             XMFLOAT3 pos[4] =
             {
@@ -96,16 +102,26 @@ namespace Carol
                 skinnedVertices,
                 indices,
                 false,
-                false);
+                false,
+                device,
+                cmdList,
+                defaultBuffersHeap,
+                uploadBuffersHeap,
+                descriptorManager);
 
-            mMeshes[L"Ground"]->SetDiffuseMapIdx(gTextureManager->LoadTexture(L"texture\\default_diffuse_map.png"));
-            mMeshes[L"Ground"]->SetNormalMapIdx(gTextureManager->LoadTexture(L"texture\\default_normal_map.png"));
+            mMeshes[L"Ground"]->SetDiffuseMapIdx(mTextureManager->LoadTexture(L"texture\\default_diffuse_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+            mMeshes[L"Ground"]->SetNormalMapIdx(mTextureManager->LoadTexture(L"texture\\default_normal_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
 
             mTexturePath.push_back(L"texture\\default_diffuse_map.png");
             mTexturePath.push_back(L"texture\\default_normal_map.png");
         }
 
-        void LoadSkyBox()
+        void LoadSkyBox(
+            ID3D12Device* device,
+            ID3D12GraphicsCommandList* cmdList,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
+            DescriptorManager* descriptorManager)
         {
             XMFLOAT3 pos[8] =
                 {
@@ -145,9 +161,14 @@ namespace Carol
                 skinnedVertices,
                 indices,
                 false,
-                false);
+                false,
+                device,
+                cmdList,
+                defaultBuffersHeap,
+                uploadBuffersHeap,
+                descriptorManager);
 
-            mMeshes[L"SkyBox"]->SetDiffuseMapIdx(gTextureManager->LoadTexture(L"texture\\snowcube1024.dds"));
+            mMeshes[L"SkyBox"]->SetDiffuseMapIdx(mTextureManager->LoadTexture(L"texture\\snowcube1024.dds", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
             mTexturePath.push_back(L"texture\\snowcube1024.dds");
         }
 
@@ -159,17 +180,17 @@ namespace Carol
             }
         }
 
-        Mesh *GetMesh(std::wstring_view meshName)
+        const Mesh *GetMesh(std::wstring_view meshName)const
         {
-            return mMeshes[meshName.data()].get();
+            return mMeshes.at(meshName.data()).get();
         }
 
-        const unordered_map<wstring, unique_ptr<Mesh>> &GetMeshes()
+        const unordered_map<wstring, unique_ptr<Mesh>> &GetMeshes()const
         {
             return mMeshes;
         }
 
-        vector<wstring_view> GetAnimationClips()
+        vector<wstring_view> GetAnimationClips()const
         {
             vector<wstring_view> animations;
 
@@ -197,9 +218,14 @@ namespace Carol
             }
         }
 
-        SkinnedConstants *GetSkinnedConstants()
+        const SkinnedConstants *GetSkinnedConstants()const
         {
             return mSkinnedConstants.get();
+        }
+
+        void SetMeshCBAddress(wstring_view meshName, D3D12_GPU_VIRTUAL_ADDRESS addr)
+        {
+            mMeshes[meshName.data()]->SetMeshCBAddress(addr);
         }
 
         void SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr)
@@ -251,9 +277,9 @@ namespace Carol
             }
         }
 
-        void GetSkinnedVertices(wstring_view clipName, const vector<Vertex> &vertices, vector<vector<Vertex>> &skinnedVertices)
+        void GetSkinnedVertices(wstring_view clipName, const vector<Vertex> &vertices, vector<vector<Vertex>> &skinnedVertices)const
         {
-            auto& finalTransforms = mFinalTransforms[clipName.data()];
+            auto& finalTransforms = mFinalTransforms.at(clipName.data());
             skinnedVertices.resize(finalTransforms.size());
             std::ranges::for_each(skinnedVertices, [&](vector<Vertex>& v) {v.resize(vertices.size()); });
 
@@ -326,6 +352,7 @@ namespace Carol
         unordered_map<wstring, vector<vector<XMFLOAT4X4>>> mFinalTransforms;
         unique_ptr<SkinnedConstants> mSkinnedConstants;
 
+        TextureManager *mTextureManager;
         vector<wstring> mTexturePath;
     };
 }
