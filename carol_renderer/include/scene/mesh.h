@@ -14,6 +14,8 @@ namespace Carol
 	class StructuredBuffer;
 	class RawBuffer;
 	class Material;
+	class Heap;
+	class DescriptorManager;
 
 	class MeshConstants
 	{
@@ -99,35 +101,60 @@ namespace Carol
 			std::span<std::pair<std::wstring, std::vector<std::vector<Vertex>>>> skinnedVertices,
 			std::span<uint32_t> indices,
 			bool isSkinned,
-			bool isTransparent);
+			bool isTransparent,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
 
 		void ReleaseIntermediateBuffer();
 
-		const Material* GetMaterial();
-		uint32_t GetMeshletSize();
+		const Material* GetMaterial()const;
+		uint32_t GetMeshletSize()const;
 
 		void SetMaterial(const Material& mat);
 		void SetDiffuseMapIdx(uint32_t idx);
 		void SetNormalMapIdx(uint32_t idx);
 
 		void Update(DirectX::XMMATRIX& world);
-		void ClearCullMark();
+		void ClearCullMark(ID3D12GraphicsCommandList* cmdList);
 		void SetAnimationClip(std::wstring_view clipName);
 
-		MeshConstants* GetMeshConstants();
+		const MeshConstants* GetMeshConstants()const;
 		void SetMeshCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr);
 		void SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr);
-		D3D12_GPU_VIRTUAL_ADDRESS GetMeshCBAddress();
-		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBAddress();
+		D3D12_GPU_VIRTUAL_ADDRESS GetMeshCBAddress()const;
+		D3D12_GPU_VIRTUAL_ADDRESS GetSkinnedCBAddress()const;
 
-		bool IsSkinned();
-		bool IsTransparent();
+		bool IsSkinned()const;
+		bool IsTransparent()const;
 
 	protected:
-		void LoadVertices();
-		void LoadMeshlets();
-		void LoadCullData();
-		void InitCullMark();
+		void LoadVertices(
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
+		void LoadMeshlets(
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
+		void LoadCullData(
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
+		void InitCullMark(
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
 
 		void LoadMeshletBoundingBox(std::wstring_view clipName, std::span<std::vector<Vertex>> vertices);
 		void LoadMeshletNormalCone(std::wstring_view clipName, std::span<std::vector<Vertex>> vertices);

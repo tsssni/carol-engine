@@ -5,6 +5,7 @@
 namespace Carol
 {
 	class Shader;
+	class RootSignature;
 
 	class PSO
 	{
@@ -24,6 +25,7 @@ namespace Carol
 	public:
 		MeshPSO(PSOInitState init = PSO_EMPTY);
 
+		void SetRootSignature(const RootSignature* rootSignature);
 		void SetRasterizerState(const D3D12_RASTERIZER_DESC& desc);
 		void SetDepthStencilState(const D3D12_DEPTH_STENCIL_DESC& desc);
 		void SetBlendState(const D3D12_BLEND_DESC& desc);
@@ -42,7 +44,7 @@ namespace Carol
 		void SetMS(const Shader* shader);
 		void SetPS(const Shader* shader);
 
-		void Finalize();
+		void Finalize(ID3D12Device* device);
 	protected:
 		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC mPSODesc;
 	};
@@ -52,12 +54,13 @@ namespace Carol
 	public:
 		ComputePSO(PSOInitState init = PSO_EMPTY);
 
+		void SetRootSignature(const RootSignature* rootSignature);
 		void SetNodeMask(uint32_t mask);
 		void SetFlags(D3D12_PIPELINE_STATE_FLAGS flags);
 
 		void SetCS(const Shader* shader);
 
-		void Finalize();
+		void Finalize(ID3D12Device* device);
 	protected:
 		D3D12_COMPUTE_PIPELINE_STATE_DESC mPSODesc;
 	};

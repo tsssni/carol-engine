@@ -13,6 +13,7 @@ namespace Carol
 {
 	class Resource;
 	class DescriptorAllocInfo;
+	class DescriptorManager;
 
 	class DisplayPass : public RenderPass
 	{
@@ -20,6 +21,7 @@ namespace Carol
 		DisplayPass(
 			HWND hwnd,
 			IDXGIFactory* factory,
+			ID3D12CommandQueue* cmdQueue,
 			uint32_t bufferCount,
 			DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM
 		);
@@ -37,15 +39,14 @@ namespace Carol
 		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCurrBackBufferRtv();
 		DXGI_FORMAT GetBackBufferFormat();
 
-		virtual void Draw()override;
-		virtual void Update()override;
+		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
 
 		void Present();
 	private:
 		virtual void InitShaders()override;
-		virtual void InitPSOs()override;
-		virtual void InitBuffers()override;
-		void InitDescriptors();
+		virtual void InitPSOs(ID3D12Device* device)override;
+		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
+		void InitDescriptors(DescriptorManager* descriptorManager);
 
 		Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
 		uint32_t mCurrBackBufferIndex;

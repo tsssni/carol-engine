@@ -18,56 +18,92 @@ namespace Carol {
 	class Timer;
 	class Camera;
 	class SceneNode;
+	class Heap;
+	class DescriptorManager;
 
 	class Scene
 	{
 	public:
-		Scene(std::wstring_view name);
+		Scene(
+			std::wstring_view name,
+			ID3D12Device* device,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
 		Scene(const Scene&) = delete;
 		Scene(Scene&&) = delete;
 		Scene& operator=(const Scene&) = delete;
 
-		std::vector<std::wstring_view> GetAnimationClips(std::wstring_view modelName);
-		std::vector<std::wstring_view> GetModelNames();
-		bool IsAnyTransparentMeshes();
+		std::vector<std::wstring_view> GetAnimationClips(std::wstring_view modelName)const;
+		std::vector<std::wstring_view> GetModelNames()const;
+		bool IsAnyTransparentMeshes()const;
 
-		void LoadModel(std::wstring_view name, std::wstring_view path, std::wstring_view textureDir, bool isSkinned);
-		void LoadGround();
-		void LoadSkyBox();
+		void LoadModel(
+			std::wstring_view name,
+			std::wstring_view path,
+			std::wstring_view textureDir,
+			bool isSkinned,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager,
+			TextureManager* textureManager);
+		void LoadGround(
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager,
+			TextureManager* textureManager);
+		void LoadSkyBox(
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager,
+			TextureManager* textureManager);
 
 		void UnloadModel(std::wstring_view modelName);
 		void ReleaseIntermediateBuffers();
 		void ReleaseIntermediateBuffers(std::wstring_view modelName);
 
-		const std::unordered_map<std::wstring, Mesh*>& GetMeshes(MeshType type);
-		uint32_t GetMeshesCount(MeshType type);
-		Mesh* GetSkyBox();
-
-		const std::unordered_map<std::wstring, std::unique_ptr<Model>>& GetModels();
-		uint32_t GetModelsCount();
+		uint32_t GetMeshesCount(MeshType type)const;
+		const Mesh* GetSkyBox()const;
+		uint32_t GetModelsCount()const;
 
 		void SetWorld(std::wstring_view modelName, DirectX::XMMATRIX world);
 		void SetAnimationClip(std::wstring_view modelName, std::wstring_view clipName);
 		void Update(Timer* timer);
 		void Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
 
-		void ClearCullMark();
-		uint32_t GetMeshCBStartOffet(MeshType type);
+		void ClearCullMark(ID3D12GraphicsCommandList* cmdList);
+		uint32_t GetMeshCBStartOffet(MeshType type)const;
 
-		uint32_t GetMeshCBIdx();
-		uint32_t GetCommandBufferIdx();
-		uint32_t GetInstanceFrustumCulledMarkBufferIdx();
-		uint32_t GetInstanceOcclusionPassedMarkBufferIdx();
-
-		void ExecuteIndirect(StructuredBuffer* indirectCmdBuffer);
-		void DrawSkyBox(ID3D12PipelineState* skyBoxPSO);
+		uint32_t GetMeshCBIdx()const;
+		uint32_t GetCommandBufferIdx()const;
+		uint32_t GetInstanceFrustumCulledMarkBufferIdx()const;
+		uint32_t GetInstanceOcclusionPassedMarkBufferIdx()const;
 
 	protected:
 		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot);
-		
-		void InitBuffers();
-		void TestBufferSize(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements);
-		void ResizeBuffer(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements, uint32_t elementSize, bool isConstant);
+
+		void InitBuffers(
+			ID3D12Device* device,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
+		void TestBufferSize(
+			std::unique_ptr<StructuredBuffer>& buffer,
+			uint32_t numElements);
+		void ResizeBuffer(
+			std::unique_ptr<StructuredBuffer>& buffer,
+			uint32_t numElements,
+			uint32_t elementSize,
+			bool isConstant,
+			ID3D12Device* device,
+			Heap* heap,
+			DescriptorManager* descriptorManager);
 
 		std::unique_ptr<Model> mSkyBox;
 		std::vector<Light> mLights;

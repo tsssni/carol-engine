@@ -13,6 +13,7 @@ namespace Carol
 	class HeapManager;
     class HeapAllocInfo;
 	class DescriptorManager;
+	class TextureManager;
     class Shader;
 	class RootSignature;
 	class DisplayPass;
@@ -66,12 +67,12 @@ namespace Carol
 		virtual void InitCommandQueue();
 		virtual void InitCommandAllocator();
 		virtual void InitCommandList();
-		virtual void InitCommandSignature();
 
-		virtual void InitRootSignature();
 		virtual void InitHeapManager();
 		virtual void InitDescriptorManager();
 		virtual void InitTextureManager();
+
+		virtual void InitRenderPass();
 		virtual void InitDisplay();
 
 		virtual void FlushCommandQueue();
@@ -79,12 +80,22 @@ namespace Carol
 	protected:
 		Microsoft::WRL::ComPtr<ID3D12Debug> mDebugLayer;
 		Microsoft::WRL::ComPtr<IDXGIFactory> mDxgiFactory;
+		Microsoft::WRL::ComPtr<ID3D12Device> mDevice;
+
+		Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
+		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
 		Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
 		uint32_t mCpuFence = 0;
 
 		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mInitCommandAllocator;
         std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mFrameAllocator;
         std::vector<uint32_t> mGpuFence = { 0,0,0 };
+
+		std::unique_ptr<DescriptorManager> mDescriptorManager;
+		std::unique_ptr<HeapManager> mHeapManager;
+		std::unique_ptr<TextureManager> mTextureManager;
+
+		std::unique_ptr<DisplayPass> mDisplayPass;
 
 		uint32_t mClientWidth = 0;
 		uint32_t mClientHeight = 0;

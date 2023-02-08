@@ -29,9 +29,9 @@ namespace Carol
 		void CheckError(Microsoft::WRL::ComPtr<IDxcResult>& result);
 		void OutputPdb(Microsoft::WRL::ComPtr<IDxcResult>& result);
 
-		static Microsoft::WRL::ComPtr<IDxcCompiler3> Compiler;
-		static Microsoft::WRL::ComPtr<IDxcUtils> Utils;
-		static Microsoft::WRL::ComPtr<IDxcIncludeHandler> IncludeHandler;
+		static Microsoft::WRL::ComPtr<IDxcCompiler3> sCompiler;
+		static Microsoft::WRL::ComPtr<IDxcUtils> sUtils;
+		static Microsoft::WRL::ComPtr<IDxcIncludeHandler> sIncludeHandler;
 		Microsoft::WRL::ComPtr<IDxcBlob> mShader;
 	};
 }

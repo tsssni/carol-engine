@@ -12,9 +12,9 @@ namespace Carol {
     using Microsoft::WRL::ComPtr;
 }
 
-Carol::ComPtr<IDxcCompiler3> Carol::Shader::Compiler = nullptr;
-Carol::ComPtr<IDxcUtils> Carol::Shader::Utils = nullptr;
-Carol::ComPtr<IDxcIncludeHandler> Carol::Shader::IncludeHandler = nullptr;
+Carol::ComPtr<IDxcCompiler3> Carol::Shader::sCompiler = nullptr;
+Carol::ComPtr<IDxcUtils> Carol::Shader::sUtils = nullptr;
+Carol::ComPtr<IDxcIncludeHandler> Carol::Shader::sIncludeHandler = nullptr;
 
 Carol::Shader::Shader(wstring_view fileName, span<const wstring_view> defines, wstring_view entryPoint, wstring_view target)
 {
@@ -42,9 +42,9 @@ size_t Carol::Shader::GetBufferSize()const
 
 void Carol::Shader::InitCompiler()
 {
-    ThrowIfFailed(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(Utils.GetAddressOf())));
-    ThrowIfFailed(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(Compiler.GetAddressOf())));
-    ThrowIfFailed(Utils->CreateDefaultIncludeHandler(IncludeHandler.GetAddressOf()));
+    ThrowIfFailed(DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(sUtils.GetAddressOf())));
+    ThrowIfFailed(DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(sCompiler.GetAddressOf())));
+    ThrowIfFailed(sUtils->CreateDefaultIncludeHandler(sIncludeHandler.GetAddressOf()));
 }
 
 Carol::vector<LPCWSTR> Carol::Shader::SetArgs(span<const wstring_view> defines, wstring_view entryPoint, wstring_view target)
@@ -83,7 +83,7 @@ Carol::vector<LPCWSTR> Carol::Shader::SetArgs(span<const wstring_view> defines, 
 Carol::ComPtr<IDxcResult> Carol::Shader::Compile(wstring_view fileName, span<LPCWSTR> args)
 {
     ComPtr<IDxcBlobEncoding> sourceBlob;
-    ThrowIfFailed(Utils->LoadFile(fileName.data(), nullptr, sourceBlob.GetAddressOf()));
+    ThrowIfFailed(sUtils->LoadFile(fileName.data(), nullptr, sourceBlob.GetAddressOf()));
 
     DxcBuffer sourceBuffer;
     sourceBuffer.Encoding = DXC_CP_ACP;
@@ -91,7 +91,7 @@ Carol::ComPtr<IDxcResult> Carol::Shader::Compile(wstring_view fileName, span<LPC
     sourceBuffer.Size = sourceBlob->GetBufferSize();
 
     ComPtr<IDxcResult> result;
-    ThrowIfFailed(Compiler->Compile(&sourceBuffer, args.data(), args.size(), IncludeHandler.Get(), IID_PPV_ARGS(result.GetAddressOf())));
+    ThrowIfFailed(sCompiler->Compile(&sourceBuffer, args.data(), args.size(), sIncludeHandler.Get(), IID_PPV_ARGS(result.GetAddressOf())));
 
     return result;
 }

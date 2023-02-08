@@ -12,6 +12,9 @@ namespace Carol
 {
 	class ColorBuffer;
 	class StructuredBuffer;
+	class Heap;
+	class Scene;
+	class DescriptorManager;
 
 	class OitppllNode
 	{
@@ -25,6 +28,10 @@ namespace Carol
 	{
 	public:
 		FramePass(
+			ID3D12Device* device,
+			Heap* heap,
+			DescriptorManager* descriptorManager,
+			Scene* scene,
 			DXGI_FORMAT frameFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
 			DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
 			DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
@@ -33,42 +40,51 @@ namespace Carol
 		FramePass(FramePass&&) = delete;
 		FramePass& operator=(const FramePass&) = delete;
 		
-		virtual void Draw()override;
-		void Cull();
-		virtual void Update()override;
+		virtual void Draw(ID3D12GraphicsCommandList* cmdList);
+		void Cull(ID3D12GraphicsCommandList* cmdList);
+		void Update();
 
-		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameRtv();
-		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameDsv();
-		DXGI_FORMAT GetFrameRtvFormat();
-		DXGI_FORMAT GetFrameDsvFormat();
-		StructuredBuffer* GetIndirectCommandBuffer(MeshType type);
+		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameRtv()const;
+		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameDsv()const;
+		DXGI_FORMAT GetFrameFormat()const;
+		DXGI_FORMAT GetFrameDsvFormat()const;
+		const StructuredBuffer* GetIndirectCommandBuffer(MeshType type)const;
 
-		uint32_t GetFrameSrvIdx();
-		uint32_t GetDepthStencilSrvIdx();
-		uint32_t GetHiZSrvIdx();
-		uint32_t GetHiZUavIdx();
+		uint32_t GetFrameSrvIdx()const;
+		uint32_t GetDepthStencilSrvIdx()const;
+		uint32_t GetHiZSrvIdx()const;
+		uint32_t GetHiZUavIdx()const;
 
-		uint32_t GetPpllUavIdx();
-		uint32_t GetOffsetUavIdx();
-		uint32_t GetCounterUavIdx();
-		uint32_t GetPpllSrvIdx();
-		uint32_t GetOffsetSrvIdx();
+		uint32_t GetPpllUavIdx()const;
+		uint32_t GetOffsetUavIdx()const;
+		uint32_t GetCounterUavIdx()const;
+		uint32_t GetPpllSrvIdx()const;
+		uint32_t GetOffsetSrvIdx()const;
 
 	protected:
 		virtual void InitShaders()override;
-		virtual void InitPSOs()override;
-		virtual void InitBuffers()override;
+		virtual void InitPSOs(ID3D12Device* device)override;
+		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager);
 
-		void TestCommandBufferSize(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements);
-		void ResizeCommandBuffer(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements, uint32_t elementSize);
+		void TestCommandBufferSize(
+			std::unique_ptr<StructuredBuffer>& buffer,
+			uint32_t numElements);
+		void ResizeCommandBuffer(
+			std::unique_ptr<StructuredBuffer>& buffer,
+			uint32_t numElements,
+			uint32_t elementSize,
+			ID3D12Device* device,
+			Heap* heap,
+			DescriptorManager* descriptorManager);
 		
-		void DrawOpaque();
-		void DrawTransparent();
+		void DrawOpaque(ID3D12GraphicsCommandList* cmdList);
+		void DrawTransparent(ID3D12GraphicsCommandList* cmdList);
+		void DrawSkyBox(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_VIRTUAL_ADDRESS skyBoxMeshCBAddr);
 
-		void Clear();
-        void CullInstances(bool hist, bool opaque);
-		void CullMeshlets(bool hist, bool opaque);
-		void GenerateHiZ();
+		void Clear(ID3D12GraphicsCommandList* cmdList);
+        void CullInstances(ID3D12GraphicsCommandList* cmdList, bool hist, bool opaque);
+		void CullMeshlets(ID3D12GraphicsCommandList* cmdList, bool hist, bool opaque);
+		void GenerateHiZ(ID3D12GraphicsCommandList* cmdList);
 
 		enum
         {
@@ -91,6 +107,7 @@ namespace Carol
         };
 
 		std::vector<std::vector<std::unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
+		Scene* mScene;
 
 		std::unique_ptr<ColorBuffer> mFrameMap;
 		std::unique_ptr<ColorBuffer> mDepthStencilMap;

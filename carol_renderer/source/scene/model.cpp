@@ -27,8 +27,8 @@ namespace Carol
 
 }
 
-Carol::Model::Model()
-	:mSkinnedConstants(make_unique<SkinnedConstants>())
+Carol::Model::Model(TextureManager* textureManager)
+	:mSkinnedConstants(make_unique<SkinnedConstants>()), mTextureManager(textureManager)
 {
 	
 }
@@ -37,7 +37,7 @@ Carol::Model::~Model()
 {
 	for (auto& path : mTexturePath)
 	{
-		gTextureManager->UnloadTexture(path);
+		mTextureManager->UnloadTexture(path);
 	}
 }
 
@@ -49,17 +49,17 @@ void Carol::Model::ReleaseIntermediateBuffers()
 	}
 }
 
-Carol::Mesh* Carol::Model::GetMesh(wstring_view meshName)
+const Carol::Mesh* Carol::Model::GetMesh(wstring_view meshName)const
 {
-	return mMeshes[meshName.data()].get();
+	return mMeshes.at(meshName.data()).get();
 }
 
-const Carol::unordered_map<Carol::wstring, Carol::unique_ptr<Carol::Mesh>>& Carol::Model::GetMeshes()
+const Carol::unordered_map<Carol::wstring, Carol::unique_ptr<Carol::Mesh>>& Carol::Model::GetMeshes()const
 {
 	return mMeshes;
 }
 
-Carol::vector<Carol::wstring_view> Carol::Model::GetAnimationClips()
+Carol::vector<Carol::wstring_view> Carol::Model::GetAnimationClips()const
 {
 	vector<wstring_view> animations;
 
@@ -128,9 +128,9 @@ void Carol::Model::Update(Timer* timer)
 	}
 }
 
-void Carol::Model::GetSkinnedVertices(wstring_view clipName, const vector<Vertex>& vertices, vector<vector<Vertex>>& skinnedVertices)
+void Carol::Model::GetSkinnedVertices(wstring_view clipName, const vector<Vertex>& vertices, vector<vector<Vertex>>& skinnedVertices)const
 {
-	auto& finalTransforms = mFinalTransforms[clipName.data()];
+	auto& finalTransforms = mFinalTransforms.at(clipName.data());
 	skinnedVertices.resize(finalTransforms.size());
 	std::ranges::for_each(skinnedVertices, [&](vector<Vertex>& v) {v.resize(vertices.size()); });
 
@@ -187,9 +187,14 @@ void Carol::Model::GetSkinnedVertices(wstring_view clipName, const vector<Vertex
 	}
 }
 
-Carol::SkinnedConstants* Carol::Model::GetSkinnedConstants()
+const Carol::SkinnedConstants* Carol::Model::GetSkinnedConstants()const
 {
 	return mSkinnedConstants.get();
+}
+
+void Carol::Model::SetMeshCBAddress(wstring_view meshName, D3D12_GPU_VIRTUAL_ADDRESS addr)
+{
+	mMeshes[meshName.data()]->SetMeshCBAddress(addr);
 }
 
 void Carol::Model::SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr)
@@ -200,12 +205,17 @@ void Carol::Model::SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr)
 	}
 }
 
-bool Carol::Model::IsSkinned()
+bool Carol::Model::IsSkinned()const
 {
 	return mSkinned;
 }
 
-void Carol::Model::LoadGround()
+void Carol::Model::LoadGround(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager)
 {
 	XMFLOAT3 pos[4] =
 	{
@@ -241,16 +251,26 @@ void Carol::Model::LoadGround()
 		skinnedVertices,
 		indices,
 		false,
-		false);
+		false,
+		device,
+		cmdList,
+		defaultBuffersHeap,
+		uploadBuffersHeap,
+		descriptorManager);
 
-	mMeshes[L"Ground"]->SetDiffuseMapIdx(gTextureManager->LoadTexture(L"texture\\default_diffuse_map.png"));
-	mMeshes[L"Ground"]->SetNormalMapIdx(gTextureManager->LoadTexture(L"texture\\default_normal_map.png"));
+	mMeshes[L"Ground"]->SetDiffuseMapIdx(mTextureManager->LoadTexture(L"texture\\default_diffuse_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+	mMeshes[L"Ground"]->SetNormalMapIdx(mTextureManager->LoadTexture(L"texture\\default_normal_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
 
 	mTexturePath.push_back(L"texture\\default_diffuse_map.png");
 	mTexturePath.push_back(L"texture\\default_normal_map.png");
 }
 
-void Carol::Model::LoadSkyBox()
+void Carol::Model::LoadSkyBox(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager)
 {
 	XMFLOAT3 pos[8] =
 	{
@@ -291,7 +311,12 @@ void Carol::Model::LoadSkyBox()
 		skinnedVertices,
 		indices,
 		false,
-		false);
-	mMeshes[L"SkyBox"]->SetDiffuseMapIdx(gTextureManager->LoadTexture(L"texture\\snowcube1024.dds"));
+		false,
+		device,
+		cmdList,
+		defaultBuffersHeap,
+		uploadBuffersHeap,
+		descriptorManager);
+	mMeshes[L"SkyBox"]->SetDiffuseMapIdx(mTextureManager->LoadTexture(L"texture\\snowcube1024.dds", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
 	mTexturePath.push_back(L"texture\\snowcube1024.dds");
 }

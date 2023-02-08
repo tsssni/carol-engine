@@ -28,26 +28,39 @@ namespace Carol
 	class Model
 	{
 	public:
-		Model();
+		Model(
+			TextureManager* textureManager
+		);
 		virtual ~Model();
 		
-		bool IsSkinned();
-		void LoadGround();
-		void LoadSkyBox();
+		bool IsSkinned()const;
+		void LoadGround(
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
+		void LoadSkyBox(
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
 		
 		void ReleaseIntermediateBuffers();
 
-		Mesh* GetMesh(std::wstring_view meshName);
-		const std::unordered_map<std::wstring, std::unique_ptr<Mesh>>& GetMeshes();
+		const Mesh* GetMesh(std::wstring_view meshName)const;
+		const std::unordered_map<std::wstring, std::unique_ptr<Mesh>>& GetMeshes()const;
 
-		std::vector<std::wstring_view> GetAnimationClips();
+		std::vector<std::wstring_view> GetAnimationClips()const;
 		void SetAnimationClip(std::wstring_view clipName);
 
-		SkinnedConstants* GetSkinnedConstants();
+		const SkinnedConstants* GetSkinnedConstants()const;
+		void SetMeshCBAddress(std::wstring_view meshName, D3D12_GPU_VIRTUAL_ADDRESS addr);
 		void SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr);
 
 		void Update(Timer* timer);
-		void GetSkinnedVertices(std::wstring_view clipName, const std::vector<Vertex>& vertices, std::vector<std::vector<Vertex>>& skinnedVertices);
+		void GetSkinnedVertices(std::wstring_view clipName, const std::vector<Vertex>& vertices, std::vector<std::vector<Vertex>>& skinnedVertices)const;
 
 	protected:
 		std::wstring mModelName;
@@ -65,6 +78,7 @@ namespace Carol
 		std::unordered_map<std::wstring, std::vector<std::vector<DirectX::XMFLOAT4X4>>> mFinalTransforms;
 		std::unique_ptr<SkinnedConstants> mSkinnedConstants;
 
+		TextureManager* mTextureManager;
 		std::vector<std::wstring> mTexturePath;
 	};
 }

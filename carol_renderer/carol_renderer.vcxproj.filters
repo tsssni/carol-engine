@@ -143,6 +143,9 @@
     <ClInclude Include="include\scene\mesh.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="include\dx12\command.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\dx12\descriptor.cpp">

@@ -9,10 +9,10 @@ namespace Carol {
     using std::make_unique;
 }
 
-Carol::RootSignature::RootSignature()
+Carol::RootSignature::RootSignature(ID3D12Device* device)
 {
     Shader rootSignatureShader(L"shader\\root_signature.hlsl", {}, L"main", L"ms_6_6");
-    ThrowIfFailed(gDevice->CreateRootSignature(0, rootSignatureShader.GetBufferPointer(), rootSignatureShader.GetBufferSize(), IID_PPV_ARGS(mRootSignature.GetAddressOf())));
+    ThrowIfFailed(device->CreateRootSignature(0, rootSignatureShader.GetBufferPointer(), rootSignatureShader.GetBufferSize(), IID_PPV_ARGS(mRootSignature.GetAddressOf())));
 }
 
 ID3D12RootSignature* Carol::RootSignature::Get()const

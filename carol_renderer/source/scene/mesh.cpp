@@ -2,6 +2,7 @@
 #include <global.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
+#include <dx12/descriptor.h>
 #include <scene/material.h>
 
 namespace Carol
@@ -46,7 +47,12 @@ Carol::Mesh::Mesh(
 	span<pair<wstring, vector<vector<Vertex>>>> skinnedVertices,
 	span<uint32_t> indices,
 	bool isSkinned,
-	bool isTransparent)
+	bool isTransparent,
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager)
 	:mVertices(vertices),
 	mSkinnedVertices(skinnedVertices),
 	mIndices(indices),
@@ -55,10 +61,10 @@ Carol::Mesh::Mesh(
 	mSkinned(isSkinned),
 	mTransparent(isTransparent)
 {
-	LoadVertices();
-	LoadMeshlets();
-	LoadCullData();
-	InitCullMark();
+	LoadVertices(device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+	LoadMeshlets(device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+	LoadCullData(device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+	InitCullMark(device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
 }
 
 void Carol::Mesh::ReleaseIntermediateBuffer()
@@ -81,12 +87,12 @@ void Carol::Mesh::ReleaseIntermediateBuffer()
 	}
 }
 
-const Carol::Material* Carol::Mesh::GetMaterial()
+const Carol::Material* Carol::Mesh::GetMaterial()const
 {
 	return mMaterial.get();
 }
 
-uint32_t Carol::Mesh::GetMeshletSize()
+uint32_t Carol::Mesh::GetMeshletSize()const
 {
 	return mMeshConstants->MeshletCount;
 }
@@ -114,11 +120,11 @@ void Carol::Mesh::Update(XMMATRIX& world)
 	XMStoreFloat4x4(&mMeshConstants->World, XMMatrixTranspose(world));
 }
 
-void Carol::Mesh::ClearCullMark()
+void Carol::Mesh::ClearCullMark(ID3D12GraphicsCommandList* cmdList)
 {
 	static const uint32_t cullMarkClearValue = 0;
-	gCommandList->ClearUnorderedAccessViewUint(mMeshletFrustumCulledMarkBuffer->GetGpuUav(), mMeshletFrustumCulledMarkBuffer->GetCpuUav(), mMeshletFrustumCulledMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
-	gCommandList->ClearUnorderedAccessViewUint(mMeshletOcclusionPassedMarkBuffer->GetGpuUav(), mMeshletOcclusionPassedMarkBuffer->GetCpuUav(), mMeshletOcclusionPassedMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
+	cmdList->ClearUnorderedAccessViewUint(mMeshletFrustumCulledMarkBuffer->GetGpuUav(), mMeshletFrustumCulledMarkBuffer->GetCpuUav(), mMeshletFrustumCulledMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
+	cmdList->ClearUnorderedAccessViewUint(mMeshletOcclusionPassedMarkBuffer->GetGpuUav(), mMeshletOcclusionPassedMarkBuffer->GetCpuUav(), mMeshletOcclusionPassedMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
 }
 
 void Carol::Mesh::SetAnimationClip(std::wstring_view clipName)
@@ -139,44 +145,56 @@ void Carol::Mesh::SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr)
 	mSkinnedCBAddr = addr;
 }
 
-Carol::MeshConstants* Carol::Mesh::GetMeshConstants()
+const Carol::MeshConstants* Carol::Mesh::GetMeshConstants()const
 {
 	return mMeshConstants.get();
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetMeshCBAddress()
+D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetMeshCBAddress()const
 {
 	return mMeshCBAddr;
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetSkinnedCBAddress()
+D3D12_GPU_VIRTUAL_ADDRESS Carol::Mesh::GetSkinnedCBAddress()const
 {
 	return mSkinnedCBAddr;
 }
 
-bool Carol::Mesh::IsSkinned()
+bool Carol::Mesh::IsSkinned()const
 {
 	return mSkinned;
 }
 
-bool Carol::Mesh::IsTransparent()
+bool Carol::Mesh::IsTransparent()const
 {
 	return mTransparent;
 }
 
-void Carol::Mesh::LoadVertices()
+void Carol::Mesh::LoadVertices(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager)
 {
 	mVertexBuffer = make_unique<StructuredBuffer>(
 		mVertices.size(),
 		sizeof(Vertex),
-		gHeapManager->GetDefaultBuffersHeap(),
+		device,
+		defaultBuffersHeap,
+		descriptorManager,
 		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-	mVertexBuffer->CopySubresources(gHeapManager->GetUploadBuffersHeap(), mVertices.data(), mVertices.size() * sizeof(Vertex), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	mVertexBuffer->CopySubresources(cmdList, uploadBuffersHeap, mVertices.data(), mVertices.size() * sizeof(Vertex));
 	mMeshConstants->VertexBufferIdx = mVertexBuffer->GetGpuSrvIdx();
 }
 
-void Carol::Mesh::LoadMeshlets()
+void Carol::Mesh::LoadMeshlets(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager)
 {
 	Meshlet meshlet = {};
 	vector<uint8_t> vertices(mVertices.size(), 0xff);
@@ -228,15 +246,22 @@ void Carol::Mesh::LoadMeshlets()
 	mMeshletBuffer = make_unique<StructuredBuffer>(
 		mMeshlets.size(),
 		sizeof(Meshlet),
-		gHeapManager->GetDefaultBuffersHeap(),
+		device,
+		defaultBuffersHeap,
+		descriptorManager,
 		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-	mMeshletBuffer->CopySubresources(gHeapManager->GetUploadBuffersHeap(), mMeshlets.data(), mMeshlets.size() * sizeof(Meshlet), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	mMeshletBuffer->CopySubresources(cmdList, uploadBuffersHeap, mMeshlets.data(), mMeshlets.size() * sizeof(Meshlet));
 	mMeshConstants->MeshletBufferIdx = mMeshletBuffer->GetGpuSrvIdx();
 	mMeshConstants->MeshletCount = mMeshlets.size();
 }
 
-void Carol::Mesh::LoadCullData()
+void Carol::Mesh::LoadCullData(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager)
 {
 	static wstring staticName = L"mesh";
 	vector<vector<Vertex>> vertices;
@@ -258,10 +283,12 @@ void Carol::Mesh::LoadCullData()
 		mCullDataBuffer[name] = make_unique<StructuredBuffer>(
 			mCullData[name].size(),
 			sizeof(CullData),
-			gHeapManager->GetDefaultBuffersHeap(),
+			device,
+			defaultBuffersHeap,
+			descriptorManager,
 			D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-		mCullDataBuffer[name]->CopySubresources(gHeapManager->GetUploadBuffersHeap(), mCullData[name].data(), mCullData[name].size() * sizeof(CullData), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);	
+		mCullDataBuffer[name]->CopySubresources(cmdList, uploadBuffersHeap, mCullData[name].data(), mCullData[name].size() * sizeof(CullData));	
 	}
 
 	if (!mSkinned)
@@ -272,13 +299,20 @@ void Carol::Mesh::LoadCullData()
 	}
 }
 
-void Carol::Mesh::InitCullMark()
+void Carol::Mesh::InitCullMark(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager)
 {
 	uint32_t byteSize = ceilf(mMeshlets.size() / 8.f);
 
 	mMeshletFrustumCulledMarkBuffer = make_unique<RawBuffer>(
 		byteSize,
-		gHeapManager->GetDefaultBuffersHeap(),
+		device,
+		defaultBuffersHeap,
+		descriptorManager,
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
@@ -286,7 +320,9 @@ void Carol::Mesh::InitCullMark()
 
 	mMeshletOcclusionPassedMarkBuffer = make_unique<RawBuffer>(
 		byteSize,
-		gHeapManager->GetDefaultBuffersHeap(),
+		device,
+		defaultBuffersHeap,
+		descriptorManager,
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	

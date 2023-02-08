@@ -4,16 +4,19 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include <mutex>
 
 namespace Carol
 {
 	class Buddy;
 	class Resource;
 	class DescriptorAllocator;
+	class DescriptorManager;
 
 	class DescriptorAllocInfo
 	{
 	public:
+		DescriptorManager* Manager = nullptr;
 		uint32_t StartOffset = 0;
 		uint32_t NumDescriptors = 0;
 	};
@@ -23,9 +26,10 @@ namespace Carol
 	public:
 		DescriptorAllocator(
 			D3D12_DESCRIPTOR_HEAP_TYPE type, 
+			ID3D12Device* device,
 			uint32_t initNumCpuDescriptors = 2048,
 			uint32_t numGpuDescriptors = 65536);
-		virtual ~DescriptorAllocator();
+		~DescriptorAllocator();
 		
 		std::unique_ptr<DescriptorAllocInfo> CpuAllocate(uint32_t numDescriptors);
 		void CpuDeallocate(std::unique_ptr<DescriptorAllocInfo> info);
@@ -41,8 +45,8 @@ namespace Carol
 		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
 
 	protected:
-		void AddCpuDescriptorHeap();
-		void InitGpuDescriptorHeap();
+		void AddCpuDescriptorAllocator(ID3D12Device* device);
+		void InitGpuDescriptorAllocator(ID3D12Device* device);
 
 		void CpuDelete(std::unique_ptr<DescriptorAllocInfo> info);
 		void GpuDelete(std::unique_ptr<DescriptorAllocInfo> info);
@@ -60,12 +64,16 @@ namespace Carol
 
 		D3D12_DESCRIPTOR_HEAP_TYPE mType;
 		uint32_t mDescriptorSize = 0;
+
+		std::mutex mCpuAllocatorMutex;
+		std::mutex mGpuAllocatorMutex;
 	};
 
 	class DescriptorManager
 	{
 	public:
 		DescriptorManager(
+			ID3D12Device* device,
 			uint32_t initCpuCbvSrvUavHeapSize = 2048,
 			uint32_t initGpuCbvSrvUavHeapSize = 2048,
 			uint32_t initRtvHeapSize = 2048,

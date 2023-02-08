@@ -9,11 +9,20 @@
 namespace Carol
 {
 	class ColorBuffer;
+	class Heap;
+	class DescriptorManager;
 	
 	class Texture
 	{
 	public:
-		Texture(std::wstring_view fileName, bool isSrgb);
+		Texture(
+			std::wstring_view fileName,
+			bool isSrgb,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
 
 		uint32_t GetGpuSrvIdx(uint32_t planeSlice = 0);
 		void ReleaseIntermediateBuffer();
@@ -31,7 +40,14 @@ namespace Carol
 	public:
 		TextureManager();
 
-		uint32_t LoadTexture(std::wstring_view fileName, bool isSrgb = false);
+		uint32_t LoadTexture(
+			std::wstring_view fileName,
+			bool isSrgb,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
 		void UnloadTexture(std::wstring_view fileName);
 		void ReleaseIntermediateBuffers(std::wstring_view fileName);
 

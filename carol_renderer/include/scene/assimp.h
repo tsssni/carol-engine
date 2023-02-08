@@ -20,14 +20,35 @@ namespace Carol
 			SceneNode* rootNode,
 		    std::wstring_view path,
 			std::wstring_view textureDir,
-			bool isSkinned);
+			bool isSkinned,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager,
+			TextureManager* textureManager);
 		AssimpModel(const AssimpModel&) = delete;
 		AssimpModel(AssimpModel&&) = delete;
 		AssimpModel& operator=(const AssimpModel&) = delete;
 
 	protected:
-		void ProcessNode(aiNode* node, SceneNode* sceneNode, const aiScene* scene);
-		Mesh* ProcessMesh(aiMesh* mesh, const aiScene* scene);
+		void ProcessNode(
+			aiNode* node,
+			SceneNode* sceneNode,
+			const aiScene* scene,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
+		Mesh* ProcessMesh(
+			aiMesh* mesh,
+			const aiScene* scene,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
 		
 		void LoadAssimpSkinnedData(const aiScene* scene);
 		void ReadBones(aiNode* node, const aiScene* scene);
@@ -39,12 +60,35 @@ namespace Carol
 		void ReadAnimations(const aiScene* scene);
 
 		void ReadMeshVerticesAndIndices(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, aiMesh* mesh);
-		void ReadMeshMaterialAndTextures(Mesh* mesh, aiMesh* aimesh, const aiScene* scene);
+		void ReadMeshMaterialAndTextures(
+			Mesh* mesh,
+			aiMesh* aimesh,
+			const aiScene* scene,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
 		void ReadMeshBones(std::vector<Vertex>& vertices, aiMesh* mesh);
 		void InsertBoneWeightToVertex(Vertex& vertex, uint32_t boneIndex, float boneWeight);
 
-		void ReadTexture(Mesh* mesh, aiMaterial* matData);
-		void LoadTexture(Mesh* mesh, aiString aiPath, aiTextureType type);
+		void ReadTexture(
+			Mesh* mesh,
+			aiMaterial* matData,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
+		void LoadTexture(
+			Mesh* mesh,
+			aiString aiPath,
+			aiTextureType type,
+			ID3D12Device* device,
+			ID3D12GraphicsCommandList* cmdList,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
+			DescriptorManager* descriptorManager);
 
 		DirectX::XMMATRIX aiMatrix4x4ToXM(aiMatrix4x4 aiM);
 		aiMatrix4x4 XMToaiMatrix4x4(DirectX::XMMATRIX xm);

@@ -22,34 +22,81 @@ namespace Carol
 	using Microsoft::WRL::ComPtr;
 }
 
-Carol::Scene::Scene(std::wstring_view name)
+Carol::Scene::Scene(
+	wstring_view name,
+	ID3D12Device* device,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager)
 	:mRootNode(make_unique<SceneNode>()),
 	mMeshes(MESH_TYPE_COUNT),
 	mIndirectCommandBuffer(gNumFrame),
 	mMeshCB(gNumFrame),
-	mSkinnedCB(gNumFrame),
-	mInstanceFrustumCulledMarkBuffer(make_unique<RawBuffer>(
-	2 << 16,
-	gHeapManager->GetDefaultBuffersHeap(),
-	D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-	D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)),
-	mInstanceOcclusionPassedMarkBuffer(make_unique<RawBuffer>(
-	2 << 16,
-	gHeapManager->GetDefaultBuffersHeap(),
-	D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-	D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
-	
+	mSkinnedCB(gNumFrame)
 {
 	mRootNode->Name = name;
-	InitBuffers();
+	InitBuffers(device, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
 }
 
-Carol::vector<Carol::wstring_view> Carol::Scene::GetAnimationClips(wstring_view modelName)
+void Carol::Scene::InitBuffers(
+	ID3D12Device* device,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager)
 {
-	return mModels[modelName.data()]->GetAnimationClips();
+	mInstanceFrustumCulledMarkBuffer = make_unique<RawBuffer>(
+		2 << 16,
+		device,
+		defaultBuffersHeap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	mInstanceOcclusionPassedMarkBuffer = make_unique<RawBuffer>(
+		2 << 16,
+		device,
+		defaultBuffersHeap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	for (int i = 0; i < gNumFrame; ++i)
+	{
+		ResizeBuffer(
+			mIndirectCommandBuffer[i],
+			1024,
+			sizeof(IndirectCommand),
+			false,
+			device,
+			uploadBuffersHeap,
+			descriptorManager);
+
+		ResizeBuffer(
+			mMeshCB[i],
+			1024,
+			sizeof(MeshConstants),
+			true,
+			device,
+			uploadBuffersHeap,
+			descriptorManager);
+
+		ResizeBuffer(
+			mSkinnedCB[i],
+			1024, 
+			sizeof(SkinnedConstants),
+			true,
+			device,
+			uploadBuffersHeap,
+			descriptorManager);
+	}
 }
 
-Carol::vector<Carol::wstring_view> Carol::Scene::GetModelNames()
+Carol::vector<Carol::wstring_view> Carol::Scene::GetAnimationClips(wstring_view modelName)const
+{
+	return mModels.at(modelName.data())->GetAnimationClips();
+}
+
+Carol::vector<Carol::wstring_view> Carol::Scene::GetModelNames()const
 {
 	vector<wstring_view> models;
 	for (auto& [name, model] : mModels)
@@ -60,12 +107,22 @@ Carol::vector<Carol::wstring_view> Carol::Scene::GetModelNames()
 	return models;
 }
 
-bool Carol::Scene::IsAnyTransparentMeshes()
+bool Carol::Scene::IsAnyTransparentMeshes()const
 {
 	return mMeshes[TRANSPARENT_STATIC].size() + mMeshes[TRANSPARENT_SKINNED].size();
 }
 
-void Carol::Scene::LoadModel(wstring_view name, wstring_view path, wstring_view textureDir, bool isSkinned)
+void Carol::Scene::LoadModel(
+	wstring_view name,
+	wstring_view path,
+	wstring_view textureDir,
+	bool isSkinned,
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager,
+	TextureManager* textureManager)
 {
 	mRootNode->Children.push_back(make_unique<SceneNode>());
 	auto& node = mRootNode->Children.back();
@@ -76,7 +133,13 @@ void Carol::Scene::LoadModel(wstring_view name, wstring_view path, wstring_view 
 		node->Children[0].get(),
 		path,
 		textureDir,
-		isSkinned);
+		isSkinned,
+		device,
+		cmdList,
+		defaultBuffersHeap,
+		uploadBuffersHeap,
+		descriptorManager,
+		textureManager);
 
 	for (auto& [name, mesh] : mModels[node->Name]->GetMeshes())
 	{
@@ -86,17 +149,28 @@ void Carol::Scene::LoadModel(wstring_view name, wstring_view path, wstring_view 
 	}
 }
 
-void Carol::Scene::LoadGround()
+void Carol::Scene::LoadGround(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager,
+	TextureManager* textureManager)
 {
-	mModels[L"Ground"] = make_unique<Model>();
-	mModels[L"Ground"]->LoadGround();
+	mModels[L"Ground"] = make_unique<Model>(textureManager);
+	mModels[L"Ground"]->LoadGround(
+		device,
+		cmdList,
+		defaultBuffersHeap,
+		uploadBuffersHeap,
+		descriptorManager);
 	
 	mRootNode->Children.push_back(make_unique<SceneNode>());
 	auto& node = mRootNode->Children.back();
 
 	node->Name = L"Ground";
 	node->Children.push_back(make_unique<SceneNode>());
-	node->Children[0]->Meshes.push_back(mModels[L"Ground"]->GetMesh(L"Ground"));
+	node->Children[0]->Meshes.push_back(const_cast<Mesh*>(mModels[L"Ground"]->GetMesh(L"Ground")));
 
 	for (auto& [name, mesh] : mModels[L"Ground"]->GetMeshes())
 	{
@@ -105,10 +179,21 @@ void Carol::Scene::LoadGround()
 	}
 }
 
-void Carol::Scene::LoadSkyBox()
+void Carol::Scene::LoadSkyBox(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	Heap* defaultBuffersHeap,
+	Heap* uploadBuffersHeap,
+	DescriptorManager* descriptorManager,
+	TextureManager* textureManager)
 {
-	mSkyBox = make_unique<Model>();
-	mSkyBox->LoadSkyBox();
+	mSkyBox = make_unique<Model>(textureManager);
+	mSkyBox->LoadSkyBox(
+		device,
+		cmdList,
+		defaultBuffersHeap,
+		uploadBuffersHeap,
+		descriptorManager);
 }
 
 void Carol::Scene::UnloadModel(wstring_view modelName)
@@ -147,27 +232,17 @@ void Carol::Scene::ReleaseIntermediateBuffers(wstring_view modelName)
 	mModels[modelName.data()]->ReleaseIntermediateBuffers();
 }
 
-const Carol::unordered_map<Carol::wstring, Carol::Mesh*>& Carol::Scene::GetMeshes(MeshType type)
-{
-	return mMeshes[type];
-}
-
-uint32_t Carol::Scene::GetMeshesCount(MeshType type)
+uint32_t Carol::Scene::GetMeshesCount(MeshType type)const
 {
 	return mMeshes[type].size();
 }
 
-const Carol::unordered_map<Carol::wstring, Carol::unique_ptr<Carol::Model>>& Carol::Scene::GetModels()
-{
-	return mModels;
-}
-
-uint32_t Carol::Scene::GetModelsCount()
+uint32_t Carol::Scene::GetModelsCount()const
 {
 	return mModels.size();
 }
 
-Carol::Mesh* Carol::Scene::GetSkyBox()
+const Carol::Mesh* Carol::Scene::GetSkyBox()const
 {
 	return mSkyBox->GetMesh(L"SkyBox");
 }
@@ -192,62 +267,44 @@ void Carol::Scene::Contain(Camera* camera, std::vector<std::vector<Mesh*>>& mesh
 {
 }
 
-void Carol::Scene::ClearCullMark()
+void Carol::Scene::ClearCullMark(ID3D12GraphicsCommandList* cmdList)
 {
 	static const uint32_t cullMarkClearValue = 0;
-	gCommandList->ClearUnorderedAccessViewUint(mInstanceFrustumCulledMarkBuffer->GetGpuUav(), mInstanceFrustumCulledMarkBuffer->GetCpuUav(), mInstanceFrustumCulledMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
-	gCommandList->ClearUnorderedAccessViewUint(mInstanceOcclusionPassedMarkBuffer->GetGpuUav(), mInstanceOcclusionPassedMarkBuffer->GetCpuUav(), mInstanceOcclusionPassedMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
+	cmdList->ClearUnorderedAccessViewUint(mInstanceFrustumCulledMarkBuffer->GetGpuUav(), mInstanceFrustumCulledMarkBuffer->GetCpuUav(), mInstanceFrustumCulledMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
+	cmdList->ClearUnorderedAccessViewUint(mInstanceOcclusionPassedMarkBuffer->GetGpuUav(), mInstanceOcclusionPassedMarkBuffer->GetCpuUav(), mInstanceOcclusionPassedMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
 
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
-		for (auto& [name, mesh] : GetMeshes((MeshType)i))
+		for (auto& [name, mesh] : mMeshes[i])
 		{
-			mesh->ClearCullMark();
+			mesh->ClearCullMark(cmdList);
 		}
 	}
 }
 
-uint32_t Carol::Scene::GetMeshCBStartOffet(MeshType type)
+uint32_t Carol::Scene::GetMeshCBStartOffet(MeshType type)const
 {
 	return mMeshStartOffset[type];
 }
 
-uint32_t Carol::Scene::GetMeshCBIdx()
+uint32_t Carol::Scene::GetMeshCBIdx()const
 {
 	return mMeshCB[gCurrFrame]->GetGpuSrvIdx();
 }
 
-uint32_t Carol::Scene::GetCommandBufferIdx()
+uint32_t Carol::Scene::GetCommandBufferIdx()const
 {
 	return mIndirectCommandBuffer[gCurrFrame]->GetGpuSrvIdx();
 }
 
-uint32_t Carol::Scene::GetInstanceFrustumCulledMarkBufferIdx()
+uint32_t Carol::Scene::GetInstanceFrustumCulledMarkBufferIdx()const
 {
 	return mInstanceFrustumCulledMarkBuffer->GetGpuUavIdx();
 }
 
-uint32_t Carol::Scene::GetInstanceOcclusionPassedMarkBufferIdx()
+uint32_t Carol::Scene::GetInstanceOcclusionPassedMarkBufferIdx()const
 {
 	return mInstanceOcclusionPassedMarkBuffer->GetGpuUavIdx();
-}
-
-void Carol::Scene::ExecuteIndirect(StructuredBuffer* indirectCmdBuffer)
-{
-	gCommandList->ExecuteIndirect(
-		gCommandSignature.Get(),
-		indirectCmdBuffer->GetNumElements(),
-		indirectCmdBuffer->Get(),
-		0,
-		indirectCmdBuffer->Get(),
-		indirectCmdBuffer->GetCounterOffset());
-}
-
-void Carol::Scene::DrawSkyBox(ID3D12PipelineState* skyBoxPSO)
-{
-	gCommandList->SetPipelineState(skyBoxPSO);
-	gCommandList->SetGraphicsRootConstantBufferView(MESH_CB, GetSkyBox()->GetMeshCBAddress());
-	static_cast<ID3D12GraphicsCommandList6*>(gCommandList.Get())->DispatchMesh(1, 1, 1);
 }
 
 void Carol::Scene::Update(Timer* timer)
@@ -280,7 +337,7 @@ void Carol::Scene::Update(Timer* timer)
 	TestBufferSize(mSkinnedCB[gCurrFrame], GetModelsCount());
 
 	int modelIdx = 0;
-	for (auto& [name, model] : GetModels())
+	for (auto& [name, model] : mModels)
 	{
 		if (model->IsSkinned())
 		{
@@ -293,7 +350,7 @@ void Carol::Scene::Update(Timer* timer)
 	int meshIdx = 0;
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
-		for (auto& [name, mesh] : GetMeshes(MeshType(i)))
+		for (auto& [name, mesh] : mMeshes[i])
 		{
 			mMeshCB[gCurrFrame]->CopyElements(mesh->GetMeshConstants(), meshIdx);
 			mesh->SetMeshCBAddress(mMeshCB[gCurrFrame]->GetElementAddress(meshIdx));
@@ -314,7 +371,7 @@ void Carol::Scene::Update(Timer* timer)
 	}
 
 	mMeshCB[gCurrFrame]->CopyElements(GetSkyBox()->GetMeshConstants(), meshIdx);
-	GetSkyBox()->SetMeshCBAddress(mMeshCB[gCurrFrame]->GetElementAddress(meshIdx));
+    mSkyBox->SetMeshCBAddress(L"SkyBox", mMeshCB[gCurrFrame]->GetElementAddress(meshIdx));
 }
 
 void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot)
@@ -333,30 +390,38 @@ void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot)
 	}
 }
 
-void Carol::Scene::InitBuffers()
-{
-	for (int i = 0; i < gNumFrame; ++i)
-	{
-		ResizeBuffer(mIndirectCommandBuffer[i], 1024, sizeof(IndirectCommand), false);
-		ResizeBuffer(mMeshCB[i], 1024, sizeof(MeshConstants), true);
-		ResizeBuffer(mSkinnedCB[i], 1024, sizeof(SkinnedConstants), true);
-	}
-}
-
-void Carol::Scene::TestBufferSize(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements)
+void Carol::Scene::TestBufferSize(
+	std::unique_ptr<StructuredBuffer>& buffer,
+	uint32_t numElements)
 {
 	if (buffer->GetNumElements() < numElements)
 	{
-		ResizeBuffer(buffer, numElements, buffer->GetElementSize(), buffer->IsConstant());
+		ResizeBuffer(
+			buffer,
+			numElements,
+			buffer->GetElementSize(),
+			buffer->IsConstant(),
+			buffer->GetDevice().Get(),
+			buffer->GetHeap(),
+			buffer->GetDescriptorManager());
 	}
 }
 
-void Carol::Scene::ResizeBuffer(std::unique_ptr<StructuredBuffer>& buffer, uint32_t numElements, uint32_t elementSize, bool isConstant)
+void Carol::Scene::ResizeBuffer(
+	std::unique_ptr<StructuredBuffer>& buffer,
+	uint32_t numElements,
+	uint32_t elementSize,
+	bool isConstant,
+	ID3D12Device* device,
+	Heap* heap,
+	DescriptorManager* descriptorManager)
 {
 	buffer = make_unique<StructuredBuffer>(
 		numElements,
 		elementSize,
-		gHeapManager->GetUploadBuffersHeap(),
+		device,
+		heap,
+		descriptorManager,
 		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_NONE,
 		isConstant);

@@ -98,7 +98,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         
         delete renderer;
         return (int) msg.wParam;
-
     }
     catch (Carol::DxException& e)
     {

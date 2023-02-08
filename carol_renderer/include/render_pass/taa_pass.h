@@ -1,5 +1,6 @@
 #pragma once
 #include <render_pass/render_pass.h>
+#include <scene/mesh.h>
 #include <utils/d3dx12.h>
 #include <DirectXMath.h>
 #include <memory>
@@ -7,46 +8,61 @@
 namespace Carol
 {
 	class ColorBuffer;
+	class Resource;
 	
 	class TaaPass : public RenderPass
 	{
 	public:
 		TaaPass(
-			DXGI_FORMAT velocityMapFormat = DXGI_FORMAT_R16G16_FLOAT,
-			DXGI_FORMAT frameFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
+			ID3D12Device* device,
+			DXGI_FORMAT frameFormat,
+			DXGI_FORMAT frameDsvFormat,
+			DXGI_FORMAT velocityMapFormat = DXGI_FORMAT_R16G16_FLOAT);
 		TaaPass(const TaaPass&) = delete;
 		TaaPass(TaaPass&&) = delete;
 		TaaPass& operator=(const TaaPass&) = delete;
 
-		virtual void Draw()override;
-		virtual void Update()override;
-
-		void GetHalton(float& proj0,float& proj1);
-		void SetHistViewProj(DirectX::XMMATRIX& histViewProj);
-		DirectX::XMMATRIX GetHistViewProj();
+		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
 		
-		uint32_t GetVeloctiySrvIdx();
-		uint32_t GetHistFrameSrvIdx();
+		void SetCurrBackBuffer(Resource* currBackBuffer);
+		void SetIndirectCommandBuffer(MeshType type, const StructuredBuffer* indirectCommandBuffer);
+		void SetFrameDsv(D3D12_CPU_DESCRIPTOR_HANDLE frameDsv);
+		void SetCurrBackBufferRtv(D3D12_CPU_DESCRIPTOR_HANDLE currBackBufferRtv);
+
+		void GetHalton(float& proj0,float& proj1)const;
+		void SetHistViewProj(DirectX::XMMATRIX& histViewProj);
+		DirectX::XMMATRIX GetHistViewProj()const;
+		
+		uint32_t GetVeloctiySrvIdx()const;
+		uint32_t GetHistFrameSrvIdx()const;
 
 	protected:
 		virtual void InitShaders()override;
-		virtual void InitPSOs()override;
-		virtual void InitBuffers()override;
+		virtual void InitPSOs(ID3D12Device* device)override;
+		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
 
 		void InitHalton();
 		float RadicalInversion(int base, int num);
 
-        void DrawVelocityMap();
-        void DrawOutput();
+        void DrawVelocityMap(ID3D12GraphicsCommandList* cmdList);
+        void DrawOutput(ID3D12GraphicsCommandList* cmdList);
 
 		std::unique_ptr<ColorBuffer> mHistFrameMap;
 		std::unique_ptr<ColorBuffer> mVelocityMap;
 
-		DXGI_FORMAT mVelocityMapFormat = DXGI_FORMAT_R16G16_SNORM;
-		DXGI_FORMAT mFrameFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+		DXGI_FORMAT mVelocityMapFormat;
+		DXGI_FORMAT mFrameFormat;
+		DXGI_FORMAT mFrameDsvFormat;
+
+		D3D12_CPU_DESCRIPTOR_HANDLE mCurrBackBufferRtv;
+		D3D12_CPU_DESCRIPTOR_HANDLE mFrameDsv;
 
 		DirectX::XMFLOAT2 mHalton[8];
 		DirectX::XMMATRIX mHistViewProj;
+		
+		std::vector<const StructuredBuffer*> mIndirectCommandBuffer;
+		Resource* mCurrBackBuffer;
+
 	};
 }
 

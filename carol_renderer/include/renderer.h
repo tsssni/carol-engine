@@ -12,6 +12,7 @@
 namespace Carol
 {
 	class FastConstantBufferAllocator;
+	class Scene;
     class FramePass;
     class SsaoPass;
     class NormalPass;
@@ -92,7 +93,6 @@ namespace Carol
     {
     public:
 		Renderer(HWND hWnd, uint32_t width, uint32_t height);
-		~Renderer();
         
         virtual void Draw()override;
         virtual void Update()override;
@@ -112,17 +112,20 @@ namespace Carol
 		void InitConstants();
         void InitPipelineStates();
 
+        void InitScene();
         void InitFrame();
         void InitSsao();
         void InitNormal();
         void InitTaa();
         void InitMainLight();
-        void InitScene();
 		
 		void UpdateFrameCB();
         void ReleaseIntermediateBuffers();
 
     protected:
+		std::unique_ptr<Scene> mScene;
+
+		std::unique_ptr<FramePass> mFramePass;
         std::unique_ptr<SsaoPass> mSsaoPass;
         std::unique_ptr<NormalPass> mNormalPass;
         std::unique_ptr<TaaPass> mTaaPass;

@@ -9,10 +9,12 @@ namespace Carol {
 	using Microsoft::WRL::ComPtr;
 }
 
-
 Carol::DisplayPass::~DisplayPass()
 {
-	gDescriptorManager->RtvDeallocate(std::move(mBackBufferRtvAllocInfo));
+	if (mBackBufferRtvAllocInfo)
+	{
+		mBackBufferRtvAllocInfo->Manager->RtvDeallocate(std::move(mBackBufferRtvAllocInfo));
+	}
 }
 
 IDXGISwapChain* Carol::DisplayPass::GetSwapChain()
@@ -33,6 +35,7 @@ uint32_t Carol::DisplayPass::GetBackBufferCount()
 Carol::DisplayPass::DisplayPass(
 	HWND hwnd,
 	IDXGIFactory* factory,
+	ID3D12CommandQueue* cmdQueue,
 	uint32_t bufferCount,
 	DXGI_FORMAT backBufferFormat)
 	:mBackBuffer(bufferCount),
@@ -60,7 +63,7 @@ Carol::DisplayPass::DisplayPass(
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	mSwapChain.Reset();
-	ThrowIfFailed(factory->CreateSwapChain(gCommandQueue.Get(), &swapChainDesc, mSwapChain.GetAddressOf()));
+	ThrowIfFailed(factory->CreateSwapChain(cmdQueue, &swapChainDesc, mSwapChain.GetAddressOf()));
 }
 
 void Carol::DisplayPass::SetBackBufferIndex()
@@ -75,7 +78,7 @@ Carol::Resource* Carol::DisplayPass::GetCurrBackBuffer()
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DisplayPass::GetCurrBackBufferRtv()
 {
-	return gDescriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mCurrBackBufferIndex);
+	return mBackBufferRtvAllocInfo->Manager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mCurrBackBufferIndex);
 }
 
 DXGI_FORMAT Carol::DisplayPass::GetBackBufferFormat()
@@ -83,19 +86,18 @@ DXGI_FORMAT Carol::DisplayPass::GetBackBufferFormat()
 	return mBackBufferFormat;
 }
 
-void Carol::DisplayPass::Draw()
-{
-}
-
-void Carol::DisplayPass::Update()
+void Carol::DisplayPass::Draw(ID3D12GraphicsCommandList* cmdList)
 {
 }
 
 void Carol::DisplayPass::Present()
 {
+	ComPtr<ID3D12Device> device;
+	mSwapChain->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+
 	if (FAILED(mSwapChain->Present(0, 0)))
 	{
-		ThrowIfFailed(gDevice->GetDeviceRemovedReason());
+		ThrowIfFailed(device->GetDeviceRemovedReason());
 	}
 
 	SetBackBufferIndex();
@@ -105,11 +107,11 @@ void Carol::DisplayPass::InitShaders()
 {
 }
 
-void Carol::DisplayPass::InitPSOs()
+void Carol::DisplayPass::InitPSOs(ID3D12Device* device)
 {
 }
 
-void Carol::DisplayPass::InitBuffers()
+void Carol::DisplayPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)
 {
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
@@ -125,19 +127,22 @@ void Carol::DisplayPass::InitBuffers()
 	));
 
 	mCurrBackBufferIndex = 0;
-	InitDescriptors();
+	InitDescriptors(descriptorManager);
 }
 
-void Carol::DisplayPass::InitDescriptors()
+void Carol::DisplayPass::InitDescriptors(DescriptorManager* descriptorManager)
 {
+	ComPtr<ID3D12Device> device;
+	mSwapChain->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+
 	if (!mBackBufferRtvAllocInfo->NumDescriptors)
 	{
-		mBackBufferRtvAllocInfo = gDescriptorManager->RtvAllocate(mBackBuffer.size());
+		mBackBufferRtvAllocInfo = descriptorManager->RtvAllocate(mBackBuffer.size());
 	}
 	
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
 		ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(mBackBuffer[i]->GetAddressOf())));
-		gDevice->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, gDescriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), i));
+		device->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, descriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), i));
 	}
 }
