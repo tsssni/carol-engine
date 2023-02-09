@@ -1,7 +1,5 @@
 #include <render_pass/taa_pass.h>
 #include <global.h>
-#include <render_pass/display_pass.h>
-#include <render_pass/frame_pass.h>
 #include <scene/scene.h>
 #include <dx12.h>
 #include <utils/common.h>

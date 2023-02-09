@@ -13,7 +13,4 @@ namespace Carol
 
 	extern std::unordered_map<std::wstring, std::unique_ptr<Shader>> gShaders;
 	extern std::unordered_map<std::wstring, std::unique_ptr<PSO>> gPSOs;
-
-	extern uint32_t gNumFrame;
-	extern uint32_t gCurrFrame;
 }

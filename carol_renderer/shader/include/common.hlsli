@@ -14,8 +14,6 @@ cbuffer FrameCB : register(b3)
     float4x4 gInvProj;
     float4x4 gViewProj;
     float4x4 gInvViewProj;
-    float4x4 gProjTex;
-    float4x4 gViewProjTex;
 
     float4x4 gHistViewProj;
     float4x4 gJitteredViewProj;

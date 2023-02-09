@@ -11,9 +11,9 @@ namespace Carol {
 
 Carol::DisplayPass::~DisplayPass()
 {
-	if (mBackBufferRtvAllocInfo)
+	if (mBackBufferRtvAllocInfo && mBackBufferRtvAllocInfo->Manager)
 	{
-		mBackBufferRtvAllocInfo->Manager->RtvDeallocate(std::move(mBackBufferRtvAllocInfo));
+		mBackBufferRtvAllocInfo->Manager->RtvDeallocate(mBackBufferRtvAllocInfo.release());
 	}
 }
 

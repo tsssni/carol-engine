@@ -16,9 +16,6 @@ namespace Carol
 
 	unordered_map<wstring, unique_ptr<Shader>> gShaders;
 	unordered_map<wstring, unique_ptr<PSO>> gPSOs;
-
-	uint32_t gNumFrame;
-	uint32_t gCurrFrame;
 }
 
 float Carol::BaseRenderer::AspectRatio()
@@ -52,7 +49,7 @@ Carol::BaseRenderer::BaseRenderer(HWND hWnd)
 	InitFence();
 
 	InitCommandQueue();
-	InitCommandAllocator();
+	InitCommandAllocatorPool();
 	InitCommandList();
 
 	InitHeapManager();
@@ -138,26 +135,16 @@ void Carol::BaseRenderer::InitCommandQueue()
 	ThrowIfFailed(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(mCommandQueue.GetAddressOf())));
 }
 
-void Carol::BaseRenderer::InitCommandAllocator()
+void Carol::BaseRenderer::InitCommandAllocatorPool()
 {
-	ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mInitCommandAllocator.GetAddressOf())));
-
-	gNumFrame = 3;
-	gCurrFrame = 0;
-
-	mFrameAllocator.resize(gNumFrame);
-	for (int i = 0; i < gNumFrame; ++i)
-	{
-		ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mFrameAllocator[i].GetAddressOf())));
-	}
+	mCommandAllocatorPool = make_unique<CommandAllocatorPool>(D3D12_COMMAND_LIST_TYPE_DIRECT, mDevice.Get());
 }
 
 void Carol::BaseRenderer::InitCommandList()
 {
+	mCommandAllocator = mCommandAllocatorPool->RequestAllocator(mGpuFenceValue);
 	ComPtr<ID3D12GraphicsCommandList6> cmdList;
-
-	ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mInitCommandAllocator.Get(), nullptr, IID_PPV_ARGS(cmdList.GetAddressOf())));
-	cmdList->Close();
+	ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocator.Get(), nullptr, IID_PPV_ARGS(cmdList.GetAddressOf())));
 
 	mCommandList = cmdList;
 }
@@ -260,13 +247,13 @@ bool Carol::BaseRenderer::IsResizing()
 
 void Carol::BaseRenderer::FlushCommandQueue()
 {
-	++mCpuFence;
-	ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFence));
+	++mCpuFenceValue;
+	ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFenceValue));
 
-	if (mFence->GetCompletedValue() < mCpuFence)
+	if (mFence->GetCompletedValue() < mCpuFenceValue)
 	{
 		auto eventHandle = CreateEventEx(nullptr, LPCWSTR(nullptr), 0, EVENT_ALL_ACCESS);
-		ThrowIfFailed(mFence->SetEventOnCompletion(mCpuFence, eventHandle));
+		ThrowIfFailed(mFence->SetEventOnCompletion(mCpuFenceValue, eventHandle));
 
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);

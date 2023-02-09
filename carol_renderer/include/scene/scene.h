@@ -20,6 +20,7 @@ namespace Carol {
 	class SceneNode;
 	class Heap;
 	class DescriptorManager;
+	class StructuredBufferPool;
 
 	class Scene
 	{
@@ -74,7 +75,7 @@ namespace Carol {
 
 		void SetWorld(std::wstring_view modelName, DirectX::XMMATRIX world);
 		void SetAnimationClip(std::wstring_view modelName, std::wstring_view clipName);
-		void Update(Timer* timer);
+		void Update(Timer* timer, uint64_t cpuFenceValue, uint64_t completedFenceValue);
 		void Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
 
 		void ClearCullMark(ID3D12GraphicsCommandList* cmdList);
@@ -93,18 +94,7 @@ namespace Carol {
 			Heap* defaultBuffersHeap,
 			Heap* uploadBuffersHeap,
 			DescriptorManager* descriptorManager);
-		void TestBufferSize(
-			std::unique_ptr<StructuredBuffer>& buffer,
-			uint32_t numElements);
-		void ResizeBuffer(
-			std::unique_ptr<StructuredBuffer>& buffer,
-			uint32_t numElements,
-			uint32_t elementSize,
-			bool isConstant,
-			ID3D12Device* device,
-			Heap* heap,
-			DescriptorManager* descriptorManager);
-
+	
 		std::unique_ptr<Model> mSkyBox;
 		std::vector<Light> mLights;
 		std::unique_ptr<SceneNode> mRootNode;
@@ -112,9 +102,13 @@ namespace Carol {
 		std::unordered_map<std::wstring, std::unique_ptr<Model>> mModels;
 		std::vector<std::unordered_map<std::wstring, Mesh*>> mMeshes;
 
-		std::vector<std::unique_ptr<StructuredBuffer>> mIndirectCommandBuffer;
-		std::vector<std::unique_ptr<StructuredBuffer>> mMeshCB;
-		std::vector<std::unique_ptr<StructuredBuffer>> mSkinnedCB;
+		std::unique_ptr<StructuredBuffer> mIndirectCommandBuffer;
+		std::unique_ptr<StructuredBuffer> mMeshCB;
+		std::unique_ptr<StructuredBuffer> mSkinnedCB;
+
+		std::unique_ptr<StructuredBufferPool> mIndirectCommandBufferPool;
+		std::unique_ptr<StructuredBufferPool> mMeshCBPool;
+		std::unique_ptr<StructuredBufferPool> mSkinnedCBPool;
 
 		std::unique_ptr<RawBuffer> mInstanceFrustumCulledMarkBuffer;
 		std::unique_ptr<RawBuffer> mInstanceOcclusionPassedMarkBuffer;

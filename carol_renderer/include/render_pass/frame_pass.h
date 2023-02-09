@@ -12,6 +12,7 @@ namespace Carol
 {
 	class ColorBuffer;
 	class StructuredBuffer;
+	class StructuredBufferPool;
 	class Heap;
 	class Scene;
 	class DescriptorManager;
@@ -42,7 +43,7 @@ namespace Carol
 		
 		virtual void Draw(ID3D12GraphicsCommandList* cmdList);
 		void Cull(ID3D12GraphicsCommandList* cmdList);
-		void Update();
+		void Update(uint64_t cpuFenceValue, uint64_t completedFenceValue);
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameRtv()const;
 		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameDsv()const;
@@ -65,17 +66,6 @@ namespace Carol
 		virtual void InitShaders()override;
 		virtual void InitPSOs(ID3D12Device* device)override;
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager);
-
-		void TestCommandBufferSize(
-			std::unique_ptr<StructuredBuffer>& buffer,
-			uint32_t numElements);
-		void ResizeCommandBuffer(
-			std::unique_ptr<StructuredBuffer>& buffer,
-			uint32_t numElements,
-			uint32_t elementSize,
-			ID3D12Device* device,
-			Heap* heap,
-			DescriptorManager* descriptorManager);
 		
 		void DrawOpaque(ID3D12GraphicsCommandList* cmdList);
 		void DrawTransparent(ID3D12GraphicsCommandList* cmdList);
@@ -106,7 +96,6 @@ namespace Carol
             CULL_IDX_COUNT
         };
 
-		std::vector<std::vector<std::unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
 		Scene* mScene;
 
 		std::unique_ptr<ColorBuffer> mFrameMap;
@@ -116,6 +105,9 @@ namespace Carol
 		std::unique_ptr<StructuredBuffer> mOitppllBuffer;
 		std::unique_ptr<RawBuffer> mStartOffsetBuffer; 
 		std::unique_ptr<RawBuffer> mCounterBuffer;
+
+		std::vector<std::unique_ptr<StructuredBuffer>> mCulledCommandBuffer;
+        std::unique_ptr<StructuredBufferPool> mCulledCommandBufferPool;
 
         std::vector<std::vector<uint32_t>> mCullIdx;
 		std::vector<uint32_t> mHiZIdx;

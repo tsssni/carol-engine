@@ -22,7 +22,6 @@ namespace Carol {
         DirectX::XMFLOAT4X4 View;
         DirectX::XMFLOAT4X4 Proj;
         DirectX::XMFLOAT4X4 ViewProj;
-        DirectX::XMFLOAT4X4 ViewProjTex;
     };
 }
 

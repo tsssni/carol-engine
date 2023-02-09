@@ -4,13 +4,14 @@
 #define CSM_BLEND_BORDER 0.2f
 
 #include "common.hlsli"
+#include "texture.hlsli"
 
 float CalcShadowFactor(float4 shadowPosH, uint shadowMapIdx)
 {
     Texture2D gShadowMap = ResourceDescriptorHeap[shadowMapIdx];
     
     // Complete projection by doing division by w.
-    shadowPosH.xyz /= shadowPosH.w;
+    shadowPosH = GetTexCoord(shadowPosH);
 
     // Depth in NDC space.
     float depth = shadowPosH.z;

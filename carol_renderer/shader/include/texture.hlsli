@@ -14,4 +14,13 @@ bool CheckOutOfBounds(float3 pos)
     || pos.z < 0.01f || pos.z >= 0.99f;
 }
 
+float4 GetTexCoord(float4 pos)
+{
+    pos.xyz /= pos.w;
+    pos.x = 0.5f * pos.x + 0.5f;
+    pos.y = -0.5f * pos.y + 0.5f;
+
+    return pos;
+}
+
 #endif

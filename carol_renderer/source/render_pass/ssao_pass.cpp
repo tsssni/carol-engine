@@ -1,6 +1,5 @@
 #include <render_pass/ssao_pass.h>
 #include <global.h>
-#include <render_pass/frame_pass.h>
 #include <dx12.h>
 #include <scene/camera.h>
 #include <DirectXColors.h>

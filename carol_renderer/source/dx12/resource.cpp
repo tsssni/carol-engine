@@ -5,9 +5,12 @@
 
 namespace Carol {
 	using std::unique_ptr;
+	using std::make_pair;
 	using std::make_unique;
 	using std::vector;
 	using std::span;
+	using std::mutex;
+	using std::lock_guard;
 	using Microsoft::WRL::ComPtr;
 }
 
@@ -147,7 +150,7 @@ Carol::Resource::~Resource()
 	if (mHeapAllocInfo && mHeapAllocInfo->Heap)
 	{
 		mMappedData = nullptr;
-		mHeapAllocInfo->Heap->Deallocate(std::move(mHeapAllocInfo));
+		mHeapAllocInfo->Heap->Deallocate(mHeapAllocInfo.release());
 	}
 }
 
@@ -268,7 +271,7 @@ void Carol::Resource::ReleaseIntermediateBuffer()
 {
 	if (mIntermediateBuffer)
 	{
-		mIntermediateBufferAllocInfo->Heap->DeleteResourceImmediate(std::move(mIntermediateBufferAllocInfo));
+		mIntermediateBufferAllocInfo->Heap->Deallocate(mIntermediateBufferAllocInfo.release());
 		mIntermediateBuffer.Reset();
 	}
 }
@@ -300,35 +303,35 @@ Carol::Buffer& Carol::Buffer::operator=(Buffer&& buffer)
 
 Carol::Buffer::~Buffer()
 {
-	auto cpuCbvSrvUavDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
+	static auto cpuCbvSrvUavDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
 	{
-		if (info)
+		if (info && info->Manager)
 		{
-			info->Manager->CpuCbvSrvUavDeallocate(std::move(info));
+			info->Manager->CpuCbvSrvUavDeallocate(info.release());
 		}
 	};
 
-	auto gpuCbvSrvUavDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
+	static auto gpuCbvSrvUavDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
 	{
-		if (info)
+		if (info && info->Manager)
 		{
-			info->Manager->GpuCbvSrvUavDeallocate(std::move(info));
+			info->Manager->GpuCbvSrvUavDeallocate(info.release());
 		}
 	};
 
-	auto rtvDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
+	static auto rtvDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
 	{
-		if (info)
+		if (info && info->Manager)
 		{
-			info->Manager->RtvDeallocate(std::move(info));
+			info->Manager->RtvDeallocate(info.release());
 		}
 	};
 
-	auto dsvDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
+	static auto dsvDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
 	{
-		if (info)
+		if (info && info->Manager)
 		{
-			info->Manager->DsvDeallocate(std::move(info));
+			info->Manager->DsvDeallocate(info.release());
 		}
 	};
 
@@ -1311,6 +1314,85 @@ D3D12_GPU_VIRTUAL_ADDRESS Carol::FastConstantBufferAllocator::Allocate(const voi
 
 	return addr;
 }
+
+Carol::StructuredBufferPool::StructuredBufferPool(uint32_t numElements, uint32_t elementSize, ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager, D3D12_RESOURCE_STATES initState, D3D12_RESOURCE_FLAGS flags, bool isConstant)
+	:mNumElements(numElements),
+	mElementSize(elementSize),
+	mDevice(device),
+	mHeap(heap),
+	mDescriptorManager(descriptorManager),
+	mInitState(initState),
+	mFlags(flags),
+	mIsConstant(isConstant)
+{
+}
+
+Carol::StructuredBufferPool::StructuredBufferPool(StructuredBufferPool&& structuredBufferPool)
+	:mBufferQueue(std::move(structuredBufferPool.mBufferQueue)),
+	mNumElements(structuredBufferPool.mNumElements),
+	mElementSize(structuredBufferPool.mElementSize),
+	mDevice(structuredBufferPool.mDevice),
+	mHeap(structuredBufferPool.mHeap),
+	mDescriptorManager(structuredBufferPool.mDescriptorManager),
+	mInitState(structuredBufferPool.mInitState),
+	mFlags(structuredBufferPool.mFlags),
+	mIsConstant(structuredBufferPool.mIsConstant)
+{
+}
+
+Carol::StructuredBufferPool& Carol::StructuredBufferPool::operator=(StructuredBufferPool&& structuredBufferPool)
+{
+	this->StructuredBufferPool::StructuredBufferPool(std::move(structuredBufferPool));
+	return *this;
+}
+
+Carol::unique_ptr<Carol::StructuredBuffer> Carol::StructuredBufferPool::RequestBuffer(uint32_t completedFenceValue, uint32_t numElements)
+{
+	lock_guard<mutex> lock(mAllocatorMutex);
+
+	if (numElements > mNumElements)
+	{
+		mNumElements <<= 1;
+	}
+
+	unique_ptr<StructuredBuffer> buffer = nullptr;
+
+	while (!mBufferQueue.empty() && mBufferQueue.front().first <= completedFenceValue)
+	{
+		if (mBufferQueue.front().second->GetNumElements() >= numElements)
+		{
+			buffer = std::move(mBufferQueue.front().second);
+			mBufferQueue.pop();
+			break;
+		}
+
+		mBufferQueue.pop();
+	}
+
+	if (!buffer)
+	{
+		buffer = make_unique<StructuredBuffer>(
+			mNumElements,
+			mElementSize,
+			mDevice,
+			mHeap,
+			mDescriptorManager,
+			mInitState,
+			mFlags,
+			mIsConstant);
+	}
+
+	return buffer;
+}
+
+void Carol::StructuredBufferPool::DiscardBuffer(StructuredBuffer* buffer, uint32_t cpuFenceValue)
+{
+	if (buffer)
+	{
+		mBufferQueue.emplace(make_pair(cpuFenceValue, unique_ptr<StructuredBuffer>(buffer)));
+	}
+}
+
 
 Carol::RawBuffer::RawBuffer(
 	uint32_t byteSize,

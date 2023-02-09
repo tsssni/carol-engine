@@ -12,6 +12,7 @@ namespace Carol
 {
 	class HeapManager;
     class HeapAllocInfo;
+	class CommandAllocatorPool;
 	class DescriptorManager;
 	class TextureManager;
     class Shader;
@@ -20,7 +21,6 @@ namespace Carol
 	class Timer;
 	class Camera;
     class FrameConstants;
-	class GlobalResources;
 
 	class BaseRenderer
 	{
@@ -65,7 +65,7 @@ namespace Carol
 		virtual void InitFence();
 
 		virtual void InitCommandQueue();
-		virtual void InitCommandAllocator();
+		virtual void InitCommandAllocatorPool();
 		virtual void InitCommandList();
 
 		virtual void InitHeapManager();
@@ -84,12 +84,12 @@ namespace Carol
 
 		Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
 		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
-		Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
-		uint32_t mCpuFence = 0;
+		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mCommandAllocator;
+		std::unique_ptr<CommandAllocatorPool> mCommandAllocatorPool;
 
-		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mInitCommandAllocator;
-        std::vector<Microsoft::WRL::ComPtr<ID3D12CommandAllocator>> mFrameAllocator;
-        std::vector<uint32_t> mGpuFence = { 0,0,0 };
+		Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
+		uint64_t mCpuFenceValue = 0;
+		uint64_t mGpuFenceValue = 0;
 
 		std::unique_ptr<DescriptorManager> mDescriptorManager;
 		std::unique_ptr<HeapManager> mHeapManager;

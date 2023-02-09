@@ -13,6 +13,7 @@ namespace Carol
 {
     class ColorBuffer;
     class StructuredBuffer;
+    class StructuredBufferPool;
     class Scene;
     class Camera; 
     class PerspectiveCamera;
@@ -37,7 +38,7 @@ namespace Carol
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
         virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
-        void Update(uint32_t lightIdx);
+        void Update(uint32_t lightIdx, uint64_t cpuFenceValue, uint64_t completedFenceValue);
 
         uint32_t GetShadowSrvIdx()const;
         const Light& GetLight()const;
@@ -54,17 +55,6 @@ namespace Carol
         void CullInstances(bool hist, ID3D12GraphicsCommandList* cmdList);
         void DrawShadow(bool hist, ID3D12GraphicsCommandList* cmdList);
         void GenerateHiZ(ID3D12GraphicsCommandList* cmdList);
-
-        void TestCommandBufferSize(
-			std::unique_ptr<StructuredBuffer>& buffer,
-			uint32_t numElements);
-		void ResizeCommandBuffer(
-			std::unique_ptr<StructuredBuffer>& buffer,
-			uint32_t numElements,
-			uint32_t elementSize,
-			ID3D12Device* device,
-			Heap* heap,
-			DescriptorManager* descriptorManager);
         
         enum
         {
@@ -90,7 +80,9 @@ namespace Carol
         std::unique_ptr<Light> mLight;
         std::unique_ptr<ColorBuffer> mShadowMap;
         std::unique_ptr<ColorBuffer> mHiZMap;
-        std::vector<std::vector<std::unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
+
+        std::vector<std::unique_ptr<StructuredBuffer>> mCulledCommandBuffer;
+        std::unique_ptr<StructuredBufferPool> mCulledCommandBufferPool;
 
         Scene* mScene;
 
@@ -125,7 +117,7 @@ namespace Carol
             DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
-        void Update(uint32_t lightIdx, const PerspectiveCamera* camera, float zn, float zf);
+        void Update(uint32_t lightIdx, const PerspectiveCamera* camera, float zn, float zf, uint64_t cpuFenceValue, uint64_t completedFenceValue);
     protected:
         virtual void InitCamera()override;
     };
@@ -149,7 +141,7 @@ namespace Carol
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
 		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
-        void Update(const PerspectiveCamera* camera, float logWeight = 0.5f, float bias = 0.f);
+        void Update(const PerspectiveCamera* camera, uint64_t cpuFenceValue, uint64_t completedFenceValue, float logWeight = 0.5f, float bias = 0.f);
         
         uint32_t GetSplitLevel()const;
         float GetSplitZ(uint32_t idx)const;

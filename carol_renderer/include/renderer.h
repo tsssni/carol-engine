@@ -30,8 +30,6 @@ namespace Carol
 		DirectX::XMFLOAT4X4 InvProj;
 		DirectX::XMFLOAT4X4 ViewProj;
 		DirectX::XMFLOAT4X4 InvViewProj;
-		DirectX::XMFLOAT4X4 ProjTex;
-		DirectX::XMFLOAT4X4 ViewProjTex;
 		DirectX::XMFLOAT4X4 HistViewProj;
 		DirectX::XMFLOAT4X4 JitteredViewProj;
 

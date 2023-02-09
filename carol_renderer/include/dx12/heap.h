@@ -2,6 +2,7 @@
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <vector>
+#include <queue>
 #include <memory>
 #include <mutex>
 
@@ -14,7 +15,7 @@ namespace Carol
 	class HeapAllocInfo
 	{
 	public:
-		Microsoft::WRL::ComPtr<ID3D12Resource> Resource;
+		Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
 		byte* MappedData = nullptr;
 
 		Heap* Heap = nullptr;
@@ -28,21 +29,21 @@ namespace Carol
 		Heap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag);
 
 		virtual std::unique_ptr<HeapAllocInfo> Allocate(const D3D12_RESOURCE_DESC* desc) = 0;
-		virtual void Deallocate(std::unique_ptr<HeapAllocInfo> info);
-
-		virtual void DeleteResourceImmediate(std::unique_ptr<HeapAllocInfo> info);
-		virtual void DelayedDelete();
+		virtual void Deallocate(HeapAllocInfo* info);
+		virtual void DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue);
 
 		virtual ID3D12Heap* GetHeap(const HeapAllocInfo* info)const = 0;
 		virtual uint32_t GetOffset(const HeapAllocInfo* info)const = 0;
 
 	protected:
-		virtual void Delete(std::unique_ptr<HeapAllocInfo> info) = 0;
+		virtual void Delete(const HeapAllocInfo* info) = 0;
 
 		D3D12_HEAP_TYPE mType;
 		D3D12_HEAP_FLAGS mFlag;
 
-		std::vector<std::vector<std::unique_ptr<HeapAllocInfo>>> mDeletedResources;
+		std::vector<std::unique_ptr<HeapAllocInfo>> mDeletedResources;
+		std::queue<std::pair<uint64_t, std::vector<std::unique_ptr<HeapAllocInfo>>>> mDeletedResourcesQueue;
+		
 		std::mutex mAllocatorMutex;
 	};
 
@@ -61,7 +62,7 @@ namespace Carol
 		virtual uint32_t GetOffset(const HeapAllocInfo* info)const override;
 
 	protected:
-		virtual void Delete(std::unique_ptr<HeapAllocInfo> info);
+		virtual void Delete(const HeapAllocInfo* info)override;
 
 		void Align();
 		void AddHeap(ID3D12Device* device);
@@ -89,7 +90,7 @@ namespace Carol
 		virtual uint32_t GetOffset(const HeapAllocInfo* info)const override;
 
 	protected:
-		virtual void Delete(std::unique_ptr<HeapAllocInfo> info);
+		virtual void Delete(const HeapAllocInfo* info)override;
 
 		uint32_t GetOrder(uint32_t size)const;
 		void AddHeap(uint32_t order, ID3D12Device* device);
@@ -117,7 +118,7 @@ namespace Carol
 		Heap* GetReadbackBuffersHeap();
 		Heap* GetTexturesHeap();
 
-		void DelayedDelete();
+		void DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue);
 
 	protected:
 		std::unique_ptr<Heap> mDefaultBuffersHeap;

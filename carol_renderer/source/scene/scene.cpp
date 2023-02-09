@@ -29,10 +29,7 @@ Carol::Scene::Scene(
 	Heap* uploadBuffersHeap,
 	DescriptorManager* descriptorManager)
 	:mRootNode(make_unique<SceneNode>()),
-	mMeshes(MESH_TYPE_COUNT),
-	mIndirectCommandBuffer(gNumFrame),
-	mMeshCB(gNumFrame),
-	mSkinnedCB(gNumFrame)
+	mMeshes(MESH_TYPE_COUNT)
 {
 	mRootNode->Name = name;
 	InitBuffers(device, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
@@ -60,35 +57,35 @@ void Carol::Scene::InitBuffers(
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-	for (int i = 0; i < gNumFrame; ++i)
-	{
-		ResizeBuffer(
-			mIndirectCommandBuffer[i],
-			1024,
-			sizeof(IndirectCommand),
-			false,
-			device,
-			uploadBuffersHeap,
-			descriptorManager);
+	mIndirectCommandBufferPool = make_unique<StructuredBufferPool>(
+		1024,
+		sizeof(IndirectCommand),
+		device,
+		uploadBuffersHeap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_FLAG_NONE,
+		false);
 
-		ResizeBuffer(
-			mMeshCB[i],
-			1024,
-			sizeof(MeshConstants),
-			true,
-			device,
-			uploadBuffersHeap,
-			descriptorManager);
+	mMeshCBPool = make_unique<StructuredBufferPool>(
+		1024,
+		sizeof(IndirectCommand),
+		device,
+		uploadBuffersHeap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_FLAG_NONE,
+		true);
 
-		ResizeBuffer(
-			mSkinnedCB[i],
-			1024, 
-			sizeof(SkinnedConstants),
-			true,
-			device,
-			uploadBuffersHeap,
-			descriptorManager);
-	}
+	mSkinnedCBPool = make_unique<StructuredBufferPool>(
+		1024,
+		sizeof(IndirectCommand),
+		device,
+		uploadBuffersHeap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_FLAG_NONE,
+		true);
 }
 
 Carol::vector<Carol::wstring_view> Carol::Scene::GetAnimationClips(wstring_view modelName)const
@@ -144,7 +141,7 @@ void Carol::Scene::LoadModel(
 	for (auto& [name, mesh] : mModels[node->Name]->GetMeshes())
 	{
 		wstring meshName = node->Name + L'_' + name;
-		uint32_t type = mesh->IsSkinned() | (mesh->IsTransparent() << 1);
+		uint32_t type = uint32_t(mesh->IsSkinned()) | (uint32_t(mesh->IsTransparent()) << 1);
 		mMeshes[type][meshName] = mesh.get();
 	}
 }
@@ -212,7 +209,7 @@ void Carol::Scene::UnloadModel(wstring_view modelName)
 	for (auto& [meshName, mesh] : mModels[name]->GetMeshes())
 	{
 		wstring modelMeshName = name + L"_" + meshName;
-		uint32_t type = mesh->IsSkinned() | (mesh->IsTransparent() << 1);
+		uint32_t type = uint32_t(mesh->IsSkinned()) | (uint32_t(mesh->IsTransparent()) << 1);
 		mMeshes[type].erase(modelMeshName);
 	}
 
@@ -289,12 +286,12 @@ uint32_t Carol::Scene::GetMeshCBStartOffet(MeshType type)const
 
 uint32_t Carol::Scene::GetMeshCBIdx()const
 {
-	return mMeshCB[gCurrFrame]->GetGpuSrvIdx();
+	return mMeshCB->GetGpuSrvIdx();
 }
 
 uint32_t Carol::Scene::GetCommandBufferIdx()const
 {
-	return mIndirectCommandBuffer[gCurrFrame]->GetGpuSrvIdx();
+	return mIndirectCommandBuffer->GetGpuSrvIdx();
 }
 
 uint32_t Carol::Scene::GetInstanceFrustumCulledMarkBufferIdx()const
@@ -307,7 +304,7 @@ uint32_t Carol::Scene::GetInstanceOcclusionPassedMarkBufferIdx()const
 	return mInstanceOcclusionPassedMarkBuffer->GetGpuUavIdx();
 }
 
-void Carol::Scene::Update(Timer* timer)
+void Carol::Scene::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t completedFenceValue)
 {
 	for (auto& [name, model] : mModels)
 	{
@@ -331,18 +328,22 @@ void Carol::Scene::Update(Timer* timer)
 			mMeshStartOffset[i] = mMeshStartOffset[i - 1] + GetMeshesCount(MeshType(i - 1));
 		}
 	}
-
-	TestBufferSize(mIndirectCommandBuffer[gCurrFrame], totalMeshCount);
-	TestBufferSize(mMeshCB[gCurrFrame], totalMeshCount);
-	TestBufferSize(mSkinnedCB[gCurrFrame], GetModelsCount());
+	
+	mIndirectCommandBufferPool->DiscardBuffer(mIndirectCommandBuffer.release(), cpuFenceValue);
+	mMeshCBPool->DiscardBuffer(mMeshCB.release(), cpuFenceValue);
+	mSkinnedCBPool->DiscardBuffer(mSkinnedCB.release(), cpuFenceValue);
+	
+	mIndirectCommandBuffer = mIndirectCommandBufferPool->RequestBuffer(completedFenceValue, totalMeshCount);
+	mMeshCB = mMeshCBPool->RequestBuffer(completedFenceValue, totalMeshCount);
+	mSkinnedCB = mSkinnedCBPool->RequestBuffer(completedFenceValue, GetModelsCount());
 
 	int modelIdx = 0;
 	for (auto& [name, model] : mModels)
 	{
 		if (model->IsSkinned())
 		{
-			mSkinnedCB[gCurrFrame]->CopyElements(model->GetSkinnedConstants(), modelIdx);
-			model->SetSkinnedCBAddress(mSkinnedCB[gCurrFrame]->GetElementAddress(modelIdx));
+			mSkinnedCB->CopyElements(model->GetSkinnedConstants(), modelIdx);
+			model->SetSkinnedCBAddress(mSkinnedCB->GetElementAddress(modelIdx));
 			++modelIdx;
 		}
 	}
@@ -352,8 +353,8 @@ void Carol::Scene::Update(Timer* timer)
 	{
 		for (auto& [name, mesh] : mMeshes[i])
 		{
-			mMeshCB[gCurrFrame]->CopyElements(mesh->GetMeshConstants(), meshIdx);
-			mesh->SetMeshCBAddress(mMeshCB[gCurrFrame]->GetElementAddress(meshIdx));
+			mMeshCB->CopyElements(mesh->GetMeshConstants(), meshIdx);
+			mesh->SetMeshCBAddress(mMeshCB->GetElementAddress(meshIdx));
 
 			IndirectCommand indirectCmd;
 			
@@ -364,14 +365,14 @@ void Carol::Scene::Update(Timer* timer)
 			indirectCmd.DispatchMeshArgs.ThreadGroupCountY = 1;
 			indirectCmd.DispatchMeshArgs.ThreadGroupCountZ = 1;
 
-			mIndirectCommandBuffer[gCurrFrame]->CopyElements(&indirectCmd, meshIdx);
+			mIndirectCommandBuffer->CopyElements(&indirectCmd, meshIdx);
 
 			++meshIdx;
 		}
 	}
 
-	mMeshCB[gCurrFrame]->CopyElements(GetSkyBox()->GetMeshConstants(), meshIdx);
-    mSkyBox->SetMeshCBAddress(L"SkyBox", mMeshCB[gCurrFrame]->GetElementAddress(meshIdx));
+	mMeshCB->CopyElements(GetSkyBox()->GetMeshConstants(), meshIdx);
+    mSkyBox->SetMeshCBAddress(L"SkyBox", mMeshCB->GetElementAddress(meshIdx));
 }
 
 void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot)
@@ -388,41 +389,4 @@ void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot)
 	{
 		ProcessNode(child.get(), world);
 	}
-}
-
-void Carol::Scene::TestBufferSize(
-	std::unique_ptr<StructuredBuffer>& buffer,
-	uint32_t numElements)
-{
-	if (buffer->GetNumElements() < numElements)
-	{
-		ResizeBuffer(
-			buffer,
-			numElements,
-			buffer->GetElementSize(),
-			buffer->IsConstant(),
-			buffer->GetDevice().Get(),
-			buffer->GetHeap(),
-			buffer->GetDescriptorManager());
-	}
-}
-
-void Carol::Scene::ResizeBuffer(
-	std::unique_ptr<StructuredBuffer>& buffer,
-	uint32_t numElements,
-	uint32_t elementSize,
-	bool isConstant,
-	ID3D12Device* device,
-	Heap* heap,
-	DescriptorManager* descriptorManager)
-{
-	buffer = make_unique<StructuredBuffer>(
-		numElements,
-		elementSize,
-		device,
-		heap,
-		descriptorManager,
-		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-		D3D12_RESOURCE_FLAG_NONE,
-		isConstant);
 }

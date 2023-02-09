@@ -5,6 +5,8 @@
 #include <wrl/client.h>
 #include <memory>
 #include <span>
+#include <queue>
+#include <mutex>
 
 namespace Carol
 {
@@ -280,6 +282,38 @@ namespace Carol
 	protected:
 		std::unique_ptr<StructuredBuffer> mResourceQueue;
 		uint32_t mCurrOffset;
+	};
+
+	class StructuredBufferPool
+	{
+	public:
+		StructuredBufferPool(
+			uint32_t numElements,
+			uint32_t elementSize,
+			ID3D12Device* device,
+			Heap* heap,
+			DescriptorManager* descriptorManager,
+			D3D12_RESOURCE_STATES initState,
+			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+			bool isConstant = false);
+		StructuredBufferPool(StructuredBufferPool&& structuredBufferPool);
+		StructuredBufferPool& operator=(StructuredBufferPool&& structuredBufferPool);
+
+		std::unique_ptr<StructuredBuffer> RequestBuffer(uint32_t completedFenceValue, uint32_t numElements);
+		void DiscardBuffer(StructuredBuffer* buffer, uint32_t cpuFenceValue);
+
+		std::queue<std::pair<uint64_t, std::unique_ptr<StructuredBuffer>>> mBufferQueue;
+
+		uint32_t mNumElements = 0;
+		uint32_t mElementSize = 0;
+		ID3D12Device* mDevice = nullptr;
+		Heap* mHeap = nullptr;
+		DescriptorManager* mDescriptorManager = nullptr;
+		D3D12_RESOURCE_STATES mInitState;
+		D3D12_RESOURCE_FLAGS mFlags;
+		bool mIsConstant = false;
+
+		std::mutex mAllocatorMutex;
 	};
 	
 	class RawBuffer : public Buffer

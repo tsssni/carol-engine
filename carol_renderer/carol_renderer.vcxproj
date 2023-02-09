@@ -64,6 +64,7 @@
     <ClInclude Include="win32\targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\dx12\command.cpp" />
     <ClCompile Include="source\render_pass\render_pass.cpp" />
     <ClCompile Include="source\dx12\pipeline_state.cpp" />
     <ClCompile Include="source\render_pass\frame_pass.cpp" />

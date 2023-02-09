@@ -1,8 +1,7 @@
 #include <render_pass/shadow_pass.h>
 #include <global.h>
-#include <render_pass/display_pass.h>
-#include <scene/scene.h>
 #include <dx12.h>
+#include <scene/scene.h>
 #include <scene/assimp.h>
 #include <scene/camera.h>
 #include <utils/common.h>
@@ -41,7 +40,7 @@ Carol::ShadowPass::ShadowPass(
 	mCullIdx(OPAQUE_MESH_TYPE_COUNT),
 	mHiZIdx(HIZ_IDX_COUNT),
 	mHiZMipLevels(std::max(ceilf(log2f(width)), ceilf(log2f(height)))),
-	mCulledCommandBuffer(gNumFrame),
+	mCulledCommandBuffer(OPAQUE_MESH_TYPE_COUNT),
 	mShadowFormat(shadowFormat),
 	mHiZFormat(hiZFormat)
 {
@@ -71,29 +70,23 @@ void Carol::ShadowPass::Draw(ID3D12GraphicsCommandList* cmdList)
 	DrawShadow(false, cmdList);
 }
 
-void Carol::ShadowPass::Update(uint32_t lightIdx)
+void Carol::ShadowPass::Update(uint32_t lightIdx, uint64_t cpuFenceValue, uint64_t completedFenceValue)
 {
 	XMMATRIX view = mCamera->GetView();
 	XMMATRIX proj = mCamera->GetProj();
 	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-	static XMMATRIX tex(
-		0.5f, 0.0f, 0.0f, 0.0f,
-		0.0f, -0.5f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f, 0.5f, 0.0f, 1.0f
-	);
 	
 	XMStoreFloat4x4(&mLight->View, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&mLight->Proj, XMMatrixTranspose(proj));
 	XMStoreFloat4x4(&mLight->ViewProj, XMMatrixTranspose(viewProj));
-	XMStoreFloat4x4(&mLight->ViewProjTex, XMMatrixTranspose(DirectX::XMMatrixMultiply(viewProj, tex)));
 
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(OPAQUE_MESH_START + i);
-		TestCommandBufferSize(mCulledCommandBuffer[gCurrFrame][type], mScene->GetMeshesCount(type));
+		mCulledCommandBufferPool->DiscardBuffer(mCulledCommandBuffer[type].release(), cpuFenceValue);
+		mCulledCommandBuffer[type] = mCulledCommandBufferPool->RequestBuffer(completedFenceValue, mScene->GetMeshesCount(type));
 
-		mCullIdx[i][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[gCurrFrame][i]->GetGpuUavIdx();
+		mCullIdx[i][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[type]->GetGpuUavIdx();
 		mCullIdx[i][CULL_MESH_COUNT] = mScene->GetMeshesCount(type);
 		mCullIdx[i][CULL_MESH_OFFSET] = mScene->GetMeshCBStartOffet(type);
 		mCullIdx[i][CULL_HIZ_IDX] = mHiZMap->GetGpuSrvIdx();
@@ -149,25 +142,19 @@ void Carol::ShadowPass::InitBuffers(ID3D12Device* device, Heap* heap, Descriptor
 		nullptr,
 		mHiZMipLevels);
 
-	for (int i = 0; i < gNumFrame; ++i)
-	{
-		mCulledCommandBuffer[i].resize(OPAQUE_MESH_TYPE_COUNT);
-
-		for (int j = 0; j < OPAQUE_MESH_TYPE_COUNT; ++j)
-		{
-			ResizeCommandBuffer(
-				mCulledCommandBuffer[i][j],
-				1024,
-				sizeof(IndirectCommand),
-				device,
-				heap,
-				descriptorManager);
-		}
-	}
+	mCulledCommandBufferPool = make_unique<StructuredBufferPool>(
+		1024,
+		sizeof(IndirectCommand),
+		device,
+		heap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
-		mCullIdx[i].resize(CULL_IDX_COUNT);
+		MeshType type = MeshType(OPAQUE_MESH_START + i);
+		mCullIdx[type].resize(CULL_IDX_COUNT);
 	}
 }
 
@@ -188,9 +175,11 @@ void Carol::ShadowPass::Clear(ID3D12GraphicsCommandList* cmdList)
 
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
-		mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
-		mCulledCommandBuffer[gCurrFrame][i]->ResetCounter(cmdList);
-		mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		MeshType type = MeshType(OPAQUE_MESH_START + i);
+
+		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
+		mCulledCommandBuffer[type]->ResetCounter(cmdList);
+		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 	}
 }
 
@@ -200,18 +189,20 @@ void Carol::ShadowPass::CullInstances(bool hist, ID3D12GraphicsCommandList* cmdL
 	
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
-		if (mCullIdx[i][CULL_MESH_COUNT] == 0)
+		MeshType type = MeshType(OPAQUE_MESH_START + i);
+
+		if (mCullIdx[type][CULL_MESH_COUNT] == 0)
 		{
 			continue;
 		}
 		
 		mCullIdx[i][CULL_HIST] = hist;
-		uint32_t count = ceilf(mCullIdx[i][CULL_MESH_COUNT] / 32.f);
+		uint32_t count = ceilf(mCullIdx[type][CULL_MESH_COUNT] / 32.f);
 
 		cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-		mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		cmdList->Dispatch(count, 1, 1);
-		mCulledCommandBuffer[gCurrFrame][i]->UavBarrier(cmdList);
+		mCulledCommandBuffer[type]->UavBarrier(cmdList);
 	}
 }
 
@@ -224,17 +215,19 @@ void Carol::ShadowPass::DrawShadow(bool hist, ID3D12GraphicsCommandList* cmdList
 
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
-		if (mCullIdx[i][CULL_MESH_COUNT] == 0)
+		MeshType type = MeshType(OPAQUE_MESH_START + i);
+
+		if (mCullIdx[type][CULL_MESH_COUNT] == 0)
 		{
 			continue;
 		}
 
-		mCullIdx[i][CULL_HIST] = hist;
+		mCullIdx[type][CULL_HIST] = hist;
 
 		cmdList->SetPipelineState(pso[i]);
-		mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-		cmdList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-		ExecuteIndirect(cmdList, mCulledCommandBuffer[gCurrFrame][i].get());
+		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+		cmdList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[type].data(), 0);
+		ExecuteIndirect(cmdList, mCulledCommandBuffer[type].get());
 	}
 }
 
@@ -253,40 +246,6 @@ void Carol::ShadowPass::GenerateHiZ(ID3D12GraphicsCommandList* cmdList)
 		cmdList->Dispatch(width, height, 1);
 		mHiZMap->UavBarrier(cmdList);
 	}
-}
-
-void Carol::ShadowPass::TestCommandBufferSize(
-	std::unique_ptr<StructuredBuffer>& buffer,
-	uint32_t numElements)
-{
-	if (buffer->GetNumElements() < numElements)
-	{
-		ResizeCommandBuffer(
-			buffer,
-			numElements,
-			buffer->GetElementSize(),
-			buffer->GetDevice().Get(),
-			buffer->GetHeap(),
-			buffer->GetDescriptorManager());
-	}
-}
-
-void Carol::ShadowPass::ResizeCommandBuffer(
-	std::unique_ptr<StructuredBuffer>& buffer,
-	uint32_t numElements,
-	uint32_t elementSize,
-	ID3D12Device* device,
-	Heap* heap,
-	DescriptorManager* descriptorManager)
-{
-	buffer = make_unique<StructuredBuffer>(
-		numElements,
-		elementSize,
-		device,
-		heap,
-		descriptorManager,
-		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 
 void Carol::ShadowPass::InitShaders()
@@ -401,7 +360,13 @@ Carol::DirectLightShadowPass::DirectLightShadowPass(
 	InitCamera();
 }
 
-void Carol::DirectLightShadowPass::Update(uint32_t lightIdx, const PerspectiveCamera* camera, float zn, float zf)
+void Carol::DirectLightShadowPass::Update(
+	uint32_t lightIdx,
+	const PerspectiveCamera* camera,
+	float zn,
+	float zf,
+	uint64_t cpuFenceValue,
+	uint64_t completedFenceValue)
 {
 	static float dx[4] = { -1.f,1.f,-1.f,1.f };
 	static float dy[4] = { -1.f,-1.f,1.f,1.f };
@@ -421,17 +386,18 @@ void Carol::DirectLightShadowPass::Update(uint32_t lightIdx, const PerspectiveCa
 	XMMATRIX invPerspView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(perspView)), perspView);
 	XMMATRIX orthoView = mCamera->GetView();
 	XMMATRIX invOrthoView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(orthoView)), orthoView);
+	XMMATRIX invPerspOrthoView = XMMatrixMultiply(invPerspView, orthoView);
 
 	for (int i = 0; i < 4; ++i)
 	{
 		XMFLOAT4 point;
 		
 		point = { pointNear.x* dx[i], pointNear.y* dy[i], pointNear.z, 1.f };
-		XMStoreFloat4(&point, XMVector4Transform(XMLoadFloat4(&point), XMMatrixMultiply(invPerspView, orthoView)));
+		XMStoreFloat4(&point, XMVector4Transform(XMLoadFloat4(&point), invPerspOrthoView));
 		frustumSliceExtremaPoints.push_back(point);
 
 		point = { pointFar.x* dx[i], pointFar.y* dy[i], pointFar.z, 1.f };
-		XMStoreFloat4(&point, XMVector4Transform(XMLoadFloat4(&point), XMMatrixMultiply(invPerspView, orthoView)));
+		XMStoreFloat4(&point, XMVector4Transform(XMLoadFloat4(&point), invPerspOrthoView));
 		frustumSliceExtremaPoints.push_back(point);
 	}
 
@@ -456,7 +422,10 @@ void Carol::DirectLightShadowPass::Update(uint32_t lightIdx, const PerspectiveCa
 	mCamera->LookAt(XMLoadFloat4(&center) - 0.5f * (boxMax.z - boxMin.z) * XMLoadFloat3(&mLight->Direction), XMLoadFloat4(&center), { 0.f,1.f,0.f,0.f });
 	mCamera->UpdateViewMatrix();
 
-	ShadowPass::Update(lightIdx);
+	XMVECTOR p = { -5.80167627f,0.f,-12.6092882f,1.f };
+	p = XMVector4Transform(p, XMMatrixMultiply(mCamera->GetView(), mCamera->GetProj()));
+
+	ShadowPass::Update(lightIdx, cpuFenceValue, completedFenceValue);
 }
 
 void Carol::DirectLightShadowPass::InitCamera()
@@ -511,7 +480,12 @@ void Carol::CascadedShadowPass::Draw(ID3D12GraphicsCommandList* cmdList)
 	}
 }
 
-void Carol::CascadedShadowPass::Update(const PerspectiveCamera* camera, float logWeight, float bias)
+void Carol::CascadedShadowPass::Update(
+	const PerspectiveCamera* camera,
+	uint64_t cpuFenceValue,
+	uint64_t completedFenceValue,
+	float logWeight,
+	float bias)
 {
 	float nearZ = camera->GetNearZ();
 	float farZ = camera->GetFarZ();
@@ -523,7 +497,7 @@ void Carol::CascadedShadowPass::Update(const PerspectiveCamera* camera, float lo
 
 	for (int i = 0; i < mSplitLevel; ++i)
 	{
-		mShadow[i]->Update(i, camera, mSplitZ[i], mSplitZ[i + 1]);
+		mShadow[i]->Update(i, camera, mSplitZ[i], mSplitZ[i + 1], cpuFenceValue, completedFenceValue);
 	}
 }
 

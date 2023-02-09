@@ -10,41 +10,39 @@
 namespace Carol {
     using std::unique_ptr;
     using std::make_unique;
+    using std::make_pair;
     using std::mutex;
     using std::lock_guard;
     using Microsoft::WRL::ComPtr;
 }
 
 Carol::Heap::Heap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag)
-    :mType(type), mFlag(flag), mDeletedResources(gNumFrame)
+    :mType(type), mFlag(flag)
 {
   
 }
 
-void Carol::Heap::Deallocate(unique_ptr<HeapAllocInfo> info)
+void Carol::Heap::Deallocate(HeapAllocInfo* info)
 {
-	mDeletedResources[gCurrFrame].push_back(std::move(info));
-}
-
-void Carol::Heap::DeleteResourceImmediate(unique_ptr<HeapAllocInfo> info)
-{
-	Delete(std::move(info));
-}
-
-void Carol::Heap::DelayedDelete()
-{
-    for (auto& info : mDeletedResources[gCurrFrame])
+    if (info && info->Heap == this)
     {
-        if (info->MappedData)
-        {
-            info->Resource->Unmap(0, nullptr);
-            info->MappedData = nullptr;
-        }
-
-        Delete(std::move(info));
+        mDeletedResources.emplace_back(info);
     }
+}
 
-    mDeletedResources[gCurrFrame].clear();
+void Carol::Heap::DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue)
+{
+    mDeletedResourcesQueue.emplace(make_pair(cpuFenceValue, std::move(mDeletedResources)));
+	
+	while (!mDeletedResourcesQueue.empty() && mDeletedResourcesQueue.front().first <= completedFenceValue)
+	{
+		for (auto& info : mDeletedResourcesQueue.front().second)
+		{
+			Delete(info.get());
+		}
+
+		mDeletedResourcesQueue.pop();
+	}
 }
 
 
@@ -61,13 +59,17 @@ Carol::BuddyHeap::BuddyHeap(
 
 Carol::BuddyHeap::~BuddyHeap()
 {
-    for (auto& deletedResources : mDeletedResources)
-    {
-        for (auto& info : deletedResources)
-        {
-            Delete(std::move(info));
-        }
-    }
+    mDeletedResourcesQueue.emplace(make_pair(0, std::move(mDeletedResources)));
+
+	while (!mDeletedResourcesQueue.empty())
+	{
+		for (auto& info : mDeletedResourcesQueue.front().second)
+		{
+			Delete(info.get());
+		}
+
+		mDeletedResourcesQueue.pop();
+	}
 }
 
 Carol::unique_ptr<Carol::HeapAllocInfo> Carol::BuddyHeap::Allocate(const D3D12_RESOURCE_DESC* desc)
@@ -117,16 +119,16 @@ uint32_t Carol::BuddyHeap::GetOffset(const HeapAllocInfo* info)const
     return info->Addr % mHeapSize;
 }
 
-void Carol::BuddyHeap::Delete(unique_ptr<HeapAllocInfo> info)
+void Carol::BuddyHeap::Delete(const HeapAllocInfo* info)
 {
     lock_guard<mutex> lock(mAllocatorMutex);
 
-    uint32_t buddyIdx = info->Addr / mHeapSize;
-    uint32_t blockIdx = (info->Addr % mHeapSize) / mPageSize;
-    uint32_t numBlocks = info->Bytes / mPageSize;
-    BuddyAllocInfo buddyInfo(blockIdx, numBlocks);
+	uint32_t buddyIdx = info->Addr / mHeapSize;
+	uint32_t blockIdx = (info->Addr % mHeapSize) / mPageSize;
+	uint32_t numBlocks = info->Bytes / mPageSize;
+	BuddyAllocInfo buddyInfo(blockIdx, numBlocks);
 
-    mBuddies[buddyIdx]->Deallocate(buddyInfo);
+	mBuddies[buddyIdx]->Deallocate(buddyInfo);
 }
 
 void Carol::BuddyHeap::Align()
@@ -173,13 +175,17 @@ Carol::SegListHeap::SegListHeap(
 
 Carol::SegListHeap::~SegListHeap()
 {
-    for (auto& deletedResources : mDeletedResources)
-    {
-        for (auto& info : deletedResources)
-        {
-            Delete(std::move(info));
-        }
-    }
+    mDeletedResourcesQueue.emplace(make_pair(0, std::move(mDeletedResources)));
+
+	while (!mDeletedResourcesQueue.empty())
+	{
+		for (auto& info : mDeletedResourcesQueue.front().second)
+		{
+			Delete(info.get());
+		}
+
+		mDeletedResourcesQueue.pop();
+	}
 }
 
 Carol::unique_ptr<Carol::HeapAllocInfo> Carol::SegListHeap::Allocate(const D3D12_RESOURCE_DESC* desc)
@@ -244,16 +250,16 @@ uint32_t Carol::SegListHeap::GetOffset(const HeapAllocInfo* info)const
     return info->Addr % (orderNumPages * (mPageSize << order));
 }
 
-void Carol::SegListHeap::Delete(unique_ptr<HeapAllocInfo> info)
+void Carol::SegListHeap::Delete(const HeapAllocInfo* info)
 {
     lock_guard<mutex> lock(mAllocatorMutex);
 
-    auto order = GetOrder(info->Bytes);
-    auto orderNumPages = 1 << (mOrder - order);
+	auto order = GetOrder(info->Bytes);
+	auto orderNumPages = 1 << (mOrder - order);
 
-    auto heapIdx = info->Addr / (orderNumPages * mPageSize * (1u << order));
-    auto pageIdx = ((info->Addr) % (orderNumPages * mPageSize * (1u << order))) / (1u << order);
-    mBitsets[order][heapIdx]->Reset(pageIdx);
+	auto heapIdx = info->Addr / (orderNumPages * mPageSize * (1u << order));
+	auto pageIdx = ((info->Addr) % (orderNumPages * mPageSize * (1u << order))) / (1u << order);
+	mBitsets[order][heapIdx]->Reset(pageIdx);
 }
 
 uint32_t Carol::SegListHeap::GetOrder(uint32_t size)const
@@ -313,10 +319,10 @@ Carol::Heap* Carol::HeapManager::GetTexturesHeap()
     return mTexturesHeap.get();
 }
 
-void Carol::HeapManager::DelayedDelete()
+void Carol::HeapManager::DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue)
 {
-    mDefaultBuffersHeap->DelayedDelete();
-    mUploadBuffersHeap->DelayedDelete();
-    mReadbackBuffersHeap->DelayedDelete();
-    mTexturesHeap->DelayedDelete();
+    mDefaultBuffersHeap->DelayedDelete(cpuFenceValue, completedFenceValue);
+    mUploadBuffersHeap->DelayedDelete(cpuFenceValue, completedFenceValue);
+    mReadbackBuffersHeap->DelayedDelete(cpuFenceValue, completedFenceValue);
+    mTexturesHeap->DelayedDelete(cpuFenceValue, completedFenceValue);
 }

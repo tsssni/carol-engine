@@ -229,6 +229,9 @@
     <ClCompile Include="source\scene\mesh.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="source\dx12\command.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="win32\carol.ico">

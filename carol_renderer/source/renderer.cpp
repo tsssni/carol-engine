@@ -11,6 +11,7 @@ namespace Carol {
 	using std::wstring;
 	using std::wstring_view;
 	using std::make_unique;
+	using Microsoft::WRL::ComPtr;
 	using namespace DirectX;
 
 	D3D12_RASTERIZER_DESC gCullDisabledState;
@@ -24,9 +25,6 @@ namespace Carol {
 Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	:BaseRenderer(hWnd)
 {
-	ThrowIfFailed(mInitCommandAllocator->Reset());
-	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
-	
 	InitConstants();
 	InitPipelineStates();
 	InitScene();
@@ -37,12 +35,19 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitTaa();
 	OnResize(width, height, true);
 	ReleaseIntermediateBuffers();
+
+	mCommandList->Close();
+	vector<ID3D12CommandList*> cmdLists = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
+
+	++mCpuFenceValue;
+	ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFenceValue));
 }
 
 void Carol::Renderer::InitConstants()
 {
 	mFrameConstants = make_unique<FrameConstants>();
-	mFrameCBAllocator = make_unique<FastConstantBufferAllocator>(gNumFrame, sizeof(FrameConstants), mDevice.Get(), mHeapManager->GetUploadBuffersHeap(), mDescriptorManager.get());
+	mFrameCBAllocator = make_unique<FastConstantBufferAllocator>(1024, sizeof(FrameConstants), mDevice.Get(), mHeapManager->GetUploadBuffersHeap(), mDescriptorManager.get());
 }
 
 void Carol::Renderer::InitPipelineStates()
@@ -144,31 +149,19 @@ void Carol::Renderer::InitScene()
 
 void Carol::Renderer::UpdateFrameCB()
 {
-	mCamera->UpdateViewMatrix();
-
 	XMMATRIX view = mCamera->GetView();
 	XMMATRIX invView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(view)), view);
 	XMMATRIX proj = mCamera->GetProj();
 	XMMATRIX invProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(proj)), proj);
 	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
 	XMMATRIX invViewProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(viewProj)), viewProj);
-	
-	static XMMATRIX tex(
-		0.5f, 0.0f, 0.0f, 0.0f,
-		0.0f, -0.5f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f, 0.5f, 0.0f, 1.0f);
-	XMMATRIX projTex = XMMatrixMultiply(proj, tex);
-	XMMATRIX viewProjTex = XMMatrixMultiply(viewProj, tex);
-	
+		
 	XMStoreFloat4x4(&mFrameConstants->View, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&mFrameConstants->InvView, XMMatrixTranspose(invView));
 	XMStoreFloat4x4(&mFrameConstants->Proj, XMMatrixTranspose(proj));
 	XMStoreFloat4x4(&mFrameConstants->InvProj, XMMatrixTranspose(invProj));
 	XMStoreFloat4x4(&mFrameConstants->ViewProj, XMMatrixTranspose(viewProj));
 	XMStoreFloat4x4(&mFrameConstants->InvViewProj, XMMatrixTranspose(invViewProj));
-	XMStoreFloat4x4(&mFrameConstants->ProjTex, XMMatrixTranspose(projTex));
-	XMStoreFloat4x4(&mFrameConstants->ViewProjTex, XMMatrixTranspose(viewProjTex));
 	
 	XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
 	mTaaPass->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
@@ -204,6 +197,7 @@ void Carol::Renderer::UpdateFrameCB()
 	}
 
 	mFrameConstants->MeshCBIdx = mScene->GetMeshCBIdx();
+	mFrameConstants->CommandBufferIdx = mScene->GetCommandBufferIdx();
 	mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
 }
 
@@ -215,6 +209,10 @@ void Carol::Renderer::ReleaseIntermediateBuffers()
 
 void Carol::Renderer::Draw()
 {	
+	mCommandAllocatorPool->DiscardAllocator(mCommandAllocator.Get(), mCpuFenceValue);
+	mCommandAllocator = mCommandAllocatorPool->RequestAllocator(mGpuFenceValue);
+	ThrowIfFailed(mCommandList->Reset(mCommandAllocator.Get(), nullptr));
+
 	ID3D12DescriptorHeap* descriptorHeaps[] = {mDescriptorManager->GetResourceDescriptorHeap()};
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
@@ -248,10 +246,8 @@ void Carol::Renderer::Draw()
 	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 
 	mDisplayPass->Present();
-	mGpuFence[gCurrFrame] = ++mCpuFence;
-	ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFence));
-
-	gCurrFrame = (gCurrFrame + 1) % gNumFrame;
+	++mCpuFenceValue;
+	ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFenceValue));
 }
 
 void Carol::Renderer::OnMouseDown(WPARAM btnState, int x, int y)
@@ -303,36 +299,21 @@ void Carol::Renderer::OnKeyboardInput()
 void Carol::Renderer::Update()
 {
 	OnKeyboardInput();
+	mGpuFenceValue = mFence->GetCompletedValue();
 
-	if (mGpuFence[gCurrFrame] != 0 && mFence->GetCompletedValue() < mGpuFence[gCurrFrame])
-	{
-		HANDLE eventHandle = CreateEventEx(nullptr, LPCWSTR(nullptr), 0, EVENT_ALL_ACCESS);
-		ThrowIfFailed(mFence->SetEventOnCompletion(mGpuFence[gCurrFrame], eventHandle));
-		WaitForSingleObject(eventHandle, INFINITE);
-		CloseHandle(eventHandle);
-	}
+	mDescriptorManager->DelayedDelete(mCpuFenceValue, mGpuFenceValue);
+	mHeapManager->DelayedDelete(mCpuFenceValue, mGpuFenceValue);
 
-	ThrowIfFailed(mFrameAllocator[gCurrFrame]->Reset());
-	ThrowIfFailed(mCommandList->Reset(mFrameAllocator[gCurrFrame].Get(), nullptr));
-	
-	mDescriptorManager->DelayedDelete();
-	mHeapManager->DelayedDelete();
+	mCamera->UpdateViewMatrix();
+	mScene->Update(mTimer.get(), mCpuFenceValue, mGpuFenceValue);
+	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), mCpuFenceValue, mGpuFenceValue, 0.85f);
+	mFramePass->Update(mCpuFenceValue, mGpuFenceValue);
 
 	UpdateFrameCB();
-
-	mScene->Update(mTimer.get());
-	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), 0.85f);
-	mFramePass->Update();
 }
 
 void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 {
-	if (!init)
-	{
-		ThrowIfFailed(mInitCommandAllocator->Reset());
-		ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
-	}
-
 	ID3D12Device* device = mDevice.Get();
 	Heap* heap = mHeapManager->GetDefaultBuffersHeap();
 	DescriptorManager* descriptorManager = mDescriptorManager.get();
@@ -346,8 +327,6 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mNormalPass->SetFrameDsv(mFramePass->GetFrameDsv());
 	mTaaPass->SetFrameDsv(mFramePass->GetFrameDsv());
 
-	mFrameConstants->MeshCBIdx = mScene->GetMeshCBIdx();
-	mFrameConstants->CommandBufferIdx = mScene->GetCommandBufferIdx();
 	mFrameConstants->InstanceFrustumCulledMarkIdx = mScene->GetInstanceFrustumCulledMarkBufferIdx();
 	mFrameConstants->InstanceOcclusionPassedMarkIdx = mScene->GetInstanceOcclusionPassedMarkBufferIdx();
 	
@@ -376,18 +355,13 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	// TAA
 	mFrameConstants->VelocityMapIdx = mTaaPass->GetVeloctiySrvIdx();
 	mFrameConstants->HistFrameMapIdx = mTaaPass->GetHistFrameSrvIdx();
-
-	mCommandList->Close();
-	vector<ID3D12CommandList*> cmdLists{ mCommandList.Get()};
-	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
-	FlushCommandQueue();
 }
 
 void Carol::Renderer::LoadModel(wstring_view path, wstring_view textureDir, wstring_view modelName, DirectX::XMMATRIX world, bool isSkinned)
 {
-	FlushCommandQueue();
-	ThrowIfFailed(mInitCommandAllocator->Reset());
-	ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
+	mCommandAllocatorPool->DiscardAllocator(mCommandAllocator.Get(), mCpuFenceValue);
+	mCommandAllocator = mCommandAllocatorPool->RequestAllocator(mGpuFenceValue);
+	ThrowIfFailed(mCommandList->Reset(mCommandAllocator.Get(), nullptr));
 
 	mScene->LoadModel(
 		modelName,
@@ -401,18 +375,18 @@ void Carol::Renderer::LoadModel(wstring_view path, wstring_view textureDir, wstr
 		mDescriptorManager.get(),
 		mTextureManager.get());
 	mScene->SetWorld(modelName, world);
+	mScene->ReleaseIntermediateBuffers(modelName);
 
 	mCommandList->Close();
 	vector<ID3D12CommandList*> cmdLists = { mCommandList.Get() };
 	mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
-	FlushCommandQueue();
-	
-	mScene->ReleaseIntermediateBuffers(modelName);
+
+	++mCpuFenceValue;
+	ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFenceValue));
 }
 
 void Carol::Renderer::UnloadModel(wstring_view modelName)
 {
-	FlushCommandQueue();
 	mScene->UnloadModel(modelName);
 }
 

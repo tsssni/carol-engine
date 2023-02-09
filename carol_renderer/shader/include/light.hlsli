@@ -15,7 +15,6 @@ struct Light
     float4x4 View;
     float4x4 Proj;
     float4x4 ViewProj;
-    float4x4 ViewProjTex;
 };
 
 struct LightMaterialData

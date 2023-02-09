@@ -9,6 +9,7 @@ namespace Carol {
 	using std::vector;
 	using std::unique_ptr;
 	using std::make_unique;	
+	using std::make_pair;
 	using std::lock_guard;
 	using std::mutex;
 	using Microsoft::WRL::ComPtr;
@@ -21,9 +22,7 @@ Carol::DescriptorAllocator::DescriptorAllocator(
 	uint32_t numGpuDescriptors)
 	:mType(type),
 	mNumCpuDescriptorsPerHeap(initNumCpuDescriptors),
-	mNumGpuDescriptors(numGpuDescriptors),
-	mCpuDeletedAllocInfo(gNumFrame),
-	mGpuDeletedAllocInfo(gNumFrame)
+	mNumGpuDescriptors(numGpuDescriptors)
 {
 	mDescriptorSize = device->GetDescriptorHandleIncrementSize(type);
 	AddCpuDescriptorAllocator(device);
@@ -32,20 +31,27 @@ Carol::DescriptorAllocator::DescriptorAllocator(
 
 Carol::DescriptorAllocator::~DescriptorAllocator()
 {
-	for (auto& deletedInfo : mCpuDeletedAllocInfo)
+	mCpuDeletedAllocInfoQueue.emplace(make_pair(0, std::move(mCpuDeletedAllocInfo)));
+	mGpuDeletedAllocInfoQueue.emplace(make_pair(0, std::move(mGpuDeletedAllocInfo)));
+
+	while (!mCpuDeletedAllocInfoQueue.empty())
 	{
-		for (auto& info : deletedInfo)
+		for (auto& info : mCpuDeletedAllocInfoQueue.front().second)
 		{
-			CpuDelete(std::move(info));
+			CpuDelete(info.get());
 		}
+
+		mCpuDeletedAllocInfoQueue.pop();
 	}
 
-	for (auto& deletedInfo : mGpuDeletedAllocInfo)
+	while (!mGpuDeletedAllocInfoQueue.empty())
 	{
-		for (auto& info : deletedInfo)
+		for (auto& info : mGpuDeletedAllocInfoQueue.front().second)
 		{
-			GpuDelete(std::move(info));
+			CpuDelete(info.get());
 		}
+
+		mGpuDeletedAllocInfoQueue.pop();
 	}
 }
 
@@ -82,9 +88,9 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::CpuAll
 	return descInfo;
 }
 
-void Carol::DescriptorAllocator::CpuDeallocate(unique_ptr<DescriptorAllocInfo> info)
+void Carol::DescriptorAllocator::CpuDeallocate(DescriptorAllocInfo* info)
 {
-	mCpuDeletedAllocInfo[gCurrFrame].emplace_back(std::move(info));
+	mCpuDeletedAllocInfo.emplace_back(info);
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorAllocator::GetCpuHandle(const DescriptorAllocInfo* info, uint32_t offset)const
@@ -116,25 +122,35 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::GpuAll
 	return descInfo;
 }
 
-void Carol::DescriptorAllocator::GpuDeallocate(std::unique_ptr<DescriptorAllocInfo> info)
+void Carol::DescriptorAllocator::GpuDeallocate(DescriptorAllocInfo* info)
 {
-	mGpuDeletedAllocInfo[gCurrFrame].emplace_back(std::move(info));
+	mGpuDeletedAllocInfo.emplace_back(info);
 }
 
-void Carol::DescriptorAllocator::DelayedDelete()
+void Carol::DescriptorAllocator::DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue)
 {
-	for (auto& info : mCpuDeletedAllocInfo[gCurrFrame])
+	mCpuDeletedAllocInfoQueue.emplace(make_pair(cpuFenceValue, std::move(mCpuDeletedAllocInfo)));
+	mGpuDeletedAllocInfoQueue.emplace(make_pair(cpuFenceValue, std::move(mGpuDeletedAllocInfo)));
+	
+	while (!mCpuDeletedAllocInfoQueue.empty() && mCpuDeletedAllocInfoQueue.front().first <= completedFenceValue)
 	{
-		CpuDelete(std::move(info));
+		for (auto& info : mCpuDeletedAllocInfoQueue.front().second)
+		{
+			CpuDelete(info.get());
+		}
+
+		mCpuDeletedAllocInfoQueue.pop();
 	}
 
-	for (auto& info : mGpuDeletedAllocInfo[gCurrFrame])
+	while (!mGpuDeletedAllocInfoQueue.empty() && mGpuDeletedAllocInfoQueue.front().first <= completedFenceValue)
 	{
-		GpuDelete(std::move(info));
-	}
+		for (auto& info : mGpuDeletedAllocInfoQueue.front().second)
+		{
+			GpuDelete(info.get());
+		}
 
-	mCpuDeletedAllocInfo[gCurrFrame].clear();
-	mGpuDeletedAllocInfo[gCurrFrame].clear();
+		mGpuDeletedAllocInfoQueue.pop();
+	}
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorAllocator::GetShaderCpuHandle(const DescriptorAllocInfo* info, uint32_t offset)const
@@ -187,29 +203,23 @@ void Carol::DescriptorAllocator::InitGpuDescriptorAllocator(ID3D12Device* device
 	}
 }
 
-void Carol::DescriptorAllocator::CpuDelete(unique_ptr<DescriptorAllocInfo> info)
+void Carol::DescriptorAllocator::CpuDelete(const DescriptorAllocInfo* info)
 {
 	lock_guard<mutex> lock(mCpuAllocatorMutex);
 
-	if (info)
-	{
-		uint32_t buddyIdx = info->StartOffset / mNumCpuDescriptorsPerHeap;
-		uint32_t blockIdx = info->StartOffset % mNumCpuDescriptorsPerHeap;
-		BuddyAllocInfo buddyInfo(blockIdx, info->NumDescriptors);
+	uint32_t buddyIdx = info->StartOffset / mNumCpuDescriptorsPerHeap;
+	uint32_t blockIdx = info->StartOffset % mNumCpuDescriptorsPerHeap;
+	BuddyAllocInfo buddyInfo(blockIdx, info->NumDescriptors);
 
-		mCpuBuddies[buddyIdx]->Deallocate(buddyInfo);
-	}
+	mCpuBuddies[buddyIdx]->Deallocate(buddyInfo);
 }
 
-void Carol::DescriptorAllocator::GpuDelete(std::unique_ptr<DescriptorAllocInfo> info)
+void Carol::DescriptorAllocator::GpuDelete(const DescriptorAllocInfo* info)
 {
 	lock_guard<mutex> lock(mGpuAllocatorMutex);
 
-	if (info)
-	{
-		BuddyAllocInfo buddyInfo(info->StartOffset, info->NumDescriptors);
-		mGpuBuddy->Deallocate(buddyInfo);
-	}
+	BuddyAllocInfo buddyInfo(info->StartOffset, info->NumDescriptors);
+	mGpuBuddy->Deallocate(buddyInfo);
 }
 
 Carol::DescriptorManager::DescriptorManager(ID3D12Device* device, uint32_t initCpuCbvSrvUavHeapSize, uint32_t initGpuCbvSrvUavHeapSize, uint32_t initRtvHeapSize, uint32_t initDsvHeapSize)
@@ -219,11 +229,11 @@ Carol::DescriptorManager::DescriptorManager(ID3D12Device* device, uint32_t initC
 	mDsvAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, device, initDsvHeapSize, 0);
 }
 
-void Carol::DescriptorManager::DelayedDelete()
+void Carol::DescriptorManager::DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue)
 {
-	mCbvSrvUavAllocator->DelayedDelete();
-	mRtvAllocator->DelayedDelete();
-	mDsvAllocator->DelayedDelete();
+	mCbvSrvUavAllocator->DelayedDelete(cpuFenceValue, completedFenceValue);
+	mRtvAllocator->DelayedDelete(cpuFenceValue, completedFenceValue);
+	mDsvAllocator->DelayedDelete(cpuFenceValue, completedFenceValue);
 }
 
 Carol::DescriptorManager::DescriptorManager(Carol::DescriptorManager&& manager)
@@ -265,24 +275,36 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::DsvAlloc
 	return info;
 }
 
-void Carol::DescriptorManager::CpuCbvSrvUavDeallocate(std::unique_ptr<DescriptorAllocInfo> info)
+void Carol::DescriptorManager::CpuCbvSrvUavDeallocate(DescriptorAllocInfo* info)
 {
-	mCbvSrvUavAllocator->CpuDeallocate(std::move(info));
+	if (info && info->Manager == this)
+	{
+		mCbvSrvUavAllocator->CpuDeallocate(info);
+	}
 }
 
-void Carol::DescriptorManager::GpuCbvSrvUavDeallocate(std::unique_ptr<DescriptorAllocInfo> info)
+void Carol::DescriptorManager::GpuCbvSrvUavDeallocate(DescriptorAllocInfo* info)
 {
-	mCbvSrvUavAllocator->GpuDeallocate(std::move(info));
+	if (info && info->Manager == this)
+	{
+		mCbvSrvUavAllocator->GpuDeallocate(info);
+	}
 }
 
-void Carol::DescriptorManager::RtvDeallocate(std::unique_ptr<DescriptorAllocInfo> info)
+void Carol::DescriptorManager::RtvDeallocate(DescriptorAllocInfo* info)
 {
-	mRtvAllocator->CpuDeallocate(std::move(info));
+	if (info && info->Manager == this)
+	{
+		mRtvAllocator->CpuDeallocate(info);
+	}
 }
 
-void Carol::DescriptorManager::DsvDeallocate(std::unique_ptr<DescriptorAllocInfo> info)
+void Carol::DescriptorManager::DsvDeallocate(DescriptorAllocInfo* info)
 {
-	mDsvAllocator->CpuDeallocate(std::move(info));
+	if (info && info->Manager == this)
+	{
+		mDsvAllocator->CpuDeallocate(info);
+	}
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorManager::GetCpuCbvSrvUavHandle(const DescriptorAllocInfo* info, uint32_t offset)const

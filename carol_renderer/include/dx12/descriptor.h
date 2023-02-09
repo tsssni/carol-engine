@@ -2,6 +2,7 @@
 #include <utils/d3dx12.h>
 #include <wrl/client.h>
 #include <vector>
+#include <queue>
 #include <memory>
 #include <unordered_map>
 #include <mutex>
@@ -32,10 +33,10 @@ namespace Carol
 		~DescriptorAllocator();
 		
 		std::unique_ptr<DescriptorAllocInfo> CpuAllocate(uint32_t numDescriptors);
-		void CpuDeallocate(std::unique_ptr<DescriptorAllocInfo> info);
+		void CpuDeallocate(DescriptorAllocInfo* info);
 		std::unique_ptr<DescriptorAllocInfo> GpuAllocate(uint32_t numDescriptors);
-		void GpuDeallocate(std::unique_ptr<DescriptorAllocInfo> info);
-		void DelayedDelete();
+		void GpuDeallocate(DescriptorAllocInfo* info);
+		void DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue);
 
 		ID3D12DescriptorHeap* GetGpuDescriptorHeap()const;
 		uint32_t GetDescriptorSize()const;
@@ -48,8 +49,8 @@ namespace Carol
 		void AddCpuDescriptorAllocator(ID3D12Device* device);
 		void InitGpuDescriptorAllocator(ID3D12Device* device);
 
-		void CpuDelete(std::unique_ptr<DescriptorAllocInfo> info);
-		void GpuDelete(std::unique_ptr<DescriptorAllocInfo> info);
+		void CpuDelete(const DescriptorAllocInfo* info);
+		void GpuDelete(const DescriptorAllocInfo* info);
 
 		std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> mCpuDescriptorHeaps;
 		std::vector<std::unique_ptr<Buddy>> mCpuBuddies;
@@ -59,8 +60,11 @@ namespace Carol
 		std::unique_ptr<Buddy> mGpuBuddy;
 		uint32_t mNumGpuDescriptors = 0;
 
-		std::vector<std::vector<std::unique_ptr<DescriptorAllocInfo>>> mCpuDeletedAllocInfo;
-		std::vector<std::vector<std::unique_ptr<DescriptorAllocInfo>>> mGpuDeletedAllocInfo;
+		std::vector<std::unique_ptr<DescriptorAllocInfo>> mCpuDeletedAllocInfo;
+		std::vector<std::unique_ptr<DescriptorAllocInfo>> mGpuDeletedAllocInfo;
+
+		std::queue<std::pair<uint64_t, std::vector<std::unique_ptr<DescriptorAllocInfo>>>> mCpuDeletedAllocInfoQueue;
+		std::queue<std::pair<uint64_t, std::vector<std::unique_ptr<DescriptorAllocInfo>>>> mGpuDeletedAllocInfoQueue;
 
 		D3D12_DESCRIPTOR_HEAP_TYPE mType;
 		uint32_t mDescriptorSize = 0;
@@ -88,11 +92,11 @@ namespace Carol
 		std::unique_ptr<DescriptorAllocInfo> RtvAllocate(uint32_t numDescriptors);
 		std::unique_ptr<DescriptorAllocInfo> DsvAllocate(uint32_t numDescriptors);
 
-		void CpuCbvSrvUavDeallocate(std::unique_ptr<DescriptorAllocInfo> info);
-		void GpuCbvSrvUavDeallocate(std::unique_ptr<DescriptorAllocInfo> info);
-		void RtvDeallocate(std::unique_ptr<DescriptorAllocInfo> info);
-		void DsvDeallocate(std::unique_ptr<DescriptorAllocInfo> info);	
-		void DelayedDelete();
+		void CpuCbvSrvUavDeallocate(DescriptorAllocInfo* info);
+		void GpuCbvSrvUavDeallocate(DescriptorAllocInfo* info);
+		void RtvDeallocate(DescriptorAllocInfo* info);
+		void DsvDeallocate(DescriptorAllocInfo* info);	
+		void DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue);
 
 		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuCbvSrvUavHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
 		CD3DX12_CPU_DESCRIPTOR_HANDLE GetShaderCpuCbvSrvUavHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
