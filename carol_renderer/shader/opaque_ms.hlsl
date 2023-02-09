@@ -1,6 +1,7 @@
 #include "include/common.hlsli"
 #include "include/mesh.hlsli"
 #include "include/cull.hlsli"
+#include "include/texture.hlsli"
 
 struct MeshOut
 {
@@ -58,7 +59,7 @@ void main(
 #endif
 
 #ifdef SSAO
-        mout.SsaoPosH = mul(float4(mout.PosW, 1.0f), gViewProjTex);
+        mout.SsaoPosH =  GetTexCoord(mul(float4(mout.PosW, 1.0f), gViewProj));
 #endif
         verts[gtid] = mout;
     }

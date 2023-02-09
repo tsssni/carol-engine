@@ -1,4 +1,5 @@
 #include "include/common.hlsli"
+#include "include/texture.hlsli"
 
 #ifndef SAMPLE_COUNT
 #define SAMPLE_COUNT 14
@@ -92,7 +93,7 @@ void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
             float flip = sign(dot(offset, centerNormal));
             float3 offsetPos = viewPos + flip * gOcclusionRadius * offset;
         
-            float4 screenOffsetPos = mul(float4(offsetPos, 1.0f), gProjTex);
+            float4 screenOffsetPos = GetTexCoord(mul(float4(offsetPos, 1.0f), gProj));
             screenOffsetPos /= screenOffsetPos.w;
             float offsetDepth = NdcDepthToViewDepth(depthMap.Sample(gsamDepthMap, screenOffsetPos.xy).r);
         

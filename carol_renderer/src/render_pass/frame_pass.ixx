@@ -44,7 +44,7 @@ namespace Carol
             DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT)
             :mScene(scene),
-            mCulledCommandBuffer(gNumFrame),
+            mCulledCommandBuffer(MESH_TYPE_COUNT),
             mCullIdx(MESH_TYPE_COUNT),
             mHiZIdx(HIZ_IDX_COUNT),
             mFrameFormat(frameFormat),
@@ -54,25 +54,19 @@ namespace Carol
             InitShaders();
             InitPSOs(device);
             
-            for (int i = 0; i < gNumFrame; ++i)
-            {
-                mCulledCommandBuffer[i].resize(MESH_TYPE_COUNT);
-
-                for (int j = 0; j < MESH_TYPE_COUNT; ++j)
-                {
-                    ResizeCommandBuffer(
-                        mCulledCommandBuffer[i][j],
-                        1024,
-                        sizeof(IndirectCommand),
-                        device,
-                        heap,
-                        descriptorManager);
-                }
-            }
-
+            mCulledCommandBufferPool = make_unique<StructuredBufferPool>(
+                1024,
+                sizeof(IndirectCommand),
+                device,
+                heap,
+                descriptorManager,
+                D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
+                D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+            
             for (int i = 0; i < MESH_TYPE_COUNT; ++i)
             {
-                mCullIdx[i].resize(CULL_IDX_COUNT);
+                MeshType type = MeshType(OPAQUE_MESH_START + i);
+                mCullIdx[type].resize(CULL_IDX_COUNT);
             }
         }
 
@@ -114,19 +108,19 @@ namespace Carol
             CullMeshlets(cmdList, false, false);
         }
 
-        virtual void Update()
+        void Update(uint64_t cpuFenceValue, uint64_t completedFenceValue)
         {
             for (int i = 0; i < MESH_TYPE_COUNT; ++i)
             {
                 MeshType type = MeshType(i);
-                TestCommandBufferSize(
-                    mCulledCommandBuffer[gCurrFrame][i],
-                    mScene->GetMeshesCount(type));
+                    
+                mCulledCommandBufferPool->DiscardBuffer(mCulledCommandBuffer[type].release(), cpuFenceValue);
+                mCulledCommandBuffer[type] = mCulledCommandBufferPool->RequestBuffer(completedFenceValue, mScene->GetMeshesCount(type));
 
-                mCullIdx[i][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[gCurrFrame][i]->GetGpuUavIdx();
-                mCullIdx[i][CULL_MESH_COUNT] = mScene->GetMeshesCount(type);
-                mCullIdx[i][CULL_MESH_OFFSET] = mScene->GetMeshCBStartOffet(type);
-                mCullIdx[i][CULL_HIZ_IDX] = mHiZMap->GetGpuSrvIdx();
+                mCullIdx[type][CULL_CULLED_COMMAND_BUFFER_IDX] = mCulledCommandBuffer[type]->GetGpuUavIdx();
+                mCullIdx[type][CULL_MESH_COUNT] = mScene->GetMeshesCount(type);
+                mCullIdx[type][CULL_MESH_OFFSET] = mScene->GetMeshCBStartOffet(type);
+                mCullIdx[type][CULL_HIZ_IDX] = mHiZMap->GetGpuSrvIdx();
             }
 
             mHiZIdx[HIZ_DEPTH_IDX] = mDepthStencilMap->GetGpuSrvIdx();
@@ -156,7 +150,7 @@ namespace Carol
 
         const StructuredBuffer *GetIndirectCommandBuffer(MeshType type)const
         {
-            return mCulledCommandBuffer[gCurrFrame][type].get();
+            return mCulledCommandBuffer[type].get();
         }
 
         uint32_t GetFrameSrvIdx()const
@@ -528,40 +522,6 @@ namespace Carol
                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
         }
 
-        void TestCommandBufferSize(
-            unique_ptr<StructuredBuffer>& buffer,
-            uint32_t numElements)
-        {
-            if (buffer->GetNumElements() < numElements)
-            {
-                ResizeCommandBuffer(
-                    buffer,
-                    numElements,
-                    buffer->GetElementSize(),
-                    buffer->GetDevice().Get(),
-                    buffer->GetHeap(),
-                    buffer->GetDescriptorManager());
-            }
-        }
-
-        void ResizeCommandBuffer(
-            unique_ptr<StructuredBuffer>& buffer,
-            uint32_t numElements,
-            uint32_t elementSize,
-            ID3D12Device* device,
-            Heap* heap,
-            DescriptorManager* descriptorManager)
-        {
-            buffer = make_unique<StructuredBuffer>(
-                numElements,
-                elementSize,
-                device,
-                heap,
-                descriptorManager,
-                D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
-                D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-        }
-
         void DrawOpaque(ID3D12GraphicsCommandList* cmdList)
         {
             cmdList->SetPipelineState(gPSOs[L"OpaqueStatic"]->Get());
@@ -616,9 +576,11 @@ namespace Carol
 
             for (int i = 0; i < MESH_TYPE_COUNT; ++i)
             {
-                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
-                mCulledCommandBuffer[gCurrFrame][i]->ResetCounter(cmdList);
-                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+                MeshType type = MeshType(i);
+
+                mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
+                mCulledCommandBuffer[type]->ResetCounter(cmdList);
+                mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
             }
         }
 
@@ -631,18 +593,20 @@ namespace Carol
 
             for (int i = start; i < end; ++i)
             {
-                if (mCullIdx[i][CULL_MESH_COUNT] == 0)
+                MeshType type = MeshType(i);
+
+                if (mCullIdx[type][CULL_MESH_COUNT] == 0)
                 {
                     continue;
                 }
                 
-                mCullIdx[i][CULL_HIST] = hist;
-                uint32_t count = ceilf(mCullIdx[i][CULL_MESH_COUNT] / 32.f);
+                mCullIdx[type][CULL_HIST] = hist;
+                uint32_t count = ceilf(mCullIdx[type][CULL_MESH_COUNT] / 32.f);
 
-                cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[type].data(), 0);
+                mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
                 cmdList->Dispatch(count, 1, 1);
-                mCulledCommandBuffer[gCurrFrame][i]->UavBarrier(cmdList);
+                mCulledCommandBuffer[type]->UavBarrier(cmdList);
             }
         }
 
@@ -665,17 +629,19 @@ namespace Carol
 
             for (int i = start; i < end; ++i)
             {
-                if (mCullIdx[i][CULL_MESH_COUNT] == 0)
+                MeshType type = MeshType(i);
+
+                if (mCullIdx[type][CULL_MESH_COUNT] == 0)
                 {
                     continue;
                 }
 
-                mCullIdx[i][CULL_HIST] = hist;
+                mCullIdx[type][CULL_HIST] = hist;
 
                 cmdList->SetPipelineState(pso[i]);
-                mCulledCommandBuffer[gCurrFrame][i]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-                cmdList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
-                ExecuteIndirect(cmdList, mCulledCommandBuffer[gCurrFrame][i].get());
+                mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+                cmdList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[type].data(), 0);
+                ExecuteIndirect(cmdList, mCulledCommandBuffer[type].get());
             }
         }
 
@@ -717,7 +683,6 @@ namespace Carol
         };
 
         Scene *mScene;
-        vector<vector<unique_ptr<StructuredBuffer>>> mCulledCommandBuffer;
 
         unique_ptr<ColorBuffer> mFrameMap;
         unique_ptr<ColorBuffer> mDepthStencilMap;
@@ -726,6 +691,9 @@ namespace Carol
         unique_ptr<StructuredBuffer> mOitppllBuffer;
         unique_ptr<RawBuffer> mStartOffsetBuffer;
         unique_ptr<RawBuffer> mCounterBuffer;
+
+        vector<unique_ptr<StructuredBuffer>> mCulledCommandBuffer;
+        unique_ptr<StructuredBufferPool> mCulledCommandBufferPool;
 
         vector<vector<uint32_t>> mCullIdx;
         vector<uint32_t> mHiZIdx;

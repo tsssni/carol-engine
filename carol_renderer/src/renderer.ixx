@@ -38,8 +38,6 @@ namespace Carol
         XMFLOAT4X4 InvProj;
         XMFLOAT4X4 ViewProj;
         XMFLOAT4X4 InvViewProj;
-        XMFLOAT4X4 ProjTex;
-        XMFLOAT4X4 ViewProjTex;
         XMFLOAT4X4 HistViewProj;
         XMFLOAT4X4 JitteredViewProj;
 
@@ -114,7 +112,7 @@ namespace Carol
             InitFence();
 
             InitCommandQueue();
-            InitCommandAllocator();
+            InitCommandAllocatorPool();
             InitCommandList();
 
             InitHeapManager();
@@ -304,26 +302,16 @@ namespace Carol
             ThrowIfFailed(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(mCommandQueue.GetAddressOf())));
         }
 
-        virtual void InitCommandAllocator()
+        virtual void InitCommandAllocatorPool()
         {
-            ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mInitCommandAllocator.GetAddressOf())));
-
-            gNumFrame = 3;
-            gCurrFrame = 0;
-
-            mFrameAllocator.resize(gNumFrame);
-            for (int i = 0; i < gNumFrame; ++i)
-            {
-                ThrowIfFailed(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(mFrameAllocator[i].GetAddressOf())));
-            }
+            mCommandAllocatorPool = make_unique<CommandAllocatorPool>(D3D12_COMMAND_LIST_TYPE_DIRECT, mDevice.Get());
         }
 
         virtual void InitCommandList()
         {
+            mCommandAllocator = mCommandAllocatorPool->RequestAllocator(mGpuFenceValue);
             ComPtr<ID3D12GraphicsCommandList6> cmdList;
-
-            ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mInitCommandAllocator.Get(), nullptr, IID_PPV_ARGS(cmdList.GetAddressOf())));
-            cmdList->Close();
+            ThrowIfFailed(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, mCommandAllocator.Get(), nullptr, IID_PPV_ARGS(cmdList.GetAddressOf())));
 
             mCommandList = cmdList;
         }
@@ -356,13 +344,13 @@ namespace Carol
 
         virtual void FlushCommandQueue()
         {
-            ++mCpuFence;
-            ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFence));
+            ++mCpuFenceValue;
+            ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFenceValue));
 
-            if (mFence->GetCompletedValue() < mCpuFence)
+            if (mFence->GetCompletedValue() < mCpuFenceValue)
             {
                 auto eventHandle = CreateEventExW(nullptr, LPCWSTR(nullptr), 0, EVENT_ALL_ACCESS);
-                ThrowIfFailed(mFence->SetEventOnCompletion(mCpuFence, eventHandle));
+                ThrowIfFailed(mFence->SetEventOnCompletion(mCpuFenceValue, eventHandle));
 
                 WaitForSingleObject(eventHandle, INFINITE);
                 CloseHandle(eventHandle);
@@ -375,13 +363,13 @@ namespace Carol
         ComPtr<ID3D12Device> mDevice;
 
         ComPtr<ID3D12CommandQueue> mCommandQueue;
-        ComPtr<ID3D12GraphicsCommandList> mCommandList;
-        ComPtr<ID3D12Fence> mFence;
-        uint32_t mCpuFence = 0;
+		ComPtr<ID3D12GraphicsCommandList> mCommandList;
+        ComPtr<ID3D12CommandAllocator> mCommandAllocator;
+		unique_ptr<CommandAllocatorPool> mCommandAllocatorPool;
 
-        ComPtr<ID3D12CommandAllocator> mInitCommandAllocator;
-        vector<ComPtr<ID3D12CommandAllocator>> mFrameAllocator;
-        vector<uint32_t> mGpuFence = {0, 0, 0};
+		ComPtr<ID3D12Fence> mFence;
+		uint64_t mCpuFenceValue = 0;
+		uint64_t mGpuFenceValue = 0;
 
         unique_ptr<DescriptorManager> mDescriptorManager;
         unique_ptr<HeapManager> mHeapManager;
@@ -412,9 +400,6 @@ namespace Carol
         Renderer(HWND hWnd, uint32_t width, uint32_t height)
             : BaseRenderer(hWnd)
         {
-            ThrowIfFailed(mInitCommandAllocator->Reset());
-            ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
-
             InitConstants();
             InitPipelineStates();
             InitScene();
@@ -425,11 +410,22 @@ namespace Carol
             InitTaa();
             OnResize(width, height, true);
             ReleaseIntermediateBuffers();
+
+            mCommandList->Close();
+            vector<ID3D12CommandList*> cmdLists = { mCommandList.Get() };
+            mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
+
+            ++mCpuFenceValue;
+            ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFenceValue));
         }
 
         virtual void Draw() override
         {
-            ID3D12DescriptorHeap *descriptorHeaps[] = {mDescriptorManager->GetResourceDescriptorHeap()};
+            mCommandAllocatorPool->DiscardAllocator(mCommandAllocator.Get(), mCpuFenceValue);
+            mCommandAllocator = mCommandAllocatorPool->RequestAllocator(mGpuFenceValue);
+            ThrowIfFailed(mCommandList->Reset(mCommandAllocator.Get(), nullptr));
+
+            ID3D12DescriptorHeap* descriptorHeaps[] = {mDescriptorManager->GetResourceDescriptorHeap()};
             mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
             mTaaPass->SetCurrBackBuffer(mDisplayPass->GetCurrBackBuffer());
@@ -443,11 +439,11 @@ namespace Carol
 
             mMainLightShadowPass->Draw(mCommandList.Get());
             mFramePass->Cull(mCommandList.Get());
-
+            
             for (int i = 0; i < MESH_TYPE_COUNT; ++i)
             {
                 MeshType type = (MeshType)i;
-                const StructuredBuffer *indirectCommandBuffer = mFramePass->GetIndirectCommandBuffer(type);
+                const StructuredBuffer* indirectCommandBuffer = mFramePass->GetIndirectCommandBuffer(type);
                 mNormalPass->SetIndirectCommandBuffer(type, indirectCommandBuffer);
                 mTaaPass->SetIndirectCommandBuffer(type, indirectCommandBuffer);
             }
@@ -456,41 +452,30 @@ namespace Carol
             mSsaoPass->Draw(mCommandList.Get());
             mFramePass->Draw(mCommandList.Get());
             mTaaPass->Draw(mCommandList.Get());
-
+            
             ThrowIfFailed(mCommandList->Close());
-            vector<ID3D12CommandList *> cmdLists{mCommandList.Get()};
+            vector<ID3D12CommandList*> cmdLists{ mCommandList.Get()};
             mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 
             mDisplayPass->Present();
-            mGpuFence[gCurrFrame] = ++mCpuFence;
-            ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFence));
-
-            gCurrFrame = (gCurrFrame + 1) % gNumFrame;
+            ++mCpuFenceValue;
+            ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFenceValue));
         }
 
         virtual void Update() override
         {
             OnKeyboardInput();
+            mGpuFenceValue = mFence->GetCompletedValue();
 
-            if (mGpuFence[gCurrFrame] != 0 && mFence->GetCompletedValue() < mGpuFence[gCurrFrame])
-            {
-                HANDLE eventHandle = CreateEventExW(nullptr, LPCWSTR(nullptr), 0, EVENT_ALL_ACCESS);
-                ThrowIfFailed(mFence->SetEventOnCompletion(mGpuFence[gCurrFrame], eventHandle));
-                WaitForSingleObject(eventHandle, INFINITE);
-                CloseHandle(eventHandle);
-            }
+            mDescriptorManager->DelayedDelete(mCpuFenceValue, mGpuFenceValue);
+            mHeapManager->DelayedDelete(mCpuFenceValue, mGpuFenceValue);
 
-            ThrowIfFailed(mFrameAllocator[gCurrFrame]->Reset());
-            ThrowIfFailed(mCommandList->Reset(mFrameAllocator[gCurrFrame].Get(), nullptr));
-
-            mDescriptorManager->DelayedDelete();
-            mHeapManager->DelayedDelete();
+            mCamera->UpdateViewMatrix();
+            mScene->Update(mTimer.get(), mCpuFenceValue, mGpuFenceValue);
+            mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), mCpuFenceValue, mGpuFenceValue, 0.85f);
+            mFramePass->Update(mCpuFenceValue, mGpuFenceValue);
 
             UpdateFrameCB();
-
-            mScene->Update(mTimer.get());
-            mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera *>(mCamera.get()), 0.85f);
-            mFramePass->Update();
         }
 
         virtual void OnMouseDown(WPARAM btnState, int x, int y) override
@@ -541,12 +526,6 @@ namespace Carol
 
         virtual void OnResize(uint32_t width, uint32_t height, bool init = false) override
         {
-            if (!init)
-            {
-                ThrowIfFailed(mInitCommandAllocator->Reset());
-                ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
-            }
-
             ID3D12Device *device = mDevice.Get();
             Heap *heap = mHeapManager->GetDefaultBuffersHeap();
             DescriptorManager *descriptorManager = mDescriptorManager.get();
@@ -560,8 +539,6 @@ namespace Carol
             mNormalPass->SetFrameDsv(mFramePass->GetFrameDsv());
             mTaaPass->SetFrameDsv(mFramePass->GetFrameDsv());
 
-            mFrameConstants->MeshCBIdx = mScene->GetMeshCBIdx();
-            mFrameConstants->CommandBufferIdx = mScene->GetCommandBufferIdx();
             mFrameConstants->InstanceFrustumCulledMarkIdx = mScene->GetInstanceFrustumCulledMarkBufferIdx();
             mFrameConstants->InstanceOcclusionPassedMarkIdx = mScene->GetInstanceOcclusionPassedMarkBufferIdx();
 
@@ -590,18 +567,13 @@ namespace Carol
             // TAA
             mFrameConstants->VelocityMapIdx = mTaaPass->GetVeloctiySrvIdx();
             mFrameConstants->HistFrameMapIdx = mTaaPass->GetHistFrameSrvIdx();
-
-            mCommandList->Close();
-            vector<ID3D12CommandList *> cmdLists{mCommandList.Get()};
-            mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
-            FlushCommandQueue();
         }
 
         void LoadModel(wstring_view path, wstring_view textureDir, wstring_view modelName, XMMATRIX world, bool isSkinned)
         {
-            FlushCommandQueue();
-            ThrowIfFailed(mInitCommandAllocator->Reset());
-            ThrowIfFailed(mCommandList->Reset(mInitCommandAllocator.Get(), nullptr));
+            mCommandAllocatorPool->DiscardAllocator(mCommandAllocator.Get(), mCpuFenceValue);
+            mCommandAllocator = mCommandAllocatorPool->RequestAllocator(mGpuFenceValue);
+            ThrowIfFailed(mCommandList->Reset(mCommandAllocator.Get(), nullptr));
 
             mScene->LoadModel(
                 modelName,
@@ -615,16 +587,18 @@ namespace Carol
                 mDescriptorManager.get(),
                 mTextureManager.get());
             mScene->SetWorld(modelName, world);
+            mScene->ReleaseIntermediateBuffers(modelName);
 
             mCommandList->Close();
-            vector<ID3D12CommandList *> cmdLists = {mCommandList.Get()};
+            vector<ID3D12CommandList*> cmdLists = { mCommandList.Get() };
             mCommandQueue->ExecuteCommandLists(1, cmdLists.data());
-            FlushCommandQueue();
+
+            ++mCpuFenceValue;
+            ThrowIfFailed(mCommandQueue->Signal(mFence.Get(), mCpuFenceValue));
         }
 
         void UnloadModel(wstring_view modelName)
         {
-            FlushCommandQueue();
             mScene->UnloadModel(modelName);
         }
 
@@ -647,7 +621,7 @@ namespace Carol
         void InitConstants()
         {
             mFrameConstants = make_unique<FrameConstants>();
-            mFrameCBAllocator = make_unique<FastConstantBufferAllocator>(gNumFrame, sizeof(FrameConstants), mDevice.Get(), mHeapManager->GetUploadBuffersHeap(), mDescriptorManager.get());
+            mFrameCBAllocator = make_unique<FastConstantBufferAllocator>(1024, sizeof(FrameConstants), mDevice.Get(), mHeapManager->GetUploadBuffersHeap(), mDescriptorManager.get());
         }
 
         void InitPipelineStates()
@@ -749,8 +723,6 @@ namespace Carol
 
         void UpdateFrameCB()
         {
-            mCamera->UpdateViewMatrix();
-
             XMMATRIX view = mCamera->GetView();
             XMMATRIX invView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(view)), view);
             XMMATRIX proj = mCamera->GetProj();
@@ -758,22 +730,12 @@ namespace Carol
             XMMATRIX viewProj = XMMatrixMultiply(view, proj);
             XMMATRIX invViewProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(viewProj)), viewProj);
 
-            static XMMATRIX tex(
-                0.5f, 0.0f, 0.0f, 0.0f,
-                0.0f, -0.5f, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f, 0.0f,
-                0.5f, 0.5f, 0.0f, 1.0f);
-            XMMATRIX projTex = XMMatrixMultiply(proj, tex);
-            XMMATRIX viewProjTex = XMMatrixMultiply(viewProj, tex);
-
             XMStoreFloat4x4(&mFrameConstants->View, XMMatrixTranspose(view));
             XMStoreFloat4x4(&mFrameConstants->InvView, XMMatrixTranspose(invView));
             XMStoreFloat4x4(&mFrameConstants->Proj, XMMatrixTranspose(proj));
             XMStoreFloat4x4(&mFrameConstants->InvProj, XMMatrixTranspose(invProj));
             XMStoreFloat4x4(&mFrameConstants->ViewProj, XMMatrixTranspose(viewProj));
             XMStoreFloat4x4(&mFrameConstants->InvViewProj, XMMatrixTranspose(invViewProj));
-            XMStoreFloat4x4(&mFrameConstants->ProjTex, XMMatrixTranspose(projTex));
-            XMStoreFloat4x4(&mFrameConstants->ViewProjTex, XMMatrixTranspose(viewProjTex));
 
             XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
             mTaaPass->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
@@ -809,6 +771,7 @@ namespace Carol
             }
 
             mFrameConstants->MeshCBIdx = mScene->GetMeshCBIdx();
+            mFrameConstants->CommandBufferIdx = mScene->GetCommandBufferIdx();
             mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
         }
 

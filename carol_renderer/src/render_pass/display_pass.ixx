@@ -61,7 +61,10 @@ namespace Carol
 
         ~DisplayPass()
         {
-            mBackBufferRtvAllocInfo->Manager->RtvDeallocate(std::move(mBackBufferRtvAllocInfo));
+            if (mBackBufferRtvAllocInfo && mBackBufferRtvAllocInfo->Manager)
+            {
+                mBackBufferRtvAllocInfo->Manager->RtvDeallocate(mBackBufferRtvAllocInfo.release());
+            }
         }
 
         virtual IDXGISwapChain *GetSwapChain()

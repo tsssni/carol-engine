@@ -40,6 +40,7 @@
         "forward_list": "cpp",
         "map": "cpp",
         "set": "cpp",
-        "mutex": "cpp"
+        "mutex": "cpp",
+        "chrono": "cpp"
     }
 }

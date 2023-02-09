@@ -3,6 +3,7 @@ import carol.renderer.dx12.command;
 import carol.renderer.utils;
 import <wrl/client.h>;
 import <vector>;
+import <queue>;
 import <memory>;
 import <cmath>;
 import <mutex>;
@@ -11,8 +12,11 @@ namespace Carol
 {
 	using Microsoft::WRL::ComPtr;
 	using std::lock_guard;
+	using std::make_pair;
 	using std::make_unique;
 	using std::mutex;
+	using std::pair;
+	using std::queue;
 	using std::unique_ptr;
 	using std::vector;
 
@@ -33,36 +37,33 @@ namespace Carol
 	{
 	public:
 		Heap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag)
-			: mType(type), mFlag(flag), mDeletedResources(gNumFrame)
+			: mType(type), mFlag(flag)
 		{
 		}
 
 		virtual unique_ptr<HeapAllocInfo> Allocate(const D3D12_RESOURCE_DESC *desc) = 0;
 
-		virtual void Deallocate(unique_ptr<HeapAllocInfo> info)
+		virtual void Deallocate(HeapAllocInfo* info)
 		{
-			mDeletedResources[gCurrFrame].push_back(std::move(info));
-		}
-
-		virtual void DeleteResourceImmediate(unique_ptr<HeapAllocInfo> info)
-		{
-			Delete(std::move(info));
-		}
-
-		virtual void DelayedDelete()
-		{
-			for (auto &info : mDeletedResources[gCurrFrame])
+			if (info && info->Heap == this)
 			{
-				if (info->MappedData)
+				mDeletedResources.emplace_back(info);
+			}
+		}
+
+		virtual void DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue)
+		{
+			mDeletedResourcesQueue.emplace(make_pair(cpuFenceValue, std::move(mDeletedResources)));
+	
+			while (!mDeletedResourcesQueue.empty() && mDeletedResourcesQueue.front().first <= completedFenceValue)
+			{
+				for (auto& info : mDeletedResourcesQueue.front().second)
 				{
-					info->Resource->Unmap(0, nullptr);
-					info->MappedData = nullptr;
+					Delete(info.get());
 				}
 
-				Delete(std::move(info));
+				mDeletedResourcesQueue.pop();
 			}
-
-			mDeletedResources[gCurrFrame].clear();
 		}
 
 		virtual ID3D12Heap *GetHeap(const HeapAllocInfo *info) const = 0;
@@ -70,12 +71,13 @@ namespace Carol
 		virtual uint32_t GetOffset(const HeapAllocInfo *info) const = 0;
 
 	protected:
-		virtual void Delete(unique_ptr<HeapAllocInfo> info) = 0;
+		virtual void Delete(const HeapAllocInfo* info) = 0;
 
 		D3D12_HEAP_TYPE mType;
 		D3D12_HEAP_FLAGS mFlag;
 
-		vector<vector<unique_ptr<HeapAllocInfo>>> mDeletedResources;
+		vector<unique_ptr<HeapAllocInfo>> mDeletedResources;
+		queue<pair<uint64_t, vector<unique_ptr<HeapAllocInfo>>>> mDeletedResourcesQueue;
 		mutex mAllocatorMutex;
 	};
 
@@ -95,12 +97,16 @@ namespace Carol
 
 		~BuddyHeap()
 		{
-			for (auto& deletedResources : mDeletedResources)
+			mDeletedResourcesQueue.emplace(make_pair(0, std::move(mDeletedResources)));
+
+			while (!mDeletedResourcesQueue.empty())
 			{
-				for (auto& info : deletedResources)
+				for (auto& info : mDeletedResourcesQueue.front().second)
 				{
-					Delete(std::move(info));
+					Delete(info.get());
 				}
+
+				mDeletedResourcesQueue.pop();
 			}
 		}
 
@@ -152,7 +158,7 @@ namespace Carol
 		}
 
 	protected:
-		virtual void Delete(unique_ptr<HeapAllocInfo> info)
+		virtual void Delete(const HeapAllocInfo* info)
 		{
 			lock_guard<mutex> lock(mAllocatorMutex);
 
@@ -219,12 +225,16 @@ namespace Carol
 
 		~SegListHeap()
 		{
-			for (auto& deletedResources : mDeletedResources)
+			mDeletedResourcesQueue.emplace(make_pair(0, std::move(mDeletedResources)));
+
+			while (!mDeletedResourcesQueue.empty())
 			{
-				for (auto& info : deletedResources)
+				for (auto& info : mDeletedResourcesQueue.front().second)
 				{
-					Delete(std::move(info));
+					Delete(info.get());
 				}
+
+				mDeletedResourcesQueue.pop();
 			}
 		}
 
@@ -291,7 +301,7 @@ namespace Carol
 		}
 
 	protected:
-		virtual void Delete(unique_ptr<HeapAllocInfo> info)
+		virtual void Delete(const HeapAllocInfo* info)
 		{
 			lock_guard<mutex> lock(mAllocatorMutex);
 
@@ -370,12 +380,12 @@ namespace Carol
 			return mTexturesHeap.get();
 		}
 
-		void DelayedDelete()
+		void DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue)
 		{
-			mDefaultBuffersHeap->DelayedDelete();
-			mUploadBuffersHeap->DelayedDelete();
-			mReadbackBuffersHeap->DelayedDelete();
-			mTexturesHeap->DelayedDelete();
+			mDefaultBuffersHeap->DelayedDelete(cpuFenceValue, completedFenceValue);
+			mUploadBuffersHeap->DelayedDelete(cpuFenceValue, completedFenceValue);
+			mReadbackBuffersHeap->DelayedDelete(cpuFenceValue, completedFenceValue);
+			mTexturesHeap->DelayedDelete(cpuFenceValue, completedFenceValue);
 		}
 
 	protected:

@@ -70,13 +70,13 @@ float4 main(PixelIn pin) : SV_Target
     {
         if (pin.PosH.w >= mainLightSplitZ[i] && pin.PosH.w < mainLightSplitZ[i + 1])
         {
-            shadowFactor = CalcShadowFactor(mul(float4(pin.PosW, 1.0f), gLights[i].ViewProjTex), mainLightShadowMapIdx[i]);
+            shadowFactor = CalcShadowFactor(mul(float4(pin.PosW, 1.0f), gLights[i].ViewProj), mainLightShadowMapIdx[i]);
 
             if (i < MAIN_LIGHT_SPLIT_LEVEL - 1 && (mainLightSplitZ[i + 1] - pin.PosH.w) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) < CSM_BLEND_BORDER)
             {
-                float4 nextLevelShadowPos = mul(float4(pin.PosW, 1.0f), gLights[i + 1].ViewProjTex);
+                float4 nextLevelShadowPos = mul(float4(pin.PosW, 1.0f), gLights[i + 1].ViewProj);
                 
-                if (!CheckOutOfBounds(nextLevelShadowPos.xyz / nextLevelShadowPos.w))
+                if (!CheckOutOfBounds(GetTexCoord(nextLevelShadowPos).xyz))
                 {
                     float nextLevelShadowFactor = CalcShadowFactor(nextLevelShadowPos, mainLightShadowMapIdx[i + 1]);
                     float weight = (mainLightSplitZ[i + 1] - pin.PosH.w) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) / CSM_BLEND_BORDER;
