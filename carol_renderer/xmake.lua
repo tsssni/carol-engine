@@ -12,8 +12,14 @@ target("carol_renderer")
         "src/**.rc")
     
     if is_config("toolchain","msvc") then
-        add_cxxflags("/utf-8","/EHsc","/wd4005","/wd5106","/MDd","/MP","/translateInclude")
+        add_cxxflags("/utf-8","/EHsc","/wd4005","/wd5106","/MP","/translateInclude")
+        if is_mode("debug") then
+            add_cxxflags("/MDd")
+        else
+            add_cxxflags("/MD","/O2")
+        end
     end
+
 
     add_includedirs(
         "src",
@@ -22,31 +28,33 @@ target("carol_renderer")
         "packages/DirectX Shader Compiler/include",
         "packages/DirectXTex/include"
     )
+
+    
     add_linkdirs(
-        "packages/assimp/lib",
-        "packages/DirectX Shader Compiler/lib",
-        "packages/DirectXTex/lib"
-    )
+        "packages/assimp/lib/$(mode)",
+        "packages/DirectX Shader Compiler/lib/$(arch)",
+        "packages/DirectXTex/lib/$(arch)/$(mode)")
     add_links(
         "d3d12",
         "dxgi",
         "dxguid",
         "onecore",
-        "assimp-vc143-mtd",
         "dxcompiler",
         "DirectXTex")
 
+    after_build(function (target) 
+            os.cp("packages/*/bin/*.dll","build/$(os)/$(arch)/$(mode)")
+            os.cp("packages/*/bin/$(mode)/*.dll","build/$(os)/$(arch)/$(mode)")
+            os.cp("packages/*/bin/$(arch)/*.dll","build/$(os)/$(arch)/$(mode)")
+            os.cp("packages/*/bin/$(arch)/$(mode)/*.dll","build/$(os)/$(arch)/$(mode)")
+        end)
+
     if is_mode("debug") then
-        after_build("windows|x64", function (target) 
-            os.cp("packages/*/bin/*.dll","build/windows/x64/debug")
-            os.cp("packages/*/bin/*.pdb","build/windows/x64/debug")
+        add_links("assimp-vc143-mtd")
+        after_build( function (target) 
+            os.cp("packages/*/bin/debug/*.pdb","build/$(os)/$(arch)/debug")
+            os.cp("packages/*/bin/$(arch)/debug/*.pdb","build/$(os)/$(arch)/debug")
         end)
     elseif is_mode("release") then
-        after_build("windows|x64", function (target) 
-            os.cp("packages/*/bin/*.dll","build/windows/x64/release")
-            os.cp("packages/*/bin/*.pdb","build/windows/x64/release")
-        end)
+        add_links("assimp-vc143-mt")
     end
-
-    
-    

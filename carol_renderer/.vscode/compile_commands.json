@@ -1,6 +1,6 @@
 [
 {
   "directory": "c:\\carol_engine_vscode\\carol_renderer",
-  "arguments": ["C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.34.31933\\bin\\HostX64\\x64\\cl.exe", "@C:\\Users\\86137\\AppData\\Local\\Temp\\.xmake\\230207\\_8442101880A84C959C03B3CF31CC388C.args.txt"],
+  "arguments": ["C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.34.31933\\bin\\HostX64\\x64\\cl.exe", "/c", "/nologo", "/O2", "/fp:fast", "/std:c++20", "/Isrc", "/Ipackages\\assimp\\include", "/Ipackages\\D3D12 Agility\\include", "/Ipackages\\DirectX Shader Compiler\\include", "/Ipackages\\DirectXTex\\include", "/utf-8", "/EHsc", "/wd4005", "/wd5106", "/MP", "/translateInclude", "/MD", "/O2", "/experimental:module", "/DNDEBUG", "/Fobuild\\.objs\\carol_renderer\\windows\\x64\\release\\src\\main.cpp.obj", "src\\main.cpp"],
   "file": "src\\main.cpp"
 }]
