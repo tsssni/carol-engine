@@ -69,7 +69,7 @@ void Carol::Scene::InitBuffers(
 
 	mMeshCBPool = make_unique<StructuredBufferPool>(
 		1024,
-		sizeof(IndirectCommand),
+		sizeof(MeshConstants),
 		device,
 		uploadBuffersHeap,
 		descriptorManager,
@@ -79,7 +79,7 @@ void Carol::Scene::InitBuffers(
 
 	mSkinnedCBPool = make_unique<StructuredBufferPool>(
 		1024,
-		sizeof(IndirectCommand),
+		sizeof(SkinnedConstants),
 		device,
 		uploadBuffersHeap,
 		descriptorManager,

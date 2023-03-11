@@ -183,12 +183,12 @@ void Carol::FramePass::InitShaders()
 
 	vector<wstring_view> staticDefines = 
 	{
-		L"TAA=1",L"SSAO=1"
+		L"TAA=1"
 	};
 
 	vector<wstring_view> skinnedDefines =
 	{
-		L"TAA=1",L"SSAO=1",L"SKINNED=1"
+		L"TAA=1",L"SKINNED=1"
 	};
 
 	vector<wstring_view> cullDefines =

@@ -10,10 +10,6 @@ struct MeshOut
     float3 NormalW : NORMAL;
     float3 TangentW : TANGENT;
     float2 TexC : TEXCOORD; 
-#ifdef SSAO
-    float4 SsaoPosH : POSITION1;
-#endif
-
 };
 
 [numthreads(128, 1, 1)]
@@ -58,9 +54,6 @@ void main(
         mout.PosH = mul(float4(mout.PosW, 1.0f), gViewProj);
 #endif
 
-#ifdef SSAO
-        mout.SsaoPosH = GetTexCoord(mul(float4(mout.PosW, 1.0f), gViewProj));
-#endif
         verts[gtid] = mout;
     }
 }

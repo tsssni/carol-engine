@@ -43,7 +43,8 @@ Carol::AssimpModel::AssimpModel(
 {
 	Assimp::Importer mImporter;
 	const aiScene* scene = mImporter.ReadFile(WStringToString(path), isSkinned ? aiProcess_Skinned : aiProcess_Static);
-	
+	assert(scene);
+
 	mTexDir = textureDir;
 	mSkinned = isSkinned;
 

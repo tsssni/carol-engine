@@ -10,9 +10,6 @@ struct PixelIn
     float3 NormalW : NORMAL;
     float3 TangentW : TANGENT;
     float2 TexC : TEXCOORD; 
-#ifdef SSAO
-    float4 SsaoPosH : POSITION1;
-#endif
 
 };
 
@@ -38,7 +35,7 @@ float4 main(PixelIn pin) : SV_Target
     float3 ambient = 0.4f * texDiffuse.rgb;
     
 #ifdef SSAO
-    pin.SsaoPosH /= pin.SsaoPosH.w;
+    pin.SsaoPosH = GetTexCoord(pin.PosH);
     float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
     ambient *= ambientAccess;
 #endif
