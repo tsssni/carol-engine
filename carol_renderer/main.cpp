@@ -69,8 +69,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     try
     {
         renderer = new Carol::Renderer(hWnd,width,height);
-        //renderer->LoadModel(L"C:\\Minotaur\\animation\\Minotaur@Attack.FBX", L"C:\\Minotaur\\texture", L"m", XMMatrixScaling(.1f, .1f, .1f), true);
-        //renderer->SetAnimation(L"m", L"Take 001");
 
 		// 主消息循环:
         while (msg.message != WM_QUIT)

@@ -48,7 +48,13 @@ Carol::AssimpModel::AssimpModel(
 	mTexDir = textureDir;
 	mSkinned = isSkinned;
 
-	LoadAssimpSkinnedData(scene);
+	if (mSkinned)
+	{
+		ReadBoneHierachy(scene->mRootNode);
+		ReadBoneOffsets(scene);
+		ReadAnimations(scene);
+	}
+
 	ProcessNode(
 		scene->mRootNode,
 		rootNode,
@@ -72,7 +78,6 @@ void Carol::AssimpModel::ProcessNode(
 	DescriptorManager* descriptorManager)
 {
 	sceneNode->Name = StringToWString(node->mName.C_Str());
-	XMStoreFloat4x4(&sceneNode->Transformation, aiMatrix4x4ToXM(node->mTransformation));
 
 	for (int i = 0; i < node->mNumMeshes; ++i)
 	{
@@ -134,8 +139,8 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(
 			vertices,
 			skinnedVertices,
 			indices,
-			mSkinned,
-			false,
+			mSkinned & bool(mesh->mNumBones),
+			true,
 			device,
 			cmdList,
 			defaultBuffersHeap,
@@ -156,120 +161,36 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(
 	return mMeshes[meshName].get();
 }
 
-void Carol::AssimpModel::LoadAssimpSkinnedData(const aiScene* scene)
-{
-	ReadBones(scene->mRootNode, scene);
-	InitBoneData(scene);
-
-	ReadBoneHierarchy(scene->mRootNode);
-	ReadBoneOffsets(scene->mRootNode, scene);
-	ReadAnimations(scene);
-}
-
-void Carol::AssimpModel::ReadBones(aiNode* node, const aiScene* scene)
-{
-	for (int i = 0; i < node->mNumMeshes; ++i)
-	{
-		aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-		
-		for (int j = 0; j < mesh->mNumBones; ++j)
-		{
-			wstring boneName = StringToWString(mesh->mBones[j]->mName.C_Str());
-			MarkSkinnedNodes(scene->mRootNode, node, boneName);
-		}
-	}
-
-	for (int i = 0; i < node->mNumChildren; ++i)
-	{
-		ReadBones(node->mChildren[i], scene);
-	}
-
-}
-
-void Carol::AssimpModel::MarkSkinnedNodes(aiNode* node, aiNode* meshNode, wstring boneName)
+void Carol::AssimpModel::ReadBoneHierachy(aiNode* node)
 {
 	wstring nodeName = StringToWString(node->mName.C_Str());
+	mBoneIndices[nodeName] = mBoneHierarchy.size();
+	mBoneHierarchy.emplace_back(-1);
 
-	if (nodeName == boneName)
+	if (node->mParent)
 	{
-		auto* itr = node;
-
-		while (itr && itr != meshNode && itr != meshNode->mParent)
-		{
-			wstring itrName = StringToWString(itr->mName.C_Str());
-			mSkinnedMark[itrName] = true;
-			itr = itr->mParent;
-		}
-	}
-	else
-	{
-		for (int i = 0; i < node->mNumChildren; ++i)
-		{
-			MarkSkinnedNodes(node->mChildren[i], meshNode, boneName);
-		}
-	}
-}
-
-void Carol::AssimpModel::InitBoneData(const aiScene* scene)
-{
-	mBoneMark.resize(mSkinnedMark.size(), 0);
-	mBoneHierarchy.resize(mSkinnedMark.size(), -1);
-	mBoneOffsets.resize(mSkinnedMark.size());
-
-	XMMATRIX identity = XMMatrixIdentity();
-
-	for (int i = 0; i < mBoneOffsets.size(); ++i)
-	{
-		XMStoreFloat4x4(&mBoneOffsets[i], identity);
-	}
-}
-
-void Carol::AssimpModel::ReadBoneHierarchy(aiNode* node)
-{
-	wstring nodeName = StringToWString(node->mName.C_Str());
-	
-	if (mSkinnedMark.count(nodeName))
-	{
-		mBoneHierarchy[mSkinnedCount] = -1;
-		mBoneIndices[nodeName] = mSkinnedCount;
-
-		if (node->mParent)
-		{
-			wstring parentName = StringToWString(node->mParent->mName.C_Str());
-			if (mSkinnedMark.count(parentName))
-			{
-				mBoneHierarchy[mSkinnedCount] = mBoneIndices[parentName];
-			}
-		}
-
-		++mSkinnedCount;
+		wstring parentName = StringToWString(node->mParent->mName.C_Str());
+		mBoneHierarchy[mBoneIndices[nodeName]] = mBoneIndices[parentName];
 	}
 
 	for (int i = 0; i < node->mNumChildren; ++i)
 	{
-		ReadBoneHierarchy(node->mChildren[i]);
+		ReadBoneHierachy(node->mChildren[i]);
 	}
 }
 
-void Carol::AssimpModel::ReadBoneOffsets(aiNode* node, const aiScene* scene)
+void Carol::AssimpModel::ReadBoneOffsets(const aiScene* scene)
 {
-	for (int i = 0; i < node->mNumMeshes; ++i)
+	mBoneOffsets.resize(mBoneHierarchy.size());
+
+	for (int i = 0; i < scene->mNumMeshes; ++i)
 	{
-		auto* mesh = scene->mMeshes[node->mMeshes[i]];
-		
-		for (int j = 0; j < mesh->mNumBones; ++j)
+		for (int j = 0; j < scene->mMeshes[i]->mNumBones; ++j)
 		{
-			auto* bone = mesh->mBones[j];
-			wstring boneName = StringToWString(bone->mName.C_Str());
-
-			XMMATRIX offset = aiMatrix4x4ToXM(bone->mOffsetMatrix);
-			XMStoreFloat4x4(&mBoneOffsets[mBoneIndices[boneName]], offset);
+			auto* bone = scene->mMeshes[i]->mBones[j];
+			uint32_t boneIdx = mBoneIndices[StringToWString(bone->mName.C_Str())];
+			XMStoreFloat4x4(&mBoneOffsets[boneIdx], aiMatrix4x4ToXM(bone->mOffsetMatrix));
 		}
-	}
-
-	for (int i = 0; i < node->mNumChildren; ++i)
-	{
-		ReadBoneOffsets(node->mChildren[i], scene);
 	}
 }
 
@@ -334,13 +255,6 @@ void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 		{
 			auto* nodeAnimation = animation->mChannels[j];
 			wstring boneName = StringToWString(nodeAnimation->mNodeName.C_Str());
-
-			if (mBoneIndices.count(boneName) == 0)
-			{
-				continue;
-			}
-
-			mBoneMark[mBoneIndices[boneName]] = 1;
 			auto& boneAnimation = boneAnimations[mBoneIndices[boneName]];
 
 			auto& transKey = boneAnimation.TranslationKeyframes;
@@ -447,7 +361,10 @@ aiMatrix4x4 Carol::AssimpModel::XMToaiMatrix4x4(XMMATRIX xm)
 	return aiM;
 }
 
-void Carol::AssimpModel::ReadMeshVerticesAndIndices(vector<Vertex>& vertices, vector<uint32_t>& indices, aiMesh* mesh)
+void Carol::AssimpModel::ReadMeshVerticesAndIndices(
+	vector<Vertex>& vertices,
+	vector<uint32_t>& indices,
+	aiMesh* mesh)
 {
 	vertices.resize(mesh->mNumVertices);
 	indices.resize(mesh->mNumFaces * 3);
@@ -459,7 +376,7 @@ void Carol::AssimpModel::ReadMeshVerticesAndIndices(vector<Vertex>& vertices, ve
 
 		if (mesh->HasNormals())
 		{
-			auto& vNormal = mesh->mNormals[i];
+			auto&& vNormal = mesh->mNormals[i];
 			vertices[i].Normal = { vNormal.x,vNormal.y,vNormal.z };
 		}
 

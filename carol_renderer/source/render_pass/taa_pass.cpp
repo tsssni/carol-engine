@@ -18,10 +18,10 @@ namespace Carol {
 Carol::TaaPass::TaaPass(
 	ID3D12Device* device,
 	DXGI_FORMAT frameFormat,
-	DXGI_FORMAT frameDsvFormat,
-	DXGI_FORMAT velocityMapFormat)
+	DXGI_FORMAT velocityMapFormat,
+	DXGI_FORMAT velocityDsvFormat)
 	:mFrameFormat(frameFormat),
-	mFrameDsvFormat(frameDsvFormat),
+	mVelocityDsvFormat(velocityDsvFormat),
 	mVelocityMapFormat(velocityMapFormat),
 	mIndirectCommandBuffer(MESH_TYPE_COUNT)
 {
@@ -66,7 +66,7 @@ void Carol::TaaPass::InitPSOs(ID3D12Device* device)
 	{
 		auto velocityStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 		velocityStaticMeshPSO->SetRootSignature(sRootSignature.get());
-		velocityStaticMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, mFrameDsvFormat);
+		velocityStaticMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, mVelocityDsvFormat);
 		velocityStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
 		velocityStaticMeshPSO->SetMS(gShaders[L"TaaVelocityStaticMS"].get());
 		velocityStaticMeshPSO->SetPS(gShaders[L"TaaVelocityPS"].get());
@@ -79,7 +79,7 @@ void Carol::TaaPass::InitPSOs(ID3D12Device* device)
 	{
 		auto velocitySkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 		velocitySkinnedMeshPSO->SetRootSignature(sRootSignature.get());
-		velocitySkinnedMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, mFrameDsvFormat);
+		velocitySkinnedMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, mVelocityDsvFormat);
 		velocitySkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
 		velocitySkinnedMeshPSO->SetMS(gShaders[L"TaaVelocitySkinnedMS"].get());
 		velocitySkinnedMeshPSO->SetPS(gShaders[L"TaaVelocityPS"].get());
@@ -119,11 +119,6 @@ void Carol::TaaPass::SetIndirectCommandBuffer(MeshType type, const StructuredBuf
 	mIndirectCommandBuffer[type] = indirectCommandBuffer;
 }
 
-void Carol::TaaPass::SetFrameDsv(D3D12_CPU_DESCRIPTOR_HANDLE frameDsv)
-{
-	mFrameDsv = frameDsv;
-}
-
 void Carol::TaaPass::SetCurrBackBufferRtv(D3D12_CPU_DESCRIPTOR_HANDLE currBackBufferRtv)
 {
 	mCurrBackBufferRtv = currBackBufferRtv;
@@ -136,8 +131,8 @@ void Carol::TaaPass::DrawVelocityMap(ID3D12GraphicsCommandList* cmdList)
 
 	mVelocityMap->Transition(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	cmdList->ClearRenderTargetView(mVelocityMap->GetRtv(), DirectX::Colors::Black, 0, nullptr);
-	cmdList->ClearDepthStencilView(mFrameDsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
-	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mVelocityMap->GetRtv()), true, &mFrameDsv);
+	cmdList->ClearDepthStencilView(mVelocityDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mVelocityMap->GetRtv()), true, GetRvaluePtr(mVelocityDepthStencilMap->GetDsv()));
 
 	cmdList->SetPipelineState(gPSOs[L"VelocityStatic"]->Get());
 	ExecuteIndirect(cmdList, mIndirectCommandBuffer[OPAQUE_STATIC]);
@@ -222,6 +217,20 @@ void Carol::TaaPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorMan
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
 		&optClearValue);
+
+	D3D12_CLEAR_VALUE depthStencilOptClearValue = CD3DX12_CLEAR_VALUE(GetDsvFormat(mVelocityDsvFormat), 1.f, 0);
+	mVelocityDepthStencilMap = make_unique<ColorBuffer>(
+		mWidth,
+		mHeight,
+		1,
+		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
+		mVelocityDsvFormat,
+		device,
+		heap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+		&depthStencilOptClearValue);
 }
 
 void Carol::TaaPass::InitHalton()

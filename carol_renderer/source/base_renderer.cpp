@@ -156,7 +156,7 @@ void Carol::BaseRenderer::InitRenderPass()
 
 void Carol::BaseRenderer::InitHeapManager()
 {
-	mHeapManager = make_unique<HeapManager>(mDevice.Get(), 1 << 27);
+	mHeapManager = make_unique<HeapManager>(mDevice.Get(), 1 << 29);
 	StructuredBuffer::InitCounterResetBuffer(mHeapManager->GetUploadBuffersHeap(), mDevice.Get());
 }
 

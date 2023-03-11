@@ -83,7 +83,10 @@ void Carol::Model::SetAnimationClip(wstring_view clipName)
 
 	for (auto& [name, mesh] : mMeshes)
 	{
-		mesh->SetAnimationClip(mClipName);
+		if (mesh->IsSkinned())
+		{
+			mesh->SetAnimationClip(mClipName);
+		}
 	}
 }
 

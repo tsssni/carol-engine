@@ -57,6 +57,7 @@ void Carol::Renderer::InitPipelineStates()
 
 	gDepthDisabledState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	gDepthDisabledState.DepthEnable = false;
+	gDepthDisabledState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
 	gDepthLessEqualState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	gDepthLessEqualState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
@@ -96,16 +97,14 @@ void Carol::Renderer::InitSsao()
 void Carol::Renderer::InitNormal()
 {
 	mNormalPass = make_unique<NormalPass>(
-		mDevice.Get(),
-		mFramePass->GetFrameDsvFormat());
+		mDevice.Get());
 }
 
 void Carol::Renderer::InitTaa()
 {
 	mTaaPass = make_unique<TaaPass>(
 		mDevice.Get(),
-		mFramePass->GetFrameFormat(),
-		mFramePass->GetFrameDsvFormat());
+		mFramePass->GetFrameFormat());
 }
 
 void Carol::Renderer::InitMainLight()
@@ -323,9 +322,6 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mNormalPass->OnResize(width, height, device, heap, descriptorManager);
 	mSsaoPass->OnResize(width, height, device, heap, descriptorManager);
 	mTaaPass->OnResize(width, height, device, heap, descriptorManager);
-
-	mNormalPass->SetFrameDsv(mFramePass->GetFrameDsv());
-	mTaaPass->SetFrameDsv(mFramePass->GetFrameDsv());
 
 	mFrameConstants->InstanceFrustumCulledMarkIdx = mScene->GetInstanceFrustumCulledMarkBufferIdx();
 	mFrameConstants->InstanceOcclusionPassedMarkIdx = mScene->GetInstanceOcclusionPassedMarkBufferIdx();

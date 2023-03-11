@@ -61,7 +61,6 @@ void Carol::FramePass::Draw(ID3D12GraphicsCommandList* cmdList)
 	mFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	cmdList->ClearRenderTargetView(GetFrameRtv(), Colors::Gray, 0, nullptr);
 	cmdList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
-	cmdList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, GetRvaluePtr(GetFrameDsv()));
 
 	DrawOpaque(cmdList);
 	DrawTransparent(cmdList);
@@ -405,6 +404,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 		auto drawOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 		drawOitppllMeshPSO->SetRootSignature(sRootSignature.get());
 		drawOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+		drawOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
 		drawOitppllMeshPSO->SetBlendState(gAlphaBlendState);
 		drawOitppllMeshPSO->SetRenderTargetFormat(mFrameFormat);
 		drawOitppllMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
@@ -475,7 +475,7 @@ void Carol::FramePass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorM
 		mHiZMipLevels);
 
 	mOitppllBuffer = make_unique<StructuredBuffer>(
-		mWidth * mHeight * 4,
+		mWidth * mHeight * 16,
 		sizeof(OitppllNode),
 		device,
 		heap,
@@ -502,6 +502,8 @@ void Carol::FramePass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorM
 
 void Carol::FramePass::DrawOpaque(ID3D12GraphicsCommandList* cmdList)
 {
+	cmdList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, GetRvaluePtr(GetFrameDsv()));
+
 	cmdList->SetPipelineState(gPSOs[L"OpaqueStatic"]->Get());
 	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(OPAQUE_STATIC));
 
@@ -533,7 +535,8 @@ void Carol::FramePass::DrawTransparent(ID3D12GraphicsCommandList* cmdList)
 
 	cmdList->ClearUnorderedAccessViewUint(mStartOffsetBuffer->GetGpuUav(), mStartOffsetBuffer->GetCpuUav(), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
 	cmdList->ClearUnorderedAccessViewUint(mCounterBuffer->GetGpuUav(), mCounterBuffer->GetCpuUav(), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
-	
+	cmdList->OMSetRenderTargets(0, nullptr, true, nullptr);
+
 	cmdList->SetPipelineState(gPSOs[L"BuildStaticOitppll"]->Get());
 	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(TRANSPARENT_STATIC));
 	

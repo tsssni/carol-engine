@@ -133,7 +133,7 @@ void Carol::BoneAnimation::Interpolate(float t, DirectX::XMFLOAT4X4& M) const
 	XMStoreFloat4x4(&M, XMMatrixAffineTransformation(S, origin, Q, T));
 }
 
-void Carol::BoneAnimation::GetFrames(std::vector<DirectX::XMFLOAT4X4>& M)const
+void Carol::BoneAnimation::GetCriticalFrames(std::vector<DirectX::XMFLOAT4X4>& M)const
 {
 	int size = ScaleKeyframes.size();
 	M.resize(size);
@@ -141,8 +141,8 @@ void Carol::BoneAnimation::GetFrames(std::vector<DirectX::XMFLOAT4X4>& M)const
 	for (int i = 0; i < size; ++i)
 	{
 		XMVECTOR S = XMLoadFloat3(&ScaleKeyframes[i].Scale);
-		XMVECTOR Q = XMLoadFloat4(&RotationQuatKeyframes[i].RotationQuat);
-		XMVECTOR T = XMLoadFloat3(&TranslationKeyframes[i].Translation);
+		XMVECTOR Q = InterpolateQuat(ScaleKeyframes[i].TimePos);
+		XMVECTOR T = InterpolateTranslation(ScaleKeyframes[i].TimePos);
 		XMVECTOR origin = { 0.0f,0.0f,0.0f,1.0f };
 		XMStoreFloat4x4(&M[i], XMMatrixAffineTransformation(S, origin, Q, T));
 	}
@@ -179,36 +179,36 @@ void Carol::AnimationClip::Interpolate(float t, vector<DirectX::XMFLOAT4X4>& bon
 void Carol::AnimationClip::GetCriticalFrames(std::vector<std::vector<DirectX::XMFLOAT4X4>>& frames) const
 {
 	int size = BoneAnimations.size();
-	int maxFrame = 0;
-	vector<vector<XMFLOAT4X4>> M(size);
+	int maxNumFrame = 0;
+	vector<vector<XMFLOAT4X4>> boneFrames(size);
 
 	for (int i = 0; i < size; ++i)
 	{
-		BoneAnimations[i].GetFrames(M[i]);
+		BoneAnimations[i].GetCriticalFrames(boneFrames[i]);
 
-		if (M[i].size() > maxFrame)
+		if (boneFrames[i].size() > maxNumFrame)
 		{
-			maxFrame = M[i].size();
+			maxNumFrame = boneFrames[i].size();
 		}
 	}
 
-	frames.resize(maxFrame);
+	frames.resize(maxNumFrame);
 	XMFLOAT4X4 identity;
 	XMStoreFloat4x4(&identity, XMMatrixIdentity());
 
-	for (int i = 0; i < maxFrame; ++i)
+	for (int i = 0; i < maxNumFrame; ++i)
 	{
 		frames[i].resize(size);
 
 		for (int j = 0; j < size; ++j)
 		{
-			if (i >= M[j].size())
+			if (i >= boneFrames[j].size())
 			{
 				frames[i][j] = identity;
 			}
 			else
 			{
-				frames[i][j] = M[j][i];
+				frames[i][j] = boneFrames[j][i];
 			}
 		}
 	}

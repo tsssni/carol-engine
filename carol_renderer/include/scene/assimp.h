@@ -50,16 +50,14 @@ namespace Carol
 			Heap* uploadBuffersHeap,
 			DescriptorManager* descriptorManager);
 		
-		void LoadAssimpSkinnedData(const aiScene* scene);
-		void ReadBones(aiNode* node, const aiScene* scene);
-		void MarkSkinnedNodes(aiNode* node, aiNode* meshNode, std::wstring boneName);
-
-		void InitBoneData(const aiScene* scene);
-		void ReadBoneHierarchy(aiNode* node);
-		void ReadBoneOffsets(aiNode* node, const aiScene* scene);
+		void ReadBoneHierachy(aiNode* node);
+		void ReadBoneOffsets(const aiScene* scene);
 		void ReadAnimations(const aiScene* scene);
 
-		void ReadMeshVerticesAndIndices(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, aiMesh* mesh);
+		void ReadMeshVerticesAndIndices(
+			std::vector<Vertex>& vertices,
+			std::vector<uint32_t>& indices,
+			aiMesh* mesh);
 		void ReadMeshMaterialAndTextures(
 			Mesh* mesh,
 			aiMesh* aimesh,
@@ -93,10 +91,6 @@ namespace Carol
 		DirectX::XMMATRIX aiMatrix4x4ToXM(aiMatrix4x4 aiM);
 		aiMatrix4x4 XMToaiMatrix4x4(DirectX::XMMATRIX xm);
 	protected:
-		std::unordered_map<std::wstring, bool> mSkinnedMark;
-		uint32_t mSkinnedCount = 0;
-
 		std::unordered_map<std::wstring, uint32_t> mBoneIndices;
-		std::vector<int> mBoneMark;
 	};
 }

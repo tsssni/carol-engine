@@ -16,8 +16,8 @@ namespace Carol
 		TaaPass(
 			ID3D12Device* device,
 			DXGI_FORMAT frameFormat,
-			DXGI_FORMAT frameDsvFormat,
-			DXGI_FORMAT velocityMapFormat = DXGI_FORMAT_R16G16_FLOAT);
+			DXGI_FORMAT velocityMapFormat = DXGI_FORMAT_R16G16_FLOAT,
+			DXGI_FORMAT frameDsvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 		TaaPass(const TaaPass&) = delete;
 		TaaPass(TaaPass&&) = delete;
 		TaaPass& operator=(const TaaPass&) = delete;
@@ -26,7 +26,6 @@ namespace Carol
 		
 		void SetCurrBackBuffer(Resource* currBackBuffer);
 		void SetIndirectCommandBuffer(MeshType type, const StructuredBuffer* indirectCommandBuffer);
-		void SetFrameDsv(D3D12_CPU_DESCRIPTOR_HANDLE frameDsv);
 		void SetCurrBackBufferRtv(D3D12_CPU_DESCRIPTOR_HANDLE currBackBufferRtv);
 
 		void GetHalton(float& proj0,float& proj1)const;
@@ -49,13 +48,13 @@ namespace Carol
 
 		std::unique_ptr<ColorBuffer> mHistFrameMap;
 		std::unique_ptr<ColorBuffer> mVelocityMap;
+		std::unique_ptr<ColorBuffer> mVelocityDepthStencilMap;
 
 		DXGI_FORMAT mVelocityMapFormat;
+		DXGI_FORMAT mVelocityDsvFormat;
 		DXGI_FORMAT mFrameFormat;
-		DXGI_FORMAT mFrameDsvFormat;
 
 		D3D12_CPU_DESCRIPTOR_HANDLE mCurrBackBufferRtv;
-		D3D12_CPU_DESCRIPTOR_HANDLE mFrameDsv;
 
 		DirectX::XMFLOAT2 mHalton[8];
 		DirectX::XMMATRIX mHistViewProj;
