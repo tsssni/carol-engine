@@ -192,7 +192,7 @@ bool HiZOcclusionTest(float3 center, float3 extents, float4x4 M, uint hiZIdx)
         v[i] /= v[i].w;
         v[i].xy = v[i].xy * float2(0.5f, -0.5f) + float2(0.5f, 0.5f);
         
-        if (v[i].x < 0.f || v[i].x > 1.f || v[i].y < 0.f || v[i].y > 1.f || v[i].z < 0.f || v[i].z > 1.f)
+        if (v[i].x < 0.f || v[i].x >= 1.f || v[i].y < 0.f || v[i].y >= 1.f || v[i].z < 0.f || v[i].z > 1.f)
         {
             return false;
         }

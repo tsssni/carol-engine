@@ -56,7 +56,7 @@ groupshared float viewDepth[32][32];
 groupshared float3 normal[32][32];
 
 [numthreads(32, 32, 1)]
-void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
+void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID, int2 dtid : SV_DispatchThreadID)
 {
     int2 size;
     RWTexture2D<float4> ambientMap = ResourceDescriptorHeap[gAmbientMapWIdx];
@@ -78,9 +78,6 @@ void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
     {
         Texture2D randVecMap = ResourceDescriptorHeap[gRandVecMapIdx];
         float4 posV = GetViewPos(texC);
-
-        float3 centerNormal = normal[gtid.x][gtid.y];
-        float centerViewDepth = viewDepth[gtid.x][gtid.y];
         float3 viewPos = (centerViewDepth / posV.z) * posV.xyz;
 
         float3 randVec = 2.0f * randVecMap.Sample(gsamPointWrap, 4.0f * texC).xyz - 1.0f;
@@ -93,9 +90,8 @@ void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
             float flip = sign(dot(offset, centerNormal));
             float3 offsetPos = viewPos + flip * gOcclusionRadius * offset;
         
-            float4 screenOffsetPos = GetTexCoord(mul(float4(offsetPos, 1.0f), gProj));
-            screenOffsetPos /= screenOffsetPos.w;
-            float offsetDepth = NdcDepthToViewDepth(depthMap.Sample(gsamDepthMap, screenOffsetPos.xy).r);
+            float2 screenOffsetPos = GetTexCoord(mul(float4(offsetPos, 1.0f), gProj)).xy;
+            float offsetDepth = NdcDepthToViewDepth(depthMap.Sample(gsamDepthMap, screenOffsetPos).r);
         
             float3 screenPos = (offsetDepth / offsetPos.z) * offsetPos;
             float distZ = viewPos.z - screenPos.z;

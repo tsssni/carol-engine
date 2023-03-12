@@ -194,7 +194,7 @@ void Carol::FramePass::InitShaders()
 
 	vector<wstring_view> cullDefines =
 		{
-			L"OCCLUSION=1"};
+			L"OCCLUSION=1" };
 
 	vector<wstring_view> cullWriteDefines =
 		{

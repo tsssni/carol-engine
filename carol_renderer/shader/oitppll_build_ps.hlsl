@@ -42,8 +42,8 @@ void main(PixelIn pin)
     float3 ambient = gLights[0].Ambient;
     
 #ifdef SSAO
-    float4 ssaoPos = GetTexCoord(pin.PosH);
-    float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, ssaoPos.xy, 0.0f).r;
+    float2 ssaoPos = pin.PosH.xy * gInvRenderTargetSize;
+    float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, ssaoPos, 0.0f).r;
     ambient *= ambientAccess;
 #endif
 

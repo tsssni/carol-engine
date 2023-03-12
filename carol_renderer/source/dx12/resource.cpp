@@ -246,7 +246,7 @@ void Carol::Resource::CopySubresources(
 		intermediateHeap->GetHeap(mIntermediateBufferAllocInfo.get()),
 		intermediateHeap->GetOffset(mIntermediateBufferAllocInfo.get()),
 		&intermediateResourcedesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 		nullptr,
 		IID_PPV_ARGS(mIntermediateBuffer.GetAddressOf()));
 
@@ -1291,7 +1291,7 @@ Carol::FastConstantBufferAllocator::FastConstantBufferAllocator(
 	DescriptorManager* descriptorManager)
 	:mCurrOffset(0)
 {
-	mResourceQueue = make_unique<StructuredBuffer>(numElements, elementSize, device, heap, descriptorManager, D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_FLAG_NONE, true);
+	mResourceQueue = make_unique<StructuredBuffer>(numElements, elementSize, device, heap, descriptorManager, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_FLAG_NONE, true);
 }
 
 Carol::FastConstantBufferAllocator::FastConstantBufferAllocator(FastConstantBufferAllocator&& fastResourceAllocator)

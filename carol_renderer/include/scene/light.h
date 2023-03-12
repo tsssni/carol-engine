@@ -16,7 +16,7 @@ namespace Carol {
         float FalloffEnd = 10.0f;
         DirectX::XMFLOAT3 Position = { 0.0f, 0.0f, 0.0f };
         float SpotPower = 64.0f;
-        DirectX::XMFLOAT3 Ambient = { 0.4f,0.4f,0.4f };
+        DirectX::XMFLOAT3 Ambient = { 0.1f,0.1f,0.1f };
         float LightPad0;
         
         DirectX::XMFLOAT4X4 View;

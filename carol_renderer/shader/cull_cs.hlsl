@@ -19,9 +19,6 @@ struct MeshConstants
     float3 Extents;
     float MeshPad1;
     
-    float3 FresnelR0;
-    float Roughness;
-    
     uint MeshletCount;
     uint VertexBufferIdx;
     uint MeshletBufferIdx;
@@ -29,9 +26,12 @@ struct MeshConstants
     
     uint FrustumCulledMarkBufferIdx;
     uint OcclusionPassedMarkBufferIdx;
+    float2 MeshPad2;
     
     uint MeshDiffuseMapIdx;
     uint MeshNormalMapIdx;
+    uint MeshRoughnessMapIdx;
+    uint MeshMetallicMapIdx;
 
     // Padding for 256 byte
     float4 MeshConstantsPad0;
