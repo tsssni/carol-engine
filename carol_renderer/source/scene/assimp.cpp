@@ -428,7 +428,7 @@ void Carol::AssimpModel::ReadMeshMaterialAndTextures(
 	LoadTexture(mesh, diffusePath, aiTextureType_DIFFUSE, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
 	LoadTexture(mesh, normalPath, aiTextureType_NORMALS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
 	LoadTexture(mesh, roughnessPath, aiTextureType_DIFFUSE_ROUGHNESS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
-	LoadTexture(mesh, normalPath, aiTextureType_METALNESS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+	LoadTexture(mesh, metallicPath, aiTextureType_METALNESS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
 }
 
 void Carol::AssimpModel::LoadTexture(
