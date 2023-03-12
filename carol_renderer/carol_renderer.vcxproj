@@ -99,6 +99,7 @@
     <Image Include="win32\carol.ico" />
   </ItemGroup>
   <ItemGroup>
+    <None Include=".gitignore" />
     <None Include="assimp-vc143-mtd.dll" />
     <None Include="packages.config" />
     <None Include="shader\cull_as.hlsl" />

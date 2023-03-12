@@ -320,5 +320,6 @@
     <None Include="shader\include\texture.hlsli" />
     <None Include="shader\include\blinn_phong.hlsli" />
     <None Include="shader\include\material.hlsli" />
+    <None Include=".gitignore" />
   </ItemGroup>
 </Project>

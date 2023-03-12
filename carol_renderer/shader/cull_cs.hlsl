@@ -72,7 +72,7 @@ void main( uint dtid : SV_DispatchThreadID )
             SetMark(gMeshOffset + dtid, gInstanceFrustumCulledMarkIdx);
         }
 #ifdef OCCLUSION
-        else if(!HiZOcclusionTest(mc.Center, mc.Extents, occlusionWorldViewProj, gHiZIdx))
+        else if(HiZOcclusionTest(mc.Center, mc.Extents, occlusionWorldViewProj, gHiZIdx))
         {
             SetMark(gMeshOffset + dtid, gInstanceOcclusionPassedMarkIdx);
             cullCommandBuffer.Append(commandBuffer.Load(gMeshOffset + dtid)); 

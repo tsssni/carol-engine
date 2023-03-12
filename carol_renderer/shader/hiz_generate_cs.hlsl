@@ -59,8 +59,11 @@ void main( uint2 dtid : SV_DispatchThreadID, uint2 gtid : SV_GroupThreadID)
         if (gtid.x % uint(exp2(i)) == 0 && gtid.y % uint(exp2(i)) == 0)
         {
             RWTexture2D<float4> hiZMap = ResourceDescriptorHeap[gHiZWIdx + gSrcMip + i];
-            uint2 pos = dtid >> i;
-            hiZMap[pos].r = GetMaxDepth(gtid, exp2(i - 1));
+
+            if (dtid.x < srcWidth && dtid.y < srcHeight)
+            {
+                hiZMap[dtid>>i].r = GetMaxDepth(gtid, exp2(i - 1));
+            }
         }
         
         DeviceMemoryBarrierWithGroupSync();

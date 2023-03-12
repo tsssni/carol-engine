@@ -3,6 +3,7 @@
 
 #define THREADS_PER_WAVE 32
 #define AS_GROUP_SIZE THREADS_PER_WAVE
+
 #define INSIDE 0
 #define OUTSIDE 1
 #define INTERSECTING 2
@@ -165,7 +166,6 @@ bool NormalConeTest(float3 center, uint packedNormalCone, float apexOffset, floa
     return true;
 }
 
-#ifdef OCCLUSION
 bool HiZOcclusionTest(float3 center, float3 extents, float4x4 M, uint hiZIdx)
 {
     Texture2D hiZMap = ResourceDescriptorHeap[hiZIdx];
@@ -194,7 +194,7 @@ bool HiZOcclusionTest(float3 center, float3 extents, float4x4 M, uint hiZIdx)
         
         if (v[i].x < 0.f || v[i].x >= 1.f || v[i].y < 0.f || v[i].y >= 1.f || v[i].z < 0.f || v[i].z > 1.f)
         {
-            return false;
+            return true;
         }
         
         boxMin = min(boxMin, v[i].xy);
@@ -204,16 +204,16 @@ bool HiZOcclusionTest(float3 center, float3 extents, float4x4 M, uint hiZIdx)
 
     float4 box = float4(boxMin, boxMax);
     float2 boxSize = (boxMax - boxMin) * size;
-    float lod = clamp(log2(max(boxSize.x, boxSize.y)), 0.f, maxMipLevel);
+    float lod = clamp(log2(max(boxSize.x, boxSize.y)), 0, maxMipLevel);
     
     float4 depth;
-    depth.x = hiZMap.SampleLevel(gsamPointClamp, box.xy, lod).r;
-    depth.y = hiZMap.SampleLevel(gsamPointClamp, box.zy, lod).r;
-    depth.z = hiZMap.SampleLevel(gsamPointClamp, box.xw, lod).r;
-    depth.w = hiZMap.SampleLevel(gsamPointClamp, box.zw, lod).r;
+    depth.x = hiZMap.SampleLevel(gsamLinearClamp, box.xy, lod).r;
+    depth.y = hiZMap.SampleLevel(gsamLinearClamp, box.zy, lod).r;
+    depth.z = hiZMap.SampleLevel(gsamLinearClamp, box.xw, lod).r;
+    depth.w = hiZMap.SampleLevel(gsamLinearClamp, box.zw, lod).r;
     
     float maxDepth = max(depth.x, max(depth.y, max(depth.z, depth.w)));
-    return minZ > maxDepth;
+    return minZ < maxDepth;
 }
-#endif
+
 #endif

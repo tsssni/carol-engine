@@ -346,7 +346,6 @@ void Carol::Mesh::LoadMeshletBoundingBox(wstring_view clipName, span<vector<Vert
 				BoundingBoxCompare(pos, meshletBoxMin, meshletBoxMax);
 			}
 		}
-		int a = sizeof(CullData);
 
 		BoundingBox box;
 		BoundingBox::CreateFromPoints(box, XMLoadFloat3(&meshletBoxMin), XMLoadFloat3(&meshletBoxMax));

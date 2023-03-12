@@ -28,13 +28,11 @@ cbuffer MeshCB : register(b0)
     uint gMetallicTextureIdx;
 };
 
-#ifdef SKINNED
 cbuffer SkinnedCB : register(b1)
 {
     float4x4 gBoneTransforms[256];
     float4x4 gHistBoneTransforms[256];
 };
-#endif
 
 struct Meshlet
 {
@@ -59,7 +57,6 @@ uint3 UnpackPrim(uint prim)
     return uint3(prim & 0x3FF, (prim >> 10) & 0x3FF, (prim >> 20) & 0x3FF);
 }
 
-#ifdef SKINNED
 MeshIn SkinnedTransform(MeshIn min)
 {
     float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -86,7 +83,6 @@ MeshIn SkinnedTransform(MeshIn min)
     
     return min;
 }
-#endif
 
 float3 TexNormalToWorldSpace(float3 texNormal, float3 pixelNormalW, float3 pixelTangentW)
 {

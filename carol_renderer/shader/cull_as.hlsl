@@ -44,7 +44,7 @@ void main(
             if (AabbFrustumTest(cd.Center, cd.Extents, frustumWorldViewProj) != OUTSIDE && NormalConeTest(cd.Center, cd.NormalCone, cd.ApexOffset, gWorld, gEyePosW))
             {
 #ifdef OCCLUSION
-                if(!HiZOcclusionTest(cd.Center, cd.Extents, occlusionWorldViewProj, gHiZIdx))
+                if(HiZOcclusionTest(cd.Center, cd.Extents, occlusionWorldViewProj, gHiZIdx))
                 {
                     visible = true;
                     SetMark(dtid, gMeshletOcclusionPassedMarkBufferIdx);
@@ -55,7 +55,6 @@ void main(
             }
             else
             {
-                visible = false;
                 SetMark(dtid, gMeshletFrustumCulledMarkBufferIdx);
             }
         }
