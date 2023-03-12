@@ -1,3 +1,6 @@
+#ifndef CULL_HEADER
+#define CULL_HEADER
+
 #define THREADS_PER_WAVE 32
 #define AS_GROUP_SIZE THREADS_PER_WAVE
 #define INSIDE 0
@@ -212,4 +215,5 @@ bool HiZOcclusionTest(float3 center, float3 extents, float4x4 M, uint hiZIdx)
     float maxDepth = max(depth.x, max(depth.y, max(depth.z, depth.w)));
     return minZ > maxDepth;
 }
+#endif
 #endif

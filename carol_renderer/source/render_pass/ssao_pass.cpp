@@ -224,7 +224,7 @@ void Carol::SsaoPass::InitPSOs(ID3D12Device* device)
     }
 }
 
-void Carol::SsaoPass::GetOffsetVectors(XMFLOAT4 offsets[14])const
+void Carol::SsaoPass::GetOffsetVectors(XMFLOAT4 offsets[14])
 {
     std::copy(&mOffsets[0], &mOffsets[14], offsets);
 }

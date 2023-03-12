@@ -5,7 +5,6 @@
 #include <scene/skinned_data.h>
 #include <scene/timer.h>
 #include <scene/texture.h>
-#include <scene/material.h>
 #include <utils/common.h>
 #include <global.h>
 #include <cmath>
@@ -263,9 +262,13 @@ void Carol::Model::LoadGround(
 
 	mMeshes[L"Ground"]->SetDiffuseMapIdx(mTextureManager->LoadTexture(L"texture\\default_diffuse_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
 	mMeshes[L"Ground"]->SetNormalMapIdx(mTextureManager->LoadTexture(L"texture\\default_normal_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+	mMeshes[L"Ground"]->SetRoughnessMapIdx(mTextureManager->LoadTexture(L"texture\\default_roughness_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+	mMeshes[L"Ground"]->SetMetallicMapIdx(mTextureManager->LoadTexture(L"texture\\default_metallic_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
 
 	mTexturePath.push_back(L"texture\\default_diffuse_map.png");
 	mTexturePath.push_back(L"texture\\default_normal_map.png");
+	mTexturePath.push_back(L"texture\\default_roughness_map.png");
+	mTexturePath.push_back(L"texture\\default_metallic_map.png");
 }
 
 void Carol::Model::LoadSkyBox(

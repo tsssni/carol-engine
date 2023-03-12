@@ -3,7 +3,6 @@
 #include <scene/assimp.h>
 #include <scene/camera.h>
 #include <scene/light.h>
-#include <scene/material.h>
 #include <scene/model.h>
 #include <scene/scene.h>
 #include <scene/scene_node.h>

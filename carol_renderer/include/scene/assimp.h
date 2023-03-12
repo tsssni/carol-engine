@@ -70,14 +70,6 @@ namespace Carol
 		void ReadMeshBones(std::vector<Vertex>& vertices, aiMesh* mesh);
 		void InsertBoneWeightToVertex(Vertex& vertex, uint32_t boneIndex, float boneWeight);
 
-		void ReadTexture(
-			Mesh* mesh,
-			aiMaterial* matData,
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
 		void LoadTexture(
 			Mesh* mesh,
 			aiString aiPath,

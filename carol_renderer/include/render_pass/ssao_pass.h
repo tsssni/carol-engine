@@ -31,7 +31,7 @@ namespace Carol
 
 		void ReleaseIntermediateBuffers();
 		std::vector<float> CalcGaussWeights(float sigma);
-		void GetOffsetVectors(DirectX::XMFLOAT4 offsets[14])const;
+		void GetOffsetVectors(DirectX::XMFLOAT4 offsets[14]);
 
 		uint32_t GetRandVecSrvIdx()const;
 		uint32_t GetSsaoSrvIdx()const;

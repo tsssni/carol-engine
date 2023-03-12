@@ -1,6 +1,8 @@
 #ifndef LIGHT_HEADER
 #define LIGHT_HEADER
 
+#include "blinn_phong.hlsli"
+
 struct Light
 {
     float3 Strength;
@@ -17,52 +19,16 @@ struct Light
     float4x4 ViewProj;
 };
 
-struct LightMaterialData
-{
-    float3 diffuseAlbedo;
-    float3 fresnelR0;
-    float roughness;
-};
-
 float CalcAttenuation(float d, float falloffStart, float falloffEnd)
 {
     // Linear falloff.
     return saturate((falloffEnd - d) / (falloffEnd - falloffStart));
 }
 
-// Schlick gives an approximation to Fresnel reflectance (see pg. 233 "Real-Time Rendering 3rd Ed.").
-// R0 = ( (n-1)/(n+1) )^2, where n is the index of refraction.
-float3 SchlickFresnel(float3 R0, float3 normal, float3 lightVec)
-{
-    float cosIncidentAngle = saturate(dot(normal, lightVec));
-
-    float f0 = 1.0f - cosIncidentAngle;
-    float3 reflectPercent = R0 + (1.0f - R0) * (f0 * f0 * f0 * f0 * f0);
-
-    return reflectPercent;
-}
-
-float3 BlinnPhong(float3 lightStrength, float3 lightVec, float3 normal, float3 toEye, LightMaterialData mat)
-{
-    const float m = (1.0f - mat.roughness) * 256.0f;
-    float3 halfVec = normalize(toEye + lightVec);
-
-    float roughnessFactor = (m + 8.0f) * pow(max(dot(halfVec, normal), 0.0f), m) / 8.0f;
-    float3 fresnelFactor = SchlickFresnel(mat.fresnelR0, halfVec, lightVec);
-
-    float3 specAlbedo = fresnelFactor * roughnessFactor;
-
-    // Our spec formula goes outside [0,1] range, but we are 
-    // doing LDR rendering.  So scale it down a bit.
-    specAlbedo = specAlbedo / (specAlbedo + 1.0f);
-
-    return (mat.diffuseAlbedo.rgb + specAlbedo) * lightStrength;
-}
-
 //---------------------------------------------------------------------------------------
 // Evaluates the lighting equation for directional lights.
 //---------------------------------------------------------------------------------------
-float3 ComputeDirectionalLight(Light L, LightMaterialData mat, float3 normal, float3 toEye)
+float3 ComputeDirectionalLight(Light L, Material mat, float3 normal, float3 toEye)
 {
     // The light vector aims opposite the direction the light rays travel.
     float3 lightVec = -L.Direction;
@@ -71,13 +37,17 @@ float3 ComputeDirectionalLight(Light L, LightMaterialData mat, float3 normal, fl
     float ndotl = max(dot(lightVec, normal), 0.0f);
     float3 lightStrength = L.Strength * ndotl;
 
+#ifdef BLINN_PHONG
     return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
+#else
+    return float3(0.f, 0.f, 0.f);
+#endif
 }
 
 //---------------------------------------------------------------------------------------
 // Evaluates the lighting equation for point lights.
 //---------------------------------------------------------------------------------------
-float3 ComputePointLight(Light L, LightMaterialData mat, float3 pos, float3 normal, float3 toEye)
+float3 ComputePointLight(Light L, Material mat, float3 pos, float3 normal, float3 toEye)
 {
     // The vector from the surface to the light.
     float3 lightVec = L.Position - pos;
@@ -100,13 +70,17 @@ float3 ComputePointLight(Light L, LightMaterialData mat, float3 pos, float3 norm
     float att = CalcAttenuation(d, L.FalloffStart, L.FalloffEnd);
     lightStrength *= att;
 
+#ifdef BLINN_PHONG
     return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
+#else
+    return float3(0.f, 0.f, 0.f);
+#endif
 }
 
 //---------------------------------------------------------------------------------------
 // Evaluates the lighting equation for spot lights.
 //---------------------------------------------------------------------------------------
-float3 ComputeSpotLight(Light L, LightMaterialData mat, float3 pos, float3 normal, float3 toEye)
+float3 ComputeSpotLight(Light L, Material mat, float3 pos, float3 normal, float3 toEye)
 {
     // The vector from the surface to the light.
     float3 lightVec = L.Position - pos;
@@ -133,7 +107,11 @@ float3 ComputeSpotLight(Light L, LightMaterialData mat, float3 pos, float3 norma
     float spotFactor = pow(max(dot(-lightVec, L.Direction), 0.0f), L.SpotPower);
     lightStrength *= spotFactor;
 
+#ifdef BLINN_PHONG
     return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
+#else
+    return float3(0.f, 0.f, 0.f);
+#endif
 }
 
 #endif

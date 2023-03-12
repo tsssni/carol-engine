@@ -45,7 +45,6 @@
     <ClInclude Include="include\scene\assimp.h" />
     <ClInclude Include="include\scene\camera.h" />
     <ClInclude Include="include\scene\light.h" />
-    <ClInclude Include="include\scene\material.h" />
     <ClInclude Include="include\scene\mesh.h" />
     <ClInclude Include="include\scene\model.h" />
     <ClInclude Include="include\scene\scene.h" />
@@ -103,10 +102,12 @@
     <None Include="assimp-vc143-mtd.dll" />
     <None Include="packages.config" />
     <None Include="shader\cull_as.hlsl" />
+    <None Include="shader\include\blinn_phong.hlsli" />
     <None Include="shader\include\cull.hlsli" />
     <None Include="shader\depth_ms.hlsl">
       <FileType>Document</FileType>
     </None>
+    <None Include="shader\include\material.hlsli" />
     <None Include="shader\include\texture.hlsli" />
     <None Include="shader\taa_ps.hlsl">
       <FileType>Document</FileType>
@@ -127,7 +128,7 @@
     <None Include="shader\include\vertex_in.hlsli" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shader\opaque_ms.hlsl">
+    <None Include="shader\mesh_ms.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>

@@ -5,7 +5,6 @@
 #include <scene/skinned_data.h>
 #include <scene/texture.h>
 #include <scene/scene_node.h>
-#include <scene/material.h>
 #include <utils/common.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
@@ -140,7 +139,7 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(
 			skinnedVertices,
 			indices,
 			mSkinned & bool(mesh->mNumBones),
-			true,
+			false,
 			device,
 			cmdList,
 			defaultBuffersHeap,
@@ -414,45 +413,22 @@ void Carol::AssimpModel::ReadMeshMaterialAndTextures(
 	Heap* uploadBuffersHeap,
 	DescriptorManager* descriptorManager)
 {
-	Material mat;
 	auto* matData = scene->mMaterials[aimesh->mMaterialIndex];
-	aiColor4D color4D;
 
-	aiGetMaterialColor(matData, AI_MATKEY_COLOR_SPECULAR, &color4D);
-	mat.FresnelR0 = { color4D.r,color4D.g,color4D.b };
-
-	aiGetMaterialFloat(matData, AI_MATKEY_SHININESS, &mat.Roughness);
-	mat.Roughness = 1.0f - mat.Roughness;
-	mat.Roughness = mat.Roughness < 0.f ? 0.f : mat.Roughness;
-	
-	mesh->SetMaterial(mat);
-	ReadTexture(
-		mesh,
-		matData,
-		device,
-		cmdList,
-		defaultBuffersHeap,
-		uploadBuffersHeap,
-		descriptorManager);
-}
-
-void Carol::AssimpModel::ReadTexture(
-	Mesh* mesh,
-	aiMaterial* matData,
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager)
-{
 	aiString diffusePath;
 	aiString normalPath;
+	aiString roughnessPath;
+	aiString metallicPath;
 	
 	matData->GetTexture(aiTextureType_DIFFUSE, 0, &diffusePath);
 	matData->GetTexture(aiTextureType_NORMALS, 0, &normalPath);
+	matData->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &roughnessPath);
+	matData->GetTexture(aiTextureType_METALNESS, 0, &metallicPath);
 
 	LoadTexture(mesh, diffusePath, aiTextureType_DIFFUSE, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
 	LoadTexture(mesh, normalPath, aiTextureType_NORMALS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+	LoadTexture(mesh, roughnessPath, aiTextureType_DIFFUSE_ROUGHNESS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+	LoadTexture(mesh, normalPath, aiTextureType_METALNESS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
 }
 
 void Carol::AssimpModel::LoadTexture(
@@ -466,13 +442,17 @@ void Carol::AssimpModel::LoadTexture(
 	DescriptorManager* descriptorManager)
 {
 	wstring path = StringToWString(aiPath.C_Str());
-	const static wstring defaultDiffuseMapPath = L"texture\\default_diffuse_map.png";
-	const static wstring defaultNormalMapPath = L"texture\\default_normal_map.png";
 
 	bool flag = path.size();
 	if(flag)
 	{
 		int lastSeparator = path.find_last_of(L'\\');
+
+		if (lastSeparator == -1)
+		{
+			lastSeparator = path.find_last_of(L'/');
+		}
+
 		path = mTexDir + L'\\' + path.substr(lastSeparator + 1);
 		
 		std::ifstream fstream(path);
@@ -489,6 +469,12 @@ void Carol::AssimpModel::LoadTexture(
 		case aiTextureType_NORMALS:
 			path = L"texture\\default_normal_map.png";
 			break;
+		case aiTextureType_DIFFUSE_ROUGHNESS:
+			path = L"texture\\default_roughness_map.png";
+			break;
+		case aiTextureType_METALNESS:
+			path = L"texture\\default_metallic_map.png";
+			break;
 		}
 	}
 	
@@ -500,6 +486,13 @@ void Carol::AssimpModel::LoadTexture(
 	case aiTextureType_NORMALS:
 		mesh->SetNormalMapIdx(mTextureManager->LoadTexture(path, false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
 		break;
+	case aiTextureType_DIFFUSE_ROUGHNESS:
+		mesh->SetRoughnessMapIdx(mTextureManager->LoadTexture(path, false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+		break;
+	case aiTextureType_METALNESS:
+		mesh->SetMetallicMapIdx(mTextureManager->LoadTexture(path, false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+		break;
+
 	}
 
 	mTexturePath.push_back(path);

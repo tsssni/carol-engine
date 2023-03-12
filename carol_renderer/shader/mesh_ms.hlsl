@@ -6,7 +6,7 @@
 struct MeshOut
 {
     float4 PosH : SV_POSITION;
-    float3 PosW : POSITION0;
+    float3 PosW : POSITION;
     float3 NormalW : NORMAL;
     float3 TangentW : TANGENT;
     float2 TexC : TEXCOORD; 

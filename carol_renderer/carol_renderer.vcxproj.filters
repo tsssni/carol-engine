@@ -116,9 +116,6 @@
     <ClInclude Include="include\scene\scene.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\scene\material.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="include\dx12\pipeline_state.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -283,7 +280,7 @@
     <None Include="shader\cull_cs.hlsl">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\opaque_ms.hlsl">
+    <None Include="shader\mesh_ms.hlsl">
       <Filter>着色器文件</Filter>
     </None>
     <None Include="shader\opaque_ps.hlsl">
@@ -321,5 +318,7 @@
       <Filter>着色器文件</Filter>
     </None>
     <None Include="shader\include\texture.hlsli" />
+    <None Include="shader\include\blinn_phong.hlsli" />
+    <None Include="shader\include\material.hlsli" />
   </ItemGroup>
 </Project>

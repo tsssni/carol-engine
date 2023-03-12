@@ -3,7 +3,6 @@
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <dx12/descriptor.h>
-#include <scene/material.h>
 
 namespace Carol
 {
@@ -56,7 +55,6 @@ Carol::Mesh::Mesh(
 	:mVertices(vertices),
 	mSkinnedVertices(skinnedVertices),
 	mIndices(indices),
-	mMaterial(make_unique<Material>()),
 	mMeshConstants(make_unique<MeshConstants>()),
 	mSkinned(isSkinned),
 	mTransparent(isTransparent)
@@ -87,19 +85,9 @@ void Carol::Mesh::ReleaseIntermediateBuffer()
 	}
 }
 
-const Carol::Material* Carol::Mesh::GetMaterial()const
-{
-	return mMaterial.get();
-}
-
 uint32_t Carol::Mesh::GetMeshletSize()const
 {
 	return mMeshConstants->MeshletCount;
-}
-
-void Carol::Mesh::SetMaterial(const Material& mat)
-{
-	*mMaterial = mat;
 }
 
 void Carol::Mesh::SetDiffuseMapIdx(uint32_t idx)
@@ -112,10 +100,18 @@ void Carol::Mesh::SetNormalMapIdx(uint32_t idx)
 	mMeshConstants->NormalMapIdx = idx;
 }
 
+void Carol::Mesh::SetRoughnessMapIdx(uint32_t idx)
+{
+	mMeshConstants->RoughnessMapIdx = idx;
+}
+
+void Carol::Mesh::SetMetallicMapIdx(uint32_t idx)
+{
+	mMeshConstants->MetallicMapIdx = idx;
+}
+
 void Carol::Mesh::Update(XMMATRIX& world)
 {
-	mMeshConstants->FresnelR0 = mMaterial->FresnelR0;
-	mMeshConstants->Roughness = mMaterial->Roughness;
 	mMeshConstants->HistWorld = mMeshConstants->World;
 	XMStoreFloat4x4(&mMeshConstants->World, XMMatrixTranspose(world));
 }

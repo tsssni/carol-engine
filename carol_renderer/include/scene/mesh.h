@@ -28,9 +28,6 @@ namespace Carol
 		DirectX::XMFLOAT3 Extents;
 		float MeshPad1;
 
-		DirectX::XMFLOAT3 FresnelR0 = { 0.5f,0.5f,0.5f };
-		float Roughness = 0.5f;
-
 		uint32_t MeshletCount = 0;
 		uint32_t VertexBufferIdx = 0;
 		uint32_t MeshletBufferIdx = 0;
@@ -38,9 +35,12 @@ namespace Carol
 
 		uint32_t MeshletFrustumCulledMarkBufferIdx = 0;
 		uint32_t MeshletOcclusionCulledMarkBufferIdx = 0;
+		DirectX::XMFLOAT2 MeshPad2;
 
 		uint32_t DiffuseMapIdx = 0;
 		uint32_t NormalMapIdx = 0;
+		uint32_t RoughnessMapIdx = 0;
+		uint32_t MetallicMapIdx = 0;
 	};
 
 	class Vertex
@@ -110,12 +110,12 @@ namespace Carol
 
 		void ReleaseIntermediateBuffer();
 
-		const Material* GetMaterial()const;
 		uint32_t GetMeshletSize()const;
 
-		void SetMaterial(const Material& mat);
 		void SetDiffuseMapIdx(uint32_t idx);
 		void SetNormalMapIdx(uint32_t idx);
+		void SetRoughnessMapIdx(uint32_t idx);
+		void SetMetallicMapIdx(uint32_t idx);
 
 		void Update(DirectX::XMMATRIX& world);
 		void ClearCullMark(ID3D12GraphicsCommandList* cmdList);
@@ -177,7 +177,6 @@ namespace Carol
 		std::unique_ptr<RawBuffer> mMeshletFrustumCulledMarkBuffer;
 		std::unique_ptr<RawBuffer> mMeshletOcclusionPassedMarkBuffer;
 		
-		std::unique_ptr<Material> mMaterial;
 		std::unordered_map<std::wstring, DirectX::BoundingBox> mBoundingBoxes;
 
 		std::unique_ptr<MeshConstants> mMeshConstants;

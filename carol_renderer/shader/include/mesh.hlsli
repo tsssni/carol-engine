@@ -13,9 +13,6 @@ cbuffer MeshCB : register(b0)
     float3 gExtents;
     float MeshPad1;
     
-    float3 gFresnelR0;
-    float gRoughness;
-    
     uint gMeshletCount;
     uint gVertexBufferIdx;
     uint gMeshletBufferIdx;
@@ -23,9 +20,12 @@ cbuffer MeshCB : register(b0)
     
     uint gMeshletFrustumCulledMarkBufferIdx;
     uint gMeshletOcclusionPassedMarkBufferIdx;
+    float2 MeshPad2;
     
     uint gDiffuseTextureIdx;
     uint gNormalTextureIdx;
+    uint gRoughnessTextureIdx;
+    uint gMetallicTextureIdx;
 };
 
 #ifdef SKINNED

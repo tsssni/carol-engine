@@ -180,47 +180,46 @@ void Carol::FramePass::InitShaders()
 {
 	vector<wstring_view> nullDefines = {};
 
-	vector<wstring_view> staticDefines = 
-	{
-		L"TAA=1"
-	};
+	vector<wstring_view> staticDefines =
+		{
+			L"TAA=1", L"SSAO=1"};
 
 	vector<wstring_view> skinnedDefines =
-	{
-		L"TAA=1",L"SKINNED=1"
-	};
+		{
+			L"TAA=1", L"SSAO=1", L"SKINNED=1"};
+
+	vector<wstring_view> blinnPhongDefines =
+		{
+			L"SSAO=1", L"BLINN_PHONG=1"};
 
 	vector<wstring_view> cullDefines =
-	{
-		L"OCCLUSION=1"
-	};
+		{
+			L"OCCLUSION=1"};
 
 	vector<wstring_view> cullWriteDefines =
-	{
-		L"OCCLUSION=1",
-		L"WRITE=1"
-	};
+		{
+			L"OCCLUSION=1",
+			L"WRITE=1"};
 
 	vector<wstring_view> meshShaderDisabledCullWriteDefines =
-	{
-		L"OCCLUSION=1",
-		L"WRITE=1",
-		L"MESH_SHADER_DISABLED=1"
-	};
+		{
+			L"OCCLUSION=1",
+			L"WRITE=1",
+			L"MESH_SHADER_DISABLED=1"};
 
-	if (gShaders.count(L"OpaqueStaticMS") == 0)
+	if (gShaders.count(L"MeshStaticMS") == 0)
 	{
-		gShaders[L"OpaqueStaticMS"] = make_unique<Shader>(L"shader\\opaque_ms.hlsl", staticDefines, L"main", L"ms_6_6");
+		gShaders[L"MeshStaticMS"] = make_unique<Shader>(L"shader\\mesh_ms.hlsl", staticDefines, L"main", L"ms_6_6");
 	}
 
-	if (gShaders.count(L"OpaquePS") == 0)
+	if (gShaders.count(L"BlinnPhongPS") == 0)
 	{
-		gShaders[L"OpaquePS"] = make_unique<Shader>(L"shader\\opaque_ps.hlsl", staticDefines, L"main", L"ps_6_6");
+		gShaders[L"BlinnPhongPS"] = make_unique<Shader>(L"shader\\opaque_ps.hlsl", blinnPhongDefines, L"main", L"ps_6_6");
 	}
 
-	if (gShaders.count(L"OpaqueSkinnedMS") == 0)
+	if (gShaders.count(L"MeshSkinnedMS") == 0)
 	{
-		gShaders[L"OpaqueSkinnedMS"] = make_unique<Shader>(L"shader\\opaque_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+		gShaders[L"MeshSkinnedMS"] = make_unique<Shader>(L"shader\\mesh_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
 	}
 
 	if (gShaders.count(L"ScreenMS") == 0)
@@ -268,9 +267,9 @@ void Carol::FramePass::InitShaders()
 		gShaders[L"DepthSkinnedMS"] = make_unique<Shader>(L"shader\\depth_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
 	}
 
-	if (gShaders.count(L"BuildOitppllPS") == 0)
+	if (gShaders.count(L"BlinnPhongOitppllPS") == 0)
 	{
-		gShaders[L"BuildOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", staticDefines, L"main", L"ps_6_6");
+		gShaders[L"BlinnPhongOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", blinnPhongDefines, L"main", L"ps_6_6");
 	}
 
 	if (gShaders.count(L"DrawOitppllPS") == 0)
@@ -294,7 +293,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 		cullStaticMeshPSO->SetAS(gShaders[L"CullWriteAS"].get());
 		cullStaticMeshPSO->SetMS(gShaders[L"DepthStaticMS"].get());
 		cullStaticMeshPSO->Finalize(device);
-	
+
 		gPSOs[L"OpaqueStaticMeshletCull"] = std::move(cullStaticMeshPSO);
 	}
 
@@ -306,34 +305,34 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 		cullSkinnedMeshPSO->SetAS(gShaders[L"CullWriteAS"].get());
 		cullSkinnedMeshPSO->SetMS(gShaders[L"DepthSkinnedMS"].get());
 		cullSkinnedMeshPSO->Finalize(device);
-	
+
 		gPSOs[L"OpaqueSkinnedMeshletCull"] = std::move(cullSkinnedMeshPSO);
 	}
 
-	if (gPSOs.count(L"OpaqueStatic") == 0)
+	if (gPSOs.count(L"BlinnPhongStatic") == 0)
 	{
-		auto opaqueStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-		opaqueStaticMeshPSO->SetRootSignature(sRootSignature.get());
-		opaqueStaticMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
-		opaqueStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
-		opaqueStaticMeshPSO->SetMS(gShaders[L"OpaqueStaticMS"].get());
-		opaqueStaticMeshPSO->SetPS(gShaders[L"OpaquePS"].get());
-		opaqueStaticMeshPSO->Finalize(device);
-	
-		gPSOs[L"OpaqueStatic"] = std::move(opaqueStaticMeshPSO);
+		auto blinnPhongStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+		blinnPhongStaticMeshPSO->SetRootSignature(sRootSignature.get());
+		blinnPhongStaticMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
+		blinnPhongStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
+		blinnPhongStaticMeshPSO->SetMS(gShaders[L"MeshStaticMS"].get());
+		blinnPhongStaticMeshPSO->SetPS(gShaders[L"BlinnPhongPS"].get());
+		blinnPhongStaticMeshPSO->Finalize(device);
+
+		gPSOs[L"BlinnPhongStatic"] = std::move(blinnPhongStaticMeshPSO);
 	}
 
-	if (gPSOs.count(L"OpaqueSkinned") == 0)
+	if (gPSOs.count(L"BlinnPhongSkinned") == 0)
 	{
-		auto opaqueSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-		opaqueSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
-		opaqueSkinnedMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
-		opaqueSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
-		opaqueSkinnedMeshPSO->SetMS(gShaders[L"OpaqueSkinnedMS"].get());
-		opaqueSkinnedMeshPSO->SetPS(gShaders[L"OpaquePS"].get());
-		opaqueSkinnedMeshPSO->Finalize(device);
-	
-		gPSOs[L"OpaqueSkinned"] = std::move(opaqueSkinnedMeshPSO);
+		auto blinnPhongSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+		blinnPhongSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
+		blinnPhongSkinnedMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
+		blinnPhongSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
+		blinnPhongSkinnedMeshPSO->SetMS(gShaders[L"MeshSkinnedMS"].get());
+		blinnPhongSkinnedMeshPSO->SetPS(gShaders[L"BlinnPhongPS"].get());
+		blinnPhongSkinnedMeshPSO->Finalize(device);
+
+		gPSOs[L"BlinnPhongSkinned"] = std::move(blinnPhongSkinnedMeshPSO);
 	}
 
 	if (gPSOs.count(L"SkyBox") == 0)
@@ -345,7 +344,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 		skyBoxMeshPSO->SetMS(gShaders[L"SkyBoxMS"].get());
 		skyBoxMeshPSO->SetPS(gShaders[L"SkyBoxPS"].get());
 		skyBoxMeshPSO->Finalize(device);
-	
+
 		gPSOs[L"SkyBox"] = std::move(skyBoxMeshPSO);
 	}
 
@@ -355,7 +354,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 		hiZGenerateComputePSO->SetRootSignature(sRootSignature.get());
 		hiZGenerateComputePSO->SetCS(gShaders[L"HiZGenerateCS"].get());
 		hiZGenerateComputePSO->Finalize(device);
-	
+
 		gPSOs[L"HiZGenerate"] = std::move(hiZGenerateComputePSO);
 	}
 
@@ -365,38 +364,38 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 		cullInstanceComputePSO->SetRootSignature(sRootSignature.get());
 		cullInstanceComputePSO->SetCS(gShaders[L"FrameCullCS"].get());
 		cullInstanceComputePSO->Finalize(device);
-	
+
 		gPSOs[L"FrameCullInstances"] = std::move(cullInstanceComputePSO);
 	}
 
-	if (gPSOs.count(L"BuildStaticOitppll") == 0)
+	if (gPSOs.count(L"BlinnPhongStaticOitppll") == 0)
 	{
-		auto buildStaticOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-		buildStaticOitppllMeshPSO->SetRootSignature(sRootSignature.get());
-		buildStaticOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
-		buildStaticOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
-		buildStaticOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-		buildStaticOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
-		buildStaticOitppllMeshPSO->SetMS(gShaders[L"OpaqueStaticMS"].get());
-		buildStaticOitppllMeshPSO->SetPS(gShaders[L"BuildOitppllPS"].get());
-		buildStaticOitppllMeshPSO->Finalize(device);
-	
-		gPSOs[L"BuildStaticOitppll"] = std::move(buildStaticOitppllMeshPSO);
+		auto blinnPhongStaticOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+		blinnPhongStaticOitppllMeshPSO->SetRootSignature(sRootSignature.get());
+		blinnPhongStaticOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
+		blinnPhongStaticOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+		blinnPhongStaticOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+		blinnPhongStaticOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
+		blinnPhongStaticOitppllMeshPSO->SetMS(gShaders[L"MeshStaticMS"].get());
+		blinnPhongStaticOitppllMeshPSO->SetPS(gShaders[L"BlinnPhongOitppllPS"].get());
+		blinnPhongStaticOitppllMeshPSO->Finalize(device);
+
+		gPSOs[L"BlinnPhongStaticOitppll"] = std::move(blinnPhongStaticOitppllMeshPSO);
 	}
 
-	if (gPSOs.count(L"BuildSkinnedOitppll") == 0)
+	if (gPSOs.count(L"BlinnPhongSkinnedOitppll") == 0)
 	{
-		auto buildSkinnedOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-		buildSkinnedOitppllMeshPSO->SetRootSignature(sRootSignature.get());
-		buildSkinnedOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
-		buildSkinnedOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
-		buildSkinnedOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-		buildSkinnedOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
-		buildSkinnedOitppllMeshPSO->SetMS(gShaders[L"OpaqueSkinnedMS"].get());
-		buildSkinnedOitppllMeshPSO->SetPS(gShaders[L"BuildOitppllPS"].get());
-		buildSkinnedOitppllMeshPSO->Finalize(device);
-		
-		gPSOs[L"BuildSkinnedOitppll"] = std::move(buildSkinnedOitppllMeshPSO);
+		auto blinnPhongSkinnedOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+		blinnPhongSkinnedOitppllMeshPSO->SetRootSignature(sRootSignature.get());
+		blinnPhongSkinnedOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
+		blinnPhongSkinnedOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+		blinnPhongSkinnedOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+		blinnPhongSkinnedOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
+		blinnPhongSkinnedOitppllMeshPSO->SetMS(gShaders[L"MeshSkinnedMS"].get());
+		blinnPhongSkinnedOitppllMeshPSO->SetPS(gShaders[L"BlinnPhongOitppllPS"].get());
+		blinnPhongSkinnedOitppllMeshPSO->Finalize(device);
+
+		gPSOs[L"BlinnPhongSkinnedOitppll"] = std::move(blinnPhongSkinnedOitppllMeshPSO);
 	}
 
 	if (gPSOs.count(L"DrawOitppll") == 0)
@@ -410,7 +409,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 		drawOitppllMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
 		drawOitppllMeshPSO->SetPS(gShaders[L"DrawOitppllPS"].get());
 		drawOitppllMeshPSO->Finalize(device);
-	
+
 		gPSOs[L"DrawOitppll"] = std::move(drawOitppllMeshPSO);
 	}
 
@@ -423,7 +422,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 		oitppllMeshletCullMeshPSO->SetAS(gShaders[L"TransparentCullWriteAS"].get());
 		oitppllMeshletCullMeshPSO->SetMS(gShaders[L"DepthStaticMS"].get());
 		oitppllMeshletCullMeshPSO->Finalize(device);
-		
+
 		gPSOs[L"TransparentMeshletCull"] = std::move(oitppllMeshletCullMeshPSO);
 	}
 }
@@ -504,10 +503,10 @@ void Carol::FramePass::DrawOpaque(ID3D12GraphicsCommandList* cmdList)
 {
 	cmdList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, GetRvaluePtr(GetFrameDsv()));
 
-	cmdList->SetPipelineState(gPSOs[L"OpaqueStatic"]->Get());
+	cmdList->SetPipelineState(gPSOs[L"BlinnPhongStatic"]->Get());
 	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(OPAQUE_STATIC));
 
-	cmdList->SetPipelineState(gPSOs[L"OpaqueSkinned"]->Get());
+	cmdList->SetPipelineState(gPSOs[L"BlinnPhongSkinned"]->Get());
 	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(OPAQUE_SKINNED));
 
 	DrawSkyBox(cmdList, mScene->GetSkyBox()->GetMeshCBAddress());
@@ -537,10 +536,10 @@ void Carol::FramePass::DrawTransparent(ID3D12GraphicsCommandList* cmdList)
 	cmdList->ClearUnorderedAccessViewUint(mCounterBuffer->GetGpuUav(), mCounterBuffer->GetCpuUav(), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
 	cmdList->OMSetRenderTargets(0, nullptr, true, nullptr);
 
-	cmdList->SetPipelineState(gPSOs[L"BuildStaticOitppll"]->Get());
+	cmdList->SetPipelineState(gPSOs[L"BlinnPhongStaticOitppll"]->Get());
 	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(TRANSPARENT_STATIC));
 	
-	cmdList->SetPipelineState(gPSOs[L"BuildSkinnedOitppll"]->Get());
+	cmdList->SetPipelineState(gPSOs[L"BlinnPhongSkinnedOitppll"]->Get());
 	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(TRANSPARENT_SKINNED));
 
 	mOitppllBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
