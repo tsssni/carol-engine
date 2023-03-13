@@ -422,12 +422,12 @@ void Carol::AssimpModel::ReadMeshMaterialAndTextures(
 	
 	matData->GetTexture(aiTextureType_DIFFUSE, 0, &diffusePath);
 	matData->GetTexture(aiTextureType_NORMALS, 0, &normalPath);
-	matData->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, 0, &roughnessPath);
+	matData->GetTexture(aiTextureType_SHININESS, 0, &roughnessPath);
 	matData->GetTexture(aiTextureType_METALNESS, 0, &metallicPath);
 
 	LoadTexture(mesh, diffusePath, aiTextureType_DIFFUSE, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
 	LoadTexture(mesh, normalPath, aiTextureType_NORMALS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
-	LoadTexture(mesh, roughnessPath, aiTextureType_DIFFUSE_ROUGHNESS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+	LoadTexture(mesh, roughnessPath, aiTextureType_SHININESS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
 	LoadTexture(mesh, metallicPath, aiTextureType_METALNESS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
 }
 
@@ -469,7 +469,7 @@ void Carol::AssimpModel::LoadTexture(
 		case aiTextureType_NORMALS:
 			path = L"texture\\default_normal_map.png";
 			break;
-		case aiTextureType_DIFFUSE_ROUGHNESS:
+		case aiTextureType_SHININESS:
 			path = L"texture\\default_roughness_map.png";
 			break;
 		case aiTextureType_METALNESS:
@@ -486,7 +486,7 @@ void Carol::AssimpModel::LoadTexture(
 	case aiTextureType_NORMALS:
 		mesh->SetNormalMapIdx(mTextureManager->LoadTexture(path, false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
 		break;
-	case aiTextureType_DIFFUSE_ROUGHNESS:
+	case aiTextureType_SHININESS:
 		mesh->SetRoughnessMapIdx(mTextureManager->LoadTexture(path, false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
 		break;
 	case aiTextureType_METALNESS:
