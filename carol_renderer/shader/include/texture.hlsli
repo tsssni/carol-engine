@@ -3,7 +3,7 @@
 
 float LOD(float depth)
 {
-    return clamp(pow(depth, 15.f) * 8.f, 0.f, 7.f);
+    return 0.f;
 }
 
 bool CheckOutOfBounds(float3 pos)

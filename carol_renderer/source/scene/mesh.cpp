@@ -100,14 +100,9 @@ void Carol::Mesh::SetNormalMapIdx(uint32_t idx)
 	mMeshConstants->NormalMapIdx = idx;
 }
 
-void Carol::Mesh::SetRoughnessMapIdx(uint32_t idx)
+void Carol::Mesh::SetMetallicRoughnessMapIdx(uint32_t idx)
 {
-	mMeshConstants->RoughnessMapIdx = idx;
-}
-
-void Carol::Mesh::SetMetallicMapIdx(uint32_t idx)
-{
-	mMeshConstants->MetallicMapIdx = idx;
+	mMeshConstants->MetallicRoughnessMapIdx = idx;
 }
 
 void Carol::Mesh::Update(XMMATRIX& world)

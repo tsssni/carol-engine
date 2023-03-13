@@ -127,7 +127,7 @@ void Carol::Scene::LoadModel(
 
 	node->Name = name;
 	mModels[node->Name] = make_unique<AssimpModel>(
-		node->Children[0].get(),
+		node.get(),
 		path,
 		textureDir,
 		isSkinned,
@@ -166,8 +166,7 @@ void Carol::Scene::LoadGround(
 	auto& node = mRootNode->Children.back();
 
 	node->Name = L"Ground";
-	node->Children.push_back(make_unique<SceneNode>());
-	node->Children[0]->Meshes.push_back(const_cast<Mesh*>(mModels[L"Ground"]->GetMesh(L"Ground")));
+	node->Meshes.push_back(const_cast<Mesh*>(mModels[L"Ground"]->GetMesh(L"Ground")));
 
 	for (auto& [name, mesh] : mModels[L"Ground"]->GetMeshes())
 	{

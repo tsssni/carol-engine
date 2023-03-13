@@ -24,8 +24,8 @@ cbuffer MeshCB : register(b0)
     
     uint gDiffuseTextureIdx;
     uint gNormalTextureIdx;
-    uint gRoughnessTextureIdx;
-    uint gMetallicTextureIdx;
+    uint gMetallicRoughnessTextureIdx;
+    float MeshPad3;
 };
 
 cbuffer SkinnedCB : register(b1)

@@ -221,18 +221,18 @@ void Carol::Model::LoadGround(
 {
 	XMFLOAT3 pos[4] =
 	{
-		{-500.0f,0.0f,-500.0f},
-		{-500.0f,0.0f,500.0f},
-		{500.0f,0.0f,500.0f},
-		{500.0f,0.0f,-500.0f}
+		{-50.0f,0.0f,-50.0f},
+		{-50.0f,0.0f,50.0f},
+		{50.0f,0.0f,50.0f},
+		{50.0f,0.0f,-50.0f}
 	};
 
 	XMFLOAT2 texC[4] =
 	{
-		{0.0f,1000.0f},
+		{0.0f,10.0f},
 		{0.0f,0.0f},
-		{1000.0f,0.0f},
-		{1000.0f,1000.0f}
+		{10.0f,0.0f},
+		{10.0f,10.0f}
 	};
 
 	XMFLOAT3 normal = { 0.0f,1.0f,0.0f };
@@ -260,14 +260,12 @@ void Carol::Model::LoadGround(
 		uploadBuffersHeap,
 		descriptorManager);
 
-	mMeshes[L"Ground"]->SetDiffuseMapIdx(mTextureManager->LoadTexture(L"texture\\default_diffuse_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+	mMeshes[L"Ground"]->SetDiffuseMapIdx(mTextureManager->LoadTexture(L"texture\\UV.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
 	mMeshes[L"Ground"]->SetNormalMapIdx(mTextureManager->LoadTexture(L"texture\\default_normal_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
-	mMeshes[L"Ground"]->SetRoughnessMapIdx(mTextureManager->LoadTexture(L"texture\\default_roughness_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
-	mMeshes[L"Ground"]->SetMetallicMapIdx(mTextureManager->LoadTexture(L"texture\\default_metallic_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+	mMeshes[L"Ground"]->SetMetallicRoughnessMapIdx(mTextureManager->LoadTexture(L"texture\\default_metallic_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
 
-	mTexturePath.push_back(L"texture\\default_diffuse_map.png");
+	mTexturePath.push_back(L"texture\\UV.png");
 	mTexturePath.push_back(L"texture\\default_normal_map.png");
-	mTexturePath.push_back(L"texture\\default_roughness_map.png");
 	mTexturePath.push_back(L"texture\\default_metallic_map.png");
 }
 

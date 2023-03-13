@@ -39,8 +39,8 @@ namespace Carol
 
 		uint32_t DiffuseMapIdx = 0;
 		uint32_t NormalMapIdx = 0;
-		uint32_t RoughnessMapIdx = 0;
-		uint32_t MetallicMapIdx = 0;
+		uint32_t MetallicRoughnessMapIdx = 0;
+		float MeshPad3;
 	};
 
 	class Vertex
@@ -114,8 +114,7 @@ namespace Carol
 
 		void SetDiffuseMapIdx(uint32_t idx);
 		void SetNormalMapIdx(uint32_t idx);
-		void SetRoughnessMapIdx(uint32_t idx);
-		void SetMetallicMapIdx(uint32_t idx);
+		void SetMetallicRoughnessMapIdx(uint32_t idx);
 
 		void Update(DirectX::XMMATRIX& world);
 		void ClearCullMark(ID3D12GraphicsCommandList* cmdList);

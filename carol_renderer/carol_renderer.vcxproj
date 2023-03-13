@@ -96,6 +96,10 @@
     <ResourceCompile Include="win32\renderer.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="texture\default_diffuse_map.png" />
+    <Image Include="texture\default_metallic_map.png" />
+    <Image Include="texture\default_normal_map.png" />
+    <Image Include="texture\snowcube1024.dds" />
     <Image Include="win32\carol.ico" />
   </ItemGroup>
   <ItemGroup>

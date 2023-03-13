@@ -33,7 +33,7 @@ Carol::Texture::Texture(
 
 	if (suffix == L"dds")
 	{
-		ThrowIfFailed(LoadFromDDSFile(fileName.data(), DDS_FLAGS_FORCE_RGB, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromDDSFile(fileName.data(), DDS_FLAGS_NONE, &metaData, scratchImage));
 	}
 	else if (suffix == L"tga")
 	{
@@ -41,7 +41,7 @@ Carol::Texture::Texture(
 	}
 	else
 	{
-		ThrowIfFailed(LoadFromWICFile(fileName.data(), WIC_FLAGS_FORCE_RGB, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromWICFile(fileName.data(), WIC_FLAGS_FORCE_LINEAR, &metaData, scratchImage));
 	}
 
 	if (isSrgb)

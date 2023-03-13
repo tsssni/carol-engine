@@ -234,6 +234,16 @@
     <Image Include="win32\carol.ico">
       <Filter>资源文件</Filter>
     </Image>
+    <Image Include="texture\default_diffuse_map.png">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="texture\default_metallic_map.png">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="texture\default_normal_map.png">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="texture\snowcube1024.dds" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\include\light.hlsli">

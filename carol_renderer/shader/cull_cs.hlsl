@@ -30,8 +30,8 @@ struct MeshConstants
     
     uint MeshDiffuseMapIdx;
     uint MeshNormalMapIdx;
-    uint MeshRoughnessMapIdx;
     uint MeshMetallicMapIdx;
+    float MeshPad3;
 
     // Padding for 256 byte
     float4 MeshConstantsPad0;

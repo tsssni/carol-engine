@@ -21,20 +21,18 @@ void main(PixelIn pin)
     
     Texture2D diffuseTex = ResourceDescriptorHeap[gDiffuseTextureIdx];
     Texture2D normalTex = ResourceDescriptorHeap[gNormalTextureIdx];
-    Texture2D roughnessTex = ResourceDescriptorHeap[gRoughnessTextureIdx];
-    Texture2D metallicTex = ResourceDescriptorHeap[gMetallicTextureIdx];
+    Texture2D metallicRoughnessTex = ResourceDescriptorHeap[gMetallicRoughnessTextureIdx];
 #ifdef SSAO
     Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapRIdx];
 #endif
     
     float4 texDiffuse = diffuseTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z));
-    float metallic = metallicTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).r;
-    float roughness = roughnessTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).r;
+    float4 metallicRoughness = metallicRoughnessTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z));
     
     Material lightMat;
-    lightMat.fresnelR0 = CalcFresnelR0(texDiffuse.rgb, metallic);
+    lightMat.fresnelR0 = CalcFresnelR0(texDiffuse.rgb, metallicRoughness.r);
     lightMat.diffuseAlbedo = texDiffuse.rgb;
-    lightMat.roughness = roughness;
+    lightMat.roughness = metallicRoughness.g;
 
     float3 texNormal = normalTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).rgb;
     texNormal = TexNormalToWorldSpace(texNormal, pin.NormalW, pin.TangentW);
