@@ -146,35 +146,6 @@ void Carol::Scene::LoadModel(
 	}
 }
 
-void Carol::Scene::LoadGround(
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager,
-	TextureManager* textureManager)
-{
-	mModels[L"Ground"] = make_unique<Model>(textureManager);
-	mModels[L"Ground"]->LoadGround(
-		device,
-		cmdList,
-		defaultBuffersHeap,
-		uploadBuffersHeap,
-		descriptorManager);
-	
-	mRootNode->Children.push_back(make_unique<SceneNode>());
-	auto& node = mRootNode->Children.back();
-
-	node->Name = L"Ground";
-	node->Meshes.push_back(const_cast<Mesh*>(mModels[L"Ground"]->GetMesh(L"Ground")));
-
-	for (auto& [name, mesh] : mModels[L"Ground"]->GetMeshes())
-	{
-		wstring meshName = L"Ground_" + name;
-		mMeshes[OPAQUE_STATIC][meshName] = mesh.get();
-	}
-}
-
 void Carol::Scene::LoadSkyBox(
 	ID3D12Device* device,
 	ID3D12GraphicsCommandList* cmdList,

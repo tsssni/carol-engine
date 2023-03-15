@@ -23,4 +23,16 @@ float4 GetTexCoord(float4 pos)
     return pos;
 }
 
+float3 NormalToWorldSpace(float3 normal, float3 normalW, float3 tangentW)
+{
+    normal = 2.0f * normal - 1.0f;
+    
+    float3 N = normalW;
+    float3 T = normalize(tangentW - dot(normalW, tangentW) * N);
+    float3 B = cross(N, T);
+    
+    float3x3 TBN = float3x3(T, B, N);
+    return mul(normal, TBN);
+}
+
 #endif

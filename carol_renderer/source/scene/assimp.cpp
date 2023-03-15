@@ -5,6 +5,7 @@
 #include <scene/skinned_data.h>
 #include <scene/texture.h>
 #include <scene/scene_node.h>
+#include <scene/light.h>
 #include <utils/common.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
@@ -25,6 +26,34 @@ namespace Carol {
 	using std::pair;
 	using std::span;
 	using namespace DirectX;
+}
+
+Carol::XMMATRIX ai2XM(const aiMatrix4x4& aiM)
+{
+	Carol::XMFLOAT4X4 M =
+	{
+		aiM.a1,aiM.b1,aiM.c1,aiM.d1,
+		aiM.a2,aiM.b2,aiM.c2,aiM.d2,
+		aiM.a3,aiM.b3,aiM.c3,aiM.d3,
+		aiM.a4,aiM.b4,aiM.c4,aiM.d4
+	};
+
+	return Carol::XMLoadFloat4x4(&M);
+}
+
+Carol::XMVECTOR ai2XM(const aiColor3D& aiC)
+{
+	return { aiC.r,aiC.g,aiC.b };
+}
+
+Carol::XMVECTOR ai2XM(const aiVector2D& aiV)
+{
+	return { aiV.x,aiV.y };
+}
+
+Carol::XMVECTOR ai2XM(const aiVector3D& aiV)
+{
+	return { aiV.x,aiV.y,aiV.z };
 }
 
 Carol::AssimpModel::AssimpModel(
@@ -54,21 +83,30 @@ Carol::AssimpModel::AssimpModel(
 		ReadAnimations(scene);
 	}
 
+	ReadLights(scene);
 	ProcessNode(
 		scene->mRootNode,
 		rootNode,
+		aiMatrix4x4(),
 		scene,
 		device,
 		cmdList,
 		defaultBuffersHeap,
 		uploadBuffersHeap,
 		descriptorManager);
+
 	mFinalTransforms.clear();
+	
+	for (int i = 0; i < LIGHT_TYPE_COUNT; ++i)
+	{
+		mAssimpLights[i].clear();
+	}
 }
 
 void Carol::AssimpModel::ProcessNode(
 	aiNode* node,
 	SceneNode* sceneNode,
+	const aiMatrix4x4& parentToRoot,
 	const aiScene* scene,
 	ID3D12Device* device,
 	ID3D12GraphicsCommandList* cmdList,
@@ -76,6 +114,8 @@ void Carol::AssimpModel::ProcessNode(
 	Heap* uploadBuffersHeap,
 	DescriptorManager* descriptorManager)
 {
+	aiMatrix4x4 toRoot = parentToRoot * node->mTransformation;
+
 	for (int i = 0; i < node->mNumMeshes; ++i)
 	{
 		aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
@@ -89,12 +129,35 @@ void Carol::AssimpModel::ProcessNode(
 				uploadBuffersHeap,
 				descriptorManager));
 	}
+	
+	wstring name = StringToWString(node->mName.C_Str());
 
+	auto transformLight = [&](Light* light)
+	{
+		XMVECTOR direction = { light->Direction.x,light->Direction.y,light->Direction.z,0.f };
+		XMVECTOR position = { light->Position.x,light->Position.y,light->Position.z,1.f };
+		XMMATRIX transform = ai2XM(toRoot);
+
+		XMStoreFloat3(&light->Direction, XMVector4Transform(direction, transform));
+		XMStoreFloat3(&light->Position, XMVector4Transform(position, transform));
+	};
+
+	for (int i = 0; i < LIGHT_TYPE_COUNT; ++i)
+	{
+		if (mAssimpLights[i].count(name))
+		{
+			auto& light = mAssimpLights[i][name];
+			transformLight(light.get());
+			mLights[i].emplace_back(std::move(light));
+		}
+	}
+	
 	for (int i = 0; i < node->mNumChildren; ++i)
 	{
 		ProcessNode(
 			node->mChildren[i],
 			sceneNode,
+			toRoot,
 			scene,
 			device,
 			cmdList,
@@ -157,6 +220,44 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(
 	return mMeshes[meshName].get();
 }
 
+void Carol::AssimpModel::ReadLights(const aiScene* scene)
+{
+	for (int i = 0; i < scene->mNumLights; ++i)
+	{
+		aiLight* sceneLight = scene->mLights[i];
+		auto light = make_unique<Light>();
+
+		XMStoreFloat3(&light->Strength, ai2XM(sceneLight->mColorDiffuse));
+		XMStoreFloat3(&light->Direction, ai2XM(sceneLight->mDirection));
+		XMStoreFloat3(&light->Position, ai2XM(sceneLight->mPosition));
+		
+		light->AttenuationConstant = sceneLight->mAttenuationConstant;
+		light->AttenuationLinear = sceneLight->mAttenuationLinear;
+		light->AttenuationQuadric = sceneLight->mAttenuationQuadratic;
+		
+		light->SpotInnerAngle = sceneLight->mAngleInnerCone;
+		light->SpotOuterAngle = sceneLight->mAngleOuterCone;
+		XMStoreFloat2(&light->AreaSize, ai2XM(sceneLight->mSize));
+
+		wstring lightName = StringToWString(sceneLight->mName.C_Str());
+		switch (sceneLight->mType)
+		{
+		case aiLightSource_DIRECTIONAL:
+			mAssimpLights[DIRECTIONAL_LIGHT][lightName] = std::move(light);
+			break;
+		case aiLightSource_POINT:
+			mAssimpLights[POINT_LIGHT][lightName] = std::move(light);
+			break;
+		case aiLightSource_SPOT:
+			mAssimpLights[SPOT_LIGHT][lightName] = std::move(light);
+			break;
+		case aiLightSource_AREA:
+			mAssimpLights[AREA_LIGHT][lightName] = std::move(light);
+			break;
+		}
+	}
+}
+
 void Carol::AssimpModel::ReadBoneHierachy(aiNode* node)
 {
 	wstring nodeName = StringToWString(node->mName.C_Str());
@@ -185,7 +286,7 @@ void Carol::AssimpModel::ReadBoneOffsets(const aiScene* scene)
 		{
 			auto* bone = scene->mMeshes[i]->mBones[j];
 			uint32_t boneIdx = mBoneIndices[StringToWString(bone->mName.C_Str())];
-			XMStoreFloat4x4(&mBoneOffsets[boneIdx], aiMatrix4x4ToXM(bone->mOffsetMatrix));
+			XMStoreFloat4x4(&mBoneOffsets[boneIdx], ai2XM(bone->mOffsetMatrix));
 		}
 	}
 }
@@ -328,34 +429,7 @@ void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 	}
 }
 
-Carol::XMMATRIX Carol::AssimpModel::aiMatrix4x4ToXM(aiMatrix4x4 aiM)
-{
-	XMFLOAT4X4 M =
-	{
-		aiM.a1,aiM.b1,aiM.c1,aiM.d1,
-		aiM.a2,aiM.b2,aiM.c2,aiM.d2,
-		aiM.a3,aiM.b3,aiM.c3,aiM.d3,
-		aiM.a4,aiM.b4,aiM.c4,aiM.d4
-	};
 
-	return XMLoadFloat4x4(&M);
-}
-
-aiMatrix4x4 Carol::AssimpModel::XMToaiMatrix4x4(XMMATRIX xm)
-{
-	XMFLOAT4X4 xm4x4;
-	XMStoreFloat4x4(&xm4x4, xm);
-
-	aiMatrix4x4 aiM =
-	{
-		xm4x4._11,xm4x4._21,xm4x4._31,xm4x4._41,
-		xm4x4._12,xm4x4._22,xm4x4._32,xm4x4._42,
-		xm4x4._13,xm4x4._23,xm4x4._33,xm4x4._43,
-		xm4x4._14,xm4x4._24,xm4x4._34,xm4x4._44
-	};
-	
-	return aiM;
-}
 
 void Carol::AssimpModel::ReadMeshVerticesAndIndices(
 	vector<Vertex>& vertices,
@@ -464,7 +538,7 @@ void Carol::AssimpModel::LoadTexture(
 			path = L"texture\\default_normal_map.png";
 			break;
 		case aiTextureType_METALNESS:
-			path = L"texture\\default_metallic_map.png";
+			path = L"texture\\default_metallic_roughness_map.png";
 			break;
 		}
 	}

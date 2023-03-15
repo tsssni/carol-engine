@@ -48,7 +48,7 @@ namespace Carol
 		virtual void InitPSOs(ID3D12Device* device)override;
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager);
         
-        void InitLightViewport();
+        void InitLight();
         virtual void InitCamera() = 0;
         
         void Clear(ID3D12GraphicsCommandList* cmdList);

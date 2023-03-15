@@ -1,29 +1,103 @@
 #ifndef MATERIAL_HEADER
 #define MATERIAL_HEADER
 
+#define PI 3.14159265f
+
 struct Material
 {
-    float3 diffuseAlbedo;
-    float3 fresnelR0;
-    float roughness;
+    float3 SubsurfaceAlbedo;
+    float Metallic;
+    float Roughness;
 };
 
-float3 CalcFresnelR0(float3 diffuseColor, float metallic)
+float3 SchlickFresnel(float3 R0, float3 normal, float3 toLight)
 {
-    static float3 fresenlR0 = float3(0.04f, 0.04f, 0.04f);
-    return lerp(fresenlR0, diffuseColor, metallic);
-}
-
-// Schlick gives an approximation to Fresnel reflectance (see pg. 233 "Real-Time Rendering 3rd Ed.").
-// R0 = ( (n-1)/(n+1) )^2, where n is the index of refraction.
-float3 SchlickFresnel(float3 R0, float3 normal, float3 lightVec)
-{
-    float cosIncidentAngle = saturate(dot(normal, lightVec));
+    float cosIncidentAngle = saturate(dot(normal, toLight));
 
     float f0 = 1.0f - cosIncidentAngle;
-    float3 reflectPercent = R0 + (1.0f - R0) * (f0 * f0 * f0 * f0 * f0);
+    float3 reflectPercent = R0 + (1.0f - R0) * pow(f0, 5.f);
 
     return reflectPercent;
+}
+
+float3 CalcFresnelR0(float3 subsurfaceAlbedo, float metallic)
+{
+    const static float3 fDieletric = float3(0.04f, 0.04f, 0.04f);
+    return lerp(fDieletric, subsurfaceAlbedo, metallic);
+}
+
+float3 CalcSubsurfaceAlbedo(float3 subsurfaceAlbedo, float3 reflectance, float metallic)
+{
+    return lerp(1.f - reflectance, 0.f, metallic) * subsurfaceAlbedo;
+}
+
+float GGXSmithLambda(float3 view, float3 dir, float roughness)
+{
+    float cos2 = pow(dot(view, dir), 2.f);
+    float cot2 = cos2 / (1.f - cos2);
+    float a2 = cot2 / pow(roughness, 2.f);
+
+    return 0.5f * (sqrt(1.f / a2 + 1.f) - 1.f);
+}
+
+float GGXSmithG1(float3 view, float3 dir, float roughness)
+{
+    if(dot(view, dir) <= 0.f)
+    {
+        return 0.f;
+    }
+
+    return 1.f / (1.f + GGXSmithLambda(view, dir, roughness));
+}
+
+float DirectionCorrelatedGGXSmithG2(float3 toLight, float3 toEye, float3 dir, float roughness)
+{
+    float toLightAzimuth = atan(toLight.y / toLight.x);
+    float toEyeAzimuth = atan(toEye.y / toEye.x);
+    float absAzimuth = abs(toLightAzimuth - toEyeAzimuth);
+
+    float lambda = 4.41f * absAzimuth / (4.41f * absAzimuth + 1.f);
+    float toLightG1 = GGXSmithG1(toLight, dir, roughness);
+    float toEyeG1 = GGXSmithG1(toEye, dir, roughness);
+
+    return lambda * toLightG1 * toEyeG1 + (1 - lambda) * min(toLightG1, toEyeG1);
+}
+
+float HeightCorrelatedGGXSmithG2(float3 toLight, float3 toEye, float3 dir, float roughness)
+{
+    if (dot(toLight, dir) <= 0.f || dot(toEye, dir) <= 0.f)
+    {
+        return 0.f;
+    }
+
+    float toLightLambda = GGXSmithLambda(toLight, dir, roughness);
+    float toEyeLambda = GGXSmithLambda(toEye, dir, roughness);
+
+    return 1.f / (1.f + toLightLambda + toEyeLambda);
+}
+
+float GGXNormalDistribution(float3 normal, float3 surfaceNormal, float roughness)
+{
+    if (dot(normal, surfaceNormal) <= 0.f)
+    {
+        return 0.f;
+    }
+    
+    float ns2 = pow(dot(normal, surfaceNormal), 2.f);
+    float r2 = pow(roughness, 2.f);
+    
+    // See the comments in float3 Lambertian(float3 subsurfaceAlbedo).
+    // With the same reason PI is canceled out.
+    return r2 / pow((1 + (r2 - 1) * ns2), 2.f);
+}
+
+float3 Lambertian(float3 subsurfaceAlbedo)
+{
+    // Light strength is defined by the radiance of
+    // the light reflected by a white Lambertian surface.
+    // In this case light_strength = outgoing_radiance = light_radiance / pi,
+    // so PI is canceled out.
+    return subsurfaceAlbedo;
 }
 
 #endif

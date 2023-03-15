@@ -84,16 +84,4 @@ MeshIn SkinnedTransform(MeshIn min)
     return min;
 }
 
-float3 TexNormalToWorldSpace(float3 texNormal, float3 pixelNormalW, float3 pixelTangentW)
-{
-    texNormal = 2.0f * texNormal - 1.0f;
-    
-    float3 N = pixelNormalW;
-    float3 T = pixelTangentW - dot(pixelNormalW, pixelTangentW) * N;
-    float3 B = cross(N, T);
-    
-    float3x3 TBN = float3x3(T, B, N);
-    return mul(texNormal, TBN);
-}
-
 #endif

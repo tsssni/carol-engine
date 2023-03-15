@@ -35,6 +35,7 @@ namespace Carol
 		void ProcessNode(
 			aiNode* node,
 			SceneNode* sceneNode,
+			const aiMatrix4x4& parentToRoot,
 			const aiScene* scene,
 			ID3D12Device* device,
 			ID3D12GraphicsCommandList* cmdList,
@@ -70,6 +71,8 @@ namespace Carol
 		void ReadMeshBones(std::vector<Vertex>& vertices, aiMesh* mesh);
 		void InsertBoneWeightToVertex(Vertex& vertex, uint32_t boneIndex, float boneWeight);
 
+		void ReadLights(const aiScene* scene);
+
 		void LoadTexture(
 			Mesh* mesh,
 			aiString aiPath,
@@ -80,9 +83,8 @@ namespace Carol
 			Heap* uploadBuffersHeap,
 			DescriptorManager* descriptorManager);
 
-		DirectX::XMMATRIX aiMatrix4x4ToXM(aiMatrix4x4 aiM);
-		aiMatrix4x4 XMToaiMatrix4x4(DirectX::XMMATRIX xm);
 	protected:
 		std::unordered_map<std::wstring, uint32_t> mBoneIndices;
+		std::unordered_map<std::wstring, std::unique_ptr<Light>> mAssimpLights[LIGHT_TYPE_COUNT];
 	};
 }

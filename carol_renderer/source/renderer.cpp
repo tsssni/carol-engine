@@ -110,14 +110,28 @@ void Carol::Renderer::InitTaa()
 void Carol::Renderer::InitMainLight()
 {
 	Light light = {};
-	light.Direction = { 0.8f,-1.0f,1.0f };
-	light.Strength = { 0.8f,0.8f,0.8f };
+	light.Strength = { 1.f,1.f,1.f };
+	XMStoreFloat3(&light.Direction, { .8f,-1.f,1.f });
+
 	mMainLightShadowPass = make_unique<CascadedShadowPass>(
 		mDevice.Get(),
 		mHeapManager->GetDefaultBuffersHeap(),
 		mDescriptorManager.get(),
 		mScene.get(),
 		light);
+
+	mFrameConstants->AmbientColor = { .1f,.1f,.1f };
+
+	mFrameConstants->NumPointLights = 4;
+
+	for (int i = 0; i < mFrameConstants->NumPointLights; ++i)
+	{
+		auto& light = mFrameConstants->PointLights[i];
+		light.Strength = { .5f,.5f,.4f };
+		light.AttenuationQuadric = 1.f / 200.f;
+		XMStoreFloat3(&light.Position, XMVector3Transform({ 0.f,25.f,-20.f }, XMMatrixRotationY(90.f * i)));
+		XMStoreFloat3(&light.Direction, XMVector3Normalize(XMVector3Transform({ 0.f,-5.f,1.f }, XMMatrixRotationY(90.f * i))));
+	}
 }
 
 void Carol::Renderer::InitScene()
@@ -129,14 +143,6 @@ void Carol::Renderer::InitScene()
 		mHeapManager->GetUploadBuffersHeap(),
 		mDescriptorManager.get());
 	
-	mScene->LoadGround(
-		mDevice.Get(),
-		mCommandList.Get(),
-		mHeapManager->GetDefaultBuffersHeap(),
-		mHeapManager->GetUploadBuffersHeap(),
-		mDescriptorManager.get(),
-		mTextureManager.get());
-
 	mScene->LoadSkyBox(
 		mDevice.Get(),
 		mCommandList.Get(),
@@ -187,7 +193,7 @@ void Carol::Renderer::UpdateFrameCB()
 
 	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel(); ++i)
 	{
-		mFrameConstants->Lights[i] = mMainLightShadowPass->GetLight(i);
+		mFrameConstants->MainLights[i] = mMainLightShadowPass->GetLight(i);
 	}
 
 	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel() + 1; ++i)
@@ -304,6 +310,7 @@ void Carol::Renderer::Update()
 	mHeapManager->DelayedDelete(mCpuFenceValue, mGpuFenceValue);
 
 	mCamera->UpdateViewMatrix();
+	mScene->SetWorld(L"Ground", XMMatrixTranslation(mCamera->GetPosition3f().x, 0.f, mCamera->GetPosition3f().z));
 	mScene->Update(mTimer.get(), mCpuFenceValue, mGpuFenceValue);
 	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), mCpuFenceValue, mGpuFenceValue, 0.85f);
 	mFramePass->Update(mCpuFenceValue, mGpuFenceValue);

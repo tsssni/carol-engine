@@ -13,6 +13,7 @@ namespace Carol
 	using std::make_unique;
 	using std::to_wstring;
 	using Microsoft::WRL::ComPtr;
+	using namespace DirectX;
 
 	unordered_map<wstring, unique_ptr<Shader>> gShaders;
 	unordered_map<wstring, unique_ptr<PSO>> gPSOs;
@@ -32,7 +33,8 @@ void Carol::BaseRenderer::InitTimer()
 void Carol::BaseRenderer::InitCamera()
 {
 	mCamera = make_unique<PerspectiveCamera>();
-	mCamera->SetPosition(0.0f, 5.0f, -5.0f);
+	mCamera->LookAt(XMFLOAT3(0.f, 10.f, -20.f), XMFLOAT3(0.f, 10.f, 0.f), XMFLOAT3(0.f, 1.f, 0.f));
+	mCamera->UpdateViewMatrix();
 }
 
 Carol::BaseRenderer::BaseRenderer(HWND hWnd)

@@ -97,9 +97,10 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="texture\default_diffuse_map.png" />
-    <Image Include="texture\default_metallic_map.png" />
+    <Image Include="texture\default_metallicRoughness_map.png" />
     <Image Include="texture\default_normal_map.png" />
     <Image Include="texture\snowcube1024.dds" />
+    <Image Include="texture\UV.png" />
     <Image Include="win32\carol.ico" />
   </ItemGroup>
   <ItemGroup>
@@ -113,6 +114,7 @@
       <FileType>Document</FileType>
     </None>
     <None Include="shader\include\material.hlsli" />
+    <None Include="shader\include\pbr.hlsli" />
     <None Include="shader\include\texture.hlsli" />
     <None Include="shader\taa_ps.hlsl">
       <FileType>Document</FileType>

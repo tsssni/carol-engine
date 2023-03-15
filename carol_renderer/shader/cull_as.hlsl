@@ -24,34 +24,35 @@ void main(
             visible = true;
         }
 #endif
+
 #ifdef WRITE
         else
         {    
-#ifdef SHADOW
-            float4x4 frustumWorldViewProj = mul(gWorld, gLights[gLightIdx].ViewProj);
-#ifdef OCCLUSION
-            float4x4 occlusionWorldViewProj = mul(gIsHist ? gHistWorld : gWorld, gLights[gLightIdx].ViewProj);
-#endif
-#else 
+    #ifdef SHADOW
+            float4x4 frustumWorldViewProj = mul(gWorld, gMainLights[gLightIdx].ViewProj);
+        #ifdef OCCLUSION
+            float4x4 occlusionWorldViewProj = mul(gIsHist ? gHistWorld : gWorld, gMainLights[gLightIdx].ViewProj);
+        #endif
+    #else 
             float4x4 frustumWorldViewProj = mul(gWorld, gViewProj);
-#ifdef OCCLUSION
+        #ifdef OCCLUSION
             float4x4 occlusionWorldViewProj = mul(gIsHist ? gHistWorld : gWorld, gIsHist ? gHistViewProj : gViewProj);
-#endif
-#endif  
+        #endif
+    #endif  
             StructuredBuffer<CullData> cullData = ResourceDescriptorHeap[gCullDataBufferIdx];
             CullData cd = cullData[dtid];
             
             if (AabbFrustumTest(cd.Center, cd.Extents, frustumWorldViewProj) != OUTSIDE && NormalConeTest(cd.Center, cd.NormalCone, cd.ApexOffset, gWorld, gEyePosW))
             {
-#ifdef OCCLUSION
+    #ifdef OCCLUSION
                 if(HiZOcclusionTest(cd.Center, cd.Extents, occlusionWorldViewProj, gHiZIdx))
                 {
                     visible = true;
                     SetMark(dtid, gMeshletOcclusionPassedMarkBufferIdx);
                 }
-#else
+    #else
                 visible = true;
-#endif
+    #endif
             }
             else
             {
@@ -61,7 +62,7 @@ void main(
 #endif
     }
 
-#ifdef MESH_SHADER_DISABLED
+#ifdef TRANSPARENT_WRITE
     DispatchMesh(0, 0, 0, sharedPayload);
 #else
     if (visible)

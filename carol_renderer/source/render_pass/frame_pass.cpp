@@ -12,7 +12,7 @@ namespace Carol
 	using std::wstring;
 	using std::wstring_view;
 	using std::unique_ptr;
-    using std::make_unique;
+	using std::make_unique;
 	using std::span;
 	using Microsoft::WRL::ComPtr;
 	using namespace DirectX;
@@ -34,8 +34,8 @@ Carol::FramePass::FramePass(
 	mDepthStencilFormat(depthStencilFormat),
 	mHiZFormat(hiZFormat)
 {
-    InitShaders();
-    InitPSOs(device);
+	InitShaders();
+	InitPSOs(device);
 
 	mCulledCommandBufferPool = make_unique<StructuredBufferPool>(
 		1024,
@@ -45,7 +45,7 @@ Carol::FramePass::FramePass(
 		descriptorManager,
 		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	
+
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(OPAQUE_MESH_START + i);
@@ -64,7 +64,7 @@ void Carol::FramePass::Draw(ID3D12GraphicsCommandList* cmdList)
 
 	DrawOpaque(cmdList);
 	DrawTransparent(cmdList);
-	
+
 	mFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -73,7 +73,7 @@ void Carol::FramePass::Update(uint64_t cpuFenceValue, uint64_t completedFenceVal
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(i);
-			
+
 		mCulledCommandBufferPool->DiscardBuffer(mCulledCommandBuffer[type].release(), cpuFenceValue);
 		mCulledCommandBuffer[type] = mCulledCommandBufferPool->RequestBuffer(completedFenceValue, mScene->GetMeshesCount(type));
 
@@ -181,45 +181,58 @@ void Carol::FramePass::InitShaders()
 	vector<wstring_view> nullDefines = {};
 
 	vector<wstring_view> staticDefines =
-		{
-			L"TAA=1", L"SSAO=1"};
+	{
+		L"TAA"
+	};
 
 	vector<wstring_view> skinnedDefines =
-		{
-			L"TAA=1", L"SSAO=1", L"SKINNED=1"};
+	{
+		L"TAA", L"SKINNED" 
+	};
 
 	vector<wstring_view> blinnPhongDefines =
-		{
-			L"SSAO=1", L"BLINN_PHONG=1"};
+	{
+		L"SSAO", L"BLINN_PHONG" };
+
+	vector<wstring_view> PBRDefines =
+	{
+		L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED_G2",L"LAMBERTIAN"
+	};
 
 	vector<wstring_view> cullDefines =
-		{
-			L"OCCLUSION=1" };
+	{
+		L"OCCLUSION" 
+	};
 
 	vector<wstring_view> cullWriteDefines =
-		{
-			L"OCCLUSION=1",
-			L"WRITE=1"};
+	{
+		L"OCCLUSION", L"WRITE" 
+	};
 
-	vector<wstring_view> meshShaderDisabledCullWriteDefines =
-		{
-			L"OCCLUSION=1",
-			L"WRITE=1",
-			L"MESH_SHADER_DISABLED=1"};
+	vector<wstring_view> transparentCullWriteDefines =
+	{
+		L"OCCLUSION", L"WRITE", L"TRANSPARENT_WRITE" 
+	};
 
 	if (gShaders.count(L"MeshStaticMS") == 0)
 	{
 		gShaders[L"MeshStaticMS"] = make_unique<Shader>(L"shader\\mesh_ms.hlsl", staticDefines, L"main", L"ms_6_6");
 	}
+	
+	if (gShaders.count(L"MeshSkinnedMS") == 0)
+	{
+		gShaders[L"MeshSkinnedMS"] = make_unique<Shader>(L"shader\\mesh_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+	}
+
 
 	if (gShaders.count(L"BlinnPhongPS") == 0)
 	{
 		gShaders[L"BlinnPhongPS"] = make_unique<Shader>(L"shader\\opaque_ps.hlsl", blinnPhongDefines, L"main", L"ps_6_6");
 	}
 
-	if (gShaders.count(L"MeshSkinnedMS") == 0)
+	if (gShaders.count(L"PBRPS") == 0)
 	{
-		gShaders[L"MeshSkinnedMS"] = make_unique<Shader>(L"shader\\mesh_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
+		gShaders[L"PBRPS"] = make_unique<Shader>(L"shader\\opaque_ps.hlsl", PBRDefines, L"main", L"ps_6_6");
 	}
 
 	if (gShaders.count(L"ScreenMS") == 0)
@@ -272,6 +285,11 @@ void Carol::FramePass::InitShaders()
 		gShaders[L"BlinnPhongOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", blinnPhongDefines, L"main", L"ps_6_6");
 	}
 
+	if (gShaders.count(L"PBROitppllPS") == 0)
+	{
+		gShaders[L"PBROitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", PBRDefines, L"main", L"ps_6_6");
+	}
+
 	if (gShaders.count(L"DrawOitppllPS") == 0)
 	{
 		gShaders[L"DrawOitppllPS"] = make_unique<Shader>(L"shader\\oitppll_ps.hlsl", nullDefines, L"main", L"ps_6_6");
@@ -279,7 +297,7 @@ void Carol::FramePass::InitShaders()
 
 	if (gShaders.count(L"TransparentCullWriteAS") == 0)
 	{
-		gShaders[L"TransparentCullWriteAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", meshShaderDisabledCullWriteDefines, L"main", L"as_6_6");
+		gShaders[L"TransparentCullWriteAS"] = make_unique<Shader>(L"shader\\cull_as.hlsl", transparentCullWriteDefines, L"main", L"as_6_6");
 	}
 }
 
@@ -333,6 +351,32 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 		blinnPhongSkinnedMeshPSO->Finalize(device);
 
 		gPSOs[L"BlinnPhongSkinned"] = std::move(blinnPhongSkinnedMeshPSO);
+	}
+
+	if (gPSOs.count(L"PBRStatic") == 0)
+	{
+		auto pbrStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+		pbrStaticMeshPSO->SetRootSignature(sRootSignature.get());
+		pbrStaticMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
+		pbrStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
+		pbrStaticMeshPSO->SetMS(gShaders[L"MeshStaticMS"].get());
+		pbrStaticMeshPSO->SetPS(gShaders[L"PBRPS"].get());
+		pbrStaticMeshPSO->Finalize(device);
+
+		gPSOs[L"PBRStatic"] = std::move(pbrStaticMeshPSO);
+	}
+
+	if (gPSOs.count(L"PBRSkinned") == 0)
+	{
+		auto pbrSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+		pbrSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
+		pbrSkinnedMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
+		pbrSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
+		pbrSkinnedMeshPSO->SetMS(gShaders[L"MeshSkinnedMS"].get());
+		pbrSkinnedMeshPSO->SetPS(gShaders[L"PBRPS"].get());
+		pbrSkinnedMeshPSO->Finalize(device);
+
+		gPSOs[L"PBRSkinned"] = std::move(pbrSkinnedMeshPSO);
 	}
 
 	if (gPSOs.count(L"SkyBox") == 0)
@@ -396,6 +440,36 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 		blinnPhongSkinnedOitppllMeshPSO->Finalize(device);
 
 		gPSOs[L"BlinnPhongSkinnedOitppll"] = std::move(blinnPhongSkinnedOitppllMeshPSO);
+	}
+
+	if (gPSOs.count(L"PBRStaticOitppll") == 0)
+	{
+		auto pbrStaticOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+		pbrStaticOitppllMeshPSO->SetRootSignature(sRootSignature.get());
+		pbrStaticOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
+		pbrStaticOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+		pbrStaticOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+		pbrStaticOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
+		pbrStaticOitppllMeshPSO->SetMS(gShaders[L"MeshStaticMS"].get());
+		pbrStaticOitppllMeshPSO->SetPS(gShaders[L"PBROitppllPS"].get());
+		pbrStaticOitppllMeshPSO->Finalize(device);
+
+		gPSOs[L"PBRStaticOitppll"] = std::move(pbrStaticOitppllMeshPSO);
+	}
+
+	if (gPSOs.count(L"PBRSkinnedOitppll") == 0)
+	{
+		auto pbrSkinnedOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+		pbrSkinnedOitppllMeshPSO->SetRootSignature(sRootSignature.get());
+		pbrSkinnedOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
+		pbrSkinnedOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+		pbrSkinnedOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
+		pbrSkinnedOitppllMeshPSO->SetAS(gShaders[L"CullAS"].get());
+		pbrSkinnedOitppllMeshPSO->SetMS(gShaders[L"MeshSkinnedMS"].get());
+		pbrSkinnedOitppllMeshPSO->SetPS(gShaders[L"PBROitppllPS"].get());
+		pbrSkinnedOitppllMeshPSO->Finalize(device);
+
+		gPSOs[L"PBRSkinnedOitppll"] = std::move(pbrSkinnedOitppllMeshPSO);
 	}
 
 	if (gPSOs.count(L"DrawOitppll") == 0)
@@ -489,7 +563,7 @@ void Carol::FramePass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorM
 		descriptorManager,
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	
+
 	mCounterBuffer = make_unique<RawBuffer>(
 		sizeof(uint32_t),
 		device,
@@ -503,10 +577,10 @@ void Carol::FramePass::DrawOpaque(ID3D12GraphicsCommandList* cmdList)
 {
 	cmdList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, GetRvaluePtr(GetFrameDsv()));
 
-	cmdList->SetPipelineState(gPSOs[L"BlinnPhongStatic"]->Get());
+	cmdList->SetPipelineState(gPSOs[L"PBRStatic"]->Get());
 	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(OPAQUE_STATIC));
 
-	cmdList->SetPipelineState(gPSOs[L"BlinnPhongSkinned"]->Get());
+	cmdList->SetPipelineState(gPSOs[L"PBRSkinned"]->Get());
 	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(OPAQUE_SKINNED));
 
 	DrawSkyBox(cmdList, mScene->GetSkyBox()->GetMeshCBAddress());
@@ -536,10 +610,10 @@ void Carol::FramePass::DrawTransparent(ID3D12GraphicsCommandList* cmdList)
 	cmdList->ClearUnorderedAccessViewUint(mCounterBuffer->GetGpuUav(), mCounterBuffer->GetCpuUav(), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
 	cmdList->OMSetRenderTargets(0, nullptr, true, nullptr);
 
-	cmdList->SetPipelineState(gPSOs[L"BlinnPhongStaticOitppll"]->Get());
+	cmdList->SetPipelineState(gPSOs[L"PBRStaticOitppll"]->Get());
 	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(TRANSPARENT_STATIC));
-	
-	cmdList->SetPipelineState(gPSOs[L"BlinnPhongSkinnedOitppll"]->Get());
+
+	cmdList->SetPipelineState(gPSOs[L"PBRSkinnedOitppll"]->Get());
 	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(TRANSPARENT_SKINNED));
 
 	mOitppllBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -567,7 +641,7 @@ void Carol::FramePass::Clear(ID3D12GraphicsCommandList* cmdList)
 void Carol::FramePass::CullInstances(ID3D12GraphicsCommandList* cmdList, bool hist, bool opaque)
 {
 	cmdList->SetPipelineState(gPSOs[L"FrameCullInstances"]->Get());
-	
+
 	uint32_t start = opaque ? OPAQUE_MESH_START : TRANSPARENT_MESH_START;
 	uint32_t end = start + (opaque ? OPAQUE_MESH_TYPE_COUNT : TRANSPARENT_MESH_TYPE_COUNT);
 
@@ -579,7 +653,7 @@ void Carol::FramePass::CullInstances(ID3D12GraphicsCommandList* cmdList, bool hi
 		{
 			continue;
 		}
-		
+
 		mCullIdx[type][CULL_HIST] = hist;
 		uint32_t count = ceilf(mCullIdx[type][CULL_MESH_COUNT] / 32.f);
 
@@ -634,7 +708,7 @@ void Carol::FramePass::GenerateHiZ(ID3D12GraphicsCommandList* cmdList)
 		mHiZIdx[HIZ_SRC_MIP] = i;
 		mHiZIdx[HIZ_NUM_MIP_LEVEL] = i + 5 >= mHiZMipLevels ? mHiZMipLevels - i - 1 : 5;
 		cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, mHiZIdx.size(), mHiZIdx.data(), 0);
-		
+
 		uint32_t width = ceilf((mWidth >> i) / 32.f);
 		uint32_t height = ceilf((mHeight >> i) / 32.f);
 		cmdList->Dispatch(width, height, 1);

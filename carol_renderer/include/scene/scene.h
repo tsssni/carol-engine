@@ -50,13 +50,6 @@ namespace Carol {
 			Heap* uploadBuffersHeap,
 			DescriptorManager* descriptorManager,
 			TextureManager* textureManager);
-		void LoadGround(
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager,
-			TextureManager* textureManager);
 		void LoadSkyBox(
 			ID3D12Device* device,
 			ID3D12GraphicsCommandList* cmdList,

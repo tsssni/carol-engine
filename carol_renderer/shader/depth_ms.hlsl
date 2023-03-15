@@ -43,7 +43,7 @@ void main(
         float4x4 worldViewProj;
         
 #ifdef SHADOW
-        worldViewProj = mul(gWorld, gLights[gLightIdx].ViewProj);
+        worldViewProj = mul(gWorld, gMainLights[gLightIdx].ViewProj);
 #else
         worldViewProj = mul(gWorld, gViewProj);
 #endif

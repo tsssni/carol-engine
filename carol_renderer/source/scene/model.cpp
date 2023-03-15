@@ -23,7 +23,6 @@ namespace Carol
 	using std::pair;
 	using std::make_pair;
 	using namespace DirectX;
-
 }
 
 Carol::Model::Model(TextureManager* textureManager)
@@ -189,6 +188,11 @@ void Carol::Model::GetSkinnedVertices(wstring_view clipName, const vector<Vertex
 	}
 }
 
+Carol::span<Carol::unique_ptr<Carol::Light>> Carol::Model::GetLights(LightType type)
+{
+	return span(mLights[type]);
+}
+
 const Carol::SkinnedConstants* Carol::Model::GetSkinnedConstants()const
 {
 	return mSkinnedConstants.get();
@@ -210,63 +214,6 @@ void Carol::Model::SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr)
 bool Carol::Model::IsSkinned()const
 {
 	return mSkinned;
-}
-
-void Carol::Model::LoadGround(
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager)
-{
-	XMFLOAT3 pos[4] =
-	{
-		{-50.0f,0.0f,-50.0f},
-		{-50.0f,0.0f,50.0f},
-		{50.0f,0.0f,50.0f},
-		{50.0f,0.0f,-50.0f}
-	};
-
-	XMFLOAT2 texC[4] =
-	{
-		{0.0f,10.0f},
-		{0.0f,0.0f},
-		{10.0f,0.0f},
-		{10.0f,10.0f}
-	};
-
-	XMFLOAT3 normal = { 0.0f,1.0f,0.0f };
-	XMFLOAT3 tangent = { 1.0f,0.0f,0.0f };
-
-	vector<Vertex> vertices(4);
-	vector<pair<wstring, vector<vector<Vertex>>>> skinnedVertices;
-
-	for (int i = 0; i < 4; ++i)
-	{
-		vertices[i] = { pos[i],normal,tangent,texC[i] };
-	}
-	
-	vector<uint32_t> indices = { 0,1,2,0,2,3 };
-
-	mMeshes[L"Ground"] = make_unique<Mesh>(
-		vertices,
-		skinnedVertices,
-		indices,
-		false,
-		false,
-		device,
-		cmdList,
-		defaultBuffersHeap,
-		uploadBuffersHeap,
-		descriptorManager);
-
-	mMeshes[L"Ground"]->SetDiffuseMapIdx(mTextureManager->LoadTexture(L"texture\\UV.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
-	mMeshes[L"Ground"]->SetNormalMapIdx(mTextureManager->LoadTexture(L"texture\\default_normal_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
-	mMeshes[L"Ground"]->SetMetallicRoughnessMapIdx(mTextureManager->LoadTexture(L"texture\\default_metallic_map.png", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
-
-	mTexturePath.push_back(L"texture\\UV.png");
-	mTexturePath.push_back(L"texture\\default_normal_map.png");
-	mTexturePath.push_back(L"texture\\default_metallic_map.png");
 }
 
 void Carol::Model::LoadSkyBox(

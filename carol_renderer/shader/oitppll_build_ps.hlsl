@@ -26,31 +26,42 @@ void main(PixelIn pin)
     Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapRIdx];
 #endif
     
-    float4 texDiffuse = diffuseTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z));
-    float4 metallicRoughness = metallicRoughnessTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z));
-    
+    // Interpolation may unnormalize the normal, so renormalize it
+    float4 diffuse = diffuseTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z));
+    float3 normal = NormalToWorldSpace(normalTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).rgb, normalize(pin.NormalW), pin.TangentW).rgb;
+    float2 metallicRoughness = metallicRoughnessTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).bg;
+       
     Material lightMat;
-    lightMat.fresnelR0 = CalcFresnelR0(texDiffuse.rgb, metallicRoughness.r);
-    lightMat.diffuseAlbedo = texDiffuse.rgb;
-    lightMat.roughness = metallicRoughness.g;
+    lightMat.SubsurfaceAlbedo = diffuse.rgb;
+    lightMat.Metallic = metallicRoughness.r;
+    lightMat.Roughness = max(1e-6f, metallicRoughness.g);
 
-    float3 texNormal = normalTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).rgb;
-    texNormal = TexNormalToWorldSpace(texNormal, pin.NormalW, pin.TangentW);
-    
-    float3 ambient = gLights[0].Ambient;
-    
+    float3 ambientColor = gAmbientColor * diffuse.rgb;
 #ifdef SSAO
     float2 ssaoPos = pin.PosH.xy * gInvRenderTargetSize;
     float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, ssaoPos, 0.0f).r;
-    ambient *= ambientAccess;
+    ambientColor *= ambientAccess;
 #endif
 
-    uint lightIdx;
-    float shadowFactor = GetCSMShadowFactor(pin.PosW, pin.PosH, lightIdx);
-    float4 litColor = float4(shadowFactor * ComputeDirectionalLight(gLights[lightIdx], lightMat, texNormal, normalize(gEyePosW - pin.PosW)), 1.f);
+    float3 litColor = float3(0.f, 0.f, 0.f);
+    float3 toEye = normalize(gEyePosW - pin.PosW);
+
+    uint mainLightIdx;
+    float shadowFactor = GetCSMShadowFactor(pin.PosW, pin.PosH, mainLightIdx);
+    litColor += shadowFactor * ComputeDirectionalLight(gMainLights[mainLightIdx], lightMat, normal, toEye);
+
+    for (int pointLightIdx = 0; pointLightIdx < gNumPointLights; ++pointLightIdx)
+    {
+        litColor += ComputePointLight(gPointLights[pointLightIdx], lightMat, pin.PosW, normal, toEye);
+    }
+
+    for (int spotLightIdx = 0; spotLightIdx < gNumPointLights; ++spotLightIdx)
+    {
+        litColor += ComputePointLight(gPointLights[spotLightIdx], lightMat, pin.PosW, normal, toEye);
+    }
 
     OitNode link;
-    link.ColorU = float4(ambient + litColor.rgb, 0.6f);
+    link.ColorU = float4(ambientColor + litColor, diffuse.a);
     link.DepthU = pin.PosH.z * 0xffffffff;
 
     uint pixelCount;

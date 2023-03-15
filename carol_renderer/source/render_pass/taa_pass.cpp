@@ -36,7 +36,7 @@ void Carol::TaaPass::InitShaders()
 
 	vector<wstring_view> skinnedDefines =
 	{
-		L"SKINNED=1"
+		L"SKINNED"
 	};
 
 	if (gShaders.count(L"TaaVelocityStaticMS") == 0)

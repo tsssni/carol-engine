@@ -44,7 +44,7 @@ Carol::ShadowPass::ShadowPass(
 	mShadowFormat(shadowFormat),
 	mHiZFormat(hiZFormat)
 {
-	InitLightViewport();
+	InitLight();
 	InitShaders();
 	InitPSOs(device);
 	OnResize(
@@ -158,7 +158,7 @@ void Carol::ShadowPass::InitBuffers(ID3D12Device* device, Heap* heap, Descriptor
 	}
 }
 
-void Carol::ShadowPass::InitLightViewport()
+void Carol::ShadowPass::InitLight()
 {
 	mViewport.TopLeftX = 0.0f;
 	mViewport.TopLeftY = 0.0f;

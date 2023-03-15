@@ -2,116 +2,88 @@
 #define LIGHT_HEADER
 
 #include "blinn_phong.hlsli"
+#include "pbr.hlsli"
 
 struct Light
 {
     float3 Strength;
-    float FalloffStart;
-    float3 Direction;
-    float FalloffEnd;
-    float3 Position; 
-    float SpotPower;
-    float3 Ambient;
     float LightPad0;
+    float3 Direction;
+    float LightPad1;
+    float3 Position; 
+    float LightPad2;
+
+    float AttenuationConstant;
+    float AttenuationLinear;
+    float AttenuationQuadric;
+    float LightPad3;
+
+    float SpotInnerAngle;
+    float SpotOuterAngle;
+    float2 AreaSize;
     
     float4x4 View;
     float4x4 Proj;
     float4x4 ViewProj;
 };
 
-float CalcAttenuation(float d, float falloffStart, float falloffEnd)
+float3 Render(float3 lightStrength, float3 toLight, float3 toEye, float3 normal, Material mat)
 {
-    // Linear falloff.
-    return saturate((falloffEnd - d) / (falloffEnd - falloffStart));
-}
-
-//---------------------------------------------------------------------------------------
-// Evaluates the lighting equation for directional lights.
-//---------------------------------------------------------------------------------------
-float3 ComputeDirectionalLight(Light L, Material mat, float3 normal, float3 toEye)
-{
-    // The light vector aims opposite the direction the light rays travel.
-    float3 lightVec = -L.Direction;
-
-    // Scale light down by Lambert's cosine law.
-    float ndotl = max(dot(lightVec, normal), 0.0f);
-    float3 lightStrength = L.Strength * ndotl;
+    float3 litColor = float3(0.f, 0.f, 0.f);
 
 #ifdef BLINN_PHONG
-    return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
-#else
-    return float3(0.f, 0.f, 0.f);
+    litColor = BlinnPhong(lightStrength, toLight, toEye, normal, mat);
+#elif (defined GGX) || \
+      (defined LAMBERTIAN) || \
+      (defined SMITH)
+    litColor = PBR(lightStrength, toLight, toEye, normal, mat);
 #endif
+
+    return litColor;
 }
 
-//---------------------------------------------------------------------------------------
-// Evaluates the lighting equation for point lights.
-//---------------------------------------------------------------------------------------
-float3 ComputePointLight(Light L, Material mat, float3 pos, float3 normal, float3 toEye)
+float CalcAttenuation(float d, float attConstant, float attLinear, float attQuadric)
 {
-    // The vector from the surface to the light.
-    float3 lightVec = L.Position - pos;
-
-    // The distance from surface to light.
-    float d = length(lightVec);
-
-    // Range test.
-    if (d > L.FalloffEnd)
-        return 0.0f;
-
-    // Normalize the light vector.
-    lightVec /= d;
-
-    // Scale light down by Lambert's cosine law.
-    float ndotl = max(dot(lightVec, normal), 0.0f);
-    float3 lightStrength = L.Strength * ndotl;
-
-    // Attenuate light by distance.
-    float att = CalcAttenuation(d, L.FalloffStart, L.FalloffEnd);
-    lightStrength *= att;
-
-#ifdef BLINN_PHONG
-    return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
-#else
-    return float3(0.f, 0.f, 0.f);
-#endif
+    return 1.f / (attConstant + attLinear * d + attQuadric * d * d);
 }
 
-//---------------------------------------------------------------------------------------
-// Evaluates the lighting equation for spot lights.
-//---------------------------------------------------------------------------------------
-float3 ComputeSpotLight(Light L, Material mat, float3 pos, float3 normal, float3 toEye)
+float CalcSpotFactor(Light light, float3 toLight)
 {
-    // The vector from the surface to the light.
-    float3 lightVec = L.Position - pos;
+    return 1.f - max(0.f, (dot(-light.Direction, toLight) - cos(light.SpotInnerAngle)) / (cos(light.SpotOuterAngle) - cos(light.SpotInnerAngle)));
+}
 
-    // The distance from surface to light.
-    float d = length(lightVec);
+float3 ComputeDirectionalLight(Light light, Material mat, float3 normal, float3 toEye)
+{
+    float3 toLight = -light.Direction;
 
-    // Range test.
-    if (d > L.FalloffEnd)
-        return 0.0f;
+    return Render(light.Strength, toLight, toEye, normal, mat);
+}
 
-    // Normalize the light vector.
-    lightVec /= d;
+float3 ComputePointLight(Light light, Material mat, float3 pos, float3 normal, float3 toEye)
+{
+    float3 toLight = light.Position - pos;
+    float d = length(toLight);
+    toLight /= d;
 
-    // Scale light down by Lambert's cosine law.
-    float ndotl = max(dot(lightVec, normal), 0.0f);
-    float3 lightStrength = L.Strength * ndotl;
+    float att = CalcAttenuation(d, light.AttenuationConstant, light.AttenuationLinear, light.AttenuationQuadric);
+    light.Strength *= att;
 
-    // Attenuate light by distance.
-    float att = CalcAttenuation(d, L.FalloffStart, L.FalloffEnd);
-    lightStrength *= att;
+    return Render(light.Strength, toLight, toEye, normal, mat);
+}
 
-    // Scale by spotlight
-    float spotFactor = pow(max(dot(-lightVec, L.Direction), 0.0f), L.SpotPower);
-    lightStrength *= spotFactor;
+float3 ComputeSpotLight(Light light, Material mat, float3 pos, float3 normal, float3 toEye)
+{
+    float3 toLight = light.Position - pos;
+    float d = length(toLight);
+    toLight /= d;
 
-#ifdef BLINN_PHONG
-    return BlinnPhong(lightStrength, lightVec, normal, toEye, mat);
-#else
-    return float3(0.f, 0.f, 0.f);
-#endif
+    float att = CalcAttenuation(d, light.AttenuationConstant, light.AttenuationLinear, light.AttenuationQuadric);
+    light.Strength *= att;
+
+    float spotFactor = CalcSpotFactor(light, toLight);
+    light.Strength *= spotFactor;
+ 
+    return Render(light.Strength, toLight, toEye, normal, mat);
 }
 
 #endif

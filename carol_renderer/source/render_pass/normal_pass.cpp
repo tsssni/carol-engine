@@ -62,7 +62,7 @@ void Carol::NormalPass::InitShaders()
 
     vector<wstring_view> skinnedDefines =
     {
-        L"SKINNED=1"
+        L"SKINNED"
     };
 
     if (gShaders.count(L"NormalsStaticMS") == 0)

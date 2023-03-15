@@ -6,8 +6,9 @@
 #include <string>
 #include <string_view>
 
-#define MAX_LIGHTS 16
 #define MAIN_LIGHT_SPLIT_LEVEL 5
+#define MAX_POINT_LIGHTS 64
+#define MAX_SPOT_LIGHTS 64
 
 namespace Carol
 {
@@ -50,9 +51,19 @@ namespace Carol
 		float OcclusionFadeEnd = 1.0f;
 		float SurfaceEplison = 0.05f;
 
-		Light Lights[MAX_LIGHTS];
+		Light MainLights[MAIN_LIGHT_SPLIT_LEVEL];
 		float MainLightSplitZ[MAIN_LIGHT_SPLIT_LEVEL + 1];
-		float FramePad2[2];
+		DirectX::XMFLOAT2 FramePad2;
+		DirectX::XMFLOAT3 AmbientColor;
+		float FramePad3;
+
+		uint32_t NumPointLights = 0;
+		DirectX::XMFLOAT3 FramePad4;
+		Light PointLights[MAX_POINT_LIGHTS];
+
+		uint32_t NumSpotLights = 0;
+		DirectX::XMFLOAT3 FramePad5;
+		Light SpotLights[MAX_POINT_LIGHTS];
 
 		uint32_t MeshCBIdx = 0;
 		uint32_t CommandBufferIdx = 0;
@@ -62,11 +73,11 @@ namespace Carol
 		uint32_t FrameMapIdx = 0;
 		uint32_t DepthStencilMapIdx = 0;
 		uint32_t NormalMapIdx = 0;
-		float FramePad3;
+		float FramePad6;
 
 		// Main light
 		uint32_t MainLightShadowMapIdx[MAIN_LIGHT_SPLIT_LEVEL] = { 0 };
-		float FramePad4[3];
+		DirectX::XMFLOAT3 FramePad7;
 
 		// OITPPLL
 		uint32_t OitBufferWIdx = 0;
@@ -83,8 +94,7 @@ namespace Carol
 		// TAA
 		uint32_t VelocityMapIdx = 0;
 		uint32_t HistFrameMapIdx = 0;
-
-		float FramePad5[2];
+		DirectX::XMFLOAT2 FramePad8;
 	};
  
     class Renderer :public BaseRenderer

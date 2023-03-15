@@ -2,6 +2,7 @@
 #include <scene/mesh.h>
 #include <global.h>
 #include <utils/d3dx12.h>
+#include <scene/light.h>
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
 #include <DirectXPackedVector.h>
@@ -17,6 +18,7 @@ namespace Carol
 	class AnimationClip;
 	class TextureManager;
 	class Timer;
+	class Light;
 
 	class SkinnedConstants
 	{
@@ -34,12 +36,6 @@ namespace Carol
 		virtual ~Model();
 		
 		bool IsSkinned()const;
-		void LoadGround(
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
 		void LoadSkyBox(
 			ID3D12Device* device,
 			ID3D12GraphicsCommandList* cmdList,
@@ -62,6 +58,8 @@ namespace Carol
 		void Update(Timer* timer);
 		void GetSkinnedVertices(std::wstring_view clipName, const std::vector<Vertex>& vertices, std::vector<std::vector<Vertex>>& skinnedVertices)const;
 
+		std::span<std::unique_ptr<Light>> GetLights(LightType type);
+
 	protected:
 		std::wstring mModelName;
 		std::wstring mTexDir;
@@ -80,5 +78,7 @@ namespace Carol
 
 		TextureManager* mTextureManager;
 		std::vector<std::wstring> mTexturePath;
+
+		std::vector<std::unique_ptr<Light>> mLights[LIGHT_TYPE_COUNT];
 	};
 }

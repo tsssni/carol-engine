@@ -56,9 +56,9 @@ void main( uint dtid : SV_DispatchThreadID )
         MeshConstants mc = meshCB.Load(gMeshOffset + dtid);
 
 #ifdef SHADOW
-        float4x4 frustumWorldViewProj = mul(mc.World, gLights[gLightIdx].ViewProj);
+        float4x4 frustumWorldViewProj = mul(mc.World, gMainLights[gLightIdx].ViewProj);
 #ifdef OCCLUSION
-        float4x4 occlusionWorldViewProj = mul(gIsHist ? mc.HistWorld : mc.World, gLights[gLightIdx].ViewProj);
+        float4x4 occlusionWorldViewProj = mul(gIsHist ? mc.HistWorld : mc.World, gMainLights[gLightIdx].ViewProj);
 #endif
 #else 
         float4x4 frustumWorldViewProj = mul(mc.World, gViewProj);

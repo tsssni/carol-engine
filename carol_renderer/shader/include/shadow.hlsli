@@ -69,11 +69,11 @@ float GetCSMShadowFactor(float3 posW, float4 posH, out uint lightIdx)
         if (posH.w >= mainLightSplitZ[i] && posH.w < mainLightSplitZ[i + 1])
         {
             lightIdx = i;
-            shadowFactor = CalcShadowFactor(mul(float4(posW, 1.0f), gLights[i].ViewProj), mainLightShadowMapIdx[i]);
+            shadowFactor = CalcShadowFactor(mul(float4(posW, 1.0f), gMainLights[i].ViewProj), mainLightShadowMapIdx[i]);
 
             if (i < MAIN_LIGHT_SPLIT_LEVEL - 1 && (mainLightSplitZ[i + 1] - posH.w) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) < CSM_BLEND_BORDER)
             {
-                float4 nextLevelShadowPos = mul(float4(posW, 1.0f), gLights[i + 1].ViewProj);
+                float4 nextLevelShadowPos = mul(float4(posW, 1.0f), gMainLights[i + 1].ViewProj);
                 
                 if (!CheckOutOfBounds(GetTexCoord(nextLevelShadowPos).xyz))
                 {
