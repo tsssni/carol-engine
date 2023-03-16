@@ -26,11 +26,6 @@ float3 CalcFresnelR0(float3 subsurfaceAlbedo, float metallic)
     return lerp(fDieletric, subsurfaceAlbedo, metallic);
 }
 
-float3 CalcSubsurfaceAlbedo(float3 subsurfaceAlbedo, float3 reflectance, float metallic)
-{
-    return lerp(1.f - reflectance, 0.f, metallic) * subsurfaceAlbedo;
-}
-
 float GGXSmithLambda(float3 view, float3 dir, float roughness)
 {
     float cos2 = pow(dot(view, dir), 2.f);
@@ -40,7 +35,7 @@ float GGXSmithLambda(float3 view, float3 dir, float roughness)
     return 0.5f * (sqrt(1.f / a2 + 1.f) - 1.f);
 }
 
-float GGXSmithG1(float3 view, float3 dir, float roughness)
+float GGXSmithMasking(float3 view, float3 dir, float roughness)
 {
     if(dot(view, dir) <= 0.f)
     {
@@ -50,20 +45,20 @@ float GGXSmithG1(float3 view, float3 dir, float roughness)
     return 1.f / (1.f + GGXSmithLambda(view, dir, roughness));
 }
 
-float DirectionCorrelatedGGXSmithG2(float3 toLight, float3 toEye, float3 dir, float roughness)
+float DirectionCorrelatedGGXSmithMaskingAndShadowing(float3 toLight, float3 toEye, float3 dir, float roughness)
 {
     float toLightAzimuth = atan(toLight.y / toLight.x);
     float toEyeAzimuth = atan(toEye.y / toEye.x);
     float absAzimuth = abs(toLightAzimuth - toEyeAzimuth);
 
     float lambda = 4.41f * absAzimuth / (4.41f * absAzimuth + 1.f);
-    float toLightG1 = GGXSmithG1(toLight, dir, roughness);
-    float toEyeG1 = GGXSmithG1(toEye, dir, roughness);
+    float toLightG1 = GGXSmithMasking(toLight, dir, roughness);
+    float toEyeG1 = GGXSmithMasking(toEye, dir, roughness);
 
     return lambda * toLightG1 * toEyeG1 + (1 - lambda) * min(toLightG1, toEyeG1);
 }
 
-float HeightCorrelatedGGXSmithG2(float3 toLight, float3 toEye, float3 dir, float roughness)
+float HeightCorrelatedGGXSmithMaskingAndShadowing(float3 toLight, float3 toEye, float3 dir, float roughness)
 {
     if (dot(toLight, dir) <= 0.f || dot(toEye, dir) <= 0.f)
     {
@@ -91,13 +86,13 @@ float GGXNormalDistribution(float3 normal, float3 surfaceNormal, float roughness
     return r2 / pow((1 + (r2 - 1) * ns2), 2.f);
 }
 
-float3 Lambertian(float3 subsurfaceAlbedo)
+float3 Lambertian(float3 subsurfaceAlbedo, float3 reflectance, float metallic)
 {
     // Light strength is defined by the radiance of
     // the light reflected by a white Lambertian surface.
     // In this case light_strength = outgoing_radiance = light_radiance / pi,
     // so PI is canceled out.
-    return subsurfaceAlbedo;
+    return lerp(1.f - reflectance, 0.f, metallic) * subsurfaceAlbedo;
 }
 
 #endif

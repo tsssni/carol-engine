@@ -188,11 +188,6 @@ void Carol::Model::GetSkinnedVertices(wstring_view clipName, const vector<Vertex
 	}
 }
 
-Carol::span<Carol::unique_ptr<Carol::Light>> Carol::Model::GetLights(LightType type)
-{
-	return span(mLights[type]);
-}
-
 const Carol::SkinnedConstants* Carol::Model::GetSkinnedConstants()const
 {
 	return mSkinnedConstants.get();

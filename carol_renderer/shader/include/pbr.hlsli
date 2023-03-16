@@ -12,9 +12,9 @@ float3 SpecularBRDF(float3 toLight, float3 toEye, float3 normal, float3 reflecta
 #ifdef SMITH
 #ifdef GGX
 #ifdef DIRECTION_CORRELATED_G2
-    geometry = DirectionCorrelatedGGXSmithG2(toLight, toEye, halfVec, mat.Roughness);
+    geometry = DirectionCorrelatedGGXSmithMaskingAndShadowing(toLight, toEye, halfVec, mat.Roughness);
 #elif HEIGHT_CORRELATED_G2
-    geometry = HeightCorrelatedGGXSmithG2(toLight, toEye, halfVec, mat.Roughness);
+    geometry = HeightCorrelatedGGXSmithMaskingAndShadowing(toLight, toEye, halfVec, mat.Roughness);
 #endif
 #endif
 #endif
@@ -30,11 +30,9 @@ float3 SpecularBRDF(float3 toLight, float3 toEye, float3 normal, float3 reflecta
 
 float3 SubsurfaceScatteringBRDF(float3 toLight, float3 toEye, float3 normal, float3 reflectance, Material mat)
 {
-    float3 subsurfaceAlbedo = CalcSubsurfaceAlbedo(mat.SubsurfaceAlbedo, reflectance, mat.Metallic);
-
     float3 brdf = float3(0.f, 0.f, 0.f);
 #ifdef LAMBERTIAN
-    brdf = Lambertian(subsurfaceAlbedo);
+    brdf = Lambertian(mat.SubsurfaceAlbedo, reflectance, mat.Metallic);
 #endif
     return brdf;
 }

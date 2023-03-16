@@ -5,7 +5,6 @@
 #include <scene/skinned_data.h>
 #include <scene/texture.h>
 #include <scene/scene_node.h>
-#include <scene/light.h>
 #include <utils/common.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
@@ -83,11 +82,9 @@ Carol::AssimpModel::AssimpModel(
 		ReadAnimations(scene);
 	}
 
-	ReadLights(scene);
 	ProcessNode(
 		scene->mRootNode,
 		rootNode,
-		aiMatrix4x4(),
 		scene,
 		device,
 		cmdList,
@@ -96,17 +93,11 @@ Carol::AssimpModel::AssimpModel(
 		descriptorManager);
 
 	mFinalTransforms.clear();
-	
-	for (int i = 0; i < LIGHT_TYPE_COUNT; ++i)
-	{
-		mAssimpLights[i].clear();
-	}
 }
 
 void Carol::AssimpModel::ProcessNode(
 	aiNode* node,
 	SceneNode* sceneNode,
-	const aiMatrix4x4& parentToRoot,
 	const aiScene* scene,
 	ID3D12Device* device,
 	ID3D12GraphicsCommandList* cmdList,
@@ -114,8 +105,6 @@ void Carol::AssimpModel::ProcessNode(
 	Heap* uploadBuffersHeap,
 	DescriptorManager* descriptorManager)
 {
-	aiMatrix4x4 toRoot = parentToRoot * node->mTransformation;
-
 	for (int i = 0; i < node->mNumMeshes; ++i)
 	{
 		aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
@@ -130,34 +119,11 @@ void Carol::AssimpModel::ProcessNode(
 				descriptorManager));
 	}
 	
-	wstring name = StringToWString(node->mName.C_Str());
-
-	auto transformLight = [&](Light* light)
-	{
-		XMVECTOR direction = { light->Direction.x,light->Direction.y,light->Direction.z,0.f };
-		XMVECTOR position = { light->Position.x,light->Position.y,light->Position.z,1.f };
-		XMMATRIX transform = ai2XM(toRoot);
-
-		XMStoreFloat3(&light->Direction, XMVector4Transform(direction, transform));
-		XMStoreFloat3(&light->Position, XMVector4Transform(position, transform));
-	};
-
-	for (int i = 0; i < LIGHT_TYPE_COUNT; ++i)
-	{
-		if (mAssimpLights[i].count(name))
-		{
-			auto& light = mAssimpLights[i][name];
-			transformLight(light.get());
-			mLights[i].emplace_back(std::move(light));
-		}
-	}
-	
 	for (int i = 0; i < node->mNumChildren; ++i)
 	{
 		ProcessNode(
 			node->mChildren[i],
 			sceneNode,
-			toRoot,
 			scene,
 			device,
 			cmdList,
@@ -218,44 +184,6 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(
 	}
 
 	return mMeshes[meshName].get();
-}
-
-void Carol::AssimpModel::ReadLights(const aiScene* scene)
-{
-	for (int i = 0; i < scene->mNumLights; ++i)
-	{
-		aiLight* sceneLight = scene->mLights[i];
-		auto light = make_unique<Light>();
-
-		XMStoreFloat3(&light->Strength, ai2XM(sceneLight->mColorDiffuse));
-		XMStoreFloat3(&light->Direction, ai2XM(sceneLight->mDirection));
-		XMStoreFloat3(&light->Position, ai2XM(sceneLight->mPosition));
-		
-		light->AttenuationConstant = sceneLight->mAttenuationConstant;
-		light->AttenuationLinear = sceneLight->mAttenuationLinear;
-		light->AttenuationQuadric = sceneLight->mAttenuationQuadratic;
-		
-		light->SpotInnerAngle = sceneLight->mAngleInnerCone;
-		light->SpotOuterAngle = sceneLight->mAngleOuterCone;
-		XMStoreFloat2(&light->AreaSize, ai2XM(sceneLight->mSize));
-
-		wstring lightName = StringToWString(sceneLight->mName.C_Str());
-		switch (sceneLight->mType)
-		{
-		case aiLightSource_DIRECTIONAL:
-			mAssimpLights[DIRECTIONAL_LIGHT][lightName] = std::move(light);
-			break;
-		case aiLightSource_POINT:
-			mAssimpLights[POINT_LIGHT][lightName] = std::move(light);
-			break;
-		case aiLightSource_SPOT:
-			mAssimpLights[SPOT_LIGHT][lightName] = std::move(light);
-			break;
-		case aiLightSource_AREA:
-			mAssimpLights[AREA_LIGHT][lightName] = std::move(light);
-			break;
-		}
-	}
 }
 
 void Carol::AssimpModel::ReadBoneHierachy(aiNode* node)
