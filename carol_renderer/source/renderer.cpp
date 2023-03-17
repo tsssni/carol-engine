@@ -310,7 +310,6 @@ void Carol::Renderer::Update()
 	mHeapManager->DelayedDelete(mCpuFenceValue, mGpuFenceValue);
 
 	mCamera->UpdateViewMatrix();
-	mScene->SetWorld(L"Ground", XMMatrixTranslation(mCamera->GetPosition3f().x, 0.f, mCamera->GetPosition3f().z));
 	mScene->Update(mTimer.get(), mCpuFenceValue, mGpuFenceValue);
 	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), mCpuFenceValue, mGpuFenceValue, 0.85f);
 	mFramePass->Update(mCpuFenceValue, mGpuFenceValue);
@@ -330,8 +329,9 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mSsaoPass->OnResize(width, height, device, heap, descriptorManager);
 	mTaaPass->OnResize(width, height, device, heap, descriptorManager);
 
-	mFrameConstants->InstanceFrustumCulledMarkIdx = mScene->GetInstanceFrustumCulledMarkBufferIdx();
-	mFrameConstants->InstanceOcclusionPassedMarkIdx = mScene->GetInstanceOcclusionPassedMarkBufferIdx();
+	mFrameConstants->InstanceFrustumCulledMarkBufferIdx = mScene->GetInstanceFrustumCulledMarkBufferIdx();
+	mFrameConstants->InstanceOcclusionCulledMarkBufferIdx = mScene->GetInstanceOcclusionCulledMarkBufferIdx();
+	mFrameConstants->InstanceCulledMarkBufferIdx = mScene->GetInstanceCulledMarkBufferIdx();
 	
 	mFrameConstants->FrameMapIdx = mFramePass->GetFrameSrvIdx();
 	mFrameConstants->DepthStencilMapIdx = mFramePass->GetDepthStencilSrvIdx();

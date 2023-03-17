@@ -77,7 +77,8 @@ namespace Carol {
 		uint32_t GetMeshCBIdx()const;
 		uint32_t GetCommandBufferIdx()const;
 		uint32_t GetInstanceFrustumCulledMarkBufferIdx()const;
-		uint32_t GetInstanceOcclusionPassedMarkBufferIdx()const;
+		uint32_t GetInstanceOcclusionCulledMarkBufferIdx()const;
+		uint32_t GetInstanceCulledMarkBufferIdx()const;
 
 	protected:
 		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot);
@@ -104,7 +105,8 @@ namespace Carol {
 		std::unique_ptr<StructuredBufferPool> mSkinnedCBPool;
 
 		std::unique_ptr<RawBuffer> mInstanceFrustumCulledMarkBuffer;
-		std::unique_ptr<RawBuffer> mInstanceOcclusionPassedMarkBuffer;
+		std::unique_ptr<RawBuffer> mInstanceOcclusionCulledMarkBuffer;
+		std::unique_ptr<RawBuffer> mInstanceCulledMarkBuffer;
 
 		uint32_t mMeshStartOffset[MESH_TYPE_COUNT];
 	};

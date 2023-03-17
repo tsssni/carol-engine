@@ -24,9 +24,10 @@ struct MeshConstants
     uint MeshletBufferIdx;
     uint CullDataBufferIdx;
     
-    uint FrustumCulledMarkBufferIdx;
-    uint OcclusionPassedMarkBufferIdx;
-    float2 MeshPad2;
+    uint MeshletFrustumCulledMarkBufferIdx;
+    uint MeshletNormalConeCulledMarkBufferIdx;
+    uint MeshletOcclusionCulledMarkBufferIdx;
+    uint MeshletCulledMarkBufferIdx;
     
     uint MeshDiffuseMapIdx;
     uint MeshNormalMapIdx;
@@ -39,49 +40,82 @@ struct MeshConstants
     float4 MeshConstantsPad2;
 };
 
-
-[numthreads(32, 1, 1)]
-void main( uint dtid : SV_DispatchThreadID )
+bool InstanceFrustumCull(uint dtid, MeshConstants mc)
 {
-#ifdef OCCLUSION
-    if (dtid < gMeshCount && !GetMark(gMeshOffset + dtid, gInstanceFrustumCulledMarkIdx) && !GetMark(gMeshOffset + dtid, gInstanceOcclusionPassedMarkIdx))
-#else
-    if (dtid < gMeshCount && !GetMark(gMeshOffset + dtid, gInstanceFrustumCulledMarkIdx))
-#endif
-    {
-        StructuredBuffer<IndirectCommand> commandBuffer = ResourceDescriptorHeap[gCommandBufferIdx];
-        AppendStructuredBuffer<IndirectCommand> cullCommandBuffer = ResourceDescriptorHeap[gCullCommandBufferIdx];
-        StructuredBuffer<MeshConstants> meshCB = ResourceDescriptorHeap[gMeshCBIdx];
-        
-        MeshConstants mc = meshCB.Load(gMeshOffset + dtid);
+    bool culled = GetMark(gMeshOffset + dtid, gInstanceFrustumCulledMarkBufferIdx);
 
+    if (gIteration == 0)
+    {
 #ifdef SHADOW
         float4x4 frustumWorldViewProj = mul(mc.World, gMainLights[gLightIdx].ViewProj);
-#ifdef OCCLUSION
-        float4x4 occlusionWorldViewProj = mul(gIsHist ? mc.HistWorld : mc.World, gMainLights[gLightIdx].ViewProj);
-#endif
-#else 
+#else
         float4x4 frustumWorldViewProj = mul(mc.World, gViewProj);
-#ifdef OCCLUSION
-        float4x4 occlusionWorldViewProj = mul(gIsHist ? mc.HistWorld : mc.World, gIsHist ? gHistViewProj : gViewProj);
-#endif
 #endif
         
         if (AabbFrustumTest(mc.Center, mc.Extents, frustumWorldViewProj) == OUTSIDE)
         {
-            SetMark(gMeshOffset + dtid, gInstanceFrustumCulledMarkIdx);
+            SetMark(gMeshOffset + dtid, gInstanceFrustumCulledMarkBufferIdx);
+            culled = true;
         }
-#ifdef OCCLUSION
-        else if(HiZOcclusionTest(mc.Center, mc.Extents, occlusionWorldViewProj, gHiZIdx))
-        {
-            SetMark(gMeshOffset + dtid, gInstanceOcclusionPassedMarkIdx);
-            cullCommandBuffer.Append(commandBuffer.Load(gMeshOffset + dtid)); 
-        }
-#else
-        else
-        {
-            cullCommandBuffer.Append(commandBuffer.Load(gMeshOffset + dtid)); 
-        }
+    }
+
+    return culled;
+}
+
+bool InstanceHiZOcclusionCull(uint dtid, MeshConstants mc)
+{
+    bool culled = GetMark(gMeshOffset + dtid, gInstanceOcclusionCulledMarkBufferIdx);
+
+    if (culled)
+    {
+
+#ifdef SHADOW
+        float4x4 occlusionWorldViewProj = mul(gIteration == 0 ? mc.HistWorld : mc.World, gMainLights[gLightIdx].ViewProj);
+#else 
+        float4x4 occlusionWorldViewProj = mul(gIteration == 0 ? mc.HistWorld : mc.World, gIteration == 0 ? gHistViewProj : gViewProj);
 #endif
+        
+        if(HiZOcclusionTest(mc.Center, mc.Extents, occlusionWorldViewProj, gHiZIdx))
+        {
+            ResetMark(gMeshOffset + dtid, gInstanceOcclusionCulledMarkBufferIdx);
+            culled = false;
+        }
+    }
+
+    return culled;
+}
+
+[numthreads(32, 1, 1)]
+void main(uint dtid : SV_DispatchThreadID)
+{
+    if(dtid >= gMeshCount || !GetMark(gMeshOffset + dtid, gInstanceCulledMarkBufferIdx))
+    {
+        return;
+    }
+    
+    bool culled = false;
+    StructuredBuffer<MeshConstants> meshCB = ResourceDescriptorHeap[gMeshCBIdx];
+    MeshConstants mc = meshCB.Load(gMeshOffset + dtid);
+
+#ifdef FRUSTUM
+    if(!culled)
+    {
+        culled |= InstanceFrustumCull(dtid, mc);
+    }
+#endif
+#ifdef HIZ_OCCLUSION
+    if(!culled)
+    {
+        culled |= InstanceHiZOcclusionCull(dtid, mc);
+    }
+#endif
+    culled = false;
+    if(!culled)
+    {
+        StructuredBuffer<IndirectCommand> commandBuffer = ResourceDescriptorHeap[gCommandBufferIdx];
+        AppendStructuredBuffer<IndirectCommand> cullingPassedCommandBuffer = ResourceDescriptorHeap[gCullingPassedCommandBufferIdx];
+
+        ResetMark(dtid, gInstanceCulledMarkBufferIdx);
+        cullingPassedCommandBuffer.Append(commandBuffer.Load(gMeshOffset + dtid));
     }
 }

@@ -54,7 +54,8 @@ namespace Carol
 		void SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr);
 
 		void Update(Timer* timer);
-		void GetSkinnedVertices(std::wstring_view clipName, const std::vector<Vertex>& vertices, std::vector<std::vector<Vertex>>& skinnedVertices)const;
+		void GetFinalTransforms(std::wstring_view clipName, float t, std::vector<DirectX::XMFLOAT4X4>& toRootTransforms);
+		void GetSkinnedVertices(std::wstring_view clipName, std::span<Vertex> vertices, std::vector<std::vector<Vertex>>& skinnedVertices)const;
 
 	protected:
 		std::wstring mModelName;
@@ -69,7 +70,7 @@ namespace Carol
 		std::vector<DirectX::XMFLOAT4X4> mBoneOffsets;
 
 		std::unordered_map<std::wstring, std::unique_ptr<AnimationClip>> mAnimationClips;
-		std::unordered_map<std::wstring, std::vector<std::vector<DirectX::XMFLOAT4X4>>> mFinalTransforms;
+		std::unordered_map<std::wstring, std::vector<std::vector<DirectX::XMFLOAT4X4>>> mFrameTransforms;
 		std::unique_ptr<SkinnedConstants> mSkinnedConstants;
 
 		TextureManager* mTextureManager;

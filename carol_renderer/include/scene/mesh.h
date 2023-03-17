@@ -34,8 +34,9 @@ namespace Carol
 		uint32_t CullDataBufferIdx = 0;
 
 		uint32_t MeshletFrustumCulledMarkBufferIdx = 0;
+		uint32_t MeshletNormalConeCulledMarkBufferIdx = 0;
 		uint32_t MeshletOcclusionCulledMarkBufferIdx = 0;
-		DirectX::XMFLOAT2 MeshPad2;
+		uint32_t MeshletCulledMarkBufferIdx = 0;
 
 		uint32_t DiffuseMapIdx = 0;
 		uint32_t NormalMapIdx = 0;
@@ -173,8 +174,11 @@ namespace Carol
 		std::unique_ptr<StructuredBuffer> mVertexBuffer;
 		std::unique_ptr<StructuredBuffer> mMeshletBuffer;
 		std::unordered_map<std::wstring, std::unique_ptr<StructuredBuffer>> mCullDataBuffer;
+
 		std::unique_ptr<RawBuffer> mMeshletFrustumCulledMarkBuffer;
-		std::unique_ptr<RawBuffer> mMeshletOcclusionPassedMarkBuffer;
+		std::unique_ptr<RawBuffer> mMeshletNormalConeCulledMarkBuffer;
+		std::unique_ptr<RawBuffer> mMeshletOcclusionCulledMarkBuffer;
+		std::unique_ptr<RawBuffer> mMeshletCulledMarkBuffer;
 		
 		std::unordered_map<std::wstring, DirectX::BoundingBox> mBoundingBoxes;
 

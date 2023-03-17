@@ -61,13 +61,12 @@ void Carol::ShadowPass::Draw(ID3D12GraphicsCommandList* cmdList)
 	cmdList->RSSetViewports(1, &mViewport);
 	cmdList->RSSetScissorRects(1, &mScissorRect);
 
-	GenerateHiZ(cmdList);
-	CullInstances(true, cmdList);
-	DrawShadow(true, cmdList);
-
-	GenerateHiZ(cmdList);
-	CullInstances(false, cmdList);
-	DrawShadow(false, cmdList);
+	for (int i = 0; i < 2; ++i)
+	{
+		GenerateHiZ(cmdList);
+		CullInstances(i, cmdList);
+		DrawShadow(i, cmdList);
+	}
 }
 
 void Carol::ShadowPass::Update(uint32_t lightIdx, uint64_t cpuFenceValue, uint64_t completedFenceValue)
@@ -183,7 +182,7 @@ void Carol::ShadowPass::Clear(ID3D12GraphicsCommandList* cmdList)
 	}
 }
 
-void Carol::ShadowPass::CullInstances(bool hist, ID3D12GraphicsCommandList* cmdList)
+void Carol::ShadowPass::CullInstances(uint32_t iteration, ID3D12GraphicsCommandList* cmdList)
 {
 	cmdList->SetPipelineState(gPSOs[L"ShadowInstanceCull"]->Get());
 	
@@ -196,7 +195,7 @@ void Carol::ShadowPass::CullInstances(bool hist, ID3D12GraphicsCommandList* cmdL
 			continue;
 		}
 		
-		mCullIdx[i][CULL_HIST] = hist;
+		mCullIdx[i][CULL_ITERATION] = iteration;
 		uint32_t count = ceilf(mCullIdx[type][CULL_MESH_COUNT] / 32.f);
 
 		cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[i].data(), 0);
@@ -206,10 +205,13 @@ void Carol::ShadowPass::CullInstances(bool hist, ID3D12GraphicsCommandList* cmdL
 	}
 }
 
-void Carol::ShadowPass::DrawShadow(bool hist, ID3D12GraphicsCommandList* cmdList)
+void Carol::ShadowPass::DrawShadow(uint32_t iteration, ID3D12GraphicsCommandList* cmdList)
 {
-	cmdList->ClearDepthStencilView(mShadowMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	cmdList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mShadowMap->GetDsv()));
+	if (iteration == 0)
+	{
+		cmdList->ClearDepthStencilView(mShadowMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+		cmdList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mShadowMap->GetDsv()));
+	}
 
 	ID3D12PipelineState* pso[] = {gPSOs[L"ShadowStatic"]->Get(), gPSOs[L"ShadowSkinned"]->Get()};
 
@@ -222,7 +224,7 @@ void Carol::ShadowPass::DrawShadow(bool hist, ID3D12GraphicsCommandList* cmdList
 			continue;
 		}
 
-		mCullIdx[type][CULL_HIST] = hist;
+		mCullIdx[type][CULL_ITERATION] = iteration;
 
 		cmdList->SetPipelineState(pso[i]);
 		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
@@ -254,20 +256,22 @@ void Carol::ShadowPass::InitShaders()
 
 	vector<wstring_view> shadowDefines =
 	{
-		L"SHADOW=1"
+		L"SHADOW"
 	};
 
 	vector<wstring_view> skinnedShadowDefines =
 	{
-		L"SKINNED=1",
-		L"SHADOW=1"
+		L"SKINNED",
+		L"SHADOW"
 	};
 
 	vector<wstring_view> shadowCullDefines =
 	{
-		L"SHADOW=1",
-		L"OCCLUSION=1",
-		L"WRITE=1"
+		L"SHADOW",
+		L"FRUSTUM",
+		L"NORMAL_CONE"
+		L"HIZ_OCCLUSION",
+		L"WRITE"
 	};
 	
 	if (gShaders.count(L"ShadowCullCS") == 0)

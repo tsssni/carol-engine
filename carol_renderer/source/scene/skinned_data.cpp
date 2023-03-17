@@ -133,39 +133,35 @@ void Carol::BoneAnimation::Interpolate(float t, DirectX::XMFLOAT4X4& M) const
 	XMStoreFloat4x4(&M, XMMatrixAffineTransformation(S, origin, Q, T));
 }
 
-void Carol::BoneAnimation::GetCriticalFrames(std::vector<DirectX::XMFLOAT4X4>& M)const
+void Carol::AnimationClip::CalcClipStartTime()
 {
-	int size = ScaleKeyframes.size();
-	M.resize(size);
-
-	for (int i = 0; i < size; ++i)
+	mStartTime = D3D12_FLOAT32_MAX;
+	for (auto anime : BoneAnimations)
 	{
-		XMVECTOR S = XMLoadFloat3(&ScaleKeyframes[i].Scale);
-		XMVECTOR Q = InterpolateQuat(ScaleKeyframes[i].TimePos);
-		XMVECTOR T = InterpolateTranslation(ScaleKeyframes[i].TimePos);
-		XMVECTOR origin = { 0.0f,0.0f,0.0f,1.0f };
-		XMStoreFloat4x4(&M[i], XMMatrixAffineTransformation(S, origin, Q, T));
+		mStartTime = std::min(mStartTime, anime.GetStartTime());
 	}
 }
 
-float Carol::AnimationClip::GetClipStartTime() const
+void Carol::AnimationClip::CalcClipEndTime()
 {
-	float startTime = UINT32_MAX;
-	for (auto anime : BoneAnimations)
+	if (mEndTime == -1.f)
 	{
-		startTime = std::min(startTime, anime.GetStartTime());
+		mEndTime = 0.f;
+		for (auto anime : BoneAnimations)
+		{
+			mEndTime = std::max(mEndTime, anime.GetEndTime());
+		}
 	}
-	return startTime;
 }
 
-float Carol::AnimationClip::GetClipEndTime() const
+float Carol::AnimationClip::GetClipStartTime()
 {
-	float endTime = 0;
-	for (auto anime : BoneAnimations)
-	{
-		endTime = std::max(endTime, anime.GetEndTime());
-	}
-	return endTime;
+	return mStartTime;
+}
+
+float Carol::AnimationClip::GetClipEndTime()
+{
+	return mEndTime;
 }
 
 void Carol::AnimationClip::Interpolate(float t, vector<DirectX::XMFLOAT4X4>& boneTransforms) const
@@ -173,43 +169,5 @@ void Carol::AnimationClip::Interpolate(float t, vector<DirectX::XMFLOAT4X4>& bon
 	for (int i = 0; i < boneTransforms.size(); ++i)
 	{	
 		BoneAnimations[i].Interpolate(t, boneTransforms[i]);
-	}
-}
-
-void Carol::AnimationClip::GetCriticalFrames(std::vector<std::vector<DirectX::XMFLOAT4X4>>& frames) const
-{
-	int size = BoneAnimations.size();
-	int maxNumFrame = 0;
-	vector<vector<XMFLOAT4X4>> boneFrames(size);
-
-	for (int i = 0; i < size; ++i)
-	{
-		BoneAnimations[i].GetCriticalFrames(boneFrames[i]);
-
-		if (boneFrames[i].size() > maxNumFrame)
-		{
-			maxNumFrame = boneFrames[i].size();
-		}
-	}
-
-	frames.resize(maxNumFrame);
-	XMFLOAT4X4 identity;
-	XMStoreFloat4x4(&identity, XMMatrixIdentity());
-
-	for (int i = 0; i < maxNumFrame; ++i)
-	{
-		frames[i].resize(size);
-
-		for (int j = 0; j < size; ++j)
-		{
-			if (i >= boneFrames[j].size())
-			{
-				frames[i][j] = identity;
-			}
-			else
-			{
-				frames[i][j] = boneFrames[j][i];
-			}
-		}
 	}
 }

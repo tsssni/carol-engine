@@ -19,8 +19,9 @@ cbuffer MeshCB : register(b0)
     uint gCullDataBufferIdx;
     
     uint gMeshletFrustumCulledMarkBufferIdx;
-    uint gMeshletOcclusionPassedMarkBufferIdx;
-    float2 MeshPad2;
+    uint gMeshletNormalConeCulledMarkBufferIdx;
+    uint gMeshletOcclusionCulledMarkBufferIdx;
+    uint gMeshletCulledMarkBufferIdx;
     
     uint gDiffuseTextureIdx;
     uint gNormalTextureIdx;

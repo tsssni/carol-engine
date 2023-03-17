@@ -67,13 +67,13 @@ namespace Carol
 
 		uint32_t MeshCBIdx = 0;
 		uint32_t CommandBufferIdx = 0;
-		uint32_t InstanceFrustumCulledMarkIdx = 0;
-		uint32_t InstanceOcclusionPassedMarkIdx = 0;
+		uint32_t InstanceFrustumCulledMarkBufferIdx = 0;
+		uint32_t InstanceOcclusionCulledMarkBufferIdx = 0;
+		uint32_t InstanceCulledMarkBufferIdx = 0;
 
 		uint32_t FrameMapIdx = 0;
 		uint32_t DepthStencilMapIdx = 0;
 		uint32_t NormalMapIdx = 0;
-		float FramePad6;
 
 		// Main light
 		uint32_t MainLightShadowMapIdx[MAIN_LIGHT_SPLIT_LEVEL] = { 0 };

@@ -49,7 +49,15 @@ void Carol::Scene::InitBuffers(
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-	mInstanceOcclusionPassedMarkBuffer = make_unique<RawBuffer>(
+	mInstanceOcclusionCulledMarkBuffer = make_unique<RawBuffer>(
+		2 << 16,
+		device,
+		defaultBuffersHeap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	mInstanceCulledMarkBuffer = make_unique<RawBuffer>(
 		2 << 16,
 		device,
 		defaultBuffersHeap,
@@ -236,9 +244,11 @@ void Carol::Scene::Contain(Camera* camera, std::vector<std::vector<Mesh*>>& mesh
 
 void Carol::Scene::ClearCullMark(ID3D12GraphicsCommandList* cmdList)
 {
-	static const uint32_t cullMarkClearValue = 0;
-	cmdList->ClearUnorderedAccessViewUint(mInstanceFrustumCulledMarkBuffer->GetGpuUav(), mInstanceFrustumCulledMarkBuffer->GetCpuUav(), mInstanceFrustumCulledMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
-	cmdList->ClearUnorderedAccessViewUint(mInstanceOcclusionPassedMarkBuffer->GetGpuUav(), mInstanceOcclusionPassedMarkBuffer->GetCpuUav(), mInstanceOcclusionPassedMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
+	static const uint32_t clear0 = 0;
+	static const uint32_t clear1 = 0xffffffff;
+	cmdList->ClearUnorderedAccessViewUint(mInstanceFrustumCulledMarkBuffer->GetGpuUav(), mInstanceFrustumCulledMarkBuffer->GetCpuUav(), mInstanceFrustumCulledMarkBuffer->Get(), &clear0, 0, nullptr);
+	cmdList->ClearUnorderedAccessViewUint(mInstanceOcclusionCulledMarkBuffer->GetGpuUav(), mInstanceOcclusionCulledMarkBuffer->GetCpuUav(), mInstanceOcclusionCulledMarkBuffer->Get(), &clear1, 0, nullptr);
+	cmdList->ClearUnorderedAccessViewUint(mInstanceCulledMarkBuffer->GetGpuUav(), mInstanceCulledMarkBuffer->GetCpuUav(), mInstanceCulledMarkBuffer->Get(), &clear1, 0, nullptr);
 
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
@@ -269,9 +279,14 @@ uint32_t Carol::Scene::GetInstanceFrustumCulledMarkBufferIdx()const
 	return mInstanceFrustumCulledMarkBuffer->GetGpuUavIdx();
 }
 
-uint32_t Carol::Scene::GetInstanceOcclusionPassedMarkBufferIdx()const
+uint32_t Carol::Scene::GetInstanceOcclusionCulledMarkBufferIdx()const
 {
-	return mInstanceOcclusionPassedMarkBuffer->GetGpuUavIdx();
+	return mInstanceOcclusionCulledMarkBuffer->GetGpuUavIdx();
+}
+
+uint32_t Carol::Scene::GetInstanceCulledMarkBufferIdx() const
+{
+	return mInstanceCulledMarkBuffer->GetGpuUavIdx();
 }
 
 void Carol::Scene::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t completedFenceValue)

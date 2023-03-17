@@ -56,7 +56,7 @@ groupshared float viewDepth[32][32];
 groupshared float3 normal[32][32];
 
 [numthreads(32, 32, 1)]
-void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID, int2 dtid : SV_DispatchThreadID)
+void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
 {
     int2 size;
     RWTexture2D<float4> ambientMap = ResourceDescriptorHeap[gAmbientMapWIdx];

@@ -58,13 +58,13 @@ cbuffer FrameCB : register(b3)
     
     uint gMeshCBIdx;
     uint gCommandBufferIdx;
-    uint gInstanceFrustumCulledMarkIdx;
-    uint gInstanceOcclusionPassedMarkIdx;
+    uint gInstanceFrustumCulledMarkBufferIdx;
+    uint gInstanceOcclusionCulledMarkBufferIdx;
+    uint gInstanceCulledMarkBufferIdx;
 
     uint gFrameMapIdx;
     uint gDepthStencilMapIdx;
     uint gNormalMapIdx;
-    float gFramePad5;
 
     uint4 gMainLightShadowMapIdx[2];
     

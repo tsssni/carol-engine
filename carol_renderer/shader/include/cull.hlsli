@@ -12,11 +12,11 @@
 
 cbuffer CullCB : register(b2)
 {
-    uint gCullCommandBufferIdx;
+    uint gCullingPassedCommandBufferIdx;
     uint gMeshCount;
     uint gMeshOffset;
     uint gHiZIdx;
-    uint gIsHist;
+    uint gIteration;
     
 #ifdef SHADOW
     uint gLightIdx;
@@ -47,6 +47,12 @@ void SetMark(uint idx, uint markIdx)
 {
     RWByteAddressBuffer mark = ResourceDescriptorHeap[markIdx];
     mark.InterlockedOr(idx / 32u * 4u, 1u << (idx % 32u));
+}
+
+void ResetMark(uint idx, uint markIdx)
+{
+    RWByteAddressBuffer mark = ResourceDescriptorHeap[markIdx];
+    mark.InterlockedAnd(idx / 32u * 4u, ~(1u << (idx % 32u)));
 }
 
 uint AabbPlaneTest(float3 center, float3 extents, float4 plane)

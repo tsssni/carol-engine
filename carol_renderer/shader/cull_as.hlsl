@@ -4,69 +4,120 @@
 
 groupshared Payload sharedPayload;
 
-[numthreads(AS_GROUP_SIZE, 1, 1)]
-void main(
-    uint gid : SV_GroupID,
-    uint gtid : SV_GroupThreadID,
-    uint dtid : SV_DispatchThreadID)
+bool MeshletFrustumCull(uint dtid, CullData cd)
 {
-    bool visible = false;
-    
-    if (dtid < gMeshletCount)
-    {    
-        if(GetMark(dtid, gMeshletFrustumCulledMarkBufferIdx))
-        {
-            visible = false;
-        }
-#ifdef OCCLUSION
-        else if (GetMark(dtid, gMeshletOcclusionPassedMarkBufferIdx))
-        {
-            visible = true;
-        }
-#endif
+    bool culled = false;
 
-#ifdef WRITE
-        else
-        {    
-    #ifdef SHADOW
-            float4x4 frustumWorldViewProj = mul(gWorld, gMainLights[gLightIdx].ViewProj);
-        #ifdef OCCLUSION
-            float4x4 occlusionWorldViewProj = mul(gIsHist ? gHistWorld : gWorld, gMainLights[gLightIdx].ViewProj);
-        #endif
-    #else 
-            float4x4 frustumWorldViewProj = mul(gWorld, gViewProj);
-        #ifdef OCCLUSION
-            float4x4 occlusionWorldViewProj = mul(gIsHist ? gHistWorld : gWorld, gIsHist ? gHistViewProj : gViewProj);
-        #endif
-    #endif  
-            StructuredBuffer<CullData> cullData = ResourceDescriptorHeap[gCullDataBufferIdx];
-            CullData cd = cullData[dtid];
-            
-            if (AabbFrustumTest(cd.Center, cd.Extents, frustumWorldViewProj) != OUTSIDE && NormalConeTest(cd.Center, cd.NormalCone, cd.ApexOffset, gWorld, gEyePosW))
-            {
-    #ifdef OCCLUSION
-                if(HiZOcclusionTest(cd.Center, cd.Extents, occlusionWorldViewProj, gHiZIdx))
-                {
-                    visible = true;
-                    SetMark(dtid, gMeshletOcclusionPassedMarkBufferIdx);
-                }
-    #else
-                visible = true;
-    #endif
-            }
-            else
-            {
-                SetMark(dtid, gMeshletFrustumCulledMarkBufferIdx);
-            }
+    if(gIteration == 0)
+    {
+    
+#ifdef SHADOW
+        float4x4 frustumWorldViewProj = mul(gWorld, gMainLights[gLightIdx].ViewProj);
+#else 
+        float4x4 frustumWorldViewProj = mul(gWorld, gViewProj);
+#endif  
+        if (AabbFrustumTest(cd.Center, cd.Extents, frustumWorldViewProj) == OUTSIDE)
+        {
+            SetMark(dtid, gMeshletFrustumCulledMarkBufferIdx);
+            culled = true;
         }
-#endif
+    }
+    else
+    {
+        culled = GetMark(dtid, gMeshletFrustumCulledMarkBufferIdx);
     }
 
-#ifdef TRANSPARENT_WRITE
+    return culled;
+}
+
+bool MeshletNormalConeCull(uint dtid, CullData cd)
+{
+    bool culled = false;
+
+    if(gIteration == 0)
+    {
+        if (!NormalConeTest(cd.Center, cd.NormalCone, cd.ApexOffset, gWorld, gEyePosW))
+        {
+            SetMark(dtid, gMeshletNormalConeCulledMarkBufferIdx);
+            culled = true;
+        }
+    }
+    else
+    {
+        culled = GetMark(dtid, gMeshletNormalConeCulledMarkBufferIdx);
+    }
+    
+    return culled;
+}
+
+bool MeshletHiZOcclusionCull(uint dtid, CullData cd)
+{
+    bool culled = GetMark(dtid, gMeshletOcclusionCulledMarkBufferIdx);
+
+    if(culled)
+    {
+#ifdef SHADOW
+        float4x4 occlusionWorldViewProj = mul(gIteration == 0 ? gHistWorld : gWorld, gMainLights[gLightIdx].ViewProj);
+#else 
+        float4x4 occlusionWorldViewProj = mul(gIteration == 0 ? gHistWorld : gWorld, gIteration == 0 ? gHistViewProj : gViewProj);
+#endif
+
+        if (HiZOcclusionTest(cd.Center, cd.Extents, occlusionWorldViewProj, gHiZIdx))
+        {
+            ResetMark(dtid, gMeshletNormalConeCulledMarkBufferIdx);
+            culled = false;
+        }
+    }
+
+    return culled;
+}
+
+[numthreads(AS_GROUP_SIZE, 1, 1)]
+void main(uint dtid : SV_DispatchThreadID)
+{
+    bool visible = dtid < gMeshletCount && !GetMark(dtid, gMeshletCulledMarkBufferIdx);
+
+#ifdef WRITE
+    if(dtid >= gMeshletCount || visible)
+    {
+        visible = false;
+    }
+    else
+    {
+        bool culled = false;
+        StructuredBuffer<CullData> cullData = ResourceDescriptorHeap[gCullDataBufferIdx];
+        CullData cd = cullData[dtid];
+
+    #ifdef FRUSTUM
+        if(!culled)
+        {
+            culled |= MeshletFrustumCull(dtid, cd);
+        }
+    #endif
+    #ifdef NORMAL_CONE
+        if(!culled)
+        {
+            culled |= MeshletNormalConeCull(dtid, cd);
+        }
+    #endif
+    #ifdef HIZ_OCCLUSION
+        if(!culled)
+        {
+            culled |= MeshletHiZOcclusionCull(dtid, cd);
+        }
+    #endif
+        visible = !culled;
+    }
+#endif 
+
+#if (defined WRITE) && (defined TRANSPARENT)
     DispatchMesh(0, 0, 0, sharedPayload);
 #else
     if (visible)
     {
+#ifdef WRITE
+        ResetMark(dtid, gMeshletCulledMarkBufferIdx);
+#endif
         uint idx = WavePrefixCountBits(visible);
         sharedPayload.MeshletIndices[idx] = dtid;
     }

@@ -113,9 +113,12 @@ void Carol::Mesh::Update(XMMATRIX& world)
 
 void Carol::Mesh::ClearCullMark(ID3D12GraphicsCommandList* cmdList)
 {
-	static const uint32_t cullMarkClearValue = 0;
-	cmdList->ClearUnorderedAccessViewUint(mMeshletFrustumCulledMarkBuffer->GetGpuUav(), mMeshletFrustumCulledMarkBuffer->GetCpuUav(), mMeshletFrustumCulledMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
-	cmdList->ClearUnorderedAccessViewUint(mMeshletOcclusionPassedMarkBuffer->GetGpuUav(), mMeshletOcclusionPassedMarkBuffer->GetCpuUav(), mMeshletOcclusionPassedMarkBuffer->Get(), &cullMarkClearValue, 0, nullptr);
+	static const uint32_t clear0 = 0;
+	static const uint32_t clear1 = 0xffffffff;
+	cmdList->ClearUnorderedAccessViewUint(mMeshletFrustumCulledMarkBuffer->GetGpuUav(), mMeshletFrustumCulledMarkBuffer->GetCpuUav(), mMeshletFrustumCulledMarkBuffer->Get(), &clear0, 0, nullptr);
+	cmdList->ClearUnorderedAccessViewUint(mMeshletNormalConeCulledMarkBuffer->GetGpuUav(), mMeshletNormalConeCulledMarkBuffer->GetCpuUav(), mMeshletNormalConeCulledMarkBuffer->Get(), &clear0, 0, nullptr);
+	cmdList->ClearUnorderedAccessViewUint(mMeshletOcclusionCulledMarkBuffer->GetGpuUav(), mMeshletOcclusionCulledMarkBuffer->GetCpuUav(), mMeshletOcclusionCulledMarkBuffer->Get(), &clear1, 0, nullptr);
+	cmdList->ClearUnorderedAccessViewUint(mMeshletCulledMarkBuffer->GetGpuUav(), mMeshletCulledMarkBuffer->GetCpuUav(), mMeshletCulledMarkBuffer->Get(), &clear1, 0, nullptr);
 }
 
 void Carol::Mesh::SetAnimationClip(std::wstring_view clipName)
@@ -309,7 +312,17 @@ void Carol::Mesh::InitCullMark(
 
 	mMeshConstants->MeshletFrustumCulledMarkBufferIdx = mMeshletFrustumCulledMarkBuffer->GetGpuUavIdx();
 
-	mMeshletOcclusionPassedMarkBuffer = make_unique<RawBuffer>(
+	mMeshletNormalConeCulledMarkBuffer = make_unique<RawBuffer>(
+		byteSize,
+		device,
+		defaultBuffersHeap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	mMeshConstants->MeshletNormalConeCulledMarkBufferIdx = mMeshletNormalConeCulledMarkBuffer->GetGpuUavIdx();
+
+	mMeshletOcclusionCulledMarkBuffer = make_unique<RawBuffer>(
 		byteSize,
 		device,
 		defaultBuffersHeap,
@@ -317,7 +330,17 @@ void Carol::Mesh::InitCullMark(
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	
-	mMeshConstants->MeshletOcclusionCulledMarkBufferIdx = mMeshletOcclusionPassedMarkBuffer->GetGpuUavIdx();
+	mMeshConstants->MeshletOcclusionCulledMarkBufferIdx = mMeshletOcclusionCulledMarkBuffer->GetGpuUavIdx();
+
+	mMeshletCulledMarkBuffer = make_unique<RawBuffer>(
+		byteSize,
+		device,
+		defaultBuffersHeap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	
+	mMeshConstants->MeshletCulledMarkBufferIdx = mMeshletCulledMarkBuffer->GetGpuUavIdx();
 }
 
 void Carol::Mesh::LoadMeshletBoundingBox(wstring_view clipName, span<vector<Vertex>> vertices)

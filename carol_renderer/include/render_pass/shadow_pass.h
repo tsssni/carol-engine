@@ -52,8 +52,8 @@ namespace Carol
         virtual void InitCamera() = 0;
         
         void Clear(ID3D12GraphicsCommandList* cmdList);
-        void CullInstances(bool hist, ID3D12GraphicsCommandList* cmdList);
-        void DrawShadow(bool hist, ID3D12GraphicsCommandList* cmdList);
+        void CullInstances(uint32_t iteration, ID3D12GraphicsCommandList* cmdList);
+        void DrawShadow(uint32_t iteration, ID3D12GraphicsCommandList* cmdList);
         void GenerateHiZ(ID3D12GraphicsCommandList* cmdList);
         
         enum
@@ -72,7 +72,7 @@ namespace Carol
             CULL_MESH_COUNT,
             CULL_MESH_OFFSET,
             CULL_HIZ_IDX,
-            CULL_HIST,
+            CULL_ITERATION,
             CULL_LIGHT_IDX,
             CULL_IDX_COUNT
         };

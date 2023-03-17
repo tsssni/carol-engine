@@ -72,8 +72,8 @@ namespace Carol
 		void DrawSkyBox(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_VIRTUAL_ADDRESS skyBoxMeshCBAddr);
 
 		void Clear(ID3D12GraphicsCommandList* cmdList);
-        void CullInstances(ID3D12GraphicsCommandList* cmdList, bool hist, bool opaque);
-		void CullMeshlets(ID3D12GraphicsCommandList* cmdList, bool hist, bool opaque);
+        void CullInstances(bool opaque, uint32_t iteration, ID3D12GraphicsCommandList* cmdList);
+		void CullMeshlets(bool opaque, uint32_t iteration, ID3D12GraphicsCommandList* cmdList);
 		void GenerateHiZ(ID3D12GraphicsCommandList* cmdList);
 
 		enum
@@ -92,7 +92,7 @@ namespace Carol
             CULL_MESH_COUNT,
             CULL_MESH_OFFSET,
             CULL_HIZ_IDX,
-            CULL_HIST,
+            CULL_ITERATION,
             CULL_IDX_COUNT
         };
 

@@ -96,32 +96,15 @@ void Carol::Model::Update(Timer* timer)
 
 		if (mTimePos > mAnimationClips[mClipName]->GetClipEndTime())
 		{
-			mTimePos = 0;
+			mTimePos = mAnimationClips[mClipName]->GetClipStartTime();
 		};
 
-		auto& clip = mAnimationClips[mClipName];
-		uint32_t boneCount = mBoneHierarchy.size();
+		vector<XMFLOAT4X4> finalTransforms;
+		GetFinalTransforms(mClipName, mTimePos, finalTransforms);
 
-		vector<XMFLOAT4X4> toParentTransforms(boneCount);
-		vector<XMFLOAT4X4> toRootTransforms(boneCount);
-		vector<XMFLOAT4X4> finalTransforms(boneCount);
-		clip->Interpolate(mTimePos, toParentTransforms);
-
-		for (int i = 0; i < boneCount; ++i)
+		for (int i = 0; i < mBoneHierarchy.size(); ++i)
 		{
-			XMMATRIX toParent = XMLoadFloat4x4(&toParentTransforms[i]);
-			XMMATRIX parentToRoot = mBoneHierarchy[i] != -1 ? XMLoadFloat4x4(&toRootTransforms[mBoneHierarchy[i]]) : XMMatrixIdentity();
-
-			XMMATRIX toRoot = toParent * parentToRoot;
-			XMStoreFloat4x4(&toRootTransforms[i], toRoot);
-		}
-
-		for (int i = 0; i < boneCount; ++i)
-		{
-			XMMATRIX offset = XMLoadFloat4x4(&mBoneOffsets[i]);
-			XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[i]);
-
-			XMStoreFloat4x4(&finalTransforms[i], XMMatrixTranspose(XMMatrixMultiply(offset, toRoot)));
+			XMStoreFloat4x4(&finalTransforms[i], XMMatrixTranspose(XMLoadFloat4x4(&finalTransforms[i])));
 		}
 
 		std::copy(std::begin(mSkinnedConstants->FinalTransforms), std::end(mSkinnedConstants->FinalTransforms), mSkinnedConstants->HistFinalTransforms);
@@ -129,14 +112,44 @@ void Carol::Model::Update(Timer* timer)
 	}
 }
 
-void Carol::Model::GetSkinnedVertices(wstring_view clipName, const vector<Vertex>& vertices, vector<vector<Vertex>>& skinnedVertices)const
+void Carol::Model::GetFinalTransforms(wstring_view clipName, float t, vector<XMFLOAT4X4>& finalTransforms)
 {
-	auto& finalTransforms = mFinalTransforms.at(clipName.data());
-	skinnedVertices.resize(finalTransforms.size());
+	auto& clip = mAnimationClips[wstring(clipName)];
+	uint32_t boneCount = mBoneHierarchy.size();
+
+	vector<XMFLOAT4X4> toParentTransforms(boneCount);
+	vector<XMFLOAT4X4> toRootTransforms(boneCount);
+	finalTransforms.resize(boneCount);
+	clip->Interpolate(t, toParentTransforms);
+
+	for (int i = 0; i < boneCount; ++i)
+	{
+		XMMATRIX toParent = XMLoadFloat4x4(&toParentTransforms[i]);
+		XMMATRIX parentToRoot = mBoneHierarchy[i] != -1 ? XMLoadFloat4x4(&toRootTransforms[mBoneHierarchy[i]]) : XMMatrixIdentity();
+
+		XMMATRIX toRoot = toParent * parentToRoot;
+		XMStoreFloat4x4(&toRootTransforms[i], toRoot);
+	}
+
+	for (int i = 0; i < mBoneHierarchy.size(); ++i)
+	{
+		XMMATRIX offset = XMLoadFloat4x4(&mBoneOffsets[i]);
+		XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[i]);
+
+		XMStoreFloat4x4(&finalTransforms[i], XMMatrixMultiply(offset, toRoot));
+	}
+}
+
+void Carol::Model::GetSkinnedVertices(wstring_view clipName, span<Vertex> vertices, vector<vector<Vertex>>& skinnedVertices)const
+{
+	auto& frameTransforms = mFrameTransforms.at(clipName.data());
+	skinnedVertices.resize(frameTransforms.size());
 	std::ranges::for_each(skinnedVertices, [&](vector<Vertex>& v) {v.resize(vertices.size()); });
 
-	for (int i = 0; i < finalTransforms.size(); ++i)
+	for (int i = 0; i < frameTransforms.size(); ++i)
 	{
+		auto& finalTransforms = frameTransforms[i];
+
 		for (int j = 0; j < vertices.size(); ++j)
 		{
 			auto& vertex = vertices[j];
@@ -158,10 +171,10 @@ void Carol::Model::GetSkinnedVertices(wstring_view clipName, const vector<Vertex
 
 				XMMATRIX transform[] =
 				{
-					XMLoadFloat4x4(&finalTransforms[i][vertex.BoneIndices.x]),
-					XMLoadFloat4x4(&finalTransforms[i][vertex.BoneIndices.y]),
-					XMLoadFloat4x4(&finalTransforms[i][vertex.BoneIndices.z]),
-					XMLoadFloat4x4(&finalTransforms[i][vertex.BoneIndices.w])
+					XMLoadFloat4x4(&finalTransforms[vertex.BoneIndices.x]),
+					XMLoadFloat4x4(&finalTransforms[vertex.BoneIndices.y]),
+					XMLoadFloat4x4(&finalTransforms[vertex.BoneIndices.z]),
+					XMLoadFloat4x4(&finalTransforms[vertex.BoneIndices.w])
 
 				};
 

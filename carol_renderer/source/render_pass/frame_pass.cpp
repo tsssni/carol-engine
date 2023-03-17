@@ -94,16 +94,15 @@ void Carol::FramePass::Cull(ID3D12GraphicsCommandList* cmdList)
 	cmdList->RSSetViewports(1, &mViewport);
 	cmdList->RSSetScissorRects(1, &mScissorRect);
 
-	GenerateHiZ(cmdList);
-	CullInstances(cmdList, true, true);
-	CullMeshlets(cmdList, true, true);
-
-	GenerateHiZ(cmdList);
-	CullInstances(cmdList, false, true);
-	CullMeshlets(cmdList, false, true);
-
-	CullInstances(cmdList, false, false);
-	CullMeshlets(cmdList, false, false);
+	for (int i = 0; i < 2; ++i)
+	{
+		GenerateHiZ(cmdList);
+		CullInstances(true, i, cmdList);
+		CullMeshlets(true, i, cmdList);
+	}
+	
+	CullInstances(false, 0, cmdList);
+	CullMeshlets(false, 0, cmdList);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Carol::FramePass::GetFrameRtv()const
@@ -194,24 +193,24 @@ void Carol::FramePass::InitShaders()
 	{
 		L"SSAO", L"BLINN_PHONG" };
 
-	vector<wstring_view> PBRDefines =
+	vector<wstring_view> pbrDefines =
 	{
 		L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED_G2",L"LAMBERTIAN"
 	};
 
 	vector<wstring_view> cullDefines =
 	{
-		L"OCCLUSION" 
+		L"FRUSTUM", L"NORMAL_CONE", L"HIZ_OCCLUSION"
 	};
 
 	vector<wstring_view> cullWriteDefines =
 	{
-		L"OCCLUSION", L"WRITE" 
+		L"FRUSTUM", L"NORMAL_CONE", L"HIZ_OCCLUSION", L"WRITE"
 	};
 
 	vector<wstring_view> transparentCullWriteDefines =
 	{
-		L"OCCLUSION", L"WRITE", L"TRANSPARENT_WRITE" 
+		L"FRUSTUM", L"NORMAL_CONE", L"HIZ_OCCLUSION", L"WRITE", L"TRANSPARENT"
 	};
 
 	if (gShaders.count(L"MeshStaticMS") == 0)
@@ -232,7 +231,7 @@ void Carol::FramePass::InitShaders()
 
 	if (gShaders.count(L"PBRPS") == 0)
 	{
-		gShaders[L"PBRPS"] = make_unique<Shader>(L"shader\\opaque_ps.hlsl", PBRDefines, L"main", L"ps_6_6");
+		gShaders[L"PBRPS"] = make_unique<Shader>(L"shader\\opaque_ps.hlsl", pbrDefines, L"main", L"ps_6_6");
 	}
 
 	if (gShaders.count(L"ScreenMS") == 0)
@@ -257,7 +256,7 @@ void Carol::FramePass::InitShaders()
 
 	if (gShaders.count(L"FrameCullCS") == 0)
 	{
-		gShaders[L"FrameCullCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", cullDefines, L"main", L"cs_6_6");
+		gShaders[L"FrameCullCS"] = make_unique<Shader>(L"shader\\cull_cs.hlsl", cullWriteDefines, L"main", L"cs_6_6");
 	}
 
 	if (gShaders.count(L"CullAS") == 0)
@@ -287,7 +286,7 @@ void Carol::FramePass::InitShaders()
 
 	if (gShaders.count(L"PBROitppllPS") == 0)
 	{
-		gShaders[L"PBROitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", PBRDefines, L"main", L"ps_6_6");
+		gShaders[L"PBROitppllPS"] = make_unique<Shader>(L"shader\\oitppll_build_ps.hlsl", pbrDefines, L"main", L"ps_6_6");
 	}
 
 	if (gShaders.count(L"DrawOitppllPS") == 0)
@@ -638,7 +637,7 @@ void Carol::FramePass::Clear(ID3D12GraphicsCommandList* cmdList)
 	}
 }
 
-void Carol::FramePass::CullInstances(ID3D12GraphicsCommandList* cmdList, bool hist, bool opaque)
+void Carol::FramePass::CullInstances(bool opaque, uint32_t iteration, ID3D12GraphicsCommandList* cmdList)
 {
 	cmdList->SetPipelineState(gPSOs[L"FrameCullInstances"]->Get());
 
@@ -654,7 +653,7 @@ void Carol::FramePass::CullInstances(ID3D12GraphicsCommandList* cmdList, bool hi
 			continue;
 		}
 
-		mCullIdx[type][CULL_HIST] = hist;
+		mCullIdx[type][CULL_ITERATION] = iteration;
 		uint32_t count = ceilf(mCullIdx[type][CULL_MESH_COUNT] / 32.f);
 
 		cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[type].data(), 0);
@@ -664,7 +663,7 @@ void Carol::FramePass::CullInstances(ID3D12GraphicsCommandList* cmdList, bool hi
 	}
 }
 
-void Carol::FramePass::CullMeshlets(ID3D12GraphicsCommandList* cmdList, bool hist, bool opaque)
+void Carol::FramePass::CullMeshlets(bool opaque, uint32_t iteration, ID3D12GraphicsCommandList* cmdList)
 {
 	ID3D12PipelineState* pso[] = {
 		gPSOs[L"OpaqueStaticMeshletCull"]->Get(),
@@ -675,7 +674,7 @@ void Carol::FramePass::CullMeshlets(ID3D12GraphicsCommandList* cmdList, bool his
 	uint32_t start = opaque ? OPAQUE_MESH_START : TRANSPARENT_MESH_START;
 	uint32_t end = start + (opaque ? OPAQUE_MESH_TYPE_COUNT : TRANSPARENT_MESH_TYPE_COUNT);
 
-	if (opaque)
+	if (opaque && iteration == 0)
 	{
 		cmdList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 		cmdList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(GetFrameDsv()));
@@ -690,7 +689,7 @@ void Carol::FramePass::CullMeshlets(ID3D12GraphicsCommandList* cmdList, bool his
 			continue;
 		}
 
-		mCullIdx[type][CULL_HIST] = hist;
+		mCullIdx[type][CULL_ITERATION] = iteration;
 
 		cmdList->SetPipelineState(pso[i]);
 		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);

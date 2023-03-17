@@ -92,7 +92,8 @@ Carol::AssimpModel::AssimpModel(
 		uploadBuffersHeap,
 		descriptorManager);
 
-	mFinalTransforms.clear();
+	mFrameTransforms.clear();
+	mBoneIndices.clear();
 }
 
 void Carol::AssimpModel::ProcessNode(
@@ -319,45 +320,28 @@ void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 			
 		}
 
+		animationClip->CalcClipStartTime();
+		animationClip->CalcClipEndTime();
 		wstring clipName = StringToWString(animation->mName.C_Str());
 		mAnimationClips[clipName] = std::move(animationClip);
-		mAnimationClips[clipName]->GetCriticalFrames(criticalFrames[clipName]);
 	}
 
-	for (auto& [name, frames] : criticalFrames)
+	for (auto& [name, clip] : mAnimationClips)
 	{
 		vector<vector<XMFLOAT4X4>> frameTransforms;
+		float t = clip->GetClipStartTime();
 
-		for (auto& toParentTransforms : frames)
+		while (t < clip->GetClipEndTime())
 		{
-			vector<XMFLOAT4X4> toRootTransforms(boneCount);
-			vector<XMFLOAT4X4> finalTransforms(boneCount);
-
-			for (int i = 0; i < boneCount; ++i)
-			{
-				XMMATRIX toParent = XMLoadFloat4x4(&toParentTransforms[i]);
-				XMMATRIX parentToRoot = mBoneHierarchy[i] != -1 ? XMLoadFloat4x4(&toRootTransforms[mBoneHierarchy[i]]) : XMMatrixIdentity();
-
-				XMMATRIX toRoot = toParent * parentToRoot;
-				XMStoreFloat4x4(&toRootTransforms[i], toRoot);
-			}
-
-			for (int i = 0; i < boneCount; ++i)
-			{
-				XMMATRIX offset = XMLoadFloat4x4(&mBoneOffsets[i]);
-				XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransforms[i]);
-
-				XMStoreFloat4x4(&finalTransforms[i], XMMatrixMultiply(offset, toRoot));
-			}
-			
+			vector<XMFLOAT4X4> finalTransforms;
+			GetFinalTransforms(name, t, finalTransforms);
 			frameTransforms.emplace_back(std::move(finalTransforms));
+			t += 0.1f;
 		}
 
-		mFinalTransforms[name] = std::move(frameTransforms);
+		mFrameTransforms[name] = std::move(frameTransforms);
 	}
 }
-
-
 
 void Carol::AssimpModel::ReadMeshVerticesAndIndices(
 	vector<Vertex>& vertices,

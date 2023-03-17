@@ -45,7 +45,7 @@ float GGXSmithMasking(float3 view, float3 dir, float roughness)
     return 1.f / (1.f + GGXSmithLambda(view, dir, roughness));
 }
 
-float DirectionCorrelatedGGXSmithMaskingAndShadowing(float3 toLight, float3 toEye, float3 dir, float roughness)
+float DirectionCorrelatedGGXSmithMaskingShadowing(float3 toLight, float3 toEye, float3 dir, float roughness)
 {
     float toLightAzimuth = atan(toLight.y / toLight.x);
     float toEyeAzimuth = atan(toEye.y / toEye.x);
@@ -58,7 +58,7 @@ float DirectionCorrelatedGGXSmithMaskingAndShadowing(float3 toLight, float3 toEy
     return lambda * toLightG1 * toEyeG1 + (1 - lambda) * min(toLightG1, toEyeG1);
 }
 
-float HeightCorrelatedGGXSmithMaskingAndShadowing(float3 toLight, float3 toEye, float3 dir, float roughness)
+float HeightCorrelatedGGXSmithMaskingShadowing(float3 toLight, float3 toEye, float3 dir, float roughness)
 {
     if (dot(toLight, dir) <= 0.f || dot(toEye, dir) <= 0.f)
     {

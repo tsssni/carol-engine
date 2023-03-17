@@ -12,9 +12,9 @@ float3 SpecularBRDF(float3 toLight, float3 toEye, float3 normal, float3 reflecta
 #ifdef SMITH
 #ifdef GGX
 #ifdef DIRECTION_CORRELATED_G2
-    geometry = DirectionCorrelatedGGXSmithMaskingAndShadowing(toLight, toEye, halfVec, mat.Roughness);
+    geometry = DirectionCorrelatedGGXSmithMaskingShadowing(toLight, toEye, halfVec, mat.Roughness);
 #elif HEIGHT_CORRELATED_G2
-    geometry = HeightCorrelatedGGXSmithMaskingAndShadowing(toLight, toEye, halfVec, mat.Roughness);
+    geometry = HeightCorrelatedGGXSmithMaskingShadowing(toLight, toEye, halfVec, mat.Roughness);
 #endif
 #endif
 #endif
