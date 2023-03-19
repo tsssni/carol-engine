@@ -25,6 +25,7 @@ void Carol::RenderPass::OnResize(
 	{
 		mWidth = width;
 		mHeight = height;
+		mMipLevel = std::max(ceilf(log2f(mWidth)), ceilf(log2f(mHeight)));
 		mViewport = { 0.f,0.f,mWidth * 1.f,mHeight * 1.f,0.f,1.f };
 		mScissorRect = { 0,0,(long)mWidth,(long)mHeight };
 

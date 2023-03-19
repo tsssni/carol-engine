@@ -65,6 +65,11 @@
 
 - **Screen-Space Ambient-Occlusion**
   - Implemented via compute shader with 3 times edge-preserving filtering in default
+
+- **Tone Mapping**
+  - Reinhard
+  - ACES
+
 - **Temporal Anti-Aliasing**
   - Jitter the sample position via Halton low-discrepancy sequence (from Unreal Engine 4)
   - Blend current and history pixel colors in YCoCg space (from Unreal Engine 4)

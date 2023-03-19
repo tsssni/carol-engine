@@ -35,4 +35,8 @@ float3 NormalToWorldSpace(float3 normal, float3 normalW, float3 tangentW)
     return mul(normal, TBN);
 }
 
+float CalcLuminance(float3 rgbColor)
+{
+    return 0.25f * rgbColor.x + 0.5f * rgbColor.y + 0.25 * rgbColor.z;
+}
 #endif

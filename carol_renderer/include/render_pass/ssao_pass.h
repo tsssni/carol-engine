@@ -22,9 +22,6 @@ namespace Carol
 			DescriptorManager* descriptorManager,
 			uint32_t blurCount = 3,
 			DXGI_FORMAT ambientMapFormat = DXGI_FORMAT_R16_UNORM);
-		SsaoPass(const SsaoPass&) = delete;
-		SsaoPass(SsaoPass&&) = delete;
-		SsaoPass& operator=(const SsaoPass&) = delete;
 
 		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
 		virtual void OnResize(uint32_t width, uint32_t height, ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;

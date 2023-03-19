@@ -65,19 +65,19 @@ namespace Carol
 		DirectX::XMFLOAT3 FramePad5;
 		Light SpotLights[MAX_POINT_LIGHTS];
 
+		// Main light
+		uint32_t MainLightShadowMapIdx[MAIN_LIGHT_SPLIT_LEVEL] = { 0 };
+		DirectX::XMFLOAT3 FramePad6;
+
 		uint32_t MeshBufferIdx = 0;
 		uint32_t CommandBufferIdx = 0;
+
 		uint32_t InstanceFrustumCulledMarkBufferIdx = 0;
 		uint32_t InstanceOcclusionCulledMarkBufferIdx = 0;
 		uint32_t InstanceCulledMarkBufferIdx = 0;
 
 		uint32_t DepthStencilMapIdx = 0;
 		uint32_t NormalMapIdx = 0;
-		float FramePad6;
-
-		// Main light
-		uint32_t MainLightShadowMapIdx[MAIN_LIGHT_SPLIT_LEVEL] = { 0 };
-		DirectX::XMFLOAT3 FramePad7;
 
 		// OITPPLL
 		uint32_t OitCounterIdx = 0;
@@ -95,7 +95,8 @@ namespace Carol
 		uint32_t VelocityMapIdx = 0;
 		uint32_t RWHistMapIdx = 0;
 		uint32_t RWFrameMapIdx = 0;
-		float FramePad8;
+
+		DirectX::XMFLOAT2 FramePad7;
 	};
  
     class Renderer :public BaseRenderer
@@ -123,10 +124,10 @@ namespace Carol
 
         void InitScene();
         void InitFrame();
-        void InitSsao();
-        void InitNormal();
-        void InitTaa();
         void InitMainLight();
+        void InitNormal();
+        void InitSsao();
+        void InitTaa();
 		
 		void UpdateFrameCB();
         void ReleaseIntermediateBuffers();
@@ -134,11 +135,11 @@ namespace Carol
     protected:
 		std::unique_ptr<Scene> mScene;
 
-		std::unique_ptr<FramePass> mFramePass;
-        std::unique_ptr<SsaoPass> mSsaoPass;
-        std::unique_ptr<NormalPass> mNormalPass;
-        std::unique_ptr<TaaPass> mTaaPass;
         std::unique_ptr<CascadedShadowPass> mMainLightShadowPass;
+        std::unique_ptr<NormalPass> mNormalPass;
+        std::unique_ptr<SsaoPass> mSsaoPass;
+		std::unique_ptr<FramePass> mFramePass;
+        std::unique_ptr<TaaPass> mTaaPass;
 
 		std::unique_ptr<FrameConstants> mFrameConstants;
         std::unique_ptr<FastConstantBufferAllocator> mFrameCBAllocator;

@@ -174,7 +174,7 @@ void Carol::BaseRenderer::InitTextureManager()
 
 void Carol::BaseRenderer::InitDisplay()
 {
-	mDisplayPass = make_unique<DisplayPass>(mhWnd, mDxgiFactory.Get(), mCommandQueue.Get(), 2);
+	mDisplayPass = make_unique<DisplayPass>(mhWnd, mDxgiFactory.Get(), mDevice.Get(), mCommandQueue.Get(), 2);
 }
 
 void Carol::BaseRenderer::Tick()

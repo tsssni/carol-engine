@@ -39,7 +39,6 @@ Carol::ShadowPass::ShadowPass(
 	mSlopeScaledDepthBias(slopeScaledDepthBias),
 	mCullIdx(OPAQUE_MESH_TYPE_COUNT),
 	mHiZIdx(HIZ_IDX_COUNT),
-	mHiZMipLevels(std::max(ceilf(log2f(width)), ceilf(log2f(height)))),
 	mCulledCommandBuffer(OPAQUE_MESH_TYPE_COUNT),
 	mShadowFormat(shadowFormat),
 	mHiZFormat(hiZFormat)
@@ -93,8 +92,8 @@ void Carol::ShadowPass::Update(uint32_t lightIdx, uint64_t cpuFenceValue, uint64
 	}
 
 	mHiZIdx[HIZ_DEPTH_IDX] = mShadowMap->GetGpuSrvIdx();
-	mHiZIdx[HIZ_R_IDX] = mHiZMap->GetGpuSrvIdx();
-	mHiZIdx[HIZ_W_IDX] = mHiZMap->GetGpuUavIdx();
+	mHiZIdx[HIZ_IDX] = mHiZMap->GetGpuSrvIdx();
+	mHiZIdx[RW_HIZ_IDX] = mHiZMap->GetGpuUavIdx();
 }
 
 uint32_t Carol::ShadowPass::GetShadowSrvIdx()const
@@ -139,7 +138,7 @@ void Carol::ShadowPass::InitBuffers(ID3D12Device* device, Heap* heap, Descriptor
 		D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		nullptr,
-		mHiZMipLevels);
+		mMipLevel);
 
 	mCulledCommandBufferPool = make_unique<StructuredBufferPool>(
 		1024,
@@ -236,10 +235,10 @@ void Carol::ShadowPass::GenerateHiZ(ID3D12GraphicsCommandList* cmdList)
 {
 	cmdList->SetPipelineState(gPSOs[L"HiZGenerate"]->Get());
 
-	for (int i = 0; i < mHiZMipLevels - 1; i += 5)
+	for (int i = 0; i < mMipLevel - 1; i += 5)
 	{
 		mHiZIdx[HIZ_SRC_MIP] = i;
-		mHiZIdx[HIZ_NUM_MIP_LEVEL] = i + 5 >= mHiZMipLevels ? mHiZMipLevels - i - 1 : 5;
+		mHiZIdx[HIZ_NUM_MIP_LEVEL] = i + 5 >= mMipLevel ? mMipLevel - i - 1 : 5;
 	    cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, HIZ_IDX_COUNT, mHiZIdx.data(), 0);
 		
 		uint32_t width = ceilf((mWidth >> i) / 32.f);

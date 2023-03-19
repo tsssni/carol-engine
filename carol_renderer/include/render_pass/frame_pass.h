@@ -33,14 +33,10 @@ namespace Carol
 			Heap* heap,
 			DescriptorManager* descriptorManager,
 			Scene* scene,
-			DXGI_FORMAT frameFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT frameFormat = DXGI_FORMAT_R16G16B16A16_FLOAT,
 			DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
 			DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
-		FramePass(const FramePass&) = delete;
-		FramePass(FramePass&&) = delete;
-		FramePass& operator=(const FramePass&) = delete;
-		
 		virtual void Draw(ID3D12GraphicsCommandList* cmdList);
 		void Cull(ID3D12GraphicsCommandList* cmdList);
 		void Update(uint64_t cpuFenceValue, uint64_t completedFenceValue);
@@ -75,8 +71,8 @@ namespace Carol
 		enum
         {
             HIZ_DEPTH_IDX,
-            HIZ_R_IDX,
-            HIZ_W_IDX,
+            HIZ_IDX,
+			RW_HIZ_IDX,
             HIZ_SRC_MIP,
             HIZ_NUM_MIP_LEVEL,
             HIZ_IDX_COUNT
@@ -107,7 +103,6 @@ namespace Carol
 
         std::vector<std::vector<uint32_t>> mCullIdx;
 		std::vector<uint32_t> mHiZIdx;
-		uint32_t mHiZMipLevels;
 		
 		DXGI_FORMAT mFrameFormat;
 		DXGI_FORMAT mDepthStencilFormat;

@@ -15,14 +15,13 @@ namespace Carol
 	public:
 		TaaPass(
 			ID3D12Device* device,
-			DXGI_FORMAT frameMapFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
+			DXGI_FORMAT frameMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT,
 			DXGI_FORMAT velocityMapFormat = DXGI_FORMAT_R16G16_FLOAT,
 			DXGI_FORMAT velocityDsvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
-		TaaPass(const TaaPass&) = delete;
-		TaaPass(TaaPass&&) = delete;
-		TaaPass& operator=(const TaaPass&) = delete;
 
 		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
+        void DrawVelocityMap(ID3D12GraphicsCommandList* cmdList);
+        void DrawOutput(ID3D12GraphicsCommandList* cmdList);
 		
 		void SetFrameMap(ColorBuffer* frameMap);
 		void SetDepthStencilMap(ColorBuffer* depthStencilMap);
@@ -43,8 +42,6 @@ namespace Carol
 		void InitHalton();
 		float RadicalInversion(int base, int num);
 
-        void DrawVelocityMap(ID3D12GraphicsCommandList* cmdList);
-        void DrawOutput(ID3D12GraphicsCommandList* cmdList);
 
 		std::unique_ptr<ColorBuffer> mHistMap;
 		std::unique_ptr<ColorBuffer> mVelocityMap;

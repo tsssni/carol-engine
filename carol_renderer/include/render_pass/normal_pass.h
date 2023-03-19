@@ -13,9 +13,6 @@ namespace Carol
 	{
 	public:
 		NormalPass(ID3D12Device* device, DXGI_FORMAT normalMapFormat = DXGI_FORMAT_R8G8B8A8_SNORM, DXGI_FORMAT normalDsvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
-		NormalPass(const NormalPass&) = delete;
-		NormalPass(NormalPass&&) = delete;
-		NormalPass& operator=(const NormalPass&) = delete;
 
 		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
 		

@@ -3,9 +3,13 @@
 #include <dx12.h>
 #include <utils/common.h>
 #include <stdlib.h>
+#include <vector>
+#include <string_view>
 
 namespace Carol {
 	using std::make_unique;
+	using std::vector;
+	using std::wstring_view;
 	using Microsoft::WRL::ComPtr;
 }
 
@@ -27,33 +31,29 @@ uint32_t Carol::DisplayPass::GetBackBufferCount()const
 Carol::DisplayPass::DisplayPass(
 	HWND hwnd,
 	IDXGIFactory* factory,
+	ID3D12Device* device,
 	ID3D12CommandQueue* cmdQueue,
 	uint32_t bufferCount,
+	DXGI_FORMAT backBufferFormat,
 	DXGI_FORMAT frameFormat,
 	DXGI_FORMAT depthStencilFormat)
 	:mBackBuffer(bufferCount),
+	mBackBufferFormat(backBufferFormat),
 	mFrameFormat(frameFormat),
-	mDepthStencilFormat(depthStencilFormat)
+	mDepthStencilFormat(depthStencilFormat),
+	mBackBufferRtvAllocInfo(make_unique<DescriptorAllocInfo>())
 {
-	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
-	swapChainDesc.BufferDesc.Width = 0;
-	swapChainDesc.BufferDesc.Height = 0;
-	swapChainDesc.BufferDesc.RefreshRate.Numerator = 144;
-	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-	swapChainDesc.BufferDesc.Format = frameFormat;
-	swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-	swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-	swapChainDesc.SampleDesc.Count = 1;
-	swapChainDesc.SampleDesc.Quality = 0;
-	swapChainDesc.BufferUsage = DXGI_USAGE_BACK_BUFFER;
-	swapChainDesc.BufferCount = bufferCount;
-	swapChainDesc.OutputWindow = hwnd;
-	swapChainDesc.Windowed = true;
-	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	InitShaders();
+	InitPSOs(device);
+	InitSwapChain(hwnd, factory, cmdQueue);
+}
 
-	mSwapChain.Reset();
-	ThrowIfFailed(factory->CreateSwapChain(cmdQueue, &swapChainDesc, mSwapChain.GetAddressOf()));
+Carol::DisplayPass::~DisplayPass()
+{
+	if (mBackBufferRtvAllocInfo && mBackBufferRtvAllocInfo->Manager)
+	{
+		mBackBufferRtvAllocInfo->Manager->RtvDeallocate(mBackBufferRtvAllocInfo.release());
+	}
 }
 
 void Carol::DisplayPass::SetBackBufferIndex()
@@ -93,9 +93,9 @@ DXGI_FORMAT Carol::DisplayPass::GetDepthStencilFormat() const
 
 void Carol::DisplayPass::Draw(ID3D12GraphicsCommandList* cmdList)
 {
-	mFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_SOURCE);
-	mBackBuffer[mBackBufferIdx]->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
-	cmdList->CopyResource(mBackBuffer[mBackBufferIdx]->Get(), mFrameMap->Get());
+	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mBackBufferRtvAllocInfo->Manager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mBackBufferIdx)), true, nullptr);
+	cmdList->SetPipelineState(gPSOs[L"Display"]->Get());
+	static_cast<ID3D12GraphicsCommandList6*>(cmdList)->DispatchMesh(1, 1, 1);
 	mBackBuffer[mBackBufferIdx]->Transition(cmdList, D3D12_RESOURCE_STATE_PRESENT);
 }
 
@@ -114,10 +114,32 @@ void Carol::DisplayPass::Present()
 
 void Carol::DisplayPass::InitShaders()
 {
+	vector<wstring_view> nullDefines = {};
+
+	if (gShaders.count(L"ScreenMS") == 0)
+	{
+		gShaders[L"ScreenMS"] = make_unique<Shader>(L"shader\\screen_ms.hlsl", nullDefines, L"main", L"ms_6_6");
+	}
+
+	if (gShaders.count(L"DisplayPS") == 0)
+	{
+		gShaders[L"DisplayPS"] = make_unique<Shader>(L"shader\\display_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+	}
 }
 
 void Carol::DisplayPass::InitPSOs(ID3D12Device* device)
 {
+	if (gPSOs.count(L"Display") == 0)
+	{
+		auto displayMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+		displayMeshPSO->SetRootSignature(sRootSignature.get());
+		displayMeshPSO->SetRenderTargetFormat(mBackBufferFormat);
+		displayMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
+		displayMeshPSO->SetPS(gShaders[L"DisplayPS"].get());
+		displayMeshPSO->Finalize(device);
+
+		gPSOs[L"Display"] = std::move(displayMeshPSO);
+	}
 }
 
 void Carol::DisplayPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)
@@ -159,14 +181,44 @@ void Carol::DisplayPass::InitBuffers(ID3D12Device* device, Heap* heap, Descripto
 		mBackBuffer.size(),
 		mWidth,
 		mHeight,
-		mFrameFormat,
+		mBackBufferFormat,
 		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
 	));
+
+	if (!mBackBufferRtvAllocInfo->NumDescriptors)
+	{
+		mBackBufferRtvAllocInfo = descriptorManager->RtvAllocate(mBackBuffer.size());
+	}
 
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
 		ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(mBackBuffer[i]->GetAddressOf())));
+		device->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, descriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), i));
 	}
 	
 	mBackBufferIdx = 0;
+}
+
+void Carol::DisplayPass::InitSwapChain(HWND hwnd, IDXGIFactory* factory, ID3D12CommandQueue* cmdQueue)
+{
+	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
+	swapChainDesc.BufferDesc.Width = 0;
+	swapChainDesc.BufferDesc.Height = 0;
+	swapChainDesc.BufferDesc.RefreshRate.Numerator = 144;
+	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+	swapChainDesc.BufferDesc.Format = mBackBufferFormat;
+	swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	swapChainDesc.SampleDesc.Count = 1;
+	swapChainDesc.SampleDesc.Quality = 0;
+	swapChainDesc.BufferUsage = DXGI_USAGE_BACK_BUFFER;
+	swapChainDesc.BufferCount = mBackBuffer.size();
+	swapChainDesc.OutputWindow = hwnd;
+	swapChainDesc.Windowed = true;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+	mSwapChain.Reset();
+	ThrowIfFailed(factory->CreateSwapChain(cmdQueue, &swapChainDesc, mSwapChain.GetAddressOf()));
+
 }

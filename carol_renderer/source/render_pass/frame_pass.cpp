@@ -82,8 +82,8 @@ void Carol::FramePass::Update(uint64_t cpuFenceValue, uint64_t completedFenceVal
 	}
 
 	mHiZIdx[HIZ_DEPTH_IDX] = mDepthStencilMap->GetGpuSrvIdx();
-	mHiZIdx[HIZ_R_IDX] = mHiZMap->GetGpuSrvIdx();
-	mHiZIdx[HIZ_W_IDX] = mHiZMap->GetGpuUavIdx();
+	mHiZIdx[HIZ_IDX] = mHiZMap->GetGpuSrvIdx();
+	mHiZIdx[RW_HIZ_IDX] = mHiZMap->GetGpuUavIdx();
 }
 
 void Carol::FramePass::Cull(ID3D12GraphicsCommandList* cmdList)
@@ -169,11 +169,12 @@ void Carol::FramePass::InitShaders()
 
 	vector<wstring_view> blinnPhongDefines =
 	{
-		L"SSAO", L"BLINN_PHONG" };
+		L"SSAO", L"BLINN_PHONG",L"LDR"
+	};
 
 	vector<wstring_view> pbrDefines =
 	{
-		L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED_G2",L"LAMBERTIAN"
+		L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED",L"LAMBERTIAN",L"LDR"
 	};
 
 	vector<wstring_view> cullDefines =
@@ -210,11 +211,6 @@ void Carol::FramePass::InitShaders()
 	if (gShaders.count(L"PBRPS") == 0)
 	{
 		gShaders[L"PBRPS"] = make_unique<Shader>(L"shader\\opaque_ps.hlsl", pbrDefines, L"main", L"ps_6_6");
-	}
-
-	if (gShaders.count(L"ScreenMS") == 0)
-	{
-		gShaders[L"ScreenMS"] = make_unique<Shader>(L"shader\\screen_ms.hlsl", nullDefines, L"main", L"ms_6_6");
 	}
 
 	if (gShaders.count(L"SkyBoxMS") == 0)
@@ -480,9 +476,6 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 
 void Carol::FramePass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)
 {
-	mHiZMipLevels = std::max(ceilf(log2f(mWidth)), ceilf(log2f(mHeight)));
-
-	
 	mHiZMap = make_unique<ColorBuffer>(
 		mWidth,
 		mHeight,
@@ -495,7 +488,7 @@ void Carol::FramePass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorM
 		D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		nullptr,
-		mHiZMipLevels);
+		mMipLevel);
 
 	mOitppllBuffer = make_unique<StructuredBuffer>(
 		mWidth * mHeight * 16,
@@ -652,10 +645,10 @@ void Carol::FramePass::GenerateHiZ(ID3D12GraphicsCommandList* cmdList)
 {
 	cmdList->SetPipelineState(gPSOs[L"HiZGenerate"]->Get());
 
-	for (int i = 0; i < mHiZMipLevels - 1; i += 5)
+	for (int i = 0; i < mMipLevel - 1; i += 5)
 	{
 		mHiZIdx[HIZ_SRC_MIP] = i;
-		mHiZIdx[HIZ_NUM_MIP_LEVEL] = i + 5 >= mHiZMipLevels ? mHiZMipLevels - i - 1 : 5;
+		mHiZIdx[HIZ_NUM_MIP_LEVEL] = i + 5 >= mMipLevel ? mMipLevel - i - 1 : 5;
 		cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, mHiZIdx.size(), mHiZIdx.data(), 0);
 
 		uint32_t width = ceilf((mWidth >> i) / 32.f);

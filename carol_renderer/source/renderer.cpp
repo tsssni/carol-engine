@@ -29,8 +29,8 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitPipelineStates();
 	InitScene();
 	InitFrame();
-	InitNormal();
 	InitMainLight();
+	InitNormal();
 	InitSsao();
 	InitTaa();
 	OnResize(width, height, true);
@@ -200,6 +200,10 @@ void Carol::Renderer::UpdateFrameCB()
 		mFrameConstants->MainLightSplitZ[i] = mMainLightShadowPass->GetSplitZ(i);
 	}
 
+
+	mFramePass->SetFrameMap(mDisplayPass->GetFrameMap());
+	mTaaPass->SetFrameMap(mDisplayPass->GetFrameMap());
+
 	mFrameConstants->MeshBufferIdx = mScene->GetMeshBufferIdx();
 	mFrameConstants->CommandBufferIdx = mScene->GetCommandBufferIdx();
 	mFrameConstants->RWFrameMapIdx = mDisplayPass->GetFrameMapUavIdx();
@@ -221,9 +225,6 @@ void Carol::Renderer::Draw()
 	ID3D12DescriptorHeap* descriptorHeaps[] = {mDescriptorManager->GetResourceDescriptorHeap()};
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-	mFramePass->SetFrameMap(mDisplayPass->GetFrameMap());
-	mTaaPass->SetFrameMap(mDisplayPass->GetFrameMap());
-
 	mCommandList->SetGraphicsRootSignature(RenderPass::GetRootSignature()->Get());
 	mCommandList->SetComputeRootSignature(RenderPass::GetRootSignature()->Get());
 
@@ -244,6 +245,8 @@ void Carol::Renderer::Draw()
 	mNormalPass->Draw(mCommandList.Get());
 	mSsaoPass->Draw(mCommandList.Get());
 	mFramePass->Draw(mCommandList.Get());
+
+	// Post process
 	mTaaPass->Draw(mCommandList.Get());
 	mDisplayPass->Draw(mCommandList.Get());
 	

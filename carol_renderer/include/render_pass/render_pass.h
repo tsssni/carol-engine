@@ -36,6 +36,7 @@ namespace Carol
 		D3D12_RECT mScissorRect;
 		uint32_t mWidth;
 		uint32_t mHeight;
+		uint32_t mMipLevel;
 
 		static std::unique_ptr<RootSignature> sRootSignature;
 		static Microsoft::WRL::ComPtr<ID3D12CommandSignature> sCommandSignature;

@@ -59,8 +59,8 @@ namespace Carol
         enum
         {
             HIZ_DEPTH_IDX,
-            HIZ_R_IDX,
-            HIZ_W_IDX,
+            HIZ_IDX,
+            RW_HIZ_IDX,
             HIZ_SRC_MIP,
             HIZ_NUM_MIP_LEVEL,
             HIZ_IDX_COUNT
@@ -92,7 +92,6 @@ namespace Carol
 
         std::vector<std::vector<uint32_t>> mCullIdx;
         std::vector<uint32_t> mHiZIdx;
-		uint32_t mHiZMipLevels;
 
         std::unique_ptr<Camera> mCamera;
 

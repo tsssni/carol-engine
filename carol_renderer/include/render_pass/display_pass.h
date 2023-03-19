@@ -22,14 +22,13 @@ namespace Carol
 		DisplayPass(
 			HWND hwnd,
 			IDXGIFactory* factory,
+			ID3D12Device* device,
 			ID3D12CommandQueue* cmdQueue,
 			uint32_t bufferCount,
-			DXGI_FORMAT frameFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS
-		);
-		DisplayPass(const DisplayPass&) = delete;
-		DisplayPass(DisplayPass&&) = delete;
-		DisplayPass& operator=(const DisplayPass&) = delete;
+			DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R10G10B10A2_UNORM,
+			DXGI_FORMAT frameFormat = DXGI_FORMAT_R16G16B16A16_FLOAT,
+			DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
+		~DisplayPass();
 	
 		virtual IDXGISwapChain* GetSwapChain();
 		IDXGISwapChain** GetAddressOfSwapChain();
@@ -52,6 +51,7 @@ namespace Carol
 		virtual void InitShaders()override;
 		virtual void InitPSOs(ID3D12Device* device)override;
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
+		void InitSwapChain(HWND hwnd, IDXGIFactory* factory, ID3D12CommandQueue* cmdQueue);
 
 		Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
 		uint32_t mBackBufferIdx;
@@ -60,8 +60,11 @@ namespace Carol
 		std::unique_ptr<ColorBuffer> mFrameMap;
 		std::unique_ptr<ColorBuffer> mDepthStencilMap;
 
+		DXGI_FORMAT mBackBufferFormat;
 		DXGI_FORMAT mFrameFormat;
 		DXGI_FORMAT mDepthStencilFormat;
+
+		std::unique_ptr<DescriptorAllocInfo> mBackBufferRtvAllocInfo;
 	};
 }
 

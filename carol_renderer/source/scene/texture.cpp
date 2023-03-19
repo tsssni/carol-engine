@@ -37,11 +37,11 @@ Carol::Texture::Texture(
 	}
 	else if (suffix == L"tga")
 	{
-		ThrowIfFailed(LoadFromTGAFile(fileName.data(), TGA_FLAGS_FORCE_LINEAR, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromTGAFile(fileName.data(), TGA_FLAGS_NONE, &metaData, scratchImage));
 	}
 	else
 	{
-		ThrowIfFailed(LoadFromWICFile(fileName.data(), WIC_FLAGS_FORCE_LINEAR, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromWICFile(fileName.data(), WIC_FLAGS_NONE, &metaData, scratchImage));
 	}
 
 	if (isSrgb)

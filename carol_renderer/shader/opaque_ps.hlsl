@@ -2,6 +2,7 @@
 #include "include/mesh.hlsli"
 #include "include/texture.hlsli"
 #include "include/shadow.hlsli"
+#include "include/tone_mapping.hlsli"
 
 struct PixelIn
 {
@@ -55,5 +56,5 @@ float4 main(PixelIn pin) : SV_Target
         litColor += ComputePointLight(gPointLights[spotLightIdx], lightMat, pin.PosW, normal, toEye);
     }
 
-    return float4(ambientColor + litColor, 1.0f);
+    return float4(ToneMapping(ambientColor + litColor), 1.0f);
 }

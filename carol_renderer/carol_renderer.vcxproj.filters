@@ -347,4 +347,7 @@
     <None Include="shader\taa_cs.hlsl" />
     <None Include="shader\include\compute.hlsli" />
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="shader\display_ps.hlsl" />
+  </ItemGroup>
 </Project>
