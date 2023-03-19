@@ -275,9 +275,6 @@
     <None Include="shader\include\shadow.hlsli">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\taa_ps.hlsl">
-      <Filter>着色器文件</Filter>
-    </None>
     <None Include="shader\velocity_ms.hlsl">
       <Filter>着色器文件</Filter>
     </None>
@@ -346,5 +343,8 @@
     <None Include="win32\Renderer.aps">
       <Filter>资源文件</Filter>
     </None>
+    <None Include="shader\include\tone_mapping.hlsli" />
+    <None Include="shader\taa_cs.hlsl" />
+    <None Include="shader\include\compute.hlsli" />
   </ItemGroup>
 </Project>

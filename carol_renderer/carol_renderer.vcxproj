@@ -108,6 +108,7 @@
     <None Include="packages.config" />
     <None Include="shader\cull_as.hlsl" />
     <None Include="shader\include\blinn_phong.hlsli" />
+    <None Include="shader\include\compute.hlsli" />
     <None Include="shader\include\cull.hlsli" />
     <None Include="shader\depth_ms.hlsl">
       <FileType>Document</FileType>
@@ -115,9 +116,7 @@
     <None Include="shader\include\material.hlsli" />
     <None Include="shader\include\pbr.hlsli" />
     <None Include="shader\include\texture.hlsli" />
-    <None Include="shader\taa_ps.hlsl">
-      <FileType>Document</FileType>
-    </None>
+    <None Include="shader\include\tone_mapping.hlsli" />
     <None Include="shader\velocity_ms.hlsl">
       <FileType>Document</FileType>
     </None>
@@ -235,6 +234,19 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\normals_ps.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shader\taa_cs.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

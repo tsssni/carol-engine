@@ -94,7 +94,7 @@ void main(uint dtid : SV_DispatchThreadID)
     }
     
     bool culled = false;
-    StructuredBuffer<MeshConstants> meshCB = ResourceDescriptorHeap[gMeshCBIdx];
+    StructuredBuffer<MeshConstants> meshCB = ResourceDescriptorHeap[gMeshBufferIdx];
     MeshConstants mc = meshCB.Load(gMeshOffset + dtid);
 
 #ifdef FRUSTUM

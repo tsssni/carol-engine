@@ -103,8 +103,7 @@ void Carol::Renderer::InitNormal()
 void Carol::Renderer::InitTaa()
 {
 	mTaaPass = make_unique<TaaPass>(
-		mDevice.Get(),
-		mFramePass->GetFrameFormat());
+		mDevice.Get());
 }
 
 void Carol::Renderer::InitMainLight()
@@ -201,8 +200,9 @@ void Carol::Renderer::UpdateFrameCB()
 		mFrameConstants->MainLightSplitZ[i] = mMainLightShadowPass->GetSplitZ(i);
 	}
 
-	mFrameConstants->MeshCBIdx = mScene->GetMeshCBIdx();
+	mFrameConstants->MeshBufferIdx = mScene->GetMeshBufferIdx();
 	mFrameConstants->CommandBufferIdx = mScene->GetCommandBufferIdx();
+	mFrameConstants->RWFrameMapIdx = mDisplayPass->GetFrameMapUavIdx();
 	mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
 }
 
@@ -221,8 +221,8 @@ void Carol::Renderer::Draw()
 	ID3D12DescriptorHeap* descriptorHeaps[] = {mDescriptorManager->GetResourceDescriptorHeap()};
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-	mTaaPass->SetCurrBackBuffer(mDisplayPass->GetCurrBackBuffer());
-	mTaaPass->SetCurrBackBufferRtv(mDisplayPass->GetCurrBackBufferRtv());
+	mFramePass->SetFrameMap(mDisplayPass->GetFrameMap());
+	mTaaPass->SetFrameMap(mDisplayPass->GetFrameMap());
 
 	mCommandList->SetGraphicsRootSignature(RenderPass::GetRootSignature()->Get());
 	mCommandList->SetComputeRootSignature(RenderPass::GetRootSignature()->Get());
@@ -245,6 +245,7 @@ void Carol::Renderer::Draw()
 	mSsaoPass->Draw(mCommandList.Get());
 	mFramePass->Draw(mCommandList.Get());
 	mTaaPass->Draw(mCommandList.Get());
+	mDisplayPass->Draw(mCommandList.Get());
 	
 	ThrowIfFailed(mCommandList->Close());
 	vector<ID3D12CommandList*> cmdLists{ mCommandList.Get()};
@@ -329,12 +330,15 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mSsaoPass->OnResize(width, height, device, heap, descriptorManager);
 	mTaaPass->OnResize(width, height, device, heap, descriptorManager);
 
+	mFramePass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
+	mNormalPass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
+	mTaaPass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
+
 	mFrameConstants->InstanceFrustumCulledMarkBufferIdx = mScene->GetInstanceFrustumCulledMarkBufferIdx();
 	mFrameConstants->InstanceOcclusionCulledMarkBufferIdx = mScene->GetInstanceOcclusionCulledMarkBufferIdx();
 	mFrameConstants->InstanceCulledMarkBufferIdx = mScene->GetInstanceCulledMarkBufferIdx();
 	
-	mFrameConstants->FrameMapIdx = mFramePass->GetFrameSrvIdx();
-	mFrameConstants->DepthStencilMapIdx = mFramePass->GetDepthStencilSrvIdx();
+	mFrameConstants->DepthStencilMapIdx = mDisplayPass->GetDepthStencilSrvIdx();
 	mFrameConstants->NormalMapIdx = mNormalPass->GetNormalSrvIdx();
 
 	// Main light
@@ -344,20 +348,20 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	}
 
 	// OITPPLL
-	mFrameConstants->OitBufferWIdx = mFramePass->GetPpllUavIdx();
-	mFrameConstants->OitOffsetBufferWIdx = mFramePass->GetOffsetUavIdx();
+	mFrameConstants->RWOitBufferIdx = mFramePass->GetPpllUavIdx();
+	mFrameConstants->RWOitOffsetBufferIdx = mFramePass->GetOffsetUavIdx();
 	mFrameConstants->OitCounterIdx = mFramePass->GetCounterUavIdx();
-	mFrameConstants->OitBufferRIdx = mFramePass->GetPpllSrvIdx();
-	mFrameConstants->OitOffsetBufferRIdx = mFramePass->GetOffsetSrvIdx();
+	mFrameConstants->OitBufferIdx = mFramePass->GetPpllSrvIdx();
+	mFrameConstants->OitOffsetBufferIdx = mFramePass->GetOffsetSrvIdx();
 	
 	// SSAO
 	mFrameConstants->RandVecMapIdx = mSsaoPass->GetRandVecSrvIdx();
-	mFrameConstants->AmbientMapWIdx = mSsaoPass->GetSsaoUavIdx();
-	mFrameConstants->AmbientMapRIdx = mSsaoPass->GetSsaoSrvIdx();
+	mFrameConstants->RWAmbientMapIdx = mSsaoPass->GetSsaoUavIdx();
+	mFrameConstants->AmbientMapIdx = mSsaoPass->GetSsaoSrvIdx();
 	
 	// TAA
 	mFrameConstants->VelocityMapIdx = mTaaPass->GetVeloctiySrvIdx();
-	mFrameConstants->HistFrameMapIdx = mTaaPass->GetHistFrameSrvIdx();
+	mFrameConstants->RWHistMapIdx = mTaaPass->GetHistFrameUavIdx();
 }
 
 void Carol::Renderer::LoadModel(wstring_view path, wstring_view textureDir, wstring_view modelName, DirectX::XMMATRIX world, bool isSkinned)

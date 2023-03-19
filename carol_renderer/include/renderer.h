@@ -65,36 +65,37 @@ namespace Carol
 		DirectX::XMFLOAT3 FramePad5;
 		Light SpotLights[MAX_POINT_LIGHTS];
 
-		uint32_t MeshCBIdx = 0;
+		uint32_t MeshBufferIdx = 0;
 		uint32_t CommandBufferIdx = 0;
 		uint32_t InstanceFrustumCulledMarkBufferIdx = 0;
 		uint32_t InstanceOcclusionCulledMarkBufferIdx = 0;
 		uint32_t InstanceCulledMarkBufferIdx = 0;
 
-		uint32_t FrameMapIdx = 0;
 		uint32_t DepthStencilMapIdx = 0;
 		uint32_t NormalMapIdx = 0;
+		float FramePad6;
 
 		// Main light
 		uint32_t MainLightShadowMapIdx[MAIN_LIGHT_SPLIT_LEVEL] = { 0 };
 		DirectX::XMFLOAT3 FramePad7;
 
 		// OITPPLL
-		uint32_t OitBufferWIdx = 0;
-		uint32_t OitOffsetBufferWIdx = 0;
 		uint32_t OitCounterIdx = 0;
-		uint32_t OitBufferRIdx = 0;
-		uint32_t OitOffsetBufferRIdx = 0;
+		uint32_t RWOitBufferIdx = 0;
+		uint32_t RWOitOffsetBufferIdx = 0;
+		uint32_t OitBufferIdx = 0;
+		uint32_t OitOffsetBufferIdx = 0;
 
 		// SSAO
 		uint32_t RandVecMapIdx = 0;
-		uint32_t AmbientMapWIdx = 0;
-		uint32_t AmbientMapRIdx = 0;
+		uint32_t RWAmbientMapIdx = 0;
+		uint32_t AmbientMapIdx = 0;
 		
 		// TAA
 		uint32_t VelocityMapIdx = 0;
-		uint32_t HistFrameMapIdx = 0;
-		DirectX::XMFLOAT2 FramePad8;
+		uint32_t RWHistMapIdx = 0;
+		uint32_t RWFrameMapIdx = 0;
+		float FramePad8;
 	};
  
     class Renderer :public BaseRenderer

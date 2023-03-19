@@ -15,5 +15,5 @@ float2 main(PixelIn pin) : SV_Target
     histPos.y = (1.0f - pin.PosHist.y) / 2.0f;
     histPos *= gRenderTargetSize;
     
-    return (histPos - pin.PosH.xy) * gInvRenderTargetSize;
+    return histPos - pin.PosH.xy;
 }

@@ -45,14 +45,10 @@ namespace Carol
 		void Cull(ID3D12GraphicsCommandList* cmdList);
 		void Update(uint64_t cpuFenceValue, uint64_t completedFenceValue);
 
-		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameRtv()const;
-		D3D12_CPU_DESCRIPTOR_HANDLE GetFrameDsv()const;
-		DXGI_FORMAT GetFrameFormat()const;
-		DXGI_FORMAT GetFrameDsvFormat()const;
+		void SetFrameMap(ColorBuffer* frameMap);
+		void SetDepthStencilMap(ColorBuffer* depthStencilMap);
 		const StructuredBuffer* GetIndirectCommandBuffer(MeshType type)const;
 
-		uint32_t GetFrameSrvIdx()const;
-		uint32_t GetDepthStencilSrvIdx()const;
 		uint32_t GetHiZSrvIdx()const;
 		uint32_t GetHiZUavIdx()const;
 
@@ -98,9 +94,9 @@ namespace Carol
 
 		Scene* mScene;
 
-		std::unique_ptr<ColorBuffer> mFrameMap;
-		std::unique_ptr<ColorBuffer> mDepthStencilMap;
 		std::unique_ptr<ColorBuffer> mHiZMap;
+		ColorBuffer* mFrameMap;
+		ColorBuffer* mDepthStencilMap;
 
 		std::unique_ptr<StructuredBuffer> mOitppllBuffer;
 		std::unique_ptr<RawBuffer> mStartOffsetBuffer; 

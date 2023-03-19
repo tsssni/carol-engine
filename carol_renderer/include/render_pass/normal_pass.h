@@ -20,6 +20,7 @@ namespace Carol
 		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
 		
 		void SetIndirectCommandBuffer(MeshType type, const StructuredBuffer* indirectCommandBuffer);
+		void SetDepthStencilMap(ColorBuffer* depthStencilMap);
 		uint32_t GetNormalSrvIdx()const;
 
 	protected:
@@ -28,9 +29,10 @@ namespace Carol
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
 
 		std::unique_ptr<ColorBuffer> mNormalMap;
-		std::unique_ptr<ColorBuffer> mNormalDepthStencilMap;
+		ColorBuffer* mDepthStencilMap;
+
 		DXGI_FORMAT mNormalMapFormat;
-		DXGI_FORMAT mNormalDsvFormat;
+		DXGI_FORMAT mFrameDsvFormat;
 
 		std::vector<const StructuredBuffer*> mIndirectCommandBuffer;
 	};

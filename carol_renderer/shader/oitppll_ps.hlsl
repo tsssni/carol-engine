@@ -28,8 +28,8 @@ void SortPixels(inout OitNode sortedPixels[MAX_SORTED_PIXELS], uint count)
 
 float4 main(PixelIn pin) : SV_Target
 {
-    StructuredBuffer<OitNode> oitNodeBuffer = ResourceDescriptorHeap[gOitBufferRIdx];
-    Buffer<uint> startOffsetBuffer = ResourceDescriptorHeap[gOitOffsetBufferRIdx];
+    StructuredBuffer<OitNode> oitNodeBuffer = ResourceDescriptorHeap[gOitBufferIdx];
+    Buffer<uint> startOffsetBuffer = ResourceDescriptorHeap[gOitOffsetBufferIdx];
     
     uint2 pixelPos = uint2(pin.PosH.x - 0.5f, pin.PosH.y - 0.5f);
     uint startOffsetAddr = pixelPos.y * gRenderTargetSize.x + pixelPos.x;

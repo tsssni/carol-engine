@@ -44,24 +44,19 @@ float GetCSMShadowFactor(float3 posW, float4 posH, out uint lightIdx)
 {
     float shadowFactor = 1.f;
     
-    float mainLightSplitZ[MAIN_LIGHT_SPLIT_LEVEL + 1] =
+    float mainLightShadowMapIdx[MAIN_LIGHT_SPLIT_LEVEL];
+    [unroll]
+    for (int shadowIdx = 0; shadowIdx < MAIN_LIGHT_SPLIT_LEVEL;++shadowIdx)
     {
-        gMainLightSplitZ[0].x,
-        gMainLightSplitZ[0].y,
-        gMainLightSplitZ[0].z,
-        gMainLightSplitZ[0].w,
-        gMainLightSplitZ[1].x,
-        gMainLightSplitZ[1].y
-    };
-
-    uint mainLightShadowMapIdx[MAIN_LIGHT_SPLIT_LEVEL] =
+        mainLightShadowMapIdx[shadowIdx] = gMainLightShadowMapIdx[shadowIdx / 4][shadowIdx % 4];
+    }
+    
+    float mainLightSplitZ[MAIN_LIGHT_SPLIT_LEVEL + 1];
+    [unroll]
+    for (int splitIdx = 0; splitIdx < MAIN_LIGHT_SPLIT_LEVEL + 1;++splitIdx)
     {
-        gMainLightShadowMapIdx[0].x,
-        gMainLightShadowMapIdx[0].y,
-        gMainLightShadowMapIdx[0].z,
-        gMainLightShadowMapIdx[0].w,
-        gMainLightShadowMapIdx[1].x
-    };
+        mainLightSplitZ[splitIdx] = gMainLightSplitZ[splitIdx / 4][splitIdx % 4];
+    }
 
     [unroll]
     for (int i = 0; i < MAIN_LIGHT_SPLIT_LEVEL; ++i)

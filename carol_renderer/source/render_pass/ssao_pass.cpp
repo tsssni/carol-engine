@@ -6,7 +6,7 @@
 #include <DirectXPackedVector.h>
 #include <string_view>
 
-#define BLUR_RADIUS 5
+#define BORDER_RADIUS 5
 
 namespace Carol
 {
@@ -81,14 +81,12 @@ void Carol::SsaoPass::OnResize(
 
 void Carol::SsaoPass::Draw(ID3D12GraphicsCommandList* cmdList)
 {
-    uint32_t groupWidth = ceilf(mWidth * 1.f / (32 - 2 * BLUR_RADIUS)); 
-    uint32_t groupHeight = ceilf(mHeight * 1.f / (32 - 2 * BLUR_RADIUS));
+    uint32_t groupWidth = ceilf(mWidth * 1.f / (32 - 2 * BORDER_RADIUS)); 
+    uint32_t groupHeight = ceilf(mHeight * 1.f / (32 - 2 * BORDER_RADIUS));
 
     mAmbientMap->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
     cmdList->SetPipelineState(gPSOs[L"Ssao"]->Get());
     cmdList->Dispatch(groupWidth, groupHeight , 1);
-    
     mAmbientMap->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 

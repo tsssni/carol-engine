@@ -19,8 +19,9 @@ Carol::NormalPass::NormalPass(
     ID3D12Device* device,
     DXGI_FORMAT normalMapFormat,
     DXGI_FORMAT normalDsvFormat)
-	:mNormalMapFormat(normalMapFormat),
-    mNormalDsvFormat(normalDsvFormat),
+	:
+    mNormalMapFormat(normalMapFormat),
+    mFrameDsvFormat(normalDsvFormat),
     mIndirectCommandBuffer(MESH_TYPE_COUNT)
 {
     InitShaders();
@@ -34,8 +35,8 @@ void Carol::NormalPass::Draw(ID3D12GraphicsCommandList* cmdList)
 
     mNormalMap->Transition(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
     cmdList->ClearRenderTargetView(mNormalMap->GetRtv(), DirectX::Colors::Blue, 0, nullptr);
-    cmdList->ClearDepthStencilView(mNormalDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
-    cmdList->OMSetRenderTargets(1, GetRvaluePtr(mNormalMap->GetRtv()), true, GetRvaluePtr(mNormalDepthStencilMap->GetDsv()));
+    cmdList->ClearDepthStencilView(mDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+    cmdList->OMSetRenderTargets(1, GetRvaluePtr(mNormalMap->GetRtv()), true, GetRvaluePtr(mDepthStencilMap->GetDsv()));
 
     cmdList->SetPipelineState(gPSOs[L"NormalsStatic"]->Get());
     ExecuteIndirect(cmdList, mIndirectCommandBuffer[OPAQUE_STATIC]);
@@ -49,6 +50,11 @@ void Carol::NormalPass::Draw(ID3D12GraphicsCommandList* cmdList)
 void Carol::NormalPass::SetIndirectCommandBuffer(MeshType type, const StructuredBuffer* indirectCommandBuffer)
 {
     mIndirectCommandBuffer[type] = indirectCommandBuffer;
+}
+
+void Carol::NormalPass::SetDepthStencilMap(ColorBuffer* depthStencilMap)
+{
+    mDepthStencilMap = depthStencilMap;
 }
 
 uint32_t Carol::NormalPass::GetNormalSrvIdx()const
@@ -87,7 +93,7 @@ void Carol::NormalPass::InitPSOs(ID3D12Device* device)
     {
 		auto normalsStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
         normalsStaticMeshPSO->SetRootSignature(sRootSignature.get());
-		normalsStaticMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mNormalDsvFormat);
+		normalsStaticMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mFrameDsvFormat);
 		normalsStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
 		normalsStaticMeshPSO->SetMS(gShaders[L"NormalsStaticMS"].get());
 		normalsStaticMeshPSO->SetPS(gShaders[L"NormalsPS"].get());
@@ -100,7 +106,7 @@ void Carol::NormalPass::InitPSOs(ID3D12Device* device)
     {
 		auto normalsSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
         normalsSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
-		normalsSkinnedMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mNormalDsvFormat);
+		normalsSkinnedMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mFrameDsvFormat);
 		normalsSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
 		normalsSkinnedMeshPSO->SetMS(gShaders[L"NormalsSkinnedMS"].get());
 		normalsSkinnedMeshPSO->SetPS(gShaders[L"NormalsPS"].get());
@@ -125,18 +131,4 @@ void Carol::NormalPass::InitBuffers(ID3D12Device* device, Heap* heap, Descriptor
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         &optClearValue);
-
-    D3D12_CLEAR_VALUE depthStencilOptClearValue = CD3DX12_CLEAR_VALUE(GetDsvFormat(mNormalDsvFormat), 1.f, 0);
-	mNormalDepthStencilMap = make_unique<ColorBuffer>(
-		mWidth,
-		mHeight,
-		1,
-		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
-		mNormalDsvFormat,
-		device,
-		heap,
-		descriptorManager,
-		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
-		&depthStencilOptClearValue);
 }

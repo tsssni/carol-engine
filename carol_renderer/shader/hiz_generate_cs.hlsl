@@ -7,8 +7,6 @@ cbuffer HiZConstants : register(b2)
     uint gNumMipLevel;
 }
 
-groupshared float sharedDepth[32][32];
-
 void Init(uint2 dtid, uint2 size)
 {
     if(gSrcMip == 0 && dtid.x < size.x && dtid.y < size.y)
@@ -18,6 +16,8 @@ void Init(uint2 dtid, uint2 size)
         srcHiZMap[dtid].r = depthMap.Load(int3(dtid, 0)).r;
     }
 }
+
+groupshared float sharedDepth[32][32];
 
 float GetMaxDepth(uint2 gtid, uint offset)
 {

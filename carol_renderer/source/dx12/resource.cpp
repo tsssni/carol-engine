@@ -191,6 +191,11 @@ D3D12_GPU_VIRTUAL_ADDRESS Carol::Resource::GetGPUVirtualAddress()const
 
 void Carol::Resource::Transition(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES afterState)
 {
+	if (mState == afterState)
+	{
+		return;
+	}
+
 	D3D12_RESOURCE_BARRIER barrier = {};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Transition.pResource = mResource.Get();

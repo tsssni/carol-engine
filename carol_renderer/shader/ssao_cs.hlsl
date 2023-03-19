@@ -1,32 +1,15 @@
+#define BORDER_RADIUS 5
 #include "include/common.hlsli"
+#include "include/compute.hlsli"
 #include "include/texture.hlsli"
 
 #ifndef SAMPLE_COUNT
 #define SAMPLE_COUNT 14
 #endif
 
-#ifndef BLUR_RADIUS
-#define BLUR_RADIUS 5
-#endif
-
 #ifndef BLUR_COUNT
 #define BLUR_COUNT 3
 #endif
-
-bool UavBorderTest(int2 pos, uint2 size)
-{
-    return pos.x >= 0 && pos.x < size.x && pos.y >= 0 && pos.y < size.y;
-}
-
-bool GroupBorderTest(int2 pos)
-{
-    return pos.x >= BLUR_RADIUS && pos.x <= 31 - BLUR_RADIUS && pos.y >= BLUR_RADIUS && pos.y <= 31 - BLUR_RADIUS;
-}
-
-int2 GetUavId(int2 gid, int2 gtid)
-{
-    return gid * (32 - 2 * BLUR_RADIUS) + gtid - BLUR_RADIUS;
-}
 
 float4 GetViewPos(float2 pos)
 {
@@ -59,7 +42,7 @@ groupshared float3 normal[32][32];
 void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
 {
     int2 size;
-    RWTexture2D<float4> ambientMap = ResourceDescriptorHeap[gAmbientMapWIdx];
+    RWTexture2D<float4> ambientMap = ResourceDescriptorHeap[gRWAmbientMapIdx];
     ambientMap.GetDimensions(size.x, size.y);
     
     int2 uid = GetUavId(gid, gtid);
@@ -134,11 +117,11 @@ void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
                 float2 texOffset = direction ? float2(0.0f, 1.f / size.y) : float2(1.f / size.x, 0.0f);
                 int2 uavOffset = direction ? int2(0, 1) : int2(1, 0);
             
-                float ambientAccess = blurWeights[BLUR_RADIUS] * ambientMap[uid].r;
-                float totalWeight = blurWeights[BLUR_RADIUS];
+                float ambientAccess = blurWeights[BORDER_RADIUS] * ambientMap[uid].r;
+                float totalWeight = blurWeights[BORDER_RADIUS];
     
                 [unroll]
-                for (int i = -BLUR_RADIUS; i <= BLUR_RADIUS; ++i)
+                for (int i = -BORDER_RADIUS; i <= BORDER_RADIUS; ++i)
                 {
                     if (i == 0)
                     {
@@ -153,8 +136,8 @@ void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
  
                     if (UavBorderTest(offsetUid, size) && dot(centerNormal, neighborNormal) >= 0.8f && abs(centerViewDepth - neighborViewDepth) <= 0.2f)
                     {
-                        ambientAccess += blurWeights[i + BLUR_RADIUS] * ambient[offsetGtid.x][offsetGtid.y];
-                        totalWeight += blurWeights[i + BLUR_RADIUS];
+                        ambientAccess += blurWeights[i + BORDER_RADIUS] * ambient[offsetGtid.x][offsetGtid.y];
+                        totalWeight += blurWeights[i + BORDER_RADIUS];
                     }
                 }
                 

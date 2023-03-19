@@ -75,7 +75,7 @@ void Carol::Scene::InitBuffers(
 		D3D12_RESOURCE_FLAG_NONE,
 		false);
 
-	mMeshCBPool = make_unique<StructuredBufferPool>(
+	mMeshBufferPool = make_unique<StructuredBufferPool>(
 		1024,
 		sizeof(MeshConstants),
 		device,
@@ -85,7 +85,7 @@ void Carol::Scene::InitBuffers(
 		D3D12_RESOURCE_FLAG_NONE,
 		true);
 
-	mSkinnedCBPool = make_unique<StructuredBufferPool>(
+	mSkinnedBufferPool = make_unique<StructuredBufferPool>(
 		1024,
 		sizeof(SkinnedConstants),
 		device,
@@ -264,9 +264,9 @@ uint32_t Carol::Scene::GetMeshCBStartOffet(MeshType type)const
 	return mMeshStartOffset[type];
 }
 
-uint32_t Carol::Scene::GetMeshCBIdx()const
+uint32_t Carol::Scene::GetMeshBufferIdx()const
 {
-	return mMeshCB->GetGpuSrvIdx();
+	return mMeshBuffer->GetGpuSrvIdx();
 }
 
 uint32_t Carol::Scene::GetCommandBufferIdx()const
@@ -315,20 +315,20 @@ void Carol::Scene::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t complet
 	}
 	
 	mIndirectCommandBufferPool->DiscardBuffer(mIndirectCommandBuffer.release(), cpuFenceValue);
-	mMeshCBPool->DiscardBuffer(mMeshCB.release(), cpuFenceValue);
-	mSkinnedCBPool->DiscardBuffer(mSkinnedCB.release(), cpuFenceValue);
+	mMeshBufferPool->DiscardBuffer(mMeshBuffer.release(), cpuFenceValue);
+	mSkinnedBufferPool->DiscardBuffer(mSkinnedBuffer.release(), cpuFenceValue);
 	
 	mIndirectCommandBuffer = mIndirectCommandBufferPool->RequestBuffer(completedFenceValue, totalMeshCount);
-	mMeshCB = mMeshCBPool->RequestBuffer(completedFenceValue, totalMeshCount);
-	mSkinnedCB = mSkinnedCBPool->RequestBuffer(completedFenceValue, GetModelsCount());
+	mMeshBuffer = mMeshBufferPool->RequestBuffer(completedFenceValue, totalMeshCount);
+	mSkinnedBuffer = mSkinnedBufferPool->RequestBuffer(completedFenceValue, GetModelsCount());
 
 	int modelIdx = 0;
 	for (auto& [name, model] : mModels)
 	{
 		if (model->IsSkinned())
 		{
-			mSkinnedCB->CopyElements(model->GetSkinnedConstants(), modelIdx);
-			model->SetSkinnedCBAddress(mSkinnedCB->GetElementAddress(modelIdx));
+			mSkinnedBuffer->CopyElements(model->GetSkinnedConstants(), modelIdx);
+			model->SetSkinnedCBAddress(mSkinnedBuffer->GetElementAddress(modelIdx));
 			++modelIdx;
 		}
 	}
@@ -338,8 +338,8 @@ void Carol::Scene::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t complet
 	{
 		for (auto& [name, mesh] : mMeshes[i])
 		{
-			mMeshCB->CopyElements(mesh->GetMeshConstants(), meshIdx);
-			mesh->SetMeshCBAddress(mMeshCB->GetElementAddress(meshIdx));
+			mMeshBuffer->CopyElements(mesh->GetMeshConstants(), meshIdx);
+			mesh->SetMeshCBAddress(mMeshBuffer->GetElementAddress(meshIdx));
 
 			IndirectCommand indirectCmd;
 			
@@ -356,8 +356,8 @@ void Carol::Scene::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t complet
 		}
 	}
 
-	mMeshCB->CopyElements(GetSkyBox()->GetMeshConstants(), meshIdx);
-    mSkyBox->SetMeshCBAddress(L"SkyBox", mMeshCB->GetElementAddress(meshIdx));
+	mMeshBuffer->CopyElements(GetSkyBox()->GetMeshConstants(), meshIdx);
+    mSkyBox->SetMeshCBAddress(L"SkyBox", mMeshBuffer->GetElementAddress(meshIdx));
 }
 
 void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot)

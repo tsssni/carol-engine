@@ -15,15 +15,15 @@ struct PixelIn
 
 void main(PixelIn pin)
 {
-    RWStructuredBuffer<OitNode> oitNodeBuffer = ResourceDescriptorHeap[gOitBufferWIdx];
-    RWByteAddressBuffer startOffsetBuffer = ResourceDescriptorHeap[gOitOffsetBufferWIdx];
+    RWStructuredBuffer<OitNode> oitNodeBuffer = ResourceDescriptorHeap[gRWOitBufferIdx];
+    RWByteAddressBuffer startOffsetBuffer = ResourceDescriptorHeap[gRWOitOffsetBufferIdx];
     RWByteAddressBuffer counter = ResourceDescriptorHeap[gOitCounterBufferIdx];
     
     Texture2D diffuseTex = ResourceDescriptorHeap[gDiffuseTextureIdx];
     Texture2D normalTex = ResourceDescriptorHeap[gNormalTextureIdx];
     Texture2D metallicRoughnessTex = ResourceDescriptorHeap[gMetallicRoughnessTextureIdx];
 #ifdef SSAO
-    Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapRIdx];
+    Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapIdx];
 #endif
     
     // Interpolation may unnormalize the normal, so renormalize it

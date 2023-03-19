@@ -15,25 +15,25 @@ namespace Carol
 	public:
 		TaaPass(
 			ID3D12Device* device,
-			DXGI_FORMAT frameFormat,
+			DXGI_FORMAT frameMapFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
 			DXGI_FORMAT velocityMapFormat = DXGI_FORMAT_R16G16_FLOAT,
-			DXGI_FORMAT frameDsvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
+			DXGI_FORMAT velocityDsvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 		TaaPass(const TaaPass&) = delete;
 		TaaPass(TaaPass&&) = delete;
 		TaaPass& operator=(const TaaPass&) = delete;
 
 		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
 		
-		void SetCurrBackBuffer(Resource* currBackBuffer);
+		void SetFrameMap(ColorBuffer* frameMap);
+		void SetDepthStencilMap(ColorBuffer* depthStencilMap);
 		void SetIndirectCommandBuffer(MeshType type, const StructuredBuffer* indirectCommandBuffer);
-		void SetCurrBackBufferRtv(D3D12_CPU_DESCRIPTOR_HANDLE currBackBufferRtv);
 
 		void GetHalton(float& proj0,float& proj1)const;
 		void SetHistViewProj(DirectX::XMMATRIX& histViewProj);
 		DirectX::XMMATRIX GetHistViewProj()const;
 		
 		uint32_t GetVeloctiySrvIdx()const;
-		uint32_t GetHistFrameSrvIdx()const;
+		uint32_t GetHistFrameUavIdx()const;
 
 	protected:
 		virtual void InitShaders()override;
@@ -46,22 +46,20 @@ namespace Carol
         void DrawVelocityMap(ID3D12GraphicsCommandList* cmdList);
         void DrawOutput(ID3D12GraphicsCommandList* cmdList);
 
-		std::unique_ptr<ColorBuffer> mHistFrameMap;
+		std::unique_ptr<ColorBuffer> mHistMap;
 		std::unique_ptr<ColorBuffer> mVelocityMap;
-		std::unique_ptr<ColorBuffer> mVelocityDepthStencilMap;
+		ColorBuffer* mFrameMap;
+		ColorBuffer* mDepthStencilMap;
 
 		DXGI_FORMAT mVelocityMapFormat;
 		DXGI_FORMAT mVelocityDsvFormat;
-		DXGI_FORMAT mFrameFormat;
+		DXGI_FORMAT mFrameMapFormat;
 
-		D3D12_CPU_DESCRIPTOR_HANDLE mCurrBackBufferRtv;
 
 		DirectX::XMFLOAT2 mHalton[8];
 		DirectX::XMMATRIX mHistViewProj;
 		
 		std::vector<const StructuredBuffer*> mIndirectCommandBuffer;
-		Resource* mCurrBackBuffer;
-
 	};
 }
 

@@ -74,7 +74,7 @@ namespace Carol {
 		void ClearCullMark(ID3D12GraphicsCommandList* cmdList);
 		uint32_t GetMeshCBStartOffet(MeshType type)const;
 
-		uint32_t GetMeshCBIdx()const;
+		uint32_t GetMeshBufferIdx()const;
 		uint32_t GetCommandBufferIdx()const;
 		uint32_t GetInstanceFrustumCulledMarkBufferIdx()const;
 		uint32_t GetInstanceOcclusionCulledMarkBufferIdx()const;
@@ -97,12 +97,12 @@ namespace Carol {
 		std::vector<std::unordered_map<std::wstring, Mesh*>> mMeshes;
 
 		std::unique_ptr<StructuredBuffer> mIndirectCommandBuffer;
-		std::unique_ptr<StructuredBuffer> mMeshCB;
-		std::unique_ptr<StructuredBuffer> mSkinnedCB;
+		std::unique_ptr<StructuredBuffer> mMeshBuffer;
+		std::unique_ptr<StructuredBuffer> mSkinnedBuffer;
 
 		std::unique_ptr<StructuredBufferPool> mIndirectCommandBufferPool;
-		std::unique_ptr<StructuredBufferPool> mMeshCBPool;
-		std::unique_ptr<StructuredBufferPool> mSkinnedCBPool;
+		std::unique_ptr<StructuredBufferPool> mMeshBufferPool;
+		std::unique_ptr<StructuredBufferPool> mSkinnedBufferPool;
 
 		std::unique_ptr<RawBuffer> mInstanceFrustumCulledMarkBuffer;
 		std::unique_ptr<RawBuffer> mInstanceOcclusionCulledMarkBuffer;

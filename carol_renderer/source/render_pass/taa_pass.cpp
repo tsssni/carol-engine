@@ -7,6 +7,8 @@
 #include <cmath>
 #include <string_view>
 
+#define BORDER_RADIUS 1
+
 namespace Carol {
 	using std::vector;
 	using std::wstring;
@@ -17,10 +19,10 @@ namespace Carol {
 
 Carol::TaaPass::TaaPass(
 	ID3D12Device* device,
-	DXGI_FORMAT frameFormat,
+	DXGI_FORMAT frameMapFormat,
 	DXGI_FORMAT velocityMapFormat,
 	DXGI_FORMAT velocityDsvFormat)
-	:mFrameFormat(frameFormat),
+	:mFrameMapFormat(frameMapFormat),
 	mVelocityDsvFormat(velocityDsvFormat),
 	mVelocityMapFormat(velocityMapFormat),
 	mIndirectCommandBuffer(MESH_TYPE_COUNT)
@@ -54,9 +56,9 @@ void Carol::TaaPass::InitShaders()
 		gShaders[L"TaaVelocitySkinnedMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
 	}
 
-	if (gShaders.count(L"TaaOutputPS") == 0)
+	if (gShaders.count(L"TaaOutputCS") == 0)
 	{
-		gShaders[L"TaaOutputPS"] = make_unique<Shader>(L"shader\\taa_ps.hlsl", nullDefines, L"main", L"ps_6_6");
+		gShaders[L"TaaOutputCS"] = make_unique<Shader>(L"shader\\taa_cs.hlsl", nullDefines, L"main", L"cs_6_6");
 	}
 }
 
@@ -91,15 +93,12 @@ void Carol::TaaPass::InitPSOs(ID3D12Device* device)
 
 	if (gPSOs[L"TaaOutput"] == 0)
 	{
-		auto outputMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-		outputMeshPSO->SetRootSignature(sRootSignature.get());
-		outputMeshPSO->SetDepthStencilState(gDepthDisabledState);
-		outputMeshPSO->SetRenderTargetFormat(mFrameFormat);
-		outputMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
-		outputMeshPSO->SetPS(gShaders[L"TaaOutputPS"].get());
-		outputMeshPSO->Finalize(device);
-	
-		gPSOs[L"TaaOutput"] = std::move(outputMeshPSO);
+		auto outputComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+		outputComputePSO->SetRootSignature(sRootSignature.get());
+		outputComputePSO->SetCS(gShaders[L"TaaOutputCS"].get());
+		outputComputePSO->Finalize(device);
+
+		gPSOs[L"TaaOutput"] = std::move(outputComputePSO);
 	}
 }
 
@@ -109,19 +108,19 @@ void Carol::TaaPass::Draw(ID3D12GraphicsCommandList* cmdList)
 	DrawOutput(cmdList);
 }
 
-void Carol::TaaPass::SetCurrBackBuffer(Resource* currBackBuffer)
+void Carol::TaaPass::SetFrameMap(ColorBuffer* frameMap)
 {
-	mCurrBackBuffer = currBackBuffer;
+	mFrameMap = frameMap;
+}
+
+void Carol::TaaPass::SetDepthStencilMap(ColorBuffer* depthStencilMap)
+{
+	mDepthStencilMap = depthStencilMap;
 }
 
 void Carol::TaaPass::SetIndirectCommandBuffer(MeshType type, const StructuredBuffer* indirectCommandBuffer)
 {
 	mIndirectCommandBuffer[type] = indirectCommandBuffer;
-}
-
-void Carol::TaaPass::SetCurrBackBufferRtv(D3D12_CPU_DESCRIPTOR_HANDLE currBackBufferRtv)
-{
-	mCurrBackBufferRtv = currBackBufferRtv;
 }
 
 void Carol::TaaPass::DrawVelocityMap(ID3D12GraphicsCommandList* cmdList)
@@ -131,8 +130,8 @@ void Carol::TaaPass::DrawVelocityMap(ID3D12GraphicsCommandList* cmdList)
 
 	mVelocityMap->Transition(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	cmdList->ClearRenderTargetView(mVelocityMap->GetRtv(), DirectX::Colors::Black, 0, nullptr);
-	cmdList->ClearDepthStencilView(mVelocityDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
-	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mVelocityMap->GetRtv()), true, GetRvaluePtr(mVelocityDepthStencilMap->GetDsv()));
+	cmdList->ClearDepthStencilView(mDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mVelocityMap->GetRtv()), true, GetRvaluePtr(mDepthStencilMap->GetDsv()));
 
 	cmdList->SetPipelineState(gPSOs[L"VelocityStatic"]->Get());
 	ExecuteIndirect(cmdList, mIndirectCommandBuffer[OPAQUE_STATIC]);
@@ -147,18 +146,12 @@ void Carol::TaaPass::DrawVelocityMap(ID3D12GraphicsCommandList* cmdList)
 
 void Carol::TaaPass::DrawOutput(ID3D12GraphicsCommandList* cmdList)
 {
-	mCurrBackBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	uint32_t groupWidth = ceilf(mWidth * 1.f / (32 - 2 * BORDER_RADIUS)); 
+    uint32_t groupHeight = ceilf(mHeight * 1.f / (32 - 2 * BORDER_RADIUS));
 
-	cmdList->ClearRenderTargetView(mCurrBackBufferRtv, DirectX::Colors::Gray, 0, nullptr);
-	cmdList->OMSetRenderTargets(1, &mCurrBackBufferRtv, true, nullptr);
+	mFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	cmdList->SetPipelineState(gPSOs[L"TaaOutput"]->Get());
-	static_cast<ID3D12GraphicsCommandList6*>(cmdList)->DispatchMesh(1, 1, 1);
-
-	mHistFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
-	mCurrBackBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_SOURCE);
-	cmdList->CopyResource(mHistFrameMap->Get(), mCurrBackBuffer->Get());
-	mHistFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	mCurrBackBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_PRESENT);
+	cmdList->Dispatch(groupWidth, groupHeight, 1);
 }
 
 void Carol::TaaPass::GetHalton(float& proj0, float& proj1)const
@@ -186,24 +179,13 @@ uint32_t Carol::TaaPass::GetVeloctiySrvIdx()const
 	return mVelocityMap->GetGpuSrvIdx();
 }
 
-uint32_t Carol::TaaPass::GetHistFrameSrvIdx()const
+uint32_t Carol::TaaPass::GetHistFrameUavIdx()const
 {
-	return mHistFrameMap->GetGpuSrvIdx();
+	return mHistMap->GetGpuUavIdx();
 }
 
 void Carol::TaaPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)
 {
-	mHistFrameMap = make_unique<ColorBuffer>(
-		mWidth,
-		mHeight,
-		1,
-		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
-		mFrameFormat,
-		device,
-		heap,
-		descriptorManager,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	
 	D3D12_CLEAR_VALUE optClearValue = CD3DX12_CLEAR_VALUE(mVelocityMapFormat, DirectX::Colors::Black);
 	mVelocityMap = make_unique<ColorBuffer>(
 		mWidth,
@@ -218,19 +200,17 @@ void Carol::TaaPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorMan
 		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
 		&optClearValue);
 
-	D3D12_CLEAR_VALUE depthStencilOptClearValue = CD3DX12_CLEAR_VALUE(GetDsvFormat(mVelocityDsvFormat), 1.f, 0);
-	mVelocityDepthStencilMap = make_unique<ColorBuffer>(
+	mHistMap = make_unique<ColorBuffer>(
 		mWidth,
 		mHeight,
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
-		mVelocityDsvFormat,
+		mFrameMapFormat,
 		device,
 		heap,
 		descriptorManager,
-		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
-		&depthStencilOptClearValue);
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 
 void Carol::TaaPass::InitHalton()

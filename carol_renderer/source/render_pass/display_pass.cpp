@@ -9,14 +9,6 @@ namespace Carol {
 	using Microsoft::WRL::ComPtr;
 }
 
-Carol::DisplayPass::~DisplayPass()
-{
-	if (mBackBufferRtvAllocInfo && mBackBufferRtvAllocInfo->Manager)
-	{
-		mBackBufferRtvAllocInfo->Manager->RtvDeallocate(mBackBufferRtvAllocInfo.release());
-	}
-}
-
 IDXGISwapChain* Carol::DisplayPass::GetSwapChain()
 {
 	return mSwapChain.Get();
@@ -27,7 +19,7 @@ IDXGISwapChain** Carol::DisplayPass::GetAddressOfSwapChain()
 	return mSwapChain.GetAddressOf();
 }
 
-uint32_t Carol::DisplayPass::GetBackBufferCount()
+uint32_t Carol::DisplayPass::GetBackBufferCount()const
 {
 	return mBackBuffer.size();
 }
@@ -37,20 +29,18 @@ Carol::DisplayPass::DisplayPass(
 	IDXGIFactory* factory,
 	ID3D12CommandQueue* cmdQueue,
 	uint32_t bufferCount,
-	DXGI_FORMAT backBufferFormat)
+	DXGI_FORMAT frameFormat,
+	DXGI_FORMAT depthStencilFormat)
 	:mBackBuffer(bufferCount),
-	mBackBufferFormat(backBufferFormat),
-	mBackBufferRtvAllocInfo(make_unique<DescriptorAllocInfo>())
+	mFrameFormat(frameFormat),
+	mDepthStencilFormat(depthStencilFormat)
 {
-	mBackBufferFormat = backBufferFormat;
-	mBackBuffer.resize(bufferCount);
-
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
 	swapChainDesc.BufferDesc.Width = 0;
 	swapChainDesc.BufferDesc.Height = 0;
 	swapChainDesc.BufferDesc.RefreshRate.Numerator = 144;
 	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-	swapChainDesc.BufferDesc.Format = backBufferFormat;
+	swapChainDesc.BufferDesc.Format = frameFormat;
 	swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 	swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 	swapChainDesc.SampleDesc.Count = 1;
@@ -68,26 +58,45 @@ Carol::DisplayPass::DisplayPass(
 
 void Carol::DisplayPass::SetBackBufferIndex()
 {
-	mCurrBackBufferIndex = (mCurrBackBufferIndex + 1) % mBackBuffer.size();
+	mBackBufferIdx = (mBackBufferIdx + 1) % mBackBuffer.size();
 }
 
-Carol::Resource* Carol::DisplayPass::GetCurrBackBuffer()
+Carol::ColorBuffer* Carol::DisplayPass::GetFrameMap()const
 {
-	return mBackBuffer[mCurrBackBufferIndex].get();
+	return mFrameMap.get();
 }
 
-CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DisplayPass::GetCurrBackBufferRtv()
+Carol::ColorBuffer* Carol::DisplayPass::GetDepthStencilMap()const
 {
-	return mBackBufferRtvAllocInfo->Manager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mCurrBackBufferIndex);
+	return mDepthStencilMap.get();
 }
 
-DXGI_FORMAT Carol::DisplayPass::GetBackBufferFormat()
+DXGI_FORMAT Carol::DisplayPass::GetFrameFormat()const
 {
-	return mBackBufferFormat;
+	return mFrameFormat;
+}
+
+uint32_t Carol::DisplayPass::GetFrameMapUavIdx()const
+{
+	return mFrameMap->GetGpuUavIdx();
+}
+
+uint32_t Carol::DisplayPass::GetDepthStencilSrvIdx()const
+{
+	return mDepthStencilMap->GetGpuSrvIdx();
+}
+
+DXGI_FORMAT Carol::DisplayPass::GetDepthStencilFormat() const
+{
+	return mDepthStencilFormat;
 }
 
 void Carol::DisplayPass::Draw(ID3D12GraphicsCommandList* cmdList)
 {
+	mFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	mBackBuffer[mBackBufferIdx]->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
+	cmdList->CopyResource(mBackBuffer[mBackBufferIdx]->Get(), mFrameMap->Get());
+	mBackBuffer[mBackBufferIdx]->Transition(cmdList, D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void Carol::DisplayPass::Present()
@@ -113,6 +122,34 @@ void Carol::DisplayPass::InitPSOs(ID3D12Device* device)
 
 void Carol::DisplayPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)
 {
+	D3D12_CLEAR_VALUE frameOptClearValue = CD3DX12_CLEAR_VALUE(mFrameFormat, DirectX::Colors::Gray);
+	mFrameMap = make_unique<ColorBuffer>(
+		mWidth,
+		mHeight,
+		1,
+		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
+		mFrameFormat,
+		device,
+		heap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		&frameOptClearValue);
+
+	D3D12_CLEAR_VALUE depthStencilOptClearValue = CD3DX12_CLEAR_VALUE(GetDsvFormat(mDepthStencilFormat), 1.f, 0);
+	mDepthStencilMap = make_unique<ColorBuffer>(
+		mWidth,
+		mHeight,
+		1,
+		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
+		mDepthStencilFormat,
+		device,
+		heap,
+		descriptorManager,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+		&depthStencilOptClearValue);
+
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
 		mBackBuffer[i] = make_unique<Resource>();
@@ -122,27 +159,14 @@ void Carol::DisplayPass::InitBuffers(ID3D12Device* device, Heap* heap, Descripto
 		mBackBuffer.size(),
 		mWidth,
 		mHeight,
-		mBackBufferFormat,
+		mFrameFormat,
 		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
 	));
 
-	mCurrBackBufferIndex = 0;
-	InitDescriptors(descriptorManager);
-}
-
-void Carol::DisplayPass::InitDescriptors(DescriptorManager* descriptorManager)
-{
-	ComPtr<ID3D12Device> device;
-	mSwapChain->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
-
-	if (!mBackBufferRtvAllocInfo->NumDescriptors)
-	{
-		mBackBufferRtvAllocInfo = descriptorManager->RtvAllocate(mBackBuffer.size());
-	}
-	
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
 		ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(mBackBuffer[i]->GetAddressOf())));
-		device->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, descriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), i));
 	}
+	
+	mBackBufferIdx = 0;
 }

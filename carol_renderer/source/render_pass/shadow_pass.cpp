@@ -63,9 +63,9 @@ void Carol::ShadowPass::Draw(ID3D12GraphicsCommandList* cmdList)
 
 	for (int i = 0; i < 2; ++i)
 	{
-		GenerateHiZ(cmdList);
 		CullInstances(i, cmdList);
 		DrawShadow(i, cmdList);
+		GenerateHiZ(cmdList);
 	}
 }
 
@@ -178,7 +178,6 @@ void Carol::ShadowPass::Clear(ID3D12GraphicsCommandList* cmdList)
 
 		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
 		mCulledCommandBuffer[type]->ResetCounter(cmdList);
-		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 	}
 }
 

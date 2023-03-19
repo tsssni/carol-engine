@@ -59,13 +59,11 @@ void Carol::FramePass::Draw(ID3D12GraphicsCommandList* cmdList)
 	cmdList->RSSetScissorRects(1, &mScissorRect);
 
 	mFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	cmdList->ClearRenderTargetView(GetFrameRtv(), Colors::Gray, 0, nullptr);
-	cmdList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+	cmdList->ClearRenderTargetView(mFrameMap->GetRtv(), Colors::Gray, 0, nullptr);
+	cmdList->ClearDepthStencilView(mDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
 
 	DrawOpaque(cmdList);
 	DrawTransparent(cmdList);
-
-	mFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
 void Carol::FramePass::Update(uint64_t cpuFenceValue, uint64_t completedFenceValue)
@@ -96,48 +94,28 @@ void Carol::FramePass::Cull(ID3D12GraphicsCommandList* cmdList)
 
 	for (int i = 0; i < 2; ++i)
 	{
-		GenerateHiZ(cmdList);
 		CullInstances(true, i, cmdList);
 		CullMeshlets(true, i, cmdList);
+		GenerateHiZ(cmdList);
 	}
 	
 	CullInstances(false, 0, cmdList);
 	CullMeshlets(false, 0, cmdList);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Carol::FramePass::GetFrameRtv()const
+void Carol::FramePass::SetFrameMap(ColorBuffer* frameMap)
 {
-	return mFrameMap->GetRtv();
+	mFrameMap = frameMap;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Carol::FramePass::GetFrameDsv()const
+void Carol::FramePass::SetDepthStencilMap(ColorBuffer* depthStencilMap)
 {
-	return mDepthStencilMap->GetDsv();
-}
-
-DXGI_FORMAT Carol::FramePass::GetFrameFormat()const
-{
-	return mFrameFormat;
+	mDepthStencilMap = depthStencilMap;
 }
 
 const Carol::StructuredBuffer* Carol::FramePass::GetIndirectCommandBuffer(MeshType type)const
 {
 	return mCulledCommandBuffer[type].get();
-}
-
-DXGI_FORMAT Carol::FramePass::GetFrameDsvFormat()const
-{
-	return GetDsvFormat(mDepthStencilFormat);
-}
-
-uint32_t Carol::FramePass::GetFrameSrvIdx()const
-{
-	return mFrameMap->GetGpuSrvIdx();
-}
-
-uint32_t Carol::FramePass::GetDepthStencilSrvIdx()const
-{
-	return mDepthStencilMap->GetGpuSrvIdx();
 }
 
 uint32_t Carol::FramePass::GetHiZSrvIdx()const
@@ -504,34 +482,7 @@ void Carol::FramePass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorM
 {
 	mHiZMipLevels = std::max(ceilf(log2f(mWidth)), ceilf(log2f(mHeight)));
 
-	D3D12_CLEAR_VALUE frameOptClearValue = CD3DX12_CLEAR_VALUE(mFrameFormat, DirectX::Colors::Gray);
-	mFrameMap = make_unique<ColorBuffer>(
-		mWidth,
-		mHeight,
-		1,
-		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
-		mFrameFormat,
-		device,
-		heap,
-		descriptorManager,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
-		&frameOptClearValue);
-
-	D3D12_CLEAR_VALUE depthStencilOptClearValue = CD3DX12_CLEAR_VALUE(GetDsvFormat(mDepthStencilFormat), 1.f, 0);
-	mDepthStencilMap = make_unique<ColorBuffer>(
-		mWidth,
-		mHeight,
-		1,
-		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
-		mDepthStencilFormat,
-		device,
-		heap,
-		descriptorManager,
-		D3D12_RESOURCE_STATE_DEPTH_WRITE,
-		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
-		&depthStencilOptClearValue);
-
+	
 	mHiZMap = make_unique<ColorBuffer>(
 		mWidth,
 		mHeight,
@@ -574,7 +525,7 @@ void Carol::FramePass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorM
 
 void Carol::FramePass::DrawOpaque(ID3D12GraphicsCommandList* cmdList)
 {
-	cmdList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, GetRvaluePtr(GetFrameDsv()));
+	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mFrameMap->GetRtv()), true, GetRvaluePtr(mDepthStencilMap->GetDsv()));
 
 	cmdList->SetPipelineState(gPSOs[L"PBRStatic"]->Get());
 	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(OPAQUE_STATIC));
@@ -618,7 +569,7 @@ void Carol::FramePass::DrawTransparent(ID3D12GraphicsCommandList* cmdList)
 	mOitppllBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	mStartOffsetBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-	cmdList->OMSetRenderTargets(1, GetRvaluePtr(GetFrameRtv()), true, nullptr);
+	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mFrameMap->GetRtv()), true, nullptr);
 	cmdList->SetPipelineState(gPSOs[L"DrawOitppll"]->Get());
 	static_cast<ID3D12GraphicsCommandList6*>(cmdList)->DispatchMesh(1, 1, 1);
 }
@@ -633,7 +584,6 @@ void Carol::FramePass::Clear(ID3D12GraphicsCommandList* cmdList)
 
 		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
 		mCulledCommandBuffer[type]->ResetCounter(cmdList);
-		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 	}
 }
 
@@ -656,8 +606,8 @@ void Carol::FramePass::CullInstances(bool opaque, uint32_t iteration, ID3D12Grap
 		mCullIdx[type][CULL_ITERATION] = iteration;
 		uint32_t count = ceilf(mCullIdx[type][CULL_MESH_COUNT] / 32.f);
 
-		cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[type].data(), 0);
 		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		cmdList->SetComputeRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[type].data(), 0);
 		cmdList->Dispatch(count, 1, 1);
 		mCulledCommandBuffer[type]->UavBarrier(cmdList);
 	}
@@ -676,13 +626,14 @@ void Carol::FramePass::CullMeshlets(bool opaque, uint32_t iteration, ID3D12Graph
 
 	if (opaque && iteration == 0)
 	{
-		cmdList->ClearDepthStencilView(GetFrameDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-		cmdList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(GetFrameDsv()));
+		cmdList->ClearDepthStencilView(mDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+		cmdList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mDepthStencilMap->GetDsv()));
 	}
 
 	for (int i = start; i < end; ++i)
 	{
 		MeshType type = MeshType(i);
+		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
 		if (mCullIdx[type][CULL_MESH_COUNT] == 0)
 		{
@@ -692,7 +643,6 @@ void Carol::FramePass::CullMeshlets(bool opaque, uint32_t iteration, ID3D12Graph
 		mCullIdx[type][CULL_ITERATION] = iteration;
 
 		cmdList->SetPipelineState(pso[i]);
-		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 		cmdList->SetGraphicsRoot32BitConstants(PASS_CONSTANTS, CULL_IDX_COUNT, mCullIdx[type].data(), 0);
 		ExecuteIndirect(cmdList, mCulledCommandBuffer[type].get());
 	}
