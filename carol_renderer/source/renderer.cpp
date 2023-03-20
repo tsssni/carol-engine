@@ -28,11 +28,15 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitConstants();
 	InitPipelineStates();
 	InitScene();
+
 	InitFrame();
 	InitMainLight();
 	InitNormal();
 	InitSsao();
+
+	InitToneMapping();
 	InitTaa();
+
 	OnResize(width, height, true);
 	ReleaseIntermediateBuffers();
 
@@ -96,14 +100,12 @@ void Carol::Renderer::InitSsao()
 
 void Carol::Renderer::InitNormal()
 {
-	mNormalPass = make_unique<NormalPass>(
-		mDevice.Get());
+	mNormalPass = make_unique<NormalPass>(mDevice.Get());
 }
 
 void Carol::Renderer::InitTaa()
 {
-	mTaaPass = make_unique<TaaPass>(
-		mDevice.Get());
+	mTaaPass = make_unique<TaaPass>(mDevice.Get());
 }
 
 void Carol::Renderer::InitMainLight()
@@ -200,8 +202,8 @@ void Carol::Renderer::UpdateFrameCB()
 		mFrameConstants->MainLightSplitZ[i] = mMainLightShadowPass->GetSplitZ(i);
 	}
 
-
 	mFramePass->SetFrameMap(mDisplayPass->GetFrameMap());
+	mToneMappingPass->SetFrameMap(mDisplayPass->GetFrameMap());
 	mTaaPass->SetFrameMap(mDisplayPass->GetFrameMap());
 
 	mFrameConstants->MeshBufferIdx = mScene->GetMeshBufferIdx();
@@ -214,6 +216,11 @@ void Carol::Renderer::ReleaseIntermediateBuffers()
 {
 	mScene->ReleaseIntermediateBuffers();
 	mSsaoPass->ReleaseIntermediateBuffers();
+}
+
+void Carol::Renderer::InitToneMapping()
+{
+	mToneMappingPass = make_unique<ToneMappingPass>(mDevice.Get());
 }
 
 void Carol::Renderer::Draw()
@@ -247,6 +254,7 @@ void Carol::Renderer::Draw()
 	mFramePass->Draw(mCommandList.Get());
 
 	// Post process
+	mToneMappingPass->Draw(mCommandList.Get());
 	mTaaPass->Draw(mCommandList.Get());
 	mDisplayPass->Draw(mCommandList.Get());
 	
@@ -328,9 +336,12 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	DescriptorManager* descriptorManager = mDescriptorManager.get();
 
 	BaseRenderer::OnResize(width, height, init);
+
 	mFramePass->OnResize(width, height, device, heap, descriptorManager);
 	mNormalPass->OnResize(width, height, device, heap, descriptorManager);
 	mSsaoPass->OnResize(width, height, device, heap, descriptorManager);
+
+	mToneMappingPass->OnResize(width, height, device, heap, descriptorManager);
 	mTaaPass->OnResize(width, height, device, heap, descriptorManager);
 
 	mFramePass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());

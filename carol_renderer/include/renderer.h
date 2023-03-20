@@ -17,9 +17,9 @@ namespace Carol
     class FramePass;
     class SsaoPass;
     class NormalPass;
+	class ToneMappingPass;
     class TaaPass;
     class CascadedShadowPass;
-    class MeshesPass;
 
 	class FrameConstants
 	{
@@ -121,12 +121,14 @@ namespace Carol
     protected:
 		void InitConstants();
         void InitPipelineStates();
-
         void InitScene();
+
         void InitFrame();
         void InitMainLight();
         void InitNormal();
         void InitSsao();
+
+		void InitToneMapping();
         void InitTaa();
 		
 		void UpdateFrameCB();
@@ -139,6 +141,8 @@ namespace Carol
         std::unique_ptr<NormalPass> mNormalPass;
         std::unique_ptr<SsaoPass> mSsaoPass;
 		std::unique_ptr<FramePass> mFramePass;
+
+		std::unique_ptr<ToneMappingPass> mToneMappingPass;
         std::unique_ptr<TaaPass> mTaaPass;
 
 		std::unique_ptr<FrameConstants> mFrameConstants;

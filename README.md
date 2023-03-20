@@ -9,7 +9,7 @@
 
 ## Rendering Pipeline
 
-![pipeline](https://i.lensdump.com/i/T7S1XF.png)
+![pipeline](images/pipeline.dot.svg)
 
 ## Samples
 
@@ -67,6 +67,7 @@
   - Implemented via compute shader with 3 times edge-preserving filtering in default
 
 - **Tone Mapping**
+  - Clamp
   - Reinhard
   - ACES
 

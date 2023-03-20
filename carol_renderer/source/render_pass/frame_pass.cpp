@@ -169,12 +169,12 @@ void Carol::FramePass::InitShaders()
 
 	vector<wstring_view> blinnPhongDefines =
 	{
-		L"SSAO", L"BLINN_PHONG",L"LDR"
+		L"SSAO", L"BLINN_PHONG"
 	};
 
 	vector<wstring_view> pbrDefines =
 	{
-		L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED",L"LAMBERTIAN",L"LDR"
+		L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED",L"LAMBERTIAN"
 	};
 
 	vector<wstring_view> cullDefines =

@@ -143,6 +143,9 @@
     <ClInclude Include="include\dx12\command.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="include\render_pass\tone_mapping_pass.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\dx12\descriptor.cpp">
@@ -227,6 +230,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\dx12\command.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\render_pass\tone_mapping_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -343,9 +349,9 @@
     <None Include="win32\Renderer.aps">
       <Filter>资源文件</Filter>
     </None>
-    <None Include="shader\include\tone_mapping.hlsli" />
     <None Include="shader\taa_cs.hlsl" />
     <None Include="shader\include\compute.hlsli" />
+    <None Include="shader\tone_mapping_cs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\display_ps.hlsl" />

@@ -3,7 +3,6 @@
 #include "include/texture.hlsli"
 #include "include/oitppll.hlsli"
 #include "include/shadow.hlsli"
-#include "include/tone_mapping.hlsli"
 
 struct PixelIn
 {
@@ -62,7 +61,7 @@ void main(PixelIn pin)
     }
 
     OitNode link;
-    link.ColorU = float4(ToneMapping(ambientColor + litColor), diffuse.a);
+    link.ColorU = float4(ambientColor + litColor, diffuse.a);
     link.DepthU = pin.PosH.z * 0xffffffff;
 
     uint pixelCount;
