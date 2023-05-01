@@ -12,15 +12,16 @@ namespace Carol
 	enum RootParameter {
 			MESH_CB,
 			SKINNED_CB,
-			PASS_CONSTANTS,
+			PASS_CB,
 			FRAME_CB,
+			ROOT_CONSTANTS,
 			ROOT_SIGNATURE_COUNT
 		};
 
 	class RootSignature
 	{
 	public:
-		RootSignature(ID3D12Device* device);
+		RootSignature();
 		ID3D12RootSignature* Get()const;
 
 		Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature;

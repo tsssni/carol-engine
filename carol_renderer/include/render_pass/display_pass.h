@@ -22,9 +22,6 @@ namespace Carol
 	public:
 		DisplayPass(
 			HWND hwnd,
-			IDXGIFactory* factory,
-			ID3D12Device* device,
-			ID3D12CommandQueue* cmdQueue,
 			uint32_t bufferCount,
 			DXGI_FORMAT backBufferFormat = DXGI_FORMAT_R10G10B10A2_UNORM,
 			DXGI_FORMAT frameFormat = DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -45,13 +42,13 @@ namespace Carol
 		DXGI_FORMAT GetFrameFormat()const;
 		DXGI_FORMAT GetDepthStencilFormat()const;
 
-		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
+		virtual void Draw()override;
 
 		void Present();
 	private:
-		virtual void InitPSOs(ID3D12Device* device)override;
-		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
-		void InitSwapChain(HWND hwnd, IDXGIFactory* factory, ID3D12CommandQueue* cmdQueue);
+		virtual void InitPSOs()override;
+		virtual void InitBuffers()override;
+		void InitSwapChain(HWND hwnd);
 
 		Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
 		uint32_t mBackBufferIdx;

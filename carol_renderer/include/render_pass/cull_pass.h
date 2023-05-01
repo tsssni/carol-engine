@@ -44,38 +44,29 @@ namespace Carol
 	{
 	public:
 		CullPass(
-			ID3D12Device* device,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager,
-			Scene* scene,
 			uint32_t depthBias = 60000,
             float depthBiasClamp = 0.01f,
             float slopeScaledDepthBias = 4.f,
             DXGI_FORMAT depthFormat = DXGI_FORMAT_R32_FLOAT,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
-        virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
-		void Update(DirectX::XMMATRIX viewProj, DirectX::XMMATRIX histViewProj, DirectX::XMVECTOR eyePos, uint64_t cpuFenceValue, uint64_t completedFenceValue);
+        virtual void Draw()override;
+		void Update(DirectX::XMMATRIX viewProj, DirectX::XMMATRIX histViewProj, DirectX::XMVECTOR eyePos);
 		
 		StructuredBuffer* GetIndirectCommandBuffer(MeshType type);
 		void SetDepthMap(ColorBuffer* depthMap);
 
 	protected:
-		virtual void InitPSOs(ID3D12Device* device)override;
-		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
+		virtual void InitPSOs()override;
+		virtual void InitBuffers()override;
 
-		void CullReset(ID3D12GraphicsCommandList* cmdList);
+		void CullReset();
+        void CullInstances();
+		void OcclusionCullInstancesRecheck();
+        void CullMeshes();
+        void OcclusionCullMeshesRecheck();
+		void GenerateHiZ();
 
-        void CullInstances(ID3D12GraphicsCommandList* cmdList);
-		void OcclusionCullInstancesRecheck(ID3D12GraphicsCommandList* cmdList);
-
-        void CullMeshes(ID3D12GraphicsCommandList* cmdList);
-        void OcclusionCullMeshesRecheck(ID3D12GraphicsCommandList* cmdList);
-
-		void GenerateHiZ(ID3D12GraphicsCommandList* cmdList);
-
-		Scene* mScene;
 		ColorBuffer* mDepthMap;
 
 		std::vector<std::unique_ptr<CullConstants>> mCullConstants;

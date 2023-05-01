@@ -3,6 +3,7 @@
 "CBV(b1, space = 0),"\
 "CBV(b2, space = 0),"\
 "CBV(b3, space = 0),"\
+"RootConstants(num32BitConstants = 10, b4, space = 0),"\
 "StaticSampler(s0,"\
 "filter = FILTER_MIN_MAG_MIP_POINT,"\
 "addressU = TEXTURE_ADDRESS_WRAP,"\

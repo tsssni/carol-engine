@@ -31,18 +31,13 @@ namespace Carol
 	{
 	public:
 		FramePass(
-			ID3D12Device* device,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager,
-			Scene* scene,
 			DXGI_FORMAT frameFormat = DXGI_FORMAT_R16G16B16A16_FLOAT,
 			DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
 			DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
-		virtual void Draw(ID3D12GraphicsCommandList* cmdList);
-		void Cull(ID3D12GraphicsCommandList* cmdList);
-		void Update(DirectX::XMMATRIX viewProj, DirectX::XMMATRIX histViewProj, DirectX::XMVECTOR eyePos, uint64_t cpuFenceValue, uint64_t completedFenceValue);
+		virtual void Draw();
+		void Cull();
+		void Update(DirectX::XMMATRIX viewProj, DirectX::XMMATRIX histViewProj, DirectX::XMVECTOR eyePos);
 
 		void SetFrameMap(ColorBuffer* frameMap);
 		void SetDepthStencilMap(ColorBuffer* depthStencilMap);
@@ -55,14 +50,12 @@ namespace Carol
 		uint32_t GetOffsetSrvIdx()const;
 
 	protected:
-		virtual void InitPSOs(ID3D12Device* device)override;
-		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager);
+		virtual void InitPSOs()override;
+		virtual void InitBuffers();
 		
-		void DrawOpaque(ID3D12GraphicsCommandList* cmdList);
-		void DrawTransparent(ID3D12GraphicsCommandList* cmdList);
-		void DrawSkyBox(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_VIRTUAL_ADDRESS skyBoxMeshCBAddr);
-
-		Scene* mScene;
+		void DrawOpaque();
+		void DrawTransparent();
+		void DrawSkyBox(D3D12_GPU_VIRTUAL_ADDRESS skyBoxMeshCBAddr);
 
 		ColorBuffer* mFrameMap;
 		ColorBuffer* mDepthStencilMap;

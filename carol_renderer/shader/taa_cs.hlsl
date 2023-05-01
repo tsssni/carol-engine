@@ -1,6 +1,7 @@
 #define BORDER_RADIUS 1
 #include "include/common.hlsli"
 #include "include/compute.hlsli"
+#include "include/texture.hlsli"
 
 #define SAMPLE_COUNT 9
 
@@ -85,14 +86,14 @@ void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
     RWTexture2D<float4> histMap = ResourceDescriptorHeap[gRWHistMapIdx];
 
     int2 uid = GetUavId(gid, gtid);
-    depth[gtid.x][gtid.y] = UavBorderTest(uid, gRenderTargetSize) ? depthMap[uid].r : 1.f;
+    depth[gtid.x][gtid.y] = TextureBorderTest(uid, gRenderTargetSize) ? depthMap[uid].r : 1.f;
     color[gtid.x][gtid.y] = frameMap[clamp(uid, 0, gRenderTargetSize)];
     GroupMemoryBarrierWithGroupSync();
 
     float minZ = 1.0f;
     int2 minZPos = gtid;
     
-    if (GroupBorderTest(gtid) && UavBorderTest(uid, gRenderTargetSize))
+    if (GroupBorderTest(gtid) && TextureBorderTest(uid, gRenderTargetSize))
     {
         [unroll]
         for (int i = 0; i < SAMPLE_COUNT; ++i)

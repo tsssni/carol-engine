@@ -70,7 +70,7 @@ float GetCSMShadowFactor(float3 posW, float4 posH, out uint lightIdx)
             {
                 float4 nextLevelShadowPos = mul(float4(posW, 1.0f), gMainLights[i + 1].ViewProj);
                 
-                if (!CheckOutOfBounds(GetTexCoord(nextLevelShadowPos).xyz))
+                if (TextureBorderTest(GetTexCoord(nextLevelShadowPos).xyz))
                 {
                     float nextLevelShadowFactor = CalcShadowFactor(nextLevelShadowPos, mainLightShadowMapIdx[i + 1]);
                     float weight = (mainLightSplitZ[i + 1] - posH.w) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) / CSM_BLEND_BORDER;

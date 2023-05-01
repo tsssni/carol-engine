@@ -1,8 +1,4 @@
-#include <render_pass/render_pass.h>
-#include <dx12/resource.h>
-#include <dx12/shader.h>
-#include <dx12/root_signature.h>
-#include <dx12/indirect_command.h>
+#include <global.h>
 
 namespace Carol
 {
@@ -16,10 +12,7 @@ Carol::unique_ptr<Carol::RootSignature> Carol::RenderPass::sRootSignature = null
 
 void Carol::RenderPass::OnResize(
 	uint32_t width,
-	uint32_t height,
-	ID3D12Device* device,
-	Heap* heap,
-	DescriptorManager* descriptorManager)
+	uint32_t height)
 {
 	if (mWidth != width || mHeight != height)
 	{
@@ -29,15 +22,15 @@ void Carol::RenderPass::OnResize(
 		mViewport = { 0.f,0.f,mWidth * 1.f,mHeight * 1.f,0.f,1.f };
 		mScissorRect = { 0,0,(long)mWidth,(long)mHeight };
 
-		InitBuffers(device, heap, descriptorManager);
+		InitBuffers();
 	}
 }
 
-void Carol::RenderPass::Init(ID3D12Device* device)
+void Carol::RenderPass::Init()
 {
 	Shader::InitCompiler();
 	Shader::InitShaders();
-	sRootSignature = make_unique<RootSignature>(device);
+	sRootSignature = make_unique<RootSignature>();
 
 	D3D12_INDIRECT_ARGUMENT_DESC argDesc[3];
 
@@ -55,7 +48,7 @@ void Carol::RenderPass::Init(ID3D12Device* device)
 	cmdSigDesc.ByteStride = sizeof(IndirectCommand);
 	cmdSigDesc.NodeMask = 0;
 
-	ThrowIfFailed(device->CreateCommandSignature(&cmdSigDesc, sRootSignature->Get(), IID_PPV_ARGS(sCommandSignature.GetAddressOf())));
+	ThrowIfFailed(gDevice->CreateCommandSignature(&cmdSigDesc, sRootSignature->Get(), IID_PPV_ARGS(sCommandSignature.GetAddressOf())));
 }
 
 const Carol::RootSignature* Carol::RenderPass::GetRootSignature()
@@ -63,11 +56,11 @@ const Carol::RootSignature* Carol::RenderPass::GetRootSignature()
 	return sRootSignature.get();
 }
 
-void Carol::RenderPass::ExecuteIndirect(ID3D12GraphicsCommandList* cmdList, const StructuredBuffer* indirectCmdBuffer)
+void Carol::RenderPass::ExecuteIndirect(const StructuredBuffer* indirectCmdBuffer)
 {
 	if (indirectCmdBuffer && indirectCmdBuffer->GetNumElements() > 0)
 	{
-		cmdList->ExecuteIndirect(
+		gGraphicsCommandList->ExecuteIndirect(
 			sCommandSignature.Get(),
 			indirectCmdBuffer->GetNumElements(),
 			indirectCmdBuffer->Get(),

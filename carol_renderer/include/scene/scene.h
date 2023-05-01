@@ -26,11 +26,7 @@ namespace Carol {
 	{
 	public:
 		Scene(
-			std::wstring_view name,
-			ID3D12Device* device,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
+			std::wstring_view name);
 		Scene(const Scene&) = delete;
 		Scene(Scene&&) = delete;
 		Scene& operator=(const Scene&) = delete;
@@ -43,20 +39,8 @@ namespace Carol {
 			std::wstring_view name,
 			std::wstring_view path,
 			std::wstring_view textureDir,
-			bool isSkinned,
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager,
-			TextureManager* textureManager);
-		void LoadSkyBox(
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager,
-			TextureManager* textureManager);
+			bool isSkinned);
+		void LoadSkyBox();
 
 		void UnloadModel(std::wstring_view modelName);
 		void ReleaseIntermediateBuffers();
@@ -71,7 +55,7 @@ namespace Carol {
 		void Update(Timer* timer, uint64_t cpuFenceValue, uint64_t completedFenceValue);
 		void Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
 
-		void ClearCullMark(ID3D12GraphicsCommandList* cmdList);
+		void ClearCullMark();
 		uint32_t GetMeshCBStartOffet(MeshType type)const;
 
 		uint32_t GetMeshBufferIdx()const;
@@ -82,12 +66,7 @@ namespace Carol {
 
 	protected:
 		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot);
-
-		void InitBuffers(
-			ID3D12Device* device,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
+		void InitBuffers();
 	
 		std::unique_ptr<Model> mSkyBox;
 		std::vector<Light> mLights;

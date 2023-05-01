@@ -27,18 +27,11 @@ namespace Carol
 	class Model
 	{
 	public:
-		Model(
-			TextureManager* textureManager
-		);
+		Model();
 		virtual ~Model();
 		
 		bool IsSkinned()const;
-		void LoadSkyBox(
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
+		void LoadSkyBox();
 		
 		void ReleaseIntermediateBuffers();
 
@@ -72,7 +65,6 @@ namespace Carol
 		std::unordered_map<std::wstring, std::vector<std::vector<DirectX::XMFLOAT4X4>>> mFrameTransforms;
 		std::unique_ptr<SkinnedConstants> mSkinnedConstants;
 
-		TextureManager* mTextureManager;
 		std::vector<std::wstring> mTexturePath;
 	};
 }

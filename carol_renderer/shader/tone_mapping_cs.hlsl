@@ -23,7 +23,7 @@ float3 Aces(float3 color)
 [numthreads(32, 32, 1)]
 void main( uint2 dtid : SV_DispatchThreadID )
 {
-    if (UavBorderTest(dtid, gRenderTargetSize))
+    if (TextureBorderTest(dtid, gRenderTargetSize))
     {
         RWTexture2D<float4> frameMap = ResourceDescriptorHeap[gRWFrameMapIdx];
         float3 color = frameMap[dtid].rgb;

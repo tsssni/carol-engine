@@ -1,11 +1,4 @@
-#include <scene/model.h>
-#include <dx12/resource.h>
-#include <dx12/heap.h>
-#include <dx12/descriptor.h>
-#include <scene/skinned_data.h>
-#include <scene/timer.h>
-#include <scene/texture.h>
-#include <utils/common.h>
+#include <global.h>
 #include <cmath>
 #include <algorithm>
 #include <ranges>
@@ -24,8 +17,8 @@ namespace Carol
 	using namespace DirectX;
 }
 
-Carol::Model::Model(TextureManager* textureManager)
-	:mSkinnedConstants(make_unique<SkinnedConstants>()), mTextureManager(textureManager)
+Carol::Model::Model()
+	:mSkinnedConstants(make_unique<SkinnedConstants>())
 {
 	
 }
@@ -34,7 +27,7 @@ Carol::Model::~Model()
 {
 	for (auto& path : mTexturePath)
 	{
-		mTextureManager->UnloadTexture(path);
+		gTextureManager->UnloadTexture(path);
 	}
 }
 
@@ -223,12 +216,7 @@ bool Carol::Model::IsSkinned()const
 	return mSkinned;
 }
 
-void Carol::Model::LoadSkyBox(
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager)
+void Carol::Model::LoadSkyBox()
 {
 	XMFLOAT3 pos[8] =
 	{
@@ -269,12 +257,7 @@ void Carol::Model::LoadSkyBox(
 		skinnedVertices,
 		indices,
 		false,
-		false,
-		device,
-		cmdList,
-		defaultBuffersHeap,
-		uploadBuffersHeap,
-		descriptorManager);
-	mMeshes[L"SkyBox"]->SetDiffuseMapIdx(mTextureManager->LoadTexture(L"texture\\snowcube1024.dds", false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+		false);
+	mMeshes[L"SkyBox"]->SetDiffuseMapIdx(gTextureManager->LoadTexture(L"texture\\snowcube1024.dds", false));
 	mTexturePath.push_back(L"texture\\snowcube1024.dds");
 }

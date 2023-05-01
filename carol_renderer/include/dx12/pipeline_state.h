@@ -44,7 +44,7 @@ namespace Carol
 		void SetMS(const Shader* shader);
 		void SetPS(const Shader* shader);
 
-		void Finalize(ID3D12Device* device);
+		void Finalize();
 	protected:
 		D3DX12_MESH_SHADER_PIPELINE_STATE_DESC mPSODesc;
 	};
@@ -60,15 +60,8 @@ namespace Carol
 
 		void SetCS(const Shader* shader);
 
-		void Finalize(ID3D12Device* device);
+		void Finalize();
 	protected:
 		D3D12_COMPUTE_PIPELINE_STATE_DESC mPSODesc;
 	};
-	
-	extern D3D12_RASTERIZER_DESC gCullDisabledState;
-
-	extern D3D12_DEPTH_STENCIL_DESC gDepthLessEqualState;
-	extern D3D12_DEPTH_STENCIL_DESC gDepthDisabledState;
-
-	extern D3D12_BLEND_DESC gAlphaBlendState;
 }

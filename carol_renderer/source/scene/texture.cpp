@@ -1,8 +1,4 @@
-#include <scene/texture.h>
-#include <dx12/resource.h>
-#include <dx12/heap.h>
-#include <dx12/descriptor.h>
-#include <utils/common.h>
+#include <global.h>
 #include <DirectXTex.h>
 #include <memory>
 #include <vector>
@@ -18,12 +14,7 @@ namespace Carol {
 
 Carol::Texture::Texture(
 	wstring_view fileName,
-	bool isSrgb,
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager)
+	bool isSrgb)
 	:mNumRef(1)
 {
 	wstring_view suffix = fileName.substr(fileName.find_last_of(L'.') + 1, 3);
@@ -106,9 +97,7 @@ Carol::Texture::Texture(
 		depthOrArraySize,
 		viewDimension,
 		metaData.format,
-		device,
-		defaultBuffersHeap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_NONE,
 		nullptr,
@@ -124,7 +113,7 @@ Carol::Texture::Texture(
 		subresources[i].pData = images[i].pixels;
 	}
 
-	mTexture->CopySubresources(cmdList, uploadBuffersHeap, subresources.data(), 0, subresources.size());
+	mTexture->CopySubresources(gHeapManager->GetUploadBuffersHeap(), subresources.data(), 0, subresources.size());
 }
 
 uint32_t Carol::Texture::GetGpuSrvIdx(uint32_t planeSlice)
@@ -158,12 +147,7 @@ Carol::TextureManager::TextureManager()
 
 uint32_t Carol::TextureManager::LoadTexture(
 	wstring_view fileName,
-	bool isSrgb,
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager)
+	bool isSrgb)
 {
 	if (fileName.size() == 0)
 	{
@@ -176,12 +160,7 @@ uint32_t Carol::TextureManager::LoadTexture(
 	{
 		mTextures[name] = make_unique<Texture>(
 			name,
-			isSrgb,
-			device,
-			cmdList,
-			defaultBuffersHeap,
-			uploadBuffersHeap,
-			descriptorManager);
+			isSrgb);
 	}
 	else
 	{

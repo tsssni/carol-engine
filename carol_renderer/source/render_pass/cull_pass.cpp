@@ -1,6 +1,4 @@
-#include <render_pass/cull_pass.h>
-#include <dx12.h>
-#include <scene.h>
+#include <global.h>
 
 namespace Carol
 {
@@ -11,18 +9,12 @@ namespace Carol
 }
 
 Carol::CullPass::CullPass(
-	ID3D12Device* device,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager,
-	Scene* scene,
 	uint32_t depthBias,
 	float depthBiasClamp,
 	float slopeScaledDepthBias,
 	DXGI_FORMAT depthFormat,
 	DXGI_FORMAT hiZFormat)
-	:mScene(scene),
-	mCullConstants(MESH_TYPE_COUNT),
+	:mCullConstants(MESH_TYPE_COUNT),
 	mCullCBAddr(MESH_TYPE_COUNT),
 	mCulledCommandBuffer(MESH_TYPE_COUNT),
 	mDepthBias(depthBias),
@@ -31,56 +23,54 @@ Carol::CullPass::CullPass(
 	mDepthFormat(depthFormat),
 	mHiZFormat(hiZFormat)
 {
-	InitPSOs(device);
+	InitPSOs();
 
 	mCulledCommandBufferPool = make_unique<StructuredBufferPool>(
 		1024,
 		sizeof(IndirectCommand),
-		device,
-		defaultBuffersHeap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	mHiZConstants = make_unique<HiZConstants>();
-	mHiZCBAllocator = make_unique<FastConstantBufferAllocator>(1024, sizeof(CullConstants), device, uploadBuffersHeap, descriptorManager);
+	mHiZCBAllocator = make_unique<FastConstantBufferAllocator>(1024, sizeof(CullConstants), gHeapManager->GetUploadBuffersHeap());
 
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		mCullConstants[i] = make_unique<CullConstants>();
 	}
-	mCullCBAllocator = make_unique<FastConstantBufferAllocator>(1024, sizeof(CullConstants), device, uploadBuffersHeap, descriptorManager);
+	mCullCBAllocator = make_unique<FastConstantBufferAllocator>(1024, sizeof(CullConstants), gHeapManager->GetUploadBuffersHeap());
 }
 
-void Carol::CullPass::Draw(ID3D12GraphicsCommandList* cmdList)
+void Carol::CullPass::Draw()
 {
-	CullReset(cmdList);
-	cmdList->RSSetViewports(1, &mViewport);
-	cmdList->RSSetScissorRects(1, &mScissorRect);
+	CullReset();
+	gGraphicsCommandList->RSSetViewports(1, &mViewport);
+	gGraphicsCommandList->RSSetScissorRects(1, &mScissorRect);
 
-	CullInstances(cmdList);
-	CullMeshes(cmdList);
-	GenerateHiZ(cmdList);
+	CullInstances();
+	CullMeshes();
+	GenerateHiZ();
 
-	OcclusionCullInstancesRecheck(cmdList);
-	OcclusionCullMeshesRecheck(cmdList);
-	GenerateHiZ(cmdList);
+	OcclusionCullInstancesRecheck();
+	OcclusionCullMeshesRecheck();
+	GenerateHiZ();
 }
 
-void Carol::CullPass::Update(XMMATRIX viewProj, XMMATRIX histViewProj, XMVECTOR eyePos, uint64_t cpuFenceValue, uint64_t completedFenceValue)
+void Carol::CullPass::Update(XMMATRIX viewProj, XMMATRIX histViewProj, XMVECTOR eyePos)
 {
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(i);
-		mCulledCommandBufferPool->DiscardBuffer(mCulledCommandBuffer[type].release(), cpuFenceValue);
-		mCulledCommandBuffer[type] = mCulledCommandBufferPool->RequestBuffer(completedFenceValue, mScene->GetMeshesCount(type));
+		mCulledCommandBufferPool->DiscardBuffer(mCulledCommandBuffer[type].release(), gCpuFenceValue);
+		mCulledCommandBuffer[type] = mCulledCommandBufferPool->RequestBuffer(gGpuFenceValue, gScene->GetMeshesCount(type));
 
 		XMStoreFloat4x4(&mCullConstants[i]->ViewProj, viewProj);
 		XMStoreFloat4x4(&mCullConstants[i]->HistViewProj, histViewProj);
 		XMStoreFloat3(&mCullConstants[i]->EyePos, eyePos);
 		mCullConstants[i]->CulledCommandBufferIdx = mCulledCommandBuffer[type]->GetGpuUavIdx();
-		mCullConstants[i]->MeshCount = mScene->GetMeshesCount(type);
-		mCullConstants[i]->MeshOffset = mScene->GetMeshCBStartOffet(type);
+		mCullConstants[i]->MeshCount = gScene->GetMeshesCount(type);
+		mCullConstants[i]->MeshOffset = gScene->GetMeshCBStartOffet(type);
 		mCullConstants[i]->HiZMapIdx = mHiZMap->GetGpuSrvIdx();
 
 		mCullCBAddr[i] = mCullCBAllocator->Allocate(mCullConstants[i].get());
@@ -101,7 +91,7 @@ void Carol::CullPass::SetDepthMap(ColorBuffer* depthMap)
 	mDepthMap = depthMap;
 }
 
-void Carol::CullPass::InitPSOs(ID3D12Device* device)
+void Carol::CullPass::InitPSOs()
 {
 	mOpaqueStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
@@ -109,7 +99,7 @@ void Carol::CullPass::InitPSOs(ID3D12Device* device)
 	mOpaqueStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueStaticCullMeshPSO->SetAS(&gOpaqueCullAS);
 	mOpaqueStaticCullMeshPSO->SetMS(&gDepthStaticCullMS);
-	mOpaqueStaticCullMeshPSO->Finalize(device);
+	mOpaqueStaticCullMeshPSO->Finalize();
 	
 
 	mOpaqueSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
@@ -118,7 +108,7 @@ void Carol::CullPass::InitPSOs(ID3D12Device* device)
 	mOpaqueSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueSkinnedCullMeshPSO->SetAS(&gOpaqueCullAS);
 	mOpaqueSkinnedCullMeshPSO->SetMS(&gDepthSkinnedCullMS);
-	mOpaqueSkinnedCullMeshPSO->Finalize(device);
+	mOpaqueSkinnedCullMeshPSO->Finalize();
 
 	mTransparentStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
@@ -126,7 +116,7 @@ void Carol::CullPass::InitPSOs(ID3D12Device* device)
 	mTransparentStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentStaticCullMeshPSO->SetAS(&gTransparentCullAS);
 	mTransparentStaticCullMeshPSO->SetMS(&gDepthStaticCullMS);
-	mTransparentStaticCullMeshPSO->Finalize(device);
+	mTransparentStaticCullMeshPSO->Finalize();
 
 	mTransparentSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
@@ -134,7 +124,7 @@ void Carol::CullPass::InitPSOs(ID3D12Device* device)
 	mTransparentSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentSkinnedCullMeshPSO->SetAS(&gTransparentCullAS);
 	mTransparentSkinnedCullMeshPSO->SetMS(&gDepthSkinnedCullMS);
-	mTransparentSkinnedCullMeshPSO->Finalize(device);
+	mTransparentSkinnedCullMeshPSO->Finalize();
 
 	mOpaqueHistHiZStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueHistHiZStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
@@ -142,7 +132,7 @@ void Carol::CullPass::InitPSOs(ID3D12Device* device)
 	mOpaqueHistHiZStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueHistHiZStaticCullMeshPSO->SetAS(&gOpaqueHistHiZCullAS);
 	mOpaqueHistHiZStaticCullMeshPSO->SetMS(&gDepthStaticCullMS);
-	mOpaqueHistHiZStaticCullMeshPSO->Finalize(device);
+	mOpaqueHistHiZStaticCullMeshPSO->Finalize();
 
 	mOpaqueHistHiZSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
@@ -150,7 +140,7 @@ void Carol::CullPass::InitPSOs(ID3D12Device* device)
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetAS(&gOpaqueHistHiZCullAS);
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetMS(&gDepthStaticCullMS);
-	mOpaqueHistHiZSkinnedCullMeshPSO->Finalize(device);
+	mOpaqueHistHiZSkinnedCullMeshPSO->Finalize();
 
 	mTransparentHistHiZStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentHistHiZStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
@@ -158,7 +148,7 @@ void Carol::CullPass::InitPSOs(ID3D12Device* device)
 	mTransparentHistHiZStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentHistHiZStaticCullMeshPSO->SetAS(&gTransparentHistHiZCullAS);
 	mTransparentHistHiZStaticCullMeshPSO->SetMS(&gDepthStaticCullMS);
-	mTransparentHistHiZStaticCullMeshPSO->Finalize(device);
+	mTransparentHistHiZStaticCullMeshPSO->Finalize();
 	
 	mTransparentHistHiZSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentHistHiZSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
@@ -166,25 +156,25 @@ void Carol::CullPass::InitPSOs(ID3D12Device* device)
 	mTransparentHistHiZSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentHistHiZSkinnedCullMeshPSO->SetAS(&gTransparentHistHiZCullAS);
 	mTransparentHistHiZSkinnedCullMeshPSO->SetMS(&gDepthSkinnedCullMS);
-	mTransparentHistHiZSkinnedCullMeshPSO->Finalize(device);
+	mTransparentHistHiZSkinnedCullMeshPSO->Finalize();
 
 	mCullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mCullInstanceComputePSO->SetRootSignature(sRootSignature.get());
 	mCullInstanceComputePSO->SetCS(&gCullCS);
-	mCullInstanceComputePSO->Finalize(device);
+	mCullInstanceComputePSO->Finalize();
 
 	mHistHiZCullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mHistHiZCullInstanceComputePSO->SetRootSignature(sRootSignature.get());
 	mHistHiZCullInstanceComputePSO->SetCS(&gHistHiZCullCS);
-	mHistHiZCullInstanceComputePSO->Finalize(device);
+	mHistHiZCullInstanceComputePSO->Finalize();
 
 	mHiZGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mHiZGenerateComputePSO->SetRootSignature(sRootSignature.get());
 	mHiZGenerateComputePSO->SetCS(&gHiZGenerateCS);
-	mHiZGenerateComputePSO->Finalize(device);
+	mHiZGenerateComputePSO->Finalize();
 }
 
-void Carol::CullPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)
+void Carol::CullPass::InitBuffers()
 {
 	mHiZMap = make_unique<ColorBuffer>(
 		mWidth,
@@ -192,31 +182,29 @@ void Carol::CullPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorMa
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mHiZFormat,
-		device,
-		heap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		nullptr,
 		mMipLevel);
 }
 
-void Carol::CullPass::CullReset(ID3D12GraphicsCommandList* cmdList)
+void Carol::CullPass::CullReset()
 {
-	mScene->ClearCullMark(cmdList);
+	gScene->ClearCullMark();
 
 	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(OPAQUE_MESH_START + i);
 
-		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_COPY_DEST);
-		mCulledCommandBuffer[type]->ResetCounter(cmdList);
+		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_COPY_DEST);
+		mCulledCommandBuffer[type]->ResetCounter();
 	}
 }
 
-void Carol::CullPass::CullInstances(ID3D12GraphicsCommandList* cmdList)
+void Carol::CullPass::CullInstances()
 {
-	cmdList->SetPipelineState(mCullInstanceComputePSO->Get());
+	gGraphicsCommandList->SetPipelineState(mCullInstanceComputePSO->Get());
 	
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
@@ -229,16 +217,16 @@ void Carol::CullPass::CullInstances(ID3D12GraphicsCommandList* cmdList)
 		
 		uint32_t count = ceilf(mCullConstants[type]->MeshCount / 32.f);
 
-		cmdList->SetComputeRootConstantBufferView(PASS_CONSTANTS, mCullCBAddr[i]);
-		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		cmdList->Dispatch(count, 1, 1);
-		mCulledCommandBuffer[type]->UavBarrier(cmdList);
+		gGraphicsCommandList->SetComputeRootConstantBufferView(PASS_CB, mCullCBAddr[i]);
+		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		gGraphicsCommandList->Dispatch(count, 1, 1);
+		mCulledCommandBuffer[type]->UavBarrier();
 	}
 }
 
-void Carol::CullPass::OcclusionCullInstancesRecheck(ID3D12GraphicsCommandList* cmdList)
+void Carol::CullPass::OcclusionCullInstancesRecheck()
 {
-	cmdList->SetPipelineState(mHistHiZCullInstanceComputePSO->Get());
+	gGraphicsCommandList->SetPipelineState(mHistHiZCullInstanceComputePSO->Get());
 	
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
@@ -251,69 +239,69 @@ void Carol::CullPass::OcclusionCullInstancesRecheck(ID3D12GraphicsCommandList* c
 		
 		uint32_t count = ceilf(mCullConstants[type]->MeshCount / 32.f);
 
-		cmdList->SetComputeRootConstantBufferView(PASS_CONSTANTS, mCullCBAddr[i]);
-		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		cmdList->Dispatch(count, 1, 1);
-		mCulledCommandBuffer[type]->UavBarrier(cmdList);
+		gGraphicsCommandList->SetComputeRootConstantBufferView(PASS_CB, mCullCBAddr[i]);
+		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		gGraphicsCommandList->Dispatch(count, 1, 1);
+		mCulledCommandBuffer[type]->UavBarrier();
 	}
 }
 
-void Carol::CullPass::CullMeshes(ID3D12GraphicsCommandList* cmdList)
+void Carol::CullPass::CullMeshes()
 {
-	cmdList->ClearDepthStencilView(mDepthMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	cmdList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mDepthMap->GetDsv()));
+	gGraphicsCommandList->ClearDepthStencilView(mDepthMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	gGraphicsCommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mDepthMap->GetDsv()));
 
 	ID3D12PipelineState* pso[] = {mOpaqueStaticCullMeshPSO->Get(), mOpaqueSkinnedCullMeshPSO->Get(), mTransparentStaticCullMeshPSO->Get(), mTransparentSkinnedCullMeshPSO->Get()};
 
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(i);
+		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
 		if (mCullConstants[type]->MeshCount == 0)
 		{
 			continue;
 		}
 
-		cmdList->SetPipelineState(pso[i]);
-		cmdList->SetGraphicsRootConstantBufferView(PASS_CONSTANTS, mCullCBAddr[i]);
-		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-		ExecuteIndirect(cmdList, mCulledCommandBuffer[type].get());
+		gGraphicsCommandList->SetPipelineState(pso[i]);
+		gGraphicsCommandList->SetGraphicsRootConstantBufferView(PASS_CB, mCullCBAddr[i]);
+		ExecuteIndirect(mCulledCommandBuffer[type].get());
 	}
 }
 
-void Carol::CullPass::OcclusionCullMeshesRecheck(ID3D12GraphicsCommandList* cmdList)
+void Carol::CullPass::OcclusionCullMeshesRecheck()
 {
 	ID3D12PipelineState* pso[] = {mOpaqueHistHiZStaticCullMeshPSO->Get(), mOpaqueHistHiZSkinnedCullMeshPSO->Get(), mTransparentHistHiZStaticCullMeshPSO->Get(), mTransparentHistHiZSkinnedCullMeshPSO->Get()};
 
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(i);
+		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
 		if (mCullConstants[type]->MeshCount == 0)
 		{
 			continue;
 		}
 
-		cmdList->SetPipelineState(pso[i]);
-		cmdList->SetGraphicsRootConstantBufferView(PASS_CONSTANTS, mCullCBAddr[i]);
-		mCulledCommandBuffer[type]->Transition(cmdList, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
-		ExecuteIndirect(cmdList, mCulledCommandBuffer[type].get());
+		gGraphicsCommandList->SetPipelineState(pso[i]);
+		gGraphicsCommandList->SetGraphicsRootConstantBufferView(PASS_CB, mCullCBAddr[i]);
+		ExecuteIndirect(mCulledCommandBuffer[type].get());
 	}
 }
 
-void Carol::CullPass::GenerateHiZ(ID3D12GraphicsCommandList* cmdList)
+void Carol::CullPass::GenerateHiZ()
 {
-	cmdList->SetPipelineState(mHiZGenerateComputePSO->Get());
+	gGraphicsCommandList->SetPipelineState(mHiZGenerateComputePSO->Get());
 
 	for (int i = 0; i < mMipLevel - 1; i += 5)
 	{
 		mHiZConstants->SrcMipLevel = i;
 		mHiZConstants->NumMipLevel= i + 5 >= mMipLevel ? mMipLevel - i - 1 : 5;
-		cmdList->SetComputeRootConstantBufferView(PASS_CONSTANTS, mHiZCBAllocator->Allocate(mHiZConstants.get()));
+		gGraphicsCommandList->SetComputeRootConstantBufferView(PASS_CB, mHiZCBAllocator->Allocate(mHiZConstants.get()));
 		
 		uint32_t width = ceilf((mWidth >> i) / 32.f);
 		uint32_t height = ceilf((mHeight >> i) / 32.f);
-		cmdList->Dispatch(width, height, 1);
-		mHiZMap->UavBarrier(cmdList);
+		gGraphicsCommandList->Dispatch(width, height, 1);
+		mHiZMap->UavBarrier();
 	}
 }

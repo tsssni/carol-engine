@@ -1,6 +1,4 @@
-#include <render_pass/display_pass.h>
-#include <dx12.h>
-#include <utils/common.h>
+#include <global.h>
 #include <stdlib.h>
 #include <vector>
 #include <string_view>
@@ -29,9 +27,6 @@ uint32_t Carol::DisplayPass::GetBackBufferCount()const
 
 Carol::DisplayPass::DisplayPass(
 	HWND hwnd,
-	IDXGIFactory* factory,
-	ID3D12Device* device,
-	ID3D12CommandQueue* cmdQueue,
 	uint32_t bufferCount,
 	DXGI_FORMAT backBufferFormat,
 	DXGI_FORMAT frameFormat,
@@ -42,8 +37,8 @@ Carol::DisplayPass::DisplayPass(
 	mDepthStencilFormat(depthStencilFormat),
 	mBackBufferRtvAllocInfo(make_unique<DescriptorAllocInfo>())
 {
-	InitPSOs(device);
-	InitSwapChain(hwnd, factory, cmdQueue);
+	InitPSOs();
+	InitSwapChain(hwnd);
 }
 
 Carol::DisplayPass::~DisplayPass()
@@ -89,12 +84,12 @@ DXGI_FORMAT Carol::DisplayPass::GetDepthStencilFormat() const
 	return mDepthStencilFormat;
 }
 
-void Carol::DisplayPass::Draw(ID3D12GraphicsCommandList* cmdList)
+void Carol::DisplayPass::Draw()
 {
-	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mBackBufferRtvAllocInfo->Manager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mBackBufferIdx)), true, nullptr);
-	cmdList->SetPipelineState(mDisplayMeshPSO->Get());
-	static_cast<ID3D12GraphicsCommandList6*>(cmdList)->DispatchMesh(1, 1, 1);
-	mBackBuffer[mBackBufferIdx]->Transition(cmdList, D3D12_RESOURCE_STATE_PRESENT);
+	gGraphicsCommandList->OMSetRenderTargets(1, GetRvaluePtr(mBackBufferRtvAllocInfo->Manager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mBackBufferIdx)), true, nullptr);
+	gGraphicsCommandList->SetPipelineState(mDisplayMeshPSO->Get());
+	static_cast<ID3D12GraphicsCommandList6*>(gGraphicsCommandList.Get())->DispatchMesh(1, 1, 1);
+	mBackBuffer[mBackBufferIdx]->Transition( D3D12_RESOURCE_STATE_PRESENT);
 }
 
 void Carol::DisplayPass::Present()
@@ -110,17 +105,17 @@ void Carol::DisplayPass::Present()
 	SetBackBufferIndex();
 }
 
-void Carol::DisplayPass::InitPSOs(ID3D12Device* device)
+void Carol::DisplayPass::InitPSOs()
 {
 	mDisplayMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mDisplayMeshPSO->SetRootSignature(sRootSignature.get());
 	mDisplayMeshPSO->SetRenderTargetFormat(mBackBufferFormat);
 	mDisplayMeshPSO->SetMS(&gScreenMS);
 	mDisplayMeshPSO->SetPS(&gDisplayPS);
-	mDisplayMeshPSO->Finalize(device);
+	mDisplayMeshPSO->Finalize();
 }
 
-void Carol::DisplayPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)
+void Carol::DisplayPass::InitBuffers()
 {
 	D3D12_CLEAR_VALUE frameOptClearValue = CD3DX12_CLEAR_VALUE(mFrameFormat, DirectX::Colors::Gray);
 	mFrameMap = make_unique<ColorBuffer>(
@@ -129,9 +124,7 @@ void Carol::DisplayPass::InitBuffers(ID3D12Device* device, Heap* heap, Descripto
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mFrameFormat,
-		device,
-		heap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		&frameOptClearValue);
@@ -143,9 +136,7 @@ void Carol::DisplayPass::InitBuffers(ID3D12Device* device, Heap* heap, Descripto
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mDepthStencilFormat,
-		device,
-		heap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
 		&depthStencilOptClearValue);
@@ -165,19 +156,19 @@ void Carol::DisplayPass::InitBuffers(ID3D12Device* device, Heap* heap, Descripto
 
 	if (!mBackBufferRtvAllocInfo->NumDescriptors)
 	{
-		mBackBufferRtvAllocInfo = descriptorManager->RtvAllocate(mBackBuffer.size());
+		mBackBufferRtvAllocInfo = gDescriptorManager->RtvAllocate(mBackBuffer.size());
 	}
 
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
 		ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(mBackBuffer[i]->GetAddressOf())));
-		device->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, descriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), i));
+		gDevice->CreateRenderTargetView(mBackBuffer[i]->Get(), nullptr, gDescriptorManager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), i));
 	}
 	
 	mBackBufferIdx = 0;
 }
 
-void Carol::DisplayPass::InitSwapChain(HWND hwnd, IDXGIFactory* factory, ID3D12CommandQueue* cmdQueue)
+void Carol::DisplayPass::InitSwapChain(HWND hwnd)
 {
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
 	swapChainDesc.BufferDesc.Width = 0;
@@ -197,6 +188,5 @@ void Carol::DisplayPass::InitSwapChain(HWND hwnd, IDXGIFactory* factory, ID3D12C
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 	mSwapChain.Reset();
-	ThrowIfFailed(factory->CreateSwapChain(cmdQueue, &swapChainDesc, mSwapChain.GetAddressOf()));
-
+	ThrowIfFailed(gDxgiFactory->CreateSwapChain(gCommandQueue.Get(), &swapChainDesc, mSwapChain.GetAddressOf()));
 }

@@ -26,7 +26,6 @@ namespace Carol
 		Resource();
 		Resource(
 			D3D12_RESOURCE_DESC* desc,
-			ID3D12Device* device,
 			Heap* heap,
 			D3D12_RESOURCE_STATES initState = D3D12_RESOURCE_STATE_COMMON,
 			D3D12_CLEAR_VALUE* optimizedClearValue = nullptr);
@@ -35,25 +34,22 @@ namespace Carol
 		ID3D12Resource* Get()const;
 		ID3D12Resource** GetAddressOf();
 
-		void GetDevice(const IID& riid, void** ppvDevice)const;
 		Heap* GetHeap()const;
 		HeapAllocInfo* GetAllocInfo()const;
 
 		byte* GetMappedData()const;
 		D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress()const;
 
-		void Transition(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES afterState);
-		void UAVBarrier(ID3D12GraphicsCommandList* cmdList);
+		void Transition(D3D12_RESOURCE_STATES afterState);
+		void UAVBarrier();
 
 		void CopySubresources(
-			ID3D12GraphicsCommandList* cmdList,
 			Heap* intermediateHeap,
 			const void* data,
 			uint32_t byteSize
 		);
 
 		void CopySubresources(
-			ID3D12GraphicsCommandList* cmdList,
 			Heap* intermediateHeap,
 			D3D12_SUBRESOURCE_DATA* subresources,
 			uint32_t firstSubresource,
@@ -91,18 +87,16 @@ namespace Carol
 		DescriptorManager* GetDescriptorManager()const;
 		D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress()const;
 
-		void Transition(ID3D12GraphicsCommandList* cmdList, D3D12_RESOURCE_STATES afterState);
-		void UavBarrier(ID3D12GraphicsCommandList* cmdList);
+		void Transition(D3D12_RESOURCE_STATES afterState);
+		void UavBarrier();
 
 		void CopySubresources(
-			ID3D12GraphicsCommandList* cmdList,
 			Heap* intermediateHeap,
 			const void* data,
 			uint32_t byteSize
 		);
 
 		void CopySubresources(
-			ID3D12GraphicsCommandList* cmdList,
 			Heap* intermediateHeap,
 			D3D12_SUBRESOURCE_DATA* subresources,
 			uint32_t firstSubresource,
@@ -126,18 +120,18 @@ namespace Carol
 		D3D12_CPU_DESCRIPTOR_HANDLE GetDsv(uint32_t mipSlice = 0)const;
 
 	protected:
-		void BindDescriptors(DescriptorManager* descriptorManager);
+		void BindDescriptors();
 
-		virtual void BindSrv(DescriptorManager* descriptorManager) = 0;
-		virtual void BindUav(DescriptorManager* descriptorManager) = 0;
-		virtual void BindRtv(DescriptorManager* descriptorManager) = 0;
-		virtual void BindDsv(DescriptorManager* descriptorManager) = 0;
+		virtual void BindSrv() = 0;
+		virtual void BindUav() = 0;
+		virtual void BindRtv() = 0;
+		virtual void BindDsv() = 0;
 
-		virtual void CreateCbvs(std::span<const D3D12_CONSTANT_BUFFER_VIEW_DESC> cbvDesc, DescriptorManager* descriptorManager);
-		virtual void CreateSrvs(std::span<const D3D12_SHADER_RESOURCE_VIEW_DESC> srvDesc, DescriptorManager* descriptorManager);
-		virtual void CreateUavs(std::span<const D3D12_UNORDERED_ACCESS_VIEW_DESC> uavDesc, bool counter, DescriptorManager* descriptorManager);
-		virtual void CreateRtvs(std::span<const D3D12_RENDER_TARGET_VIEW_DESC> rtvDesc, DescriptorManager* descriptorManager);
-		virtual void CreateDsvs(std::span<const D3D12_DEPTH_STENCIL_VIEW_DESC> dsvDesc, DescriptorManager* descriptorManager);
+		virtual void CreateCbvs(std::span<const D3D12_CONSTANT_BUFFER_VIEW_DESC> cbvDesc);
+		virtual void CreateSrvs(std::span<const D3D12_SHADER_RESOURCE_VIEW_DESC> srvDesc);
+		virtual void CreateUavs(std::span<const D3D12_UNORDERED_ACCESS_VIEW_DESC> uavDesc, bool counter);
+		virtual void CreateRtvs(std::span<const D3D12_RENDER_TARGET_VIEW_DESC> rtvDesc);
+		virtual void CreateDsvs(std::span<const D3D12_DEPTH_STENCIL_VIEW_DESC> dsvDesc);
 
 		std::unique_ptr<Resource> mResource;
 		D3D12_RESOURCE_DESC mResourceDesc = {};
@@ -178,9 +172,7 @@ namespace Carol
 			uint32_t depthOrArraySize,
 			ColorBufferViewDimension viewDimension,
 			DXGI_FORMAT format,
-			ID3D12Device* device,
 			Heap* heap,
-			DescriptorManager* descriptorManager,
 			D3D12_RESOURCE_STATES initState,
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
 			D3D12_CLEAR_VALUE* optClearValue = nullptr,
@@ -195,11 +187,14 @@ namespace Carol
 		ColorBuffer(ColorBuffer&& colorBuffer);
 		ColorBuffer& operator=(ColorBuffer&& colorBuffer);
 
+		uint32_t GetWidth();
+		uint32_t GetHeight();
+
 	protected:
-		virtual void BindSrv(DescriptorManager* descriptorManager)override;
-		virtual void BindUav(DescriptorManager* descriptorManager)override;
-		virtual void BindRtv(DescriptorManager* descriptorManager)override;
-		virtual void BindDsv(DescriptorManager* descriptorManager)override;
+		virtual void BindSrv()override;
+		virtual void BindUav()override;
+		virtual void BindRtv()override;
+		virtual void BindDsv()override;
 
 		D3D12_RESOURCE_DIMENSION GetResourceDimension(ColorBufferViewDimension viewDimension)const;
 
@@ -221,9 +216,7 @@ namespace Carol
 		StructuredBuffer(
 			uint32_t numElements,
 			uint32_t elementSize,
-			ID3D12Device* device,
 			Heap* heap,
-			DescriptorManager* descriptorManager,
 			D3D12_RESOURCE_STATES initState,
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
 			bool isConstant = false,
@@ -232,10 +225,10 @@ namespace Carol
 		StructuredBuffer(StructuredBuffer&& structuredBuffer);
 		StructuredBuffer& operator=(StructuredBuffer&& structuredBuffer);
 
-		static void InitCounterResetBuffer(Heap* heap, ID3D12Device* device);
+		static void InitCounterResetBuffer(Heap* heap);
 		static void DeleteCounterResetBuffer();
 
-		void ResetCounter(ID3D12GraphicsCommandList* cmdList);
+		void ResetCounter();
 		void CopyElements(const void* data, uint32_t offset = 0, uint32_t numElements = 1);
 
 		uint32_t GetNumElements()const;
@@ -246,10 +239,10 @@ namespace Carol
 		bool IsConstant()const;
 
 	protected:
-		virtual void BindSrv(DescriptorManager* descriptorManager)override;
-		virtual void BindUav(DescriptorManager* descriptorManager)override;
-		virtual void BindRtv(DescriptorManager* descriptorManager)override;
-		virtual void BindDsv(DescriptorManager* descriptorManager)override;
+		virtual void BindSrv()override;
+		virtual void BindUav()override;
+		virtual void BindRtv()override;
+		virtual void BindDsv()override;
 
 		uint32_t AlignForConstantBuffer(uint32_t byteSize)const;
 		uint32_t AlignForUavCounter(uint32_t byteSize)const;
@@ -271,9 +264,7 @@ namespace Carol
 		FastConstantBufferAllocator(
 			uint32_t numElements,
 			uint32_t elementSize,
-			ID3D12Device* device,
-			Heap* heap,
-			DescriptorManager* descriptorManager);
+			Heap* heap);
 		FastConstantBufferAllocator(FastConstantBufferAllocator&& fastResourceAllocator);
 		FastConstantBufferAllocator& operator=(FastConstantBufferAllocator&& fastResourceAllocator);
 
@@ -290,9 +281,7 @@ namespace Carol
 		StructuredBufferPool(
 			uint32_t numElements,
 			uint32_t elementSize,
-			ID3D12Device* device,
 			Heap* heap,
-			DescriptorManager* descriptorManager,
 			D3D12_RESOURCE_STATES initState,
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
 			bool isConstant = false);
@@ -306,9 +295,7 @@ namespace Carol
 
 		uint32_t mNumElements = 0;
 		uint32_t mElementSize = 0;
-		ID3D12Device* mDevice = nullptr;
 		Heap* mHeap = nullptr;
-		DescriptorManager* mDescriptorManager = nullptr;
 		D3D12_RESOURCE_STATES mInitState;
 		D3D12_RESOURCE_FLAGS mFlags;
 		bool mIsConstant = false;
@@ -321,9 +308,7 @@ namespace Carol
 	public:
 		RawBuffer(
 			uint32_t byteSize,
-			ID3D12Device* device,
 			Heap* heap,
-			DescriptorManager* descriptorManager,
 			D3D12_RESOURCE_STATES initState,
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE
 		);
@@ -331,10 +316,10 @@ namespace Carol
 		RawBuffer& operator=(RawBuffer&& rawBuffer);
 
 	protected:
-		virtual void BindSrv(DescriptorManager* descriptorManager)override;
-		virtual void BindUav(DescriptorManager* descriptorManager)override;
-		virtual void BindRtv(DescriptorManager* descriptorManager)override;
-		virtual void BindDsv(DescriptorManager* descriptorManager)override;
+		virtual void BindSrv()override;
+		virtual void BindUav()override;
+		virtual void BindRtv()override;
+		virtual void BindDsv()override;
 
 		uint32_t AlignForRawBuffer(uint32_t byteSize)const;
 	};

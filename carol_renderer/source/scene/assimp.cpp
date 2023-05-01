@@ -1,10 +1,4 @@
-#include <scene/assimp.h>
-#include <dx12/resource.h>
-#include <dx12/heap.h>
-#include <scene/skinned_data.h>
-#include <scene/texture.h>
-#include <scene/scene_node.h>
-#include <utils/common.h>
+#include <global.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <algorithm>
@@ -58,14 +52,8 @@ Carol::AssimpModel::AssimpModel(
 	SceneNode* rootNode,
 	wstring_view path,
 	wstring_view textureDir,
-	bool isSkinned,
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager,
-	TextureManager* textureManager)
-	:Model(textureManager)
+	bool isSkinned)
+	:Model()
 {
 	Assimp::Importer mImporter;
 	const aiScene* scene = mImporter.ReadFile(WStringToString(path), isSkinned ? aiProcess_Skinned : aiProcess_Static);
@@ -84,12 +72,7 @@ Carol::AssimpModel::AssimpModel(
 	ProcessNode(
 		scene->mRootNode,
 		rootNode,
-		scene,
-		device,
-		cmdList,
-		defaultBuffersHeap,
-		uploadBuffersHeap,
-		descriptorManager);
+		scene);
 
 	mFrameTransforms.clear();
 	mBoneIndices.clear();
@@ -98,12 +81,7 @@ Carol::AssimpModel::AssimpModel(
 void Carol::AssimpModel::ProcessNode(
 	aiNode* node,
 	SceneNode* sceneNode,
-	const aiScene* scene,
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager)
+	const aiScene* scene)
 {
 	for (int i = 0; i < node->mNumMeshes; ++i)
 	{
@@ -111,12 +89,7 @@ void Carol::AssimpModel::ProcessNode(
 		sceneNode->Meshes.push_back(
 			ProcessMesh(
 				mesh,
-				scene,
-				device,
-				cmdList,
-				defaultBuffersHeap,
-				uploadBuffersHeap,
-				descriptorManager));
+				scene));
 	}
 	
 	for (int i = 0; i < node->mNumChildren; ++i)
@@ -124,23 +97,13 @@ void Carol::AssimpModel::ProcessNode(
 		ProcessNode(
 			node->mChildren[i],
 			sceneNode,
-			scene,
-			device,
-			cmdList,
-			defaultBuffersHeap,
-			uploadBuffersHeap,
-			descriptorManager);
+			scene);
 	}
 }
 
 Carol::Mesh* Carol::AssimpModel::ProcessMesh(
 	aiMesh* mesh,
-	const aiScene* scene,
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager)
+	const aiScene* scene)
 {	
 	wstring meshName = StringToWString(mesh->mName.C_Str());
 
@@ -165,22 +128,12 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(
 			skinnedVertices,
 			indices,
 			mSkinned & bool(mesh->mNumBones),
-			false,
-			device,
-			cmdList,
-			defaultBuffersHeap,
-			uploadBuffersHeap,
-			descriptorManager);
+			false);
 
 		ReadMeshMaterialAndTextures(
 			mMeshes[meshName].get(),
 			mesh,
-			scene,
-			device,
-			cmdList,
-			defaultBuffersHeap,
-			uploadBuffersHeap,
-			descriptorManager);
+			scene);
 	}
 
 	return mMeshes[meshName].get();
@@ -388,12 +341,7 @@ void Carol::AssimpModel::ReadMeshVerticesAndIndices(
 void Carol::AssimpModel::ReadMeshMaterialAndTextures(
 	Mesh* mesh,
 	aiMesh* aimesh,
-	const aiScene* scene,
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager)
+	const aiScene* scene)
 {
 	auto* matData = scene->mMaterials[aimesh->mMaterialIndex];
 
@@ -405,20 +353,15 @@ void Carol::AssimpModel::ReadMeshMaterialAndTextures(
 	matData->GetTexture(aiTextureType_NORMALS, 0, &normalPath);
 	matData->GetTexture(aiTextureType_METALNESS, 0, &metallicRoughnessPath);
 
-	LoadTexture(mesh, diffusePath, aiTextureType_DIFFUSE, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
-	LoadTexture(mesh, normalPath, aiTextureType_NORMALS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
-	LoadTexture(mesh, metallicRoughnessPath, aiTextureType_METALNESS, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+	LoadTexture(mesh, diffusePath, aiTextureType_DIFFUSE);
+	LoadTexture(mesh, normalPath, aiTextureType_NORMALS);
+	LoadTexture(mesh, metallicRoughnessPath, aiTextureType_METALNESS);
 }
 
 void Carol::AssimpModel::LoadTexture(
 	Mesh* mesh,
 	aiString aiPath,
-	aiTextureType type,
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager)
+	aiTextureType type)
 {
 	wstring path = StringToWString(aiPath.C_Str());
 
@@ -457,13 +400,13 @@ void Carol::AssimpModel::LoadTexture(
 	switch (type)
 	{
 	case aiTextureType_DIFFUSE:
-		mesh->SetDiffuseMapIdx(mTextureManager->LoadTexture(path, false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+		mesh->SetDiffuseMapIdx(gTextureManager->LoadTexture(path, false));
 		break;
 	case aiTextureType_NORMALS:
-		mesh->SetNormalMapIdx(mTextureManager->LoadTexture(path, false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+		mesh->SetNormalMapIdx(gTextureManager->LoadTexture(path, false));
 		break;
 	case aiTextureType_METALNESS:
-		mesh->SetMetallicRoughnessMapIdx(mTextureManager->LoadTexture(path, false, device, cmdList, defaultBuffersHeap, uploadBuffersHeap, descriptorManager));
+		mesh->SetMetallicRoughnessMapIdx(gTextureManager->LoadTexture(path, false));
 		break;
 
 	}

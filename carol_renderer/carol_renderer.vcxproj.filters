@@ -92,9 +92,6 @@
     <ClInclude Include="win32\targetver.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\base_renderer.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="include\renderer.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -144,6 +141,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\render_pass\cull_pass.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\global.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\render_pass\epf_pass.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -196,9 +199,6 @@
     <ClCompile Include="source\utils\buddy.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\base_renderer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="source\renderer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -236,6 +236,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\render_pass\cull_pass.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\global.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\render_pass\epf_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -357,6 +363,7 @@
     <None Include="shader\tone_mapping_cs.hlsl" />
     <None Include="shader\hist_hiz_cull_as.hlsl" />
     <None Include="shader\hist_hiz_cull_cs.hlsl" />
+    <None Include="shader\epf_cs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\display_ps.hlsl" />

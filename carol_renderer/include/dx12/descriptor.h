@@ -27,7 +27,6 @@ namespace Carol
 	public:
 		DescriptorAllocator(
 			D3D12_DESCRIPTOR_HEAP_TYPE type, 
-			ID3D12Device* device,
 			uint32_t initNumCpuDescriptors = 2048,
 			uint32_t numGpuDescriptors = 65536);
 		~DescriptorAllocator();
@@ -46,8 +45,8 @@ namespace Carol
 		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(const DescriptorAllocInfo* info, uint32_t offset = 0)const;
 
 	protected:
-		void AddCpuDescriptorAllocator(ID3D12Device* device);
-		void InitGpuDescriptorAllocator(ID3D12Device* device);
+		void AddCpuDescriptorAllocator();
+		void InitGpuDescriptorAllocator();
 
 		void CpuDelete(const DescriptorAllocInfo* info);
 		void GpuDelete(const DescriptorAllocInfo* info);
@@ -77,7 +76,6 @@ namespace Carol
 	{
 	public:
 		DescriptorManager(
-			ID3D12Device* device,
 			uint32_t initCpuCbvSrvUavHeapSize = 2048,
 			uint32_t initGpuCbvSrvUavHeapSize = 2048,
 			uint32_t initRtvHeapSize = 2048,

@@ -1,5 +1,4 @@
-#include <dx12/command.h>
-#include <utils/common.h>
+#include <global.h>
 
 namespace Carol
 {
@@ -9,15 +8,14 @@ namespace Carol
     using Microsoft::WRL::ComPtr;
 }
 
-Carol::CommandAllocatorPool::CommandAllocatorPool(D3D12_COMMAND_LIST_TYPE type, ID3D12Device* device)
-    :mType(type), mDevice(device)
+Carol::CommandAllocatorPool::CommandAllocatorPool(D3D12_COMMAND_LIST_TYPE type)
+    :mType(type)
 {
 }
 
 Carol::CommandAllocatorPool::CommandAllocatorPool(CommandAllocatorPool&& commandAllocatorPool)
     :mAllocatorQueue(std::move(commandAllocatorPool.mAllocatorQueue)),
-    mType(commandAllocatorPool.mType),
-	mDevice(commandAllocatorPool.mDevice)
+    mType(commandAllocatorPool.mType)
 {
 }
 
@@ -42,7 +40,7 @@ Carol::ComPtr<ID3D12CommandAllocator> Carol::CommandAllocatorPool::RequestAlloca
 
 	if (!allocator)
 	{
-		ThrowIfFailed(mDevice->CreateCommandAllocator(mType, IID_PPV_ARGS(allocator.GetAddressOf())));
+		ThrowIfFailed(gDevice->CreateCommandAllocator(mType, IID_PPV_ARGS(allocator.GetAddressOf())));
 	}
 	
 	return allocator;

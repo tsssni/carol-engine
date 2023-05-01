@@ -1,14 +1,4 @@
-#include <scene/scene.h>
-#include <dx12/resource.h>
-#include <dx12/heap.h>
-#include <dx12/descriptor.h>
-#include <dx12/root_signature.h>
-#include <dx12/indirect_command.h>
-#include <scene/assimp.h>
-#include <scene/timer.h>
-#include <scene/camera.h>
-#include <scene/texture.h>
-#include <scene/scene_node.h>
+#include <global.h>
 
 namespace Carol
 {
@@ -23,54 +13,38 @@ namespace Carol
 }
 
 Carol::Scene::Scene(
-	wstring_view name,
-	ID3D12Device* device,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager)
+	wstring_view name)
 	:mRootNode(make_unique<SceneNode>()),
 	mMeshes(MESH_TYPE_COUNT)
 {
 	mRootNode->Name = name;
-	InitBuffers(device, defaultBuffersHeap, uploadBuffersHeap, descriptorManager);
+	InitBuffers();
 }
 
-void Carol::Scene::InitBuffers(
-	ID3D12Device* device,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager)
+void Carol::Scene::InitBuffers()
 {
 	mInstanceFrustumCulledMarkBuffer = make_unique<RawBuffer>(
 		2 << 16,
-		device,
-		defaultBuffersHeap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	mInstanceOcclusionCulledMarkBuffer = make_unique<RawBuffer>(
 		2 << 16,
-		device,
-		defaultBuffersHeap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	mInstanceCulledMarkBuffer = make_unique<RawBuffer>(
 		2 << 16,
-		device,
-		defaultBuffersHeap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	mIndirectCommandBufferPool = make_unique<StructuredBufferPool>(
 		1024,
 		sizeof(IndirectCommand),
-		device,
-		uploadBuffersHeap,
-		descriptorManager,
+		gHeapManager->GetUploadBuffersHeap(),
 		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_NONE,
 		false);
@@ -78,9 +52,7 @@ void Carol::Scene::InitBuffers(
 	mMeshBufferPool = make_unique<StructuredBufferPool>(
 		1024,
 		sizeof(MeshConstants),
-		device,
-		uploadBuffersHeap,
-		descriptorManager,
+		gHeapManager->GetUploadBuffersHeap(),
 		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_NONE,
 		true);
@@ -88,9 +60,7 @@ void Carol::Scene::InitBuffers(
 	mSkinnedBufferPool = make_unique<StructuredBufferPool>(
 		1024,
 		sizeof(SkinnedConstants),
-		device,
-		uploadBuffersHeap,
-		descriptorManager,
+		gHeapManager->GetUploadBuffersHeap(),
 		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_NONE,
 		true);
@@ -121,13 +91,7 @@ void Carol::Scene::LoadModel(
 	wstring_view name,
 	wstring_view path,
 	wstring_view textureDir,
-	bool isSkinned,
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager,
-	TextureManager* textureManager)
+	bool isSkinned)
 {
 	mRootNode->Children.push_back(make_unique<SceneNode>());
 	auto& node = mRootNode->Children.back();
@@ -138,13 +102,7 @@ void Carol::Scene::LoadModel(
 		node.get(),
 		path,
 		textureDir,
-		isSkinned,
-		device,
-		cmdList,
-		defaultBuffersHeap,
-		uploadBuffersHeap,
-		descriptorManager,
-		textureManager);
+		isSkinned);
 
 	for (auto& [name, mesh] : mModels[node->Name]->GetMeshes())
 	{
@@ -154,21 +112,10 @@ void Carol::Scene::LoadModel(
 	}
 }
 
-void Carol::Scene::LoadSkyBox(
-	ID3D12Device* device,
-	ID3D12GraphicsCommandList* cmdList,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager,
-	TextureManager* textureManager)
+void Carol::Scene::LoadSkyBox()
 {
-	mSkyBox = make_unique<Model>(textureManager);
-	mSkyBox->LoadSkyBox(
-		device,
-		cmdList,
-		defaultBuffersHeap,
-		uploadBuffersHeap,
-		descriptorManager);
+	mSkyBox = make_unique<Model>();
+	mSkyBox->LoadSkyBox();
 }
 
 void Carol::Scene::UnloadModel(wstring_view modelName)
@@ -242,19 +189,19 @@ void Carol::Scene::Contain(Camera* camera, std::vector<std::vector<Mesh*>>& mesh
 {
 }
 
-void Carol::Scene::ClearCullMark(ID3D12GraphicsCommandList* cmdList)
+void Carol::Scene::ClearCullMark()
 {
 	static const uint32_t clear0 = 0;
 	static const uint32_t clear1 = 0xffffffff;
-	cmdList->ClearUnorderedAccessViewUint(mInstanceFrustumCulledMarkBuffer->GetGpuUav(), mInstanceFrustumCulledMarkBuffer->GetCpuUav(), mInstanceFrustumCulledMarkBuffer->Get(), &clear0, 0, nullptr);
-	cmdList->ClearUnorderedAccessViewUint(mInstanceOcclusionCulledMarkBuffer->GetGpuUav(), mInstanceOcclusionCulledMarkBuffer->GetCpuUav(), mInstanceOcclusionCulledMarkBuffer->Get(), &clear1, 0, nullptr);
-	cmdList->ClearUnorderedAccessViewUint(mInstanceCulledMarkBuffer->GetGpuUav(), mInstanceCulledMarkBuffer->GetCpuUav(), mInstanceCulledMarkBuffer->Get(), &clear1, 0, nullptr);
+	gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceFrustumCulledMarkBuffer->GetGpuUav(), mInstanceFrustumCulledMarkBuffer->GetCpuUav(), mInstanceFrustumCulledMarkBuffer->Get(), &clear0, 0, nullptr);
+	gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceOcclusionCulledMarkBuffer->GetGpuUav(), mInstanceOcclusionCulledMarkBuffer->GetCpuUav(), mInstanceOcclusionCulledMarkBuffer->Get(), &clear1, 0, nullptr);
+	gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceCulledMarkBuffer->GetGpuUav(), mInstanceCulledMarkBuffer->GetCpuUav(), mInstanceCulledMarkBuffer->Get(), &clear1, 0, nullptr);
 
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		for (auto& [name, mesh] : mMeshes[i])
 		{
-			mesh->ClearCullMark(cmdList);
+			mesh->ClearCullMark();
 		}
 	}
 }

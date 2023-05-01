@@ -10,7 +10,7 @@ namespace Carol
 	class CommandAllocatorPool
 	{
 	public:
-		CommandAllocatorPool(D3D12_COMMAND_LIST_TYPE type, ID3D12Device* device);
+		CommandAllocatorPool(D3D12_COMMAND_LIST_TYPE type);
 		CommandAllocatorPool(CommandAllocatorPool&& commandAllocatorPool);
 		CommandAllocatorPool& operator=(CommandAllocatorPool&& commandAllocatorPool);
 
@@ -19,7 +19,6 @@ namespace Carol
 	protected:
 		std::queue<std::pair<uint64_t, Microsoft::WRL::ComPtr<ID3D12CommandAllocator>>> mAllocatorQueue;
 		D3D12_COMMAND_LIST_TYPE mType;
-		ID3D12Device* mDevice;
 		std::mutex mAllocatorMutex;
 	};
 }

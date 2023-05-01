@@ -1,4 +1,5 @@
 #include <dx12/shader.h>
+#include <global.h>
 #include <utils/common.h>
 #include <fstream>
 
@@ -10,41 +11,6 @@ namespace Carol {
     using std::ifstream;
     using std::ofstream;
     using Microsoft::WRL::ComPtr;
-    
-    Microsoft::WRL::ComPtr<IDxcCompiler3> gDXCCompiler;
-	Microsoft::WRL::ComPtr<IDxcUtils> gDXCUtils;
-	Microsoft::WRL::ComPtr<IDxcIncludeHandler> gDXCIncludeHandler;
-
-   	Shader gScreenMS;
-	Shader gDisplayPS;
-	Shader gCullCS;
-	Shader gCullAS;
-	Shader gOpaqueCullAS;
-	Shader gTransparentCullAS;
-	Shader gHistHiZCullCS;
-	Shader gOpaqueHistHiZCullAS;
-	Shader gTransparentHistHiZCullAS;
-	Shader gHiZGenerateCS;
-	Shader gDepthStaticCullMS;
-	Shader gDepthSkinnedCullMS;
-	Shader gMeshStaticMS;
-	Shader gMeshSkinnedMS;
-	Shader gBlinnPhongPS;
-	Shader gPBRPS;
-	Shader gSkyBoxMS;
-	Shader gSkyBoxPS;
-	Shader gBlinnPhongOitppllPS;
-	Shader gPBROitppllPS;
-	Shader gDrawOitppllPS;
-	Shader gNormalsStaticMS;
-	Shader gNormalsSkinnedMS;
-	Shader gNormalsPS;
-	Shader gSsaoCS;
-	Shader gVelocityStaticMS;
-	Shader gVelocitySkinnedMS;
-	Shader gVelocityPS;
-	Shader gTaaCS;
-	Shader gLDRToneMappingCS;
 }
 
 
@@ -277,6 +243,12 @@ void Carol::Shader::InitShaders()
     gSsaoCS.SetEntryPoint(L"main");
     gSsaoCS.SetTarget(L"cs_6_6");
     gSsaoCS.Finalize();
+
+    gEpfCS.SetFileName(L"shader\\epf_cs.hlsl");
+    gEpfCS.SetDefines({ L"BORDER_RADIUS=5",L"BLUR_COUNT=3" });
+    gEpfCS.SetEntryPoint(L"main");
+    gEpfCS.SetTarget(L"cs_6_6");
+    gEpfCS.Finalize();
 
     gVelocityStaticMS.SetFileName(L"shader\\velocity_ms.hlsl");
     gVelocityStaticMS.SetDefines({});

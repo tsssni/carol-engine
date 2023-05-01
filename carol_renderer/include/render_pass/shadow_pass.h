@@ -25,11 +25,6 @@ namespace Carol
     {
     public:
         ShadowPass(
-            ID3D12Device* device,
-            Heap* defaultBuffersHeap,
-            Heap* uploadBuffersHeap,
-            DescriptorManager* descriptorManager,
-            Scene* scene,
             Light light,
             uint32_t width = 1024,
             uint32_t height = 1024,
@@ -39,23 +34,21 @@ namespace Carol
             DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
-        virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
-        void Update(uint32_t lightIdx, uint64_t cpuFenceValue, uint64_t completedFenceValue);
+        virtual void Draw()override;
+        void Update(uint32_t lightIdx);
 
         uint32_t GetShadowSrvIdx()const;
         const Light& GetLight()const;
 
     protected:
-		virtual void InitPSOs(ID3D12Device* device)override;
-		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager);
+		virtual void InitPSOs()override;
+		virtual void InitBuffers()override;
         
         void InitLight();
         virtual void InitCamera() = 0;
                 
         std::unique_ptr<Light> mLight;
         std::unique_ptr<ColorBuffer> mShadowMap;
-
-        Scene* mScene;
 
         uint32_t mDepthBias;
         float mDepthBiasClamp;
@@ -72,11 +65,6 @@ namespace Carol
     {
     public:
         DirectLightShadowPass(
-            ID3D12Device* device,
-            Heap* defaultBuffersHeap,
-            Heap* uploadBuffersHeap,
-            DescriptorManager* descriptorManager,
-            Scene* scene,
             Light light,
             uint32_t width = 1024,
             uint32_t height = 1024,
@@ -86,7 +74,7 @@ namespace Carol
             DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
-        void Update(uint32_t lightIdx, const PerspectiveCamera* camera, float zn, float zf, uint64_t cpuFenceValue, uint64_t completedFenceValue);
+        void Update(uint32_t lightIdx, const PerspectiveCamera* camera, float zn, float zf);
     protected:
         virtual void InitCamera()override;
     };
@@ -95,12 +83,7 @@ namespace Carol
     {
 	public:
         CascadedShadowPass(
-            ID3D12Device* device,
-            Heap* defaultBuffersHeap,
-            Heap* uploadBuffersHeap,
-            DescriptorManager* descriptorManager,
-            Scene* scene,
-            Light light,
+			Light light,
             uint32_t splitLevel = 5,
             uint32_t width = 1024,
             uint32_t height = 1024,
@@ -110,8 +93,8 @@ namespace Carol
             DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
-		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
-        void Update(const PerspectiveCamera* camera, uint64_t cpuFenceValue, uint64_t completedFenceValue, float logWeight = 0.5f, float bias = 0.f);
+		virtual void Draw()override;
+        void Update(const PerspectiveCamera* camera, float logWeight = 0.5f, float bias = 0.f);
         
         uint32_t GetSplitLevel()const;
         float GetSplitZ(uint32_t idx)const;
@@ -119,8 +102,8 @@ namespace Carol
         uint32_t GetShadowSrvIdx(uint32_t idx)const;
         const Light& GetLight(uint32_t idx)const;
 	protected:
-		virtual void InitPSOs(ID3D12Device* device)override;
-		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
+		virtual void InitPSOs()override;
+		virtual void InitBuffers()override;
 
         uint32_t mSplitLevel;
         std::vector<float> mSplitZ;

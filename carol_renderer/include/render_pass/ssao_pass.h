@@ -11,21 +11,17 @@ namespace Carol
 	class Heap;
 	class DescriptorManager;
 	class ComputePSO;
+	class EpfPass;
 
 	class SsaoPass : public RenderPass
 	{
 	public:
 		SsaoPass(
-			ID3D12Device* device,	
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager,
 			uint32_t blurCount = 3,
 			DXGI_FORMAT ambientMapFormat = DXGI_FORMAT_R16_UNORM);
 
-		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
-		virtual void OnResize(uint32_t width, uint32_t height, ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
+		virtual void Draw()override;
+		virtual void OnResize(uint32_t width, uint32_t height)override;
 
 		void ReleaseIntermediateBuffers();
 		std::vector<float> CalcGaussWeights(float sigma);
@@ -36,16 +32,11 @@ namespace Carol
 		uint32_t GetSsaoUavIdx()const;
 
 	protected:
-		virtual void InitPSOs(ID3D12Device* device)override;
-		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
+		virtual void InitPSOs()override;
+		virtual void InitBuffers()override;
 
 		void InitRandomVectors();
-		void InitRandomVectorMap(
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
+		void InitRandomVectorMap();
 
 		std::unique_ptr<ColorBuffer> mRandomVecMap;
 		std::unique_ptr<ColorBuffer> mAmbientMap;
@@ -55,6 +46,8 @@ namespace Carol
 		DirectX::XMFLOAT4 mOffsets[14];
 
 		std::unique_ptr<ComputePSO> mSsaoComputePSO;
+
+		std::unique_ptr<EpfPass> mEpfPass;
 	};
 }
 

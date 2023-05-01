@@ -37,40 +37,4 @@ namespace Carol
 
 		Microsoft::WRL::ComPtr<IDxcBlob> mShader;
 	};
-
-
-	extern Microsoft::WRL::ComPtr<IDxcCompiler3> gDXCCompiler;
-	extern Microsoft::WRL::ComPtr<IDxcUtils> gDXCUtils;
-	extern Microsoft::WRL::ComPtr<IDxcIncludeHandler> gDXCIncludeHandler;
-
-	extern Shader gScreenMS;
-	extern Shader gDisplayPS;
-	extern Shader gCullCS;
-	extern Shader gCullAS;
-	extern Shader gOpaqueCullAS;
-	extern Shader gTransparentCullAS;
-	extern Shader gHistHiZCullCS;
-	extern Shader gOpaqueHistHiZCullAS;
-	extern Shader gTransparentHistHiZCullAS;
-	extern Shader gHiZGenerateCS;
-	extern Shader gDepthStaticCullMS;
-	extern Shader gDepthSkinnedCullMS;
-	extern Shader gMeshStaticMS;
-	extern Shader gMeshSkinnedMS;
-	extern Shader gBlinnPhongPS;
-	extern Shader gPBRPS;
-	extern Shader gSkyBoxMS;
-	extern Shader gSkyBoxPS;
-	extern Shader gBlinnPhongOitppllPS;
-	extern Shader gPBROitppllPS;
-	extern Shader gDrawOitppllPS;
-	extern Shader gNormalsStaticMS;
-	extern Shader gNormalsSkinnedMS;
-	extern Shader gNormalsPS;
-	extern Shader gSsaoCS;
-	extern Shader gVelocityStaticMS;
-	extern Shader gVelocitySkinnedMS;
-	extern Shader gVelocityPS;
-	extern Shader gTaaCS;
-	extern Shader gLDRToneMappingCS;
 }

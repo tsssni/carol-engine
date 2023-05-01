@@ -16,14 +16,13 @@ namespace Carol
 	{
 	public:
 		TaaPass(
-			ID3D12Device* device,
 			DXGI_FORMAT frameMapFormat = DXGI_FORMAT_R16G16B16A16_FLOAT,
 			DXGI_FORMAT velocityMapFormat = DXGI_FORMAT_R16G16_FLOAT,
 			DXGI_FORMAT velocityDsvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 
-		virtual void Draw(ID3D12GraphicsCommandList* cmdList)override;
-        void DrawVelocityMap(ID3D12GraphicsCommandList* cmdList);
-        void DrawOutput(ID3D12GraphicsCommandList* cmdList);
+		virtual void Draw()override;
+        void DrawVelocityMap();
+        void DrawOutput();
 		
 		void SetFrameMap(ColorBuffer* frameMap);
 		void SetDepthStencilMap(ColorBuffer* depthStencilMap);
@@ -37,8 +36,8 @@ namespace Carol
 		uint32_t GetHistFrameUavIdx()const;
 
 	protected:
-		virtual void InitPSOs(ID3D12Device* device)override;
-		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
+		virtual void InitPSOs()override;
+		virtual void InitBuffers()override;
 
 		void InitHalton();
 		float RadicalInversion(int base, int num);

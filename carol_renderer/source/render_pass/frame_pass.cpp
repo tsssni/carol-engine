@@ -1,7 +1,4 @@
-#include <render_pass/frame_pass.h>
-#include <render_pass/cull_pass.h>
-#include <scene.h>
-#include <dx12.h>
+#include <global.h>
 #include <DirectXColors.h>
 #include <string_view>
 #include <span>
@@ -19,53 +16,42 @@ namespace Carol
 }
 
 Carol::FramePass::FramePass(
-	ID3D12Device* device,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager,
-	Scene* scene,
 	DXGI_FORMAT frameFormat,
 	DXGI_FORMAT depthStencilFormat,
 	DXGI_FORMAT hiZFormat)
-	:mScene(scene),
-	mFrameFormat(frameFormat),
+	:mFrameFormat(frameFormat),
 	mDepthStencilFormat(depthStencilFormat)
 {
-	InitPSOs(device);
+	InitPSOs();
 
 	mCullPass = make_unique<CullPass>(
-		device,
-		defaultBuffersHeap,
-		uploadBuffersHeap,
-		descriptorManager,
-		scene,
 		0,
 		0.f,
 		0.f,
 		depthStencilFormat);
 }
 
-void Carol::FramePass::Draw(ID3D12GraphicsCommandList* cmdList)
+void Carol::FramePass::Draw()
 {
-	cmdList->RSSetViewports(1, &mViewport);
-	cmdList->RSSetScissorRects(1, &mScissorRect);
+	gGraphicsCommandList->RSSetViewports(1, &mViewport);
+	gGraphicsCommandList->RSSetScissorRects(1, &mScissorRect);
 
-	mFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-	cmdList->ClearRenderTargetView(mFrameMap->GetRtv(), Colors::Gray, 0, nullptr);
-	cmdList->ClearDepthStencilView(mDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+	mFrameMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
+	gGraphicsCommandList->ClearRenderTargetView(mFrameMap->GetRtv(), Colors::Gray, 0, nullptr);
+	gGraphicsCommandList->ClearDepthStencilView(mDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
 
-	DrawOpaque(cmdList);
-	DrawTransparent(cmdList);
+	DrawOpaque();
+	DrawTransparent();
 }
 
-void Carol::FramePass::Update(XMMATRIX viewProj, XMMATRIX histViewProj, XMVECTOR eyePos, uint64_t cpuFenceValue, uint64_t completedFenceValue)
+void Carol::FramePass::Update(XMMATRIX viewProj, XMMATRIX histViewProj, XMVECTOR eyePos)
 {
-	mCullPass->Update(viewProj, histViewProj, eyePos, cpuFenceValue, completedFenceValue);
+	mCullPass->Update(viewProj, histViewProj, eyePos);
 }
 
-void Carol::FramePass::Cull(ID3D12GraphicsCommandList* cmdList)
+void Carol::FramePass::Cull()
 {
-	mCullPass->Draw(cmdList);
+	mCullPass->Draw();
 }
 
 void Carol::FramePass::SetFrameMap(ColorBuffer* frameMap)
@@ -109,7 +95,7 @@ uint32_t Carol::FramePass::GetOffsetSrvIdx()const
 	return mStartOffsetBuffer->GetGpuSrvIdx();
 }
 
-void Carol::FramePass::InitPSOs(ID3D12Device* device)
+void Carol::FramePass::InitPSOs()
 {
 	mBlinnPhongStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mBlinnPhongStaticMeshPSO->SetRootSignature(sRootSignature.get());
@@ -117,7 +103,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 	mBlinnPhongStaticMeshPSO->SetAS(&gCullAS);
 	mBlinnPhongStaticMeshPSO->SetMS(&gMeshStaticMS);
 	mBlinnPhongStaticMeshPSO->SetPS(&gBlinnPhongPS);
-	mBlinnPhongStaticMeshPSO->Finalize(device);
+	mBlinnPhongStaticMeshPSO->Finalize();
 
 	mBlinnPhongSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mBlinnPhongSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
@@ -125,7 +111,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 	mBlinnPhongSkinnedMeshPSO->SetAS(&gCullAS);
 	mBlinnPhongSkinnedMeshPSO->SetMS(&gMeshSkinnedMS);
 	mBlinnPhongSkinnedMeshPSO->SetPS(&gBlinnPhongPS);
-	mBlinnPhongSkinnedMeshPSO->Finalize(device);
+	mBlinnPhongSkinnedMeshPSO->Finalize();
 
 	mPBRStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mPBRStaticMeshPSO->SetRootSignature(sRootSignature.get());
@@ -133,7 +119,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 	mPBRStaticMeshPSO->SetAS(&gCullAS);
 	mPBRStaticMeshPSO->SetMS(&gMeshStaticMS);
 	mPBRStaticMeshPSO->SetPS(&gPBRPS);
-	mPBRStaticMeshPSO->Finalize(device);
+	mPBRStaticMeshPSO->Finalize();
 
 	mPBRSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mPBRSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
@@ -141,7 +127,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 	mPBRSkinnedMeshPSO->SetAS(&gCullAS);
 	mPBRSkinnedMeshPSO->SetMS(&gMeshSkinnedMS);
 	mPBRSkinnedMeshPSO->SetPS(&gPBRPS);
-	mPBRSkinnedMeshPSO->Finalize(device);
+	mPBRSkinnedMeshPSO->Finalize();
 
 	mBlinnPhongStaticOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mBlinnPhongStaticOitppllMeshPSO->SetRootSignature(sRootSignature.get());
@@ -151,7 +137,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 	mBlinnPhongStaticOitppllMeshPSO->SetAS(&gCullAS);
 	mBlinnPhongStaticOitppllMeshPSO->SetMS(&gMeshStaticMS);
 	mBlinnPhongStaticOitppllMeshPSO->SetPS(&gBlinnPhongOitppllPS);
-	mBlinnPhongStaticOitppllMeshPSO->Finalize(device);
+	mBlinnPhongStaticOitppllMeshPSO->Finalize();
 
 	mBlinnPhongSkinnedOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mBlinnPhongSkinnedOitppllMeshPSO->SetRootSignature(sRootSignature.get());
@@ -161,7 +147,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 	mBlinnPhongSkinnedOitppllMeshPSO->SetAS(&gCullAS);
 	mBlinnPhongSkinnedOitppllMeshPSO->SetMS(&gMeshSkinnedMS);
 	mBlinnPhongSkinnedOitppllMeshPSO->SetPS(&gBlinnPhongOitppllPS);
-	mBlinnPhongSkinnedOitppllMeshPSO->Finalize(device);
+	mBlinnPhongSkinnedOitppllMeshPSO->Finalize();
 
 	mPBRStaticOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mPBRStaticOitppllMeshPSO->SetRootSignature(sRootSignature.get());
@@ -171,7 +157,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 	mPBRStaticOitppllMeshPSO->SetAS(&gCullAS);
 	mPBRStaticOitppllMeshPSO->SetMS(&gMeshStaticMS);
 	mPBRStaticOitppllMeshPSO->SetPS(&gPBROitppllPS);
-	mPBRStaticOitppllMeshPSO->Finalize(device);
+	mPBRStaticOitppllMeshPSO->Finalize();
 
 	mPBRSkinnedOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mPBRSkinnedOitppllMeshPSO->SetRootSignature(sRootSignature.get());
@@ -181,7 +167,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 	mPBRSkinnedOitppllMeshPSO->SetAS(&gCullAS);
 	mPBRSkinnedOitppllMeshPSO->SetMS(&gMeshSkinnedMS);
 	mPBRSkinnedOitppllMeshPSO->SetPS(&gPBROitppllPS);
-	mPBRSkinnedOitppllMeshPSO->Finalize(device);
+	mPBRSkinnedOitppllMeshPSO->Finalize();
 
 	mDrawOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mDrawOitppllMeshPSO->SetRootSignature(sRootSignature.get());
@@ -191,7 +177,7 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 	mDrawOitppllMeshPSO->SetRenderTargetFormat(mFrameFormat);
 	mDrawOitppllMeshPSO->SetMS(&gScreenMS);
 	mDrawOitppllMeshPSO->SetPS(&gDrawOitppllPS);
-	mDrawOitppllMeshPSO->Finalize(device);
+	mDrawOitppllMeshPSO->Finalize();
 	
 	mSkyBoxMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mSkyBoxMeshPSO->SetRootSignature(sRootSignature.get());
@@ -199,62 +185,56 @@ void Carol::FramePass::InitPSOs(ID3D12Device* device)
 	mSkyBoxMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
 	mSkyBoxMeshPSO->SetMS(&gSkyBoxMS);
 	mSkyBoxMeshPSO->SetPS(&gSkyBoxPS);
-	mSkyBoxMeshPSO->Finalize(device);
+	mSkyBoxMeshPSO->Finalize();
 }
 
-void Carol::FramePass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)
+void Carol::FramePass::InitBuffers()
 {
 	mOitppllBuffer = make_unique<StructuredBuffer>(
 		mWidth * mHeight * 16,
 		sizeof(OitppllNode),
-		device,
-		heap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	mStartOffsetBuffer = make_unique<RawBuffer>(
 		mWidth * mHeight * sizeof(uint32_t),
-		device,
-		heap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	mCounterBuffer = make_unique<RawBuffer>(
 		sizeof(uint32_t),
-		device,
-		heap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-	mCullPass->OnResize(mWidth, mHeight, device, heap, descriptorManager);
+	mCullPass->OnResize(mWidth, mHeight);
 }
 
-void Carol::FramePass::DrawOpaque(ID3D12GraphicsCommandList* cmdList)
+void Carol::FramePass::DrawOpaque()
 {
-	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mFrameMap->GetRtv()), true, GetRvaluePtr(mDepthStencilMap->GetDsv()));
+	gGraphicsCommandList->OMSetRenderTargets(1, GetRvaluePtr(mFrameMap->GetRtv()), true, GetRvaluePtr(mDepthStencilMap->GetDsv()));
 
-	cmdList->SetPipelineState(mPBRStaticMeshPSO->Get());
-	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(OPAQUE_STATIC));
+	gGraphicsCommandList->SetPipelineState(mPBRStaticMeshPSO->Get());
+	ExecuteIndirect(GetIndirectCommandBuffer(OPAQUE_STATIC));
 
-	cmdList->SetPipelineState(mPBRSkinnedMeshPSO->Get());
-	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(OPAQUE_SKINNED));
+	gGraphicsCommandList->SetPipelineState(mPBRSkinnedMeshPSO->Get());
+	ExecuteIndirect(GetIndirectCommandBuffer(OPAQUE_SKINNED));
 
-	DrawSkyBox(cmdList, mScene->GetSkyBox()->GetMeshCBAddress());
+	DrawSkyBox(gScene->GetSkyBox()->GetMeshCBAddress());
 }
 
-void Carol::FramePass::DrawSkyBox(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_VIRTUAL_ADDRESS skyBoxMeshCBAddr)
+void Carol::FramePass::DrawSkyBox(D3D12_GPU_VIRTUAL_ADDRESS skyBoxMeshCBAddr)
 {
-	cmdList->SetPipelineState(mSkyBoxMeshPSO->Get());
-	cmdList->SetGraphicsRootConstantBufferView(MESH_CB, skyBoxMeshCBAddr);
-	static_cast<ID3D12GraphicsCommandList6*>(cmdList)->DispatchMesh(1, 1, 1);
+	gGraphicsCommandList->SetPipelineState(mSkyBoxMeshPSO->Get());
+	gGraphicsCommandList->SetGraphicsRootConstantBufferView(MESH_CB, skyBoxMeshCBAddr);
+	static_cast<ID3D12GraphicsCommandList6*>(gGraphicsCommandList.Get())->DispatchMesh(1, 1, 1);
 }
 
-void Carol::FramePass::DrawTransparent(ID3D12GraphicsCommandList* cmdList)
+void Carol::FramePass::DrawTransparent()
 {
-	if (!mScene->IsAnyTransparentMeshes())
+	if (!gScene->IsAnyTransparentMeshes())
 	{
 		return;
 	}
@@ -262,23 +242,23 @@ void Carol::FramePass::DrawTransparent(ID3D12GraphicsCommandList* cmdList)
 	constexpr uint32_t initOffsetValue = UINT32_MAX;
 	constexpr uint32_t initCounterValue = 0;
 
-	mOitppllBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	mStartOffsetBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	mOitppllBuffer->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	mStartOffsetBuffer->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-	cmdList->ClearUnorderedAccessViewUint(mStartOffsetBuffer->GetGpuUav(), mStartOffsetBuffer->GetCpuUav(), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
-	cmdList->ClearUnorderedAccessViewUint(mCounterBuffer->GetGpuUav(), mCounterBuffer->GetCpuUav(), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
-	cmdList->OMSetRenderTargets(0, nullptr, true, nullptr);
+	gGraphicsCommandList->ClearUnorderedAccessViewUint(mStartOffsetBuffer->GetGpuUav(), mStartOffsetBuffer->GetCpuUav(), mStartOffsetBuffer->Get(), &initOffsetValue, 0, nullptr);
+	gGraphicsCommandList->ClearUnorderedAccessViewUint(mCounterBuffer->GetGpuUav(), mCounterBuffer->GetCpuUav(), mCounterBuffer->Get(), &initCounterValue, 0, nullptr);
+	gGraphicsCommandList->OMSetRenderTargets(0, nullptr, true, nullptr);
 
-	cmdList->SetPipelineState(mPBRStaticOitppllMeshPSO->Get());
-	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(TRANSPARENT_STATIC));
+	gGraphicsCommandList->SetPipelineState(mPBRStaticOitppllMeshPSO->Get());
+	ExecuteIndirect( GetIndirectCommandBuffer(TRANSPARENT_STATIC));
 
-	cmdList->SetPipelineState(mPBRSkinnedOitppllMeshPSO->Get());
-	ExecuteIndirect(cmdList, GetIndirectCommandBuffer(TRANSPARENT_SKINNED));
+	gGraphicsCommandList->SetPipelineState(mPBRSkinnedOitppllMeshPSO->Get());
+	ExecuteIndirect(GetIndirectCommandBuffer(TRANSPARENT_SKINNED));
 
-	mOitppllBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	mStartOffsetBuffer->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	mOitppllBuffer->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	mStartOffsetBuffer->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mFrameMap->GetRtv()), true, nullptr);
-	cmdList->SetPipelineState(mDrawOitppllMeshPSO->Get());
-	static_cast<ID3D12GraphicsCommandList6*>(cmdList)->DispatchMesh(1, 1, 1);
+	gGraphicsCommandList->OMSetRenderTargets(1, GetRvaluePtr(mFrameMap->GetRtv()), true, nullptr);
+	gGraphicsCommandList->SetPipelineState(mDrawOitppllMeshPSO->Get());
+	static_cast<ID3D12GraphicsCommandList6*>(gGraphicsCommandList.Get())->DispatchMesh(1, 1, 1);
 }

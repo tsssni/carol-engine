@@ -6,12 +6,17 @@ float LOD(float depth)
     return 0.f;
 }
 
-bool CheckOutOfBounds(float3 pos)
+bool TextureBorderTest(int2 pos, uint2 size)
+{
+    return pos.x >= 0 && pos.x < size.x && pos.y >= 0 && pos.y < size.y;
+}
+
+bool TextureBorderTest(float3 pos)
 {
     return 
-    pos.x < 0.01f || pos.x >= 0.99f 
-    || pos.y < 0.01f || pos.y >= 0.99f
-    || pos.z < 0.01f || pos.z >= 0.99f;
+    pos.x >= 0.01f || pos.x <= 0.99f 
+    || pos.y >= 0.01f || pos.y <= 0.99f
+    || pos.z >= 0.01f || pos.z <= 0.99f;
 }
 
 float4 GetTexCoord(float4 pos)

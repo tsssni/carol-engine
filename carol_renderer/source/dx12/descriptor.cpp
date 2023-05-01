@@ -1,8 +1,4 @@
-#include <dx12/descriptor.h>
-#include <dx12/resource.h>
-#include <utils/bitset.h>
-#include <utils/buddy.h>
-#include <utils/common.h>
+#include <global.h>
 
 namespace Carol {
 	using std::vector;
@@ -16,16 +12,15 @@ namespace Carol {
 
 Carol::DescriptorAllocator::DescriptorAllocator(
 	D3D12_DESCRIPTOR_HEAP_TYPE type,
-	ID3D12Device* device,
 	uint32_t initNumCpuDescriptors,
 	uint32_t numGpuDescriptors)
 	:mType(type),
 	mNumCpuDescriptorsPerHeap(initNumCpuDescriptors),
 	mNumGpuDescriptors(numGpuDescriptors)
 {
-	mDescriptorSize = device->GetDescriptorHandleIncrementSize(type);
-	AddCpuDescriptorAllocator(device);
-	InitGpuDescriptorAllocator(device);
+	mDescriptorSize = gDevice->GetDescriptorHandleIncrementSize(type);
+	AddCpuDescriptorAllocator();
+	InitGpuDescriptorAllocator();
 }
 
 Carol::DescriptorAllocator::~DescriptorAllocator()
@@ -73,9 +68,7 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::CpuAll
 		}
 	}
 
-	ComPtr<ID3D12Device> device;
-	mCpuDescriptorHeaps.back()->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
-	AddCpuDescriptorAllocator(device.Get());
+	AddCpuDescriptorAllocator();
 
 	if (mCpuBuddies.back()->Allocate(numDescriptors, buddyInfo))
 	{
@@ -172,7 +165,7 @@ ID3D12DescriptorHeap* Carol::DescriptorAllocator::GetGpuDescriptorHeap()const
 	return mGpuDescriptorHeap.Get();
 }
 
-void Carol::DescriptorAllocator::AddCpuDescriptorAllocator(ID3D12Device* device)
+void Carol::DescriptorAllocator::AddCpuDescriptorAllocator()
 {
 	mCpuDescriptorHeaps.emplace_back();
 	mCpuBuddies.emplace_back(make_unique<Buddy>(mNumCpuDescriptorsPerHeap, 1u));
@@ -183,10 +176,10 @@ void Carol::DescriptorAllocator::AddCpuDescriptorAllocator(ID3D12Device* device)
 	descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 	descHeapDesc.NodeMask = 0;
 
-	ThrowIfFailed(device->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(mCpuDescriptorHeaps.back().GetAddressOf())));
+	ThrowIfFailed(gDevice->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(mCpuDescriptorHeaps.back().GetAddressOf())));
 }
 
-void Carol::DescriptorAllocator::InitGpuDescriptorAllocator(ID3D12Device* device)
+void Carol::DescriptorAllocator::InitGpuDescriptorAllocator()
 {
 	if (mType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
 	{
@@ -198,7 +191,7 @@ void Carol::DescriptorAllocator::InitGpuDescriptorAllocator(ID3D12Device* device
 		descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		descHeapDesc.NodeMask = 0;
 
-		ThrowIfFailed(device->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(mGpuDescriptorHeap.GetAddressOf())));
+		ThrowIfFailed(gDevice->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(mGpuDescriptorHeap.GetAddressOf())));
 	}
 }
 
@@ -221,11 +214,11 @@ void Carol::DescriptorAllocator::GpuDelete(const DescriptorAllocInfo* info)
 	mGpuBuddy->Deallocate(buddyInfo);
 }
 
-Carol::DescriptorManager::DescriptorManager(ID3D12Device* device, uint32_t initCpuCbvSrvUavHeapSize, uint32_t initGpuCbvSrvUavHeapSize, uint32_t initRtvHeapSize, uint32_t initDsvHeapSize)
+Carol::DescriptorManager::DescriptorManager(uint32_t initCpuCbvSrvUavHeapSize, uint32_t initGpuCbvSrvUavHeapSize, uint32_t initRtvHeapSize, uint32_t initDsvHeapSize)
 {
-	mCbvSrvUavAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, device, initCpuCbvSrvUavHeapSize, initGpuCbvSrvUavHeapSize);
-	mRtvAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, device, initRtvHeapSize, 0);
-	mDsvAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, device, initDsvHeapSize, 0);
+	mCbvSrvUavAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initCpuCbvSrvUavHeapSize, initGpuCbvSrvUavHeapSize);
+	mRtvAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, initRtvHeapSize, 0);
+	mDsvAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, initDsvHeapSize, 0);
 }
 
 void Carol::DescriptorManager::DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue)

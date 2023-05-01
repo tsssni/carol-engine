@@ -102,12 +102,7 @@ namespace Carol
 			std::span<std::pair<std::wstring, std::vector<std::vector<Vertex>>>> skinnedVertices,
 			std::span<uint32_t> indices,
 			bool isSkinned,
-			bool isTransparent,
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
+			bool isTransparent);
 
 		void ReleaseIntermediateBuffer();
 
@@ -118,7 +113,7 @@ namespace Carol
 		void SetMetallicRoughnessMapIdx(uint32_t idx);
 
 		void Update(DirectX::XMMATRIX& world);
-		void ClearCullMark(ID3D12GraphicsCommandList* cmdList);
+		void ClearCullMark();
 		void SetAnimationClip(std::wstring_view clipName);
 
 		const MeshConstants* GetMeshConstants()const;
@@ -131,30 +126,10 @@ namespace Carol
 		bool IsTransparent()const;
 
 	protected:
-		void LoadVertices(
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
-		void LoadMeshlets(
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
-		void LoadCullData(
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
-		void InitCullMark(
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
+		void LoadVertices();
+		void LoadMeshlets();
+		void LoadCullData();
+		void InitCullMark();
 
 		void LoadMeshletBoundingBox(std::wstring_view clipName, std::span<std::vector<Vertex>> vertices);
 		void LoadMeshletNormalCone(std::wstring_view clipName, std::span<std::vector<Vertex>> vertices);

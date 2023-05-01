@@ -1,6 +1,7 @@
 #pragma once
 #include <scene/light.h>
-#include <base_renderer.h>
+#include <d3d12.h>
+#include <wrl/client.h>
 #include <memory>
 #include <unordered_map>
 #include <string>
@@ -13,13 +14,16 @@
 namespace Carol
 {
 	class FastConstantBufferAllocator;
+	class Camera;
+	class Timer;
 	class Scene;
+	class DisplayPass;
     class FramePass;
-    class SsaoPass;
     class NormalPass;
-	class ToneMappingPass;
-    class TaaPass;
     class CascadedShadowPass;
+    class SsaoPass;
+    class TaaPass;
+	class ToneMappingPass;
 
 	class FrameConstants
 	{
@@ -45,7 +49,7 @@ namespace Carol
 
 		// Ssao
 		DirectX::XMFLOAT4 OffsetVectors[14];
-		DirectX::XMFLOAT4 BlurWeights[3];
+		DirectX::XMFLOAT4 GaussBlurWeights[3];
 		float OcclusionRadius = 0.5f;
 		float OcclusionFadeStart = 0.2f;
 		float OcclusionFadeEnd = 1.0f;
@@ -99,19 +103,33 @@ namespace Carol
 		DirectX::XMFLOAT2 FramePad7;
 	};
  
-    class Renderer :public BaseRenderer
+    class Renderer
     {
     public:
 		Renderer(HWND hWnd, uint32_t width, uint32_t height);
         
-        virtual void Draw()override;
-        virtual void Update()override;
+        void Draw();
+        void Update();
 
-        virtual void OnMouseDown(WPARAM btnState, int x, int y)override;
-		virtual void OnMouseUp(WPARAM btnState, int x, int y)override;
-		virtual void OnMouseMove(WPARAM btnState, int x, int y)override;
-		virtual void OnKeyboardInput()override;
-        virtual void OnResize(uint32_t width, uint32_t height, bool init = false)override;
+		void CalcFrameState();
+		void Tick();
+		void Stop();
+		void Start();
+
+        void OnMouseDown(WPARAM btnState, int x, int y);
+		void OnMouseUp(WPARAM btnState, int x, int y);
+		void OnMouseMove(WPARAM btnState, int x, int y);
+		void OnKeyboardInput();
+        void OnResize(uint32_t width, uint32_t height, bool init = false);
+
+		void SetPaused(bool state);
+		bool IsPaused();
+		void SetMaximized(bool state);
+		bool IsZoomed();
+		void SetMinimized(bool state);
+		bool IsIconic();
+		void SetResizing(bool state);
+		bool IsResizing();
 
         void LoadModel(std::wstring_view path, std::wstring_view textureDir, std::wstring_view modelName, DirectX::XMMATRIX world, bool isSkinned);
         void UnloadModel(std::wstring_view modelName);
@@ -119,30 +137,60 @@ namespace Carol
         void SetAnimation(std::wstring_view modelName, std::wstring_view animationName);
         std::vector<std::wstring_view> GetModelNames();
     protected:
-		void InitConstants();
+		void InitDebug();
+		void InitDxgiFactory();
+		void InitDevice();
+		void InitFence();
+		void InitCommandQueue();
+		void InitCommandAllocatorPool();
+		void InitGraphicsCommandList();
         void InitPipelineStates();
-        void InitScene();
 
+		void InitHeapManager();
+		void InitDescriptorManager();
+		void InitTextureManager();
+		void InitTimer();
+		void InitCamera();
+        void InitScene();
+		void InitConstants();
+
+		void InitRenderPass();
+		void InitDisplay();
         void InitFrame();
         void InitMainLight();
         void InitNormal();
         void InitSsao();
-
 		void InitToneMapping();
         void InitTaa();
 		
+		float AspectRatio();
+		void FlushCommandQueue();
         void ReleaseIntermediateBuffers();
 
     protected:
-		std::unique_ptr<Scene> mScene;
+		uint32_t mClientWidth = 0;
+		uint32_t mClientHeight = 0;
+		std::unique_ptr<Camera> mCamera;
+		std::unique_ptr<Timer> mTimer;
 
-        std::unique_ptr<CascadedShadowPass> mMainLightShadowPass;
-        std::unique_ptr<NormalPass> mNormalPass;
-        std::unique_ptr<SsaoPass> mSsaoPass;
+		HWND mhWnd;
+		std::wstring mMainWndCaption = L"Carol";
+		D3D_DRIVER_TYPE md3dDriverType = D3D_DRIVER_TYPE_HARDWARE;
+
+		DirectX::XMINT2 mLastMousePos = { 0,0 };
+
+		bool mPaused = false;
+		bool mMaximized = false;
+		bool mMinimized = false;
+		bool mResizing = false;
+
+        std::unique_ptr<DisplayPass> mDisplayPass;
 		std::unique_ptr<FramePass> mFramePass;
-
-		std::unique_ptr<ToneMappingPass> mToneMappingPass;
+        std::unique_ptr<NormalPass> mNormalPass;
+        std::unique_ptr<CascadedShadowPass> mMainLightShadowPass;
+        std::unique_ptr<SsaoPass> mSsaoPass;
         std::unique_ptr<TaaPass> mTaaPass;
+		std::unique_ptr<ToneMappingPass> mToneMappingPass;
 
 		std::unique_ptr<FrameConstants> mFrameConstants;
         std::unique_ptr<FastConstantBufferAllocator> mFrameCBAllocator;

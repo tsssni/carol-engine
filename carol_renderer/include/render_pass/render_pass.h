@@ -14,22 +14,19 @@ namespace Carol
 	class RenderPass
 	{
 	public:
-		virtual void Draw(ID3D12GraphicsCommandList* cmdList) = 0;
+		virtual void Draw() = 0;
 		virtual void OnResize(
 			uint32_t width,
-			uint32_t height,
-			ID3D12Device* device,
-			Heap* heap,
-			DescriptorManager* descriptorManager);
+			uint32_t height);
 
-		static void Init(ID3D12Device* device);
+		static void Init();
 		static const RootSignature* GetRootSignature();
 
 	protected:
-		virtual void InitPSOs(ID3D12Device* device) = 0;
-		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager) = 0;
+		virtual void InitPSOs() = 0;
+		virtual void InitBuffers() = 0;
 		
-		void ExecuteIndirect(ID3D12GraphicsCommandList* cmdList, const StructuredBuffer* indirectCmdBuffer);
+		void ExecuteIndirect(const StructuredBuffer* indirectCmdBuffer);
 
 		D3D12_VIEWPORT mViewport;
 		D3D12_RECT mScissorRect;

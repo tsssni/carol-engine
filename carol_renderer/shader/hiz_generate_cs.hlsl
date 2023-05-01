@@ -1,4 +1,5 @@
 #include "include/compute.hlsli"
+#include "include/texture.hlsli"
 
 cbuffer HiZConstants : register(b2)
 {
@@ -42,7 +43,7 @@ void main( uint2 dtid : SV_DispatchThreadID, uint2 gtid : SV_GroupThreadID)
     srcHiZMap.GetDimensions(size.x, size.y);
     Init(dtid, size);
     
-    if (UavBorderTest(dtid, size))
+    if (TextureBorderTest(dtid, size))
     {
         depth[gtid.x][gtid.y] = srcHiZMap[dtid].r;
     }
@@ -59,7 +60,7 @@ void main( uint2 dtid : SV_DispatchThreadID, uint2 gtid : SV_GroupThreadID)
         {
             RWTexture2D<float4> writeHiZMap = ResourceDescriptorHeap[gRWHiZIdx + gSrcMip + i];
 
-            if (UavBorderTest(dtid, size))
+            if (TextureBorderTest(dtid, size))
             {
                 writeHiZMap[dtid>>i].r = GetMaxDepth(gtid, exp2(i - 1));
             }

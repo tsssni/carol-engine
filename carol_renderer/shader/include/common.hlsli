@@ -36,8 +36,7 @@ cbuffer FrameCB : register(b3)
     float2 gFramePad1;
 
     float4 gOffsetVectors[14];
-    float4 gBlurWeights[3];
-    
+    float4 gGaussWeights[3];
     float gOcclusionRadius;
     float gOcclusionFadeStart;
     float gOcclusionFadeEnd;

@@ -21,8 +21,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\global.h" />
     <ClInclude Include="include\render_pass\cull_pass.h" />
-    <ClInclude Include="include\base_renderer.h" />
     <ClInclude Include="include\dx12\command.h" />
     <ClInclude Include="include\dx12\descriptor.h" />
     <ClInclude Include="include\dx12\heap.h" />
@@ -35,6 +35,7 @@
     <ClInclude Include="include\renderer.h" />
     <ClInclude Include="include\render_pass.h" />
     <ClInclude Include="include\render_pass\display_pass.h" />
+    <ClInclude Include="include\render_pass\epf_pass.h" />
     <ClInclude Include="include\render_pass\frame_pass.h" />
     <ClInclude Include="include\render_pass\normal_pass.h" />
     <ClInclude Include="include\render_pass\render_pass.h" />
@@ -64,6 +65,8 @@
     <ClInclude Include="win32\targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\render_pass\epf_pass.cpp" />
+    <ClCompile Include="source\global.cpp" />
     <ClCompile Include="source\render_pass\cull_pass.cpp" />
     <ClCompile Include="source\dx12\command.cpp" />
     <ClCompile Include="source\render_pass\render_pass.cpp" />
@@ -71,7 +74,6 @@
     <ClCompile Include="source\render_pass\frame_pass.cpp" />
     <ClCompile Include="source\render_pass\normal_pass.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="source\base_renderer.cpp" />
     <ClCompile Include="source\dx12\descriptor.cpp" />
     <ClCompile Include="source\dx12\heap.cpp" />
     <ClCompile Include="source\dx12\resource.cpp" />
@@ -259,6 +261,17 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
     </FxCompile>
+    <None Include="shader\epf_cs.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
+      <FileType>Document</FileType>
+    </None>
     <None Include="shader\hist_hiz_cull_cs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>

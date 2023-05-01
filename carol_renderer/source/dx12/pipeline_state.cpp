@@ -1,12 +1,9 @@
-#include <dx12/pipeline_state.h>
-#include <dx12/root_signature.h>
-#include <dx12/shader.h>
+#include <global.h>
 
 namespace Carol
 {
 	using Microsoft::WRL::ComPtr;
 }
-
 
 ID3D12PipelineState* Carol::PSO::Get()const
 {
@@ -124,14 +121,14 @@ void Carol::MeshPSO::SetPS(const Shader* shader)
 	mPSODesc.PS = { reinterpret_cast<byte*>(shader->GetBufferPointer()),shader->GetBufferSize() };
 }
 
-void Carol::MeshPSO::Finalize(ID3D12Device* device)
+void Carol::MeshPSO::Finalize()
 {
 	auto psoStream = CD3DX12_PIPELINE_MESH_STATE_STREAM(mPSODesc);
 	D3D12_PIPELINE_STATE_STREAM_DESC desc;
 	desc.pPipelineStateSubobjectStream = &psoStream;
 	desc.SizeInBytes = sizeof(psoStream);
 
-	static_cast<ID3D12Device2*>(device)->CreatePipelineState(&desc, IID_PPV_ARGS(mPSO.GetAddressOf()));
+	static_cast<ID3D12Device2*>(gDevice.Get())->CreatePipelineState(&desc, IID_PPV_ARGS(mPSO.GetAddressOf()));
 }
 
 Carol::ComputePSO::ComputePSO(PSOInitState init)
@@ -164,7 +161,7 @@ void Carol::ComputePSO::SetCS(const Shader* shader)
 	mPSODesc.CS = { shader->GetBufferPointer(), shader->GetBufferSize() };
 }
 
-void Carol::ComputePSO::Finalize(ID3D12Device* device)
+void Carol::ComputePSO::Finalize()
 {
-	device->CreateComputePipelineState(&mPSODesc, IID_PPV_ARGS(mPSO.GetAddressOf()));
+	gDevice->CreateComputePipelineState(&mPSODesc, IID_PPV_ARGS(mPSO.GetAddressOf()));
 }

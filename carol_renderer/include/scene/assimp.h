@@ -20,13 +20,7 @@ namespace Carol
 			SceneNode* rootNode,
 		    std::wstring_view path,
 			std::wstring_view textureDir,
-			bool isSkinned,
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager,
-			TextureManager* textureManager);
+			bool isSkinned);
 		AssimpModel(const AssimpModel&) = delete;
 		AssimpModel(AssimpModel&&) = delete;
 		AssimpModel& operator=(const AssimpModel&) = delete;
@@ -35,20 +29,10 @@ namespace Carol
 		void ProcessNode(
 			aiNode* node,
 			SceneNode* sceneNode,
-			const aiScene* scene,
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
+			const aiScene* scene);
 		Mesh* ProcessMesh(
 			aiMesh* mesh,
-			const aiScene* scene,
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
+			const aiScene* scene);
 		
 		void ReadBoneHierachy(aiNode* node);
 		void ReadBoneOffsets(const aiScene* scene);
@@ -61,24 +45,14 @@ namespace Carol
 		void ReadMeshMaterialAndTextures(
 			Mesh* mesh,
 			aiMesh* aimesh,
-			const aiScene* scene,
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
+			const aiScene* scene);
 		void ReadMeshBones(std::vector<Vertex>& vertices, aiMesh* mesh);
 		void InsertBoneWeightToVertex(Vertex& vertex, uint32_t boneIndex, float boneWeight);
 
 		void LoadTexture(
 			Mesh* mesh,
 			aiString aiPath,
-			aiTextureType type,
-			ID3D12Device* device,
-			ID3D12GraphicsCommandList* cmdList,
-			Heap* defaultBuffersHeap,
-			Heap* uploadBuffersHeap,
-			DescriptorManager* descriptorManager);
+			aiTextureType type);
 
 	protected:
 		std::unordered_map<std::wstring, uint32_t> mBoneIndices;

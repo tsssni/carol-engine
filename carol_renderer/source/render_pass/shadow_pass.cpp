@@ -1,7 +1,4 @@
-#include <render_pass/shadow_pass.h>
-#include <render_pass/cull_pass.h>
-#include <dx12.h>
-#include <scene.h>
+#include <global.h>
 #include <DirectXColors.h>
 #include <memory>
 #include <string_view>
@@ -17,11 +14,6 @@ namespace Carol {
 }
 
 Carol::ShadowPass::ShadowPass(
-	ID3D12Device* device,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager,
-	Scene* scene,
 	Light light,
 	uint32_t width,
 	uint32_t height,
@@ -31,21 +23,15 @@ Carol::ShadowPass::ShadowPass(
 	DXGI_FORMAT shadowFormat,
 	DXGI_FORMAT hiZFormat)
 	:mLight(make_unique<Light>(light)),
-	mScene(scene),
 	mDepthBias(depthBias),
 	mDepthBiasClamp(depthBiasClamp),
 	mSlopeScaledDepthBias(slopeScaledDepthBias),
 	mShadowFormat(shadowFormat)
 {
 	InitLight();
-	InitPSOs(device);
+	InitPSOs();
 
 	mCullPass = make_unique<CullPass>(
-		device,
-		defaultBuffersHeap,
-		uploadBuffersHeap,
-		descriptorManager,
-		scene,
 		depthBias,
 		depthBiasClamp,
 		slopeScaledDepthBias,
@@ -53,18 +39,15 @@ Carol::ShadowPass::ShadowPass(
 
 	OnResize(
 		width,
-		height,
-		device,
-		defaultBuffersHeap,
-		descriptorManager);
+		height);
 }
 
-void Carol::ShadowPass::Draw(ID3D12GraphicsCommandList* cmdList)
+void Carol::ShadowPass::Draw()
 {
-	mCullPass->Draw(cmdList);
+	mCullPass->Draw();
 }
 
-void Carol::ShadowPass::Update(uint32_t lightIdx, uint64_t cpuFenceValue, uint64_t completedFenceValue)
+void Carol::ShadowPass::Update(uint32_t lightIdx)
 {
 	XMMATRIX view = mCamera->GetView();
 	XMMATRIX proj = mCamera->GetProj();
@@ -75,7 +58,7 @@ void Carol::ShadowPass::Update(uint32_t lightIdx, uint64_t cpuFenceValue, uint64
 	XMStoreFloat4x4(&mLight->Proj, XMMatrixTranspose(proj));
 	XMStoreFloat4x4(&mLight->ViewProj, XMMatrixTranspose(viewProj));
 
-	mCullPass->Update(XMMatrixTranspose(viewProj), XMMatrixTranspose(histViewProj), XMLoadFloat3(&mLight->Position), cpuFenceValue, completedFenceValue);
+	mCullPass->Update(XMMatrixTranspose(viewProj), XMMatrixTranspose(histViewProj), XMLoadFloat3(&mLight->Position));
 }
 
 uint32_t Carol::ShadowPass::GetShadowSrvIdx()const
@@ -88,7 +71,7 @@ const Carol::Light& Carol::ShadowPass::GetLight()const
 	return *mLight;
 }
 
-void Carol::ShadowPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)
+void Carol::ShadowPass::InitBuffers()
 {
 	D3D12_CLEAR_VALUE optClearValue;
 	optClearValue.Format = GetDsvFormat(mShadowFormat);
@@ -101,14 +84,12 @@ void Carol::ShadowPass::InitBuffers(ID3D12Device* device, Heap* heap, Descriptor
 		1,
 		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
 		mShadowFormat,
-		device,
-		heap,
-		descriptorManager,
+		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
 		&optClearValue);
 
-	mCullPass->OnResize(mWidth, mHeight, device, heap, descriptorManager);
+	mCullPass->OnResize(mWidth, mHeight);
 	mCullPass->SetDepthMap(mShadowMap.get());
 }
 
@@ -123,16 +104,11 @@ void Carol::ShadowPass::InitLight()
 	mScissorRect = { 0,0,(int)mWidth,(int)mHeight };
 }
 
-void Carol::ShadowPass::InitPSOs(ID3D12Device* device)
+void Carol::ShadowPass::InitPSOs()
 {
 }
 
 Carol::DirectLightShadowPass::DirectLightShadowPass(
-	ID3D12Device* device,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager,
-	Scene* scene,
 	Light light,
 	uint32_t width,
 	uint32_t height,
@@ -142,11 +118,6 @@ Carol::DirectLightShadowPass::DirectLightShadowPass(
 	DXGI_FORMAT shadowFormat,
 	DXGI_FORMAT hiZFormat)
 	:ShadowPass(
-		device,
-		defaultBuffersHeap,
-		uploadBuffersHeap,
-		descriptorManager,
-		scene,
 		light,
 		width,
 		height,
@@ -163,9 +134,7 @@ void Carol::DirectLightShadowPass::Update(
 	uint32_t lightIdx,
 	const PerspectiveCamera* camera,
 	float zn,
-	float zf,
-	uint64_t cpuFenceValue,
-	uint64_t completedFenceValue)
+	float zf)
 {
 	static float dx[4] = { -1.f,1.f,-1.f,1.f };
 	static float dy[4] = { -1.f,-1.f,1.f,1.f };
@@ -221,7 +190,7 @@ void Carol::DirectLightShadowPass::Update(
 	mCamera->LookAt(XMLoadFloat4(&center) - 140.f * XMLoadFloat3(&mLight->Direction), XMLoadFloat4(&center), { 0.f,1.f,0.f,0.f });
 	mCamera->UpdateViewMatrix();
 
-	ShadowPass::Update(lightIdx, cpuFenceValue, completedFenceValue);
+	ShadowPass::Update(lightIdx);
 }
 
 void Carol::DirectLightShadowPass::InitCamera()
@@ -233,11 +202,6 @@ void Carol::DirectLightShadowPass::InitCamera()
 }
 
 Carol::CascadedShadowPass::CascadedShadowPass(
-	ID3D12Device* device,
-	Heap* defaultBuffersHeap,
-	Heap* uploadBuffersHeap,
-	DescriptorManager* descriptorManager,
-	Scene* scene,
 	Light light,
 	uint32_t splitLevel,
 	uint32_t width,
@@ -254,11 +218,6 @@ Carol::CascadedShadowPass::CascadedShadowPass(
 	for (auto& shadow : mShadow)
 	{
 		shadow = make_unique<DirectLightShadowPass>(
-			device,
-			defaultBuffersHeap,
-			uploadBuffersHeap,
-			descriptorManager,
-			scene,
 			light,
 			width,
 			height,
@@ -270,18 +229,16 @@ Carol::CascadedShadowPass::CascadedShadowPass(
 	}
 }
 
-void Carol::CascadedShadowPass::Draw(ID3D12GraphicsCommandList* cmdList)
+void Carol::CascadedShadowPass::Draw()
 {
 	for (auto& shadow : mShadow)
 	{
-		shadow->Draw(cmdList);
+		shadow->Draw();
 	}
 }
 
 void Carol::CascadedShadowPass::Update(
 	const PerspectiveCamera* camera,
-	uint64_t cpuFenceValue,
-	uint64_t completedFenceValue,
 	float logWeight,
 	float bias)
 {
@@ -295,7 +252,7 @@ void Carol::CascadedShadowPass::Update(
 
 	for (int i = 0; i < mSplitLevel; ++i)
 	{
-		mShadow[i]->Update(i, camera, mSplitZ[i], mSplitZ[i + 1], cpuFenceValue, completedFenceValue);
+		mShadow[i]->Update(i, camera, mSplitZ[i], mSplitZ[i + 1]);
 	}
 }
 
@@ -319,10 +276,10 @@ const Carol::Light& Carol::CascadedShadowPass::GetLight(uint32_t idx)const
 	return mShadow[idx]->GetLight();
 }
 
-void Carol::CascadedShadowPass::InitPSOs(ID3D12Device* device)
+void Carol::CascadedShadowPass::InitPSOs()
 {
 }
 
-void Carol::CascadedShadowPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)
+void Carol::CascadedShadowPass::InitBuffers()
 {
 }

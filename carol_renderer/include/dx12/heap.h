@@ -53,7 +53,6 @@ namespace Carol
 		BuddyHeap(
 			D3D12_HEAP_TYPE type,
 			D3D12_HEAP_FLAGS flag,
-			ID3D12Device* device,
 			uint32_t heapSize = 1 << 26);
 		~BuddyHeap();
 
@@ -65,7 +64,7 @@ namespace Carol
 		virtual void Delete(const HeapAllocInfo* info)override;
 
 		void Align();
-		void AddHeap(ID3D12Device* device);
+		void AddHeap();
 
 		std::vector<Microsoft::WRL::ComPtr<ID3D12Heap>> mHeaps;
 		std::vector<std::unique_ptr<Buddy>> mBuddies;
@@ -81,7 +80,6 @@ namespace Carol
 		SegListHeap(
 			D3D12_HEAP_TYPE type,
 			D3D12_HEAP_FLAGS flag,
-			ID3D12Device* device,
 			uint32_t maxPageSize = 1 << 26);
 		~SegListHeap();
 
@@ -93,7 +91,7 @@ namespace Carol
 		virtual void Delete(const HeapAllocInfo* info)override;
 
 		uint32_t GetOrder(uint32_t size)const;
-		void AddHeap(uint32_t order, ID3D12Device* device);
+		void AddHeap(uint32_t order);
 
 		std::vector<std::vector<Microsoft::WRL::ComPtr<ID3D12Heap>>> mSegLists;
 		std::vector<std::vector<std::unique_ptr<Bitset>>> mBitsets;
@@ -107,7 +105,6 @@ namespace Carol
 	{
 	public:
 		HeapManager(
-			ID3D12Device* device,
 			uint32_t initDefaultBuffersHeapSize = 1 << 26,
 			uint32_t initUploadBuffersHeapSize = 1 << 26,
 			uint32_t initReadbackBuffersHeapSize = 1 << 26,
