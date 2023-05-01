@@ -20,10 +20,6 @@ void main(
     StructuredBuffer<Meshlet> meshlets = ResourceDescriptorHeap[gMeshletBufferIdx];
     Meshlet meshlet = meshlets[meshletIdx];
     
-    StructuredBuffer<CullData> cullData = ResourceDescriptorHeap[gCullDataBufferIdx];
-    CullData cd = cullData[1];
-    float4x4 worldViewProj = mul(gWorld, gViewProj);
-    
     SetMeshOutputCounts(meshlet.VertexCount, meshlet.PrimCount);
     
     if (gtid < meshlet.PrimCount)
@@ -41,9 +37,8 @@ void main(
 #endif
         
         float4x4 worldViewProj;
-        
-#ifdef SHADOW
-        worldViewProj = mul(gWorld, gMainLights[gLightIdx].ViewProj);
+#ifdef CULL
+        worldViewProj = mul(gWorld, gCullViewProj);
 #else
         worldViewProj = mul(gWorld, gViewProj);
 #endif

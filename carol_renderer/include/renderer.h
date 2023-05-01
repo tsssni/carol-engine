@@ -131,7 +131,6 @@ namespace Carol
 		void InitToneMapping();
         void InitTaa();
 		
-		void UpdateFrameCB();
         void ReleaseIntermediateBuffers();
 
     protected:

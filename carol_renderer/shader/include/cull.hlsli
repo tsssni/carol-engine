@@ -12,15 +12,15 @@
 
 cbuffer CullCB : register(b2)
 {
-    uint gCullingPassedCommandBufferIdx;
-    uint gMeshCount;
-    uint gMeshOffset;
-    uint gHiZIdx;
-    uint gIteration;
+    float4x4 gCullViewProj;
+    float4x4 gCullHistViewProj;
+    float3 gCullEyePos;
+    float gCullPad0;
     
-#ifdef SHADOW
-    uint gLightIdx;
-#endif
+    uint gCullPassedCommandBufferIdx;
+    uint gCullMeshCount;
+    uint gCullMeshOffset;
+    uint gCullHiZMapIdx;
 }
 
 struct CullData
@@ -34,6 +34,44 @@ struct CullData
 struct Payload
 {
     uint MeshletIndices[AS_GROUP_SIZE];
+};
+
+struct IndirectCommand
+{
+    uint2 MeshCBAddr;
+    uint2 SkinnedCBAddr;
+    uint3 DispathMeshArgs;
+};
+
+struct MeshConstants
+{
+    float4x4 World;
+    float4x4 HistWorld;
+    
+    float3 Center;
+    float MeshPad0;
+    float3 Extents;
+    float MeshPad1;
+    
+    uint MeshletCount;
+    uint VertexBufferIdx;
+    uint MeshletBufferIdx;
+    uint CullDataBufferIdx;
+    
+    uint MeshletFrustumCulledMarkBufferIdx;
+    uint MeshletNormalConeCulledMarkBufferIdx;
+    uint MeshletOcclusionCulledMarkBufferIdx;
+    uint MeshletCulledMarkBufferIdx;
+    
+    uint MeshDiffuseMapIdx;
+    uint MeshNormalMapIdx;
+    uint MeshMetallicMapIdx;
+    float MeshPad3;
+
+    // Padding for 256 byte
+    float4 MeshConstantsPad0;
+    float4 MeshConstantsPad1;
+    float4 MeshConstantsPad2;
 };
 
 bool GetMark(uint idx, uint markIdx)

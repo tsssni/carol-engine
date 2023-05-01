@@ -1,5 +1,4 @@
 #include <scene/assimp.h>
-#include <global.h>
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <scene/skinned_data.h>

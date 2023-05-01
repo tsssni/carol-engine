@@ -1,5 +1,4 @@
 #include <render_pass/ssao_pass.h>
-#include <global.h>
 #include <dx12.h>
 #include <scene/camera.h>
 #include <DirectXColors.h>
@@ -30,7 +29,6 @@ Carol::SsaoPass::SsaoPass(
      :mBlurCount(blurCount), 
      mAmbientMapFormat(ambientMapFormat)
 {
-    InitShaders();
     InitPSOs(device);
     InitRandomVectors();
     InitRandomVectorMap(
@@ -85,7 +83,7 @@ void Carol::SsaoPass::Draw(ID3D12GraphicsCommandList* cmdList)
     uint32_t groupHeight = ceilf(mHeight * 1.f / (32 - 2 * BORDER_RADIUS));
 
     mAmbientMap->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    cmdList->SetPipelineState(gPSOs[L"Ssao"]->Get());
+    cmdList->SetPipelineState(mSsaoComputePSO->Get());
     cmdList->Dispatch(groupWidth, groupHeight , 1);
     mAmbientMap->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
@@ -199,27 +197,12 @@ void Carol::SsaoPass::InitRandomVectorMap(
     mRandomVecMap->CopySubresources(cmdList, uploadBuffersHeap, &subresource, 0, 1);
 }
 
-void Carol::SsaoPass::InitShaders()
-{
-    vector<wstring_view> nullDefines{};
-
-    if (gShaders.count(L"SsaoCS") == 0)
-    {
-        gShaders[L"SsaoCS"] = make_unique<Shader>(L"shader\\ssao_cs.hlsl", nullDefines, L"main", L"cs_6_6");
-    }
-}
-
 void Carol::SsaoPass::InitPSOs(ID3D12Device* device)
 {
-	if (gPSOs.count(L"Ssao") == 0)
-    {
-		auto ssaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-        ssaoComputePSO->SetRootSignature(sRootSignature.get());
-		ssaoComputePSO->SetCS(gShaders[L"SsaoCS"].get());
-		ssaoComputePSO->Finalize(device);
-    
-        gPSOs[L"Ssao"] = std::move(ssaoComputePSO);
-    }
+	mSsaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mSsaoComputePSO->SetRootSignature(sRootSignature.get());
+	mSsaoComputePSO->SetCS(&gSsaoCS);
+	mSsaoComputePSO->Finalize(device);
 }
 
 void Carol::SsaoPass::GetOffsetVectors(XMFLOAT4 offsets[14])

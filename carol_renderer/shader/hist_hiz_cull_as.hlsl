@@ -3,33 +3,9 @@
 
 groupshared Payload sharedPayload;
 
-bool MeshletFrustumCull(uint dtid, CullData cd)
-{
-    float4x4 frustumWorldViewProj = mul(gWorld, gCullViewProj);
-
-    if (AabbFrustumTest(cd.Center, cd.Extents, frustumWorldViewProj) == OUTSIDE)
-    {
-        SetMark(dtid, gMeshletFrustumCulledMarkBufferIdx);
-        return true;
-    }
-
-    return false;
-}
-
-bool MeshletNormalConeCull(uint dtid, CullData cd)
-{
-    if (!NormalConeTest(cd.Center, cd.NormalCone, cd.ApexOffset, gWorld, gCullEyePos))
-    {
-        SetMark(dtid, gMeshletNormalConeCulledMarkBufferIdx);
-        return true;
-    }
-       
-    return false;
-}
-
 bool MeshletHiZOcclusionCull(uint dtid, CullData cd)
 {
-    float4x4 occlusionWorldViewProj = mul(gHistWorld, gCullHistViewProj);
+    float4x4 occlusionWorldViewProj = mul(gWorld, gCullViewProj);
 
     if (HiZOcclusionTest(cd.Center, cd.Extents, occlusionWorldViewProj, gCullHiZMapIdx))
     {
@@ -46,35 +22,19 @@ void main(uint dtid : SV_DispatchThreadID)
     bool visible = false;
 
 #ifdef WRITE
-    if(dtid < gMeshletCount)
+    if (dtid < gMeshletCount 
+        && !GetMark(dtid, gMeshletFrustumCulledMarkBufferIdx) 
+        && !GetMark(dtid, gMeshletNormalConeCulledMarkBufferIdx) 
+        && GetMark(dtid, gMeshletOcclusionCulledMarkBufferIdx))
     {
-        bool culled = false;
         StructuredBuffer<CullData> cullData = ResourceDescriptorHeap[gCullDataBufferIdx];
         CullData cd = cullData[dtid];
 
-    #ifdef FRUSTUM
-        if(!culled)
-        {
-            culled |= MeshletFrustumCull(dtid, cd);
-        }
-    #endif
-    #ifdef NORMAL_CONE
-        if(!culled)
-        {
-            culled |= MeshletNormalConeCull(dtid, cd);
-        }
-    #endif
-    #ifdef HIZ_OCCLUSION
-        if(!culled)
-        {
-            culled |= MeshletHiZOcclusionCull(dtid, cd);
-        }
-    #endif
-        visible = !culled;
+        visible = !MeshletHiZOcclusionCull(dtid, cd);
     }
 #else
     visible = dtid < gMeshletCount && !GetMark(dtid, gMeshletCulledMarkBufferIdx);
-#endif
+#endif 
     
 #if (defined WRITE) && (defined TRANSPARENT)
     DispatchMesh(0, 0, 0, sharedPayload);

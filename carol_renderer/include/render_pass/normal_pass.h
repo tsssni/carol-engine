@@ -8,6 +8,7 @@
 namespace Carol
 {
 	class ColorBuffer;
+	class MeshPSO;
 
 	class NormalPass : public RenderPass
 	{
@@ -21,7 +22,6 @@ namespace Carol
 		uint32_t GetNormalSrvIdx()const;
 
 	protected:
-		virtual void InitShaders()override;
 		virtual void InitPSOs(ID3D12Device* device)override;
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
 
@@ -32,6 +32,9 @@ namespace Carol
 		DXGI_FORMAT mFrameDsvFormat;
 
 		std::vector<const StructuredBuffer*> mIndirectCommandBuffer;
+		
+		std::unique_ptr<MeshPSO> mNormalsStaticMeshPSO;
+		std::unique_ptr<MeshPSO> mNormalsSkinnedMeshPSO;
 	};
 }
 

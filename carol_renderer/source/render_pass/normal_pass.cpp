@@ -1,5 +1,4 @@
 #include <render_pass/normal_pass.h>
-#include <global.h>
 #include <render_pass/display_pass.h>
 #include <scene/scene.h>
 #include <dx12.h>
@@ -24,7 +23,6 @@ Carol::NormalPass::NormalPass(
     mFrameDsvFormat(normalDsvFormat),
     mIndirectCommandBuffer(MESH_TYPE_COUNT)
 {
-    InitShaders();
     InitPSOs(device);
 }
 
@@ -38,10 +36,10 @@ void Carol::NormalPass::Draw(ID3D12GraphicsCommandList* cmdList)
     cmdList->ClearDepthStencilView(mDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
     cmdList->OMSetRenderTargets(1, GetRvaluePtr(mNormalMap->GetRtv()), true, GetRvaluePtr(mDepthStencilMap->GetDsv()));
 
-    cmdList->SetPipelineState(gPSOs[L"NormalsStatic"]->Get());
+    cmdList->SetPipelineState(mNormalsStaticMeshPSO->Get());
     ExecuteIndirect(cmdList, mIndirectCommandBuffer[OPAQUE_STATIC]);
     
-    cmdList->SetPipelineState(gPSOs[L"NormalsSkinned"]->Get());
+    cmdList->SetPipelineState(mNormalsSkinnedMeshPSO->Get());
     ExecuteIndirect(cmdList, mIndirectCommandBuffer[OPAQUE_SKINNED]);
 
     mNormalMap->Transition(cmdList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -62,58 +60,23 @@ uint32_t Carol::NormalPass::GetNormalSrvIdx()const
     return mNormalMap->GetGpuSrvIdx();
 }
 
-void Carol::NormalPass::InitShaders()
-{
-    vector<wstring_view> nullDefines{};
-
-    vector<wstring_view> skinnedDefines =
-    {
-        L"SKINNED"
-    };
-
-    if (gShaders.count(L"NormalsStaticMS") == 0)
-    {
-        gShaders[L"NormalsStaticMS"] = make_unique<Shader>(L"shader\\normals_ms.hlsl", nullDefines, L"main", L"ms_6_6");
-    }
-
-    if (gShaders.count(L"NormalsPS") == 0)
-    {
-        gShaders[L"NormalsPS"] = make_unique<Shader>(L"shader\\normals_ps.hlsl", nullDefines, L"main", L"ps_6_6");
-    }
-
-    if (gShaders.count(L"NormalsSkinnedMS") == 0)
-    {
-        gShaders[L"NormalsSkinnedMS"] = make_unique<Shader>(L"shader\\normals_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
-    }
-}
-
 void Carol::NormalPass::InitPSOs(ID3D12Device* device)
 {
-    if (gPSOs.count(L"NormalsStatic") == 0)
-    {
-		auto normalsStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-        normalsStaticMeshPSO->SetRootSignature(sRootSignature.get());
-		normalsStaticMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mFrameDsvFormat);
-		normalsStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
-		normalsStaticMeshPSO->SetMS(gShaders[L"NormalsStaticMS"].get());
-		normalsStaticMeshPSO->SetPS(gShaders[L"NormalsPS"].get());
-		normalsStaticMeshPSO->Finalize(device);
+	mNormalsStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mNormalsStaticMeshPSO->SetRootSignature(sRootSignature.get());
+	mNormalsStaticMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mFrameDsvFormat);
+	mNormalsStaticMeshPSO->SetAS(&gCullAS);
+	mNormalsStaticMeshPSO->SetMS(&gNormalsStaticMS);
+	mNormalsStaticMeshPSO->SetPS(&gNormalsPS);
+	mNormalsStaticMeshPSO->Finalize(device);
 
-		gPSOs[L"NormalsStatic"] = std::move(normalsStaticMeshPSO);
-    }
-
-	if (gPSOs.count(L"NormalsSkinned") == 0)
-    {
-		auto normalsSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-        normalsSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
-		normalsSkinnedMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mFrameDsvFormat);
-		normalsSkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
-		normalsSkinnedMeshPSO->SetMS(gShaders[L"NormalsSkinnedMS"].get());
-		normalsSkinnedMeshPSO->SetPS(gShaders[L"NormalsPS"].get());
-		normalsSkinnedMeshPSO->Finalize(device);
-		
-		gPSOs[L"NormalsSkinned"] = std::move(normalsSkinnedMeshPSO);
-    }
+	mNormalsSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mNormalsSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
+	mNormalsSkinnedMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mFrameDsvFormat);
+	mNormalsSkinnedMeshPSO->SetAS(&gCullAS);
+	mNormalsSkinnedMeshPSO->SetMS(&gNormalsSkinnedMS);
+	mNormalsSkinnedMeshPSO->SetPS(&gNormalsPS);
+	mNormalsSkinnedMeshPSO->Finalize(device);
 }
 
 void Carol::NormalPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)

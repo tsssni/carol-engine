@@ -6,7 +6,6 @@
 #include <scene/timer.h>
 #include <scene/texture.h>
 #include <utils/common.h>
-#include <global.h>
 #include <cmath>
 #include <algorithm>
 #include <ranges>

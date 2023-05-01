@@ -10,6 +10,7 @@ namespace Carol
 	class ColorBuffer;
 	class Heap;
 	class DescriptorManager;
+	class ComputePSO;
 
 	class SsaoPass : public RenderPass
 	{
@@ -35,7 +36,6 @@ namespace Carol
 		uint32_t GetSsaoUavIdx()const;
 
 	protected:
-		virtual void InitShaders()override;
 		virtual void InitPSOs(ID3D12Device* device)override;
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
 
@@ -53,6 +53,8 @@ namespace Carol
 		DXGI_FORMAT mAmbientMapFormat = DXGI_FORMAT_R16_UNORM;
 		uint32_t mBlurCount;
 		DirectX::XMFLOAT4 mOffsets[14];
+
+		std::unique_ptr<ComputePSO> mSsaoComputePSO;
 	};
 }
 

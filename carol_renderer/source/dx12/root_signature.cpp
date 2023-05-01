@@ -3,7 +3,6 @@
 #include <dx12/resource.h>
 #include <dx12/shader.h>
 #include <dx12/sampler.h>
-#include <global.h>
 
 namespace Carol {
     using std::make_unique;
@@ -11,7 +10,13 @@ namespace Carol {
 
 Carol::RootSignature::RootSignature(ID3D12Device* device)
 {
-    Shader rootSignatureShader(L"shader\\root_signature.hlsl", {}, L"main", L"ms_6_6");
+    Shader rootSignatureShader;
+    rootSignatureShader.SetFileName(L"shader\\root_signature.hlsl");
+    rootSignatureShader.SetDefines({});
+    rootSignatureShader.SetEntryPoint(L"main");
+    rootSignatureShader.SetTarget(L"ms_6_6");
+    rootSignatureShader.Finalize();
+
     ThrowIfFailed(device->CreateRootSignature(0, rootSignatureShader.GetBufferPointer(), rootSignatureShader.GetBufferSize(), IID_PPV_ARGS(mRootSignature.GetAddressOf())));
 }
 

@@ -1,5 +1,4 @@
 #include <render_pass/display_pass.h>
-#include <global.h>
 #include <dx12.h>
 #include <utils/common.h>
 #include <stdlib.h>
@@ -43,7 +42,6 @@ Carol::DisplayPass::DisplayPass(
 	mDepthStencilFormat(depthStencilFormat),
 	mBackBufferRtvAllocInfo(make_unique<DescriptorAllocInfo>())
 {
-	InitShaders();
 	InitPSOs(device);
 	InitSwapChain(hwnd, factory, cmdQueue);
 }
@@ -94,7 +92,7 @@ DXGI_FORMAT Carol::DisplayPass::GetDepthStencilFormat() const
 void Carol::DisplayPass::Draw(ID3D12GraphicsCommandList* cmdList)
 {
 	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mBackBufferRtvAllocInfo->Manager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mBackBufferIdx)), true, nullptr);
-	cmdList->SetPipelineState(gPSOs[L"Display"]->Get());
+	cmdList->SetPipelineState(mDisplayMeshPSO->Get());
 	static_cast<ID3D12GraphicsCommandList6*>(cmdList)->DispatchMesh(1, 1, 1);
 	mBackBuffer[mBackBufferIdx]->Transition(cmdList, D3D12_RESOURCE_STATE_PRESENT);
 }
@@ -112,34 +110,14 @@ void Carol::DisplayPass::Present()
 	SetBackBufferIndex();
 }
 
-void Carol::DisplayPass::InitShaders()
-{
-	vector<wstring_view> nullDefines = {};
-
-	if (gShaders.count(L"ScreenMS") == 0)
-	{
-		gShaders[L"ScreenMS"] = make_unique<Shader>(L"shader\\screen_ms.hlsl", nullDefines, L"main", L"ms_6_6");
-	}
-
-	if (gShaders.count(L"DisplayPS") == 0)
-	{
-		gShaders[L"DisplayPS"] = make_unique<Shader>(L"shader\\display_ps.hlsl", nullDefines, L"main", L"ps_6_6");
-	}
-}
-
 void Carol::DisplayPass::InitPSOs(ID3D12Device* device)
 {
-	if (gPSOs.count(L"Display") == 0)
-	{
-		auto displayMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-		displayMeshPSO->SetRootSignature(sRootSignature.get());
-		displayMeshPSO->SetRenderTargetFormat(mBackBufferFormat);
-		displayMeshPSO->SetMS(gShaders[L"ScreenMS"].get());
-		displayMeshPSO->SetPS(gShaders[L"DisplayPS"].get());
-		displayMeshPSO->Finalize(device);
-
-		gPSOs[L"Display"] = std::move(displayMeshPSO);
-	}
+	mDisplayMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mDisplayMeshPSO->SetRootSignature(sRootSignature.get());
+	mDisplayMeshPSO->SetRenderTargetFormat(mBackBufferFormat);
+	mDisplayMeshPSO->SetMS(&gScreenMS);
+	mDisplayMeshPSO->SetPS(&gDisplayPS);
+	mDisplayMeshPSO->Finalize(device);
 }
 
 void Carol::DisplayPass::InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)

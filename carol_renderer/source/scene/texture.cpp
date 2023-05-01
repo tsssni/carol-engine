@@ -3,7 +3,6 @@
 #include <dx12/heap.h>
 #include <dx12/descriptor.h>
 #include <utils/common.h>
-#include <global.h>
 #include <DirectXTex.h>
 #include <memory>
 #include <vector>

@@ -38,9 +38,6 @@ void main(
     out indices uint3 tris[126],
     out vertices MeshOut verts[64])
 {
-    
-    
-    
     uint meshletIdx = payload.MeshletIndices[gid];
     StructuredBuffer<Meshlet> meshlets = ResourceDescriptorHeap[gMeshletBufferIdx];
     Meshlet meshlet = meshlets[meshletIdx];

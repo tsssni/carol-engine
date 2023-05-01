@@ -3,7 +3,6 @@
 #include <utils/bitset.h>
 #include <utils/buddy.h>
 #include <utils/common.h>
-#include <global.h>
 
 namespace Carol {
 	using std::vector;

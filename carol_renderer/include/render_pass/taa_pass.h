@@ -9,6 +9,8 @@ namespace Carol
 {
 	class ColorBuffer;
 	class Resource;
+	class MeshPSO;
+	class ComputePSO;
 	
 	class TaaPass : public RenderPass
 	{
@@ -35,7 +37,6 @@ namespace Carol
 		uint32_t GetHistFrameUavIdx()const;
 
 	protected:
-		virtual void InitShaders()override;
 		virtual void InitPSOs(ID3D12Device* device)override;
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
 
@@ -57,6 +58,10 @@ namespace Carol
 		DirectX::XMMATRIX mHistViewProj;
 		
 		std::vector<const StructuredBuffer*> mIndirectCommandBuffer;
+
+		std::unique_ptr<MeshPSO> mVelocityStaticMeshPSO;
+		std::unique_ptr<MeshPSO> mVelocitySkinnedMeshPSO;
+		std::unique_ptr<ComputePSO> mTaaComputePSO;
 	};
 }
 

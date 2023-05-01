@@ -15,6 +15,7 @@ namespace Carol
 	class ColorBuffer;
 	class DescriptorAllocInfo;
 	class DescriptorManager;
+	class MeshPSO;
 
 	class DisplayPass : public RenderPass
 	{
@@ -48,7 +49,6 @@ namespace Carol
 
 		void Present();
 	private:
-		virtual void InitShaders()override;
 		virtual void InitPSOs(ID3D12Device* device)override;
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
 		void InitSwapChain(HWND hwnd, IDXGIFactory* factory, ID3D12CommandQueue* cmdQueue);
@@ -65,6 +65,8 @@ namespace Carol
 		DXGI_FORMAT mDepthStencilFormat;
 
 		std::unique_ptr<DescriptorAllocInfo> mBackBufferRtvAllocInfo;
+
+		std::unique_ptr<MeshPSO> mDisplayMeshPSO;
 	};
 }
 

@@ -26,7 +26,6 @@ namespace Carol
 		static const RootSignature* GetRootSignature();
 
 	protected:
-		virtual void InitShaders() = 0;
 		virtual void InitPSOs(ID3D12Device* device) = 0;
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager) = 0;
 		

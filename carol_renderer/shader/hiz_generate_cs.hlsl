@@ -3,8 +3,8 @@
 cbuffer HiZConstants : register(b2)
 {
     uint gDepthIdx;
-    uint gHiZIdx;
     uint gRWHiZIdx;
+    uint gHiZIdx;
     uint gSrcMip;
     uint gNumMipLevel;
 }

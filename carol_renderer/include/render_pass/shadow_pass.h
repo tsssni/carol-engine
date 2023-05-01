@@ -19,13 +19,15 @@ namespace Carol
     class PerspectiveCamera;
     class Heap;
     class DescriptorManager;
+    class CullPass;
 
     class ShadowPass : public RenderPass
     {
     public:
         ShadowPass(
             ID3D12Device* device,
-            Heap* heap,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
             DescriptorManager* descriptorManager,
             Scene* scene,
             Light light,
@@ -44,45 +46,14 @@ namespace Carol
         const Light& GetLight()const;
 
     protected:
-		virtual void InitShaders()override;
 		virtual void InitPSOs(ID3D12Device* device)override;
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager);
         
         void InitLight();
         virtual void InitCamera() = 0;
-        
-        void Clear(ID3D12GraphicsCommandList* cmdList);
-        void CullInstances(uint32_t iteration, ID3D12GraphicsCommandList* cmdList);
-        void DrawShadow(uint32_t iteration, ID3D12GraphicsCommandList* cmdList);
-        void GenerateHiZ(ID3D12GraphicsCommandList* cmdList);
-        
-        enum
-        {
-            HIZ_DEPTH_IDX,
-            HIZ_IDX,
-            RW_HIZ_IDX,
-            HIZ_SRC_MIP,
-            HIZ_NUM_MIP_LEVEL,
-            HIZ_IDX_COUNT
-        };
-
-        enum
-        {
-            CULL_CULLED_COMMAND_BUFFER_IDX,
-            CULL_MESH_COUNT,
-            CULL_MESH_OFFSET,
-            CULL_HIZ_IDX,
-            CULL_ITERATION,
-            CULL_LIGHT_IDX,
-            CULL_IDX_COUNT
-        };
-        
+                
         std::unique_ptr<Light> mLight;
         std::unique_ptr<ColorBuffer> mShadowMap;
-        std::unique_ptr<ColorBuffer> mHiZMap;
-
-        std::vector<std::unique_ptr<StructuredBuffer>> mCulledCommandBuffer;
-        std::unique_ptr<StructuredBufferPool> mCulledCommandBufferPool;
 
         Scene* mScene;
 
@@ -90,13 +61,11 @@ namespace Carol
         float mDepthBiasClamp;
         float mSlopeScaledDepthBias;
 
-        std::vector<std::vector<uint32_t>> mCullIdx;
-        std::vector<uint32_t> mHiZIdx;
-
         std::unique_ptr<Camera> mCamera;
 
         DXGI_FORMAT mShadowFormat;
-        DXGI_FORMAT mHiZFormat;
+
+        std::unique_ptr<CullPass> mCullPass;
     };
 
     class DirectLightShadowPass : public ShadowPass
@@ -104,7 +73,8 @@ namespace Carol
     public:
         DirectLightShadowPass(
             ID3D12Device* device,
-            Heap* heap,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
             DescriptorManager* descriptorManager,
             Scene* scene,
             Light light,
@@ -126,7 +96,8 @@ namespace Carol
 	public:
         CascadedShadowPass(
             ID3D12Device* device,
-            Heap* heap,
+            Heap* defaultBuffersHeap,
+            Heap* uploadBuffersHeap,
             DescriptorManager* descriptorManager,
             Scene* scene,
             Light light,
@@ -148,7 +119,6 @@ namespace Carol
         uint32_t GetShadowSrvIdx(uint32_t idx)const;
         const Light& GetLight(uint32_t idx)const;
 	protected:
-		virtual void InitShaders()override;
 		virtual void InitPSOs(ID3D12Device* device)override;
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager)override;
 

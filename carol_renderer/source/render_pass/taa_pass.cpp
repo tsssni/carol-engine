@@ -1,5 +1,4 @@
 #include <render_pass/taa_pass.h>
-#include <global.h>
 #include <scene/scene.h>
 #include <dx12.h>
 #include <utils/common.h>
@@ -28,78 +27,31 @@ Carol::TaaPass::TaaPass(
 	mIndirectCommandBuffer(MESH_TYPE_COUNT)
 {
 	InitHalton();
-	InitShaders();
 	InitPSOs(device);
-}
-
-void Carol::TaaPass::InitShaders()
-{
-	vector<wstring_view> nullDefines{};
-
-	vector<wstring_view> skinnedDefines =
-	{
-		L"SKINNED"
-	};
-
-	if (gShaders.count(L"TaaVelocityStaticMS") == 0)
-	{
-		gShaders[L"TaaVelocityStaticMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", nullDefines, L"main", L"ms_6_6");
-	}
-
-	if (gShaders.count(L"TaaVelocityPS") == 0)
-	{
-		gShaders[L"TaaVelocityPS"] = make_unique<Shader>(L"shader\\velocity_ps.hlsl", nullDefines, L"main", L"ps_6_6");
-	}
-
-	if (gShaders.count(L"TaaVelocitySkinnedMS") == 0)
-	{
-		gShaders[L"TaaVelocitySkinnedMS"] = make_unique<Shader>(L"shader\\velocity_ms.hlsl", skinnedDefines, L"main", L"ms_6_6");
-	}
-
-	if (gShaders.count(L"TaaOutputCS") == 0)
-	{
-		gShaders[L"TaaOutputCS"] = make_unique<Shader>(L"shader\\taa_cs.hlsl", nullDefines, L"main", L"cs_6_6");
-	}
 }
 
 void Carol::TaaPass::InitPSOs(ID3D12Device* device)
 {
-	if (gPSOs.count(L"VelocityStatic") == 0)
-	{
-		auto velocityStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-		velocityStaticMeshPSO->SetRootSignature(sRootSignature.get());
-		velocityStaticMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, mVelocityDsvFormat);
-		velocityStaticMeshPSO->SetAS(gShaders[L"CullAS"].get());
-		velocityStaticMeshPSO->SetMS(gShaders[L"TaaVelocityStaticMS"].get());
-		velocityStaticMeshPSO->SetPS(gShaders[L"TaaVelocityPS"].get());
-		velocityStaticMeshPSO->Finalize(device);
-	
-		gPSOs[L"VelocityStatic"] = std::move(velocityStaticMeshPSO);
-	}
+	mVelocityStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mVelocityStaticMeshPSO->SetRootSignature(sRootSignature.get());
+	mVelocityStaticMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, mVelocityDsvFormat);
+	mVelocityStaticMeshPSO->SetAS(&gCullAS);
+	mVelocityStaticMeshPSO->SetMS(&gVelocityStaticMS);
+	mVelocityStaticMeshPSO->SetPS(&gVelocityPS);
+	mVelocityStaticMeshPSO->Finalize(device);
 
-	if (gPSOs.count(L"VelocitySkinned") == 0)
-	{
-		auto velocitySkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-		velocitySkinnedMeshPSO->SetRootSignature(sRootSignature.get());
-		velocitySkinnedMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, mVelocityDsvFormat);
-		velocitySkinnedMeshPSO->SetAS(gShaders[L"CullAS"].get());
-		velocitySkinnedMeshPSO->SetMS(gShaders[L"TaaVelocitySkinnedMS"].get());
-		velocitySkinnedMeshPSO->SetPS(gShaders[L"TaaVelocityPS"].get());
-		velocitySkinnedMeshPSO->Finalize(device);
+	mVelocitySkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mVelocitySkinnedMeshPSO->SetRootSignature(sRootSignature.get());
+	mVelocitySkinnedMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, mVelocityDsvFormat);
+	mVelocitySkinnedMeshPSO->SetAS(&gCullAS);
+	mVelocitySkinnedMeshPSO->SetMS(&gVelocitySkinnedMS);
+	mVelocitySkinnedMeshPSO->SetPS(&gVelocityPS);
+	mVelocitySkinnedMeshPSO->Finalize(device);
 
-	
-		gPSOs[L"VelocitySkinned"] = std::move(velocitySkinnedMeshPSO);
-	}
-
-	if (gPSOs[L"TaaOutput"] == 0)
-	{
-		auto outputComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-		outputComputePSO->SetRootSignature(sRootSignature.get());
-		outputComputePSO->SetCS(gShaders[L"TaaOutputCS"].get());
-		outputComputePSO->Finalize(device);
-
-		gPSOs[L"TaaOutput"] = std::move(outputComputePSO);
-	}
+	mTaaComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mTaaComputePSO->SetRootSignature(sRootSignature.get());
+	mTaaComputePSO->SetCS(&gTaaCS);
+	mTaaComputePSO->Finalize(device);
 }
 
 void Carol::TaaPass::Draw(ID3D12GraphicsCommandList* cmdList)
@@ -133,11 +85,11 @@ void Carol::TaaPass::DrawVelocityMap(ID3D12GraphicsCommandList* cmdList)
 	cmdList->ClearDepthStencilView(mDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
 	cmdList->OMSetRenderTargets(1, GetRvaluePtr(mVelocityMap->GetRtv()), true, GetRvaluePtr(mDepthStencilMap->GetDsv()));
 
-	cmdList->SetPipelineState(gPSOs[L"VelocityStatic"]->Get());
+	cmdList->SetPipelineState(mVelocityStaticMeshPSO->Get());
 	ExecuteIndirect(cmdList, mIndirectCommandBuffer[OPAQUE_STATIC]);
 	ExecuteIndirect(cmdList, mIndirectCommandBuffer[TRANSPARENT_STATIC]);
 
-	cmdList->SetPipelineState(gPSOs[L"VelocitySkinned"]->Get());
+	cmdList->SetPipelineState(mVelocitySkinnedMeshPSO->Get());
 	ExecuteIndirect(cmdList, mIndirectCommandBuffer[OPAQUE_SKINNED]);
 	ExecuteIndirect(cmdList, mIndirectCommandBuffer[TRANSPARENT_SKINNED]);
 
@@ -150,7 +102,7 @@ void Carol::TaaPass::DrawOutput(ID3D12GraphicsCommandList* cmdList)
     uint32_t groupHeight = ceilf(mHeight * 1.f / (32 - 2 * BORDER_RADIUS));
 
 	mFrameMap->Transition(cmdList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	cmdList->SetPipelineState(gPSOs[L"TaaOutput"]->Get());
+	cmdList->SetPipelineState(mTaaComputePSO->Get());
 	cmdList->Dispatch(groupWidth, groupHeight, 1);
 }
 

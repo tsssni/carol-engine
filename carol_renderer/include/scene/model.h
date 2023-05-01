@@ -1,6 +1,5 @@
 #pragma once
 #include <scene/mesh.h>
-#include <global.h>
 #include <utils/d3dx12.h>
 #include <DirectXMath.h>
 #include <DirectXCollision.h>

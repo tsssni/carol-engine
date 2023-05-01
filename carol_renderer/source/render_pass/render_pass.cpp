@@ -36,6 +36,7 @@ void Carol::RenderPass::OnResize(
 void Carol::RenderPass::Init(ID3D12Device* device)
 {
 	Shader::InitCompiler();
+	Shader::InitShaders();
 	sRootSignature = make_unique<RootSignature>(device);
 
 	D3D12_INDIRECT_ARGUMENT_DESC argDesc[3];

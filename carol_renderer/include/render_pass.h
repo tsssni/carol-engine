@@ -1,4 +1,5 @@
 #pragma once
+#include <render_pass/cull_pass.h>
 #include <render_pass/display_pass.h>
 #include <render_pass/frame_pass.h>
 #include <render_pass/normal_pass.h>

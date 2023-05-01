@@ -84,6 +84,7 @@ void Carol::Renderer::InitFrame()
 	mFramePass = make_unique<FramePass>(
 		mDevice.Get(),
 		mHeapManager->GetDefaultBuffersHeap(),
+		mHeapManager->GetUploadBuffersHeap(),
 		mDescriptorManager.get(),
 		mScene.get());
 }
@@ -117,22 +118,12 @@ void Carol::Renderer::InitMainLight()
 	mMainLightShadowPass = make_unique<CascadedShadowPass>(
 		mDevice.Get(),
 		mHeapManager->GetDefaultBuffersHeap(),
+		mHeapManager->GetUploadBuffersHeap(),
 		mDescriptorManager.get(),
 		mScene.get(),
 		light);
 
-	mFrameConstants->AmbientColor = { .1f,.1f,.1f };
-
-	mFrameConstants->NumPointLights = 4;
-
-	for (int i = 0; i < mFrameConstants->NumPointLights; ++i)
-	{
-		auto& light = mFrameConstants->PointLights[i];
-		light.Strength = { .5f,.5f,.4f };
-		light.AttenuationQuadric = 1.f / 200.f;
-		XMStoreFloat3(&light.Position, XMVector3Transform({ 0.f,25.f,-20.f }, XMMatrixRotationY(90.f * i)));
-		XMStoreFloat3(&light.Direction, XMVector3Normalize(XMVector3Transform({ 0.f,-5.f,1.f }, XMMatrixRotationY(90.f * i))));
-	}
+	mFrameConstants->AmbientColor = { .4f,.4f,.4f };
 }
 
 void Carol::Renderer::InitScene()
@@ -151,65 +142,6 @@ void Carol::Renderer::InitScene()
 		mHeapManager->GetUploadBuffersHeap(),
 		mDescriptorManager.get(),
 		mTextureManager.get());
-}
-
-void Carol::Renderer::UpdateFrameCB()
-{
-	XMMATRIX view = mCamera->GetView();
-	XMMATRIX invView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(view)), view);
-	XMMATRIX proj = mCamera->GetProj();
-	XMMATRIX invProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(proj)), proj);
-	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-	XMMATRIX invViewProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(viewProj)), viewProj);
-		
-	XMStoreFloat4x4(&mFrameConstants->View, XMMatrixTranspose(view));
-	XMStoreFloat4x4(&mFrameConstants->InvView, XMMatrixTranspose(invView));
-	XMStoreFloat4x4(&mFrameConstants->Proj, XMMatrixTranspose(proj));
-	XMStoreFloat4x4(&mFrameConstants->InvProj, XMMatrixTranspose(invProj));
-	XMStoreFloat4x4(&mFrameConstants->ViewProj, XMMatrixTranspose(viewProj));
-	XMStoreFloat4x4(&mFrameConstants->InvViewProj, XMMatrixTranspose(invViewProj));
-	
-	XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
-	mTaaPass->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
-	mTaaPass->SetHistViewProj(viewProj);
-
-	XMMATRIX histViewProj = mTaaPass->GetHistViewProj();
-	XMMATRIX jitteredProj = XMLoadFloat4x4(&jitteredProj4x4f);
-	XMMATRIX jitteredViewProj = XMMatrixMultiply(view, jitteredProj);
-
-	XMStoreFloat4x4(&mFrameConstants->HistViewProj, XMMatrixTranspose(histViewProj));
-	XMStoreFloat4x4(&mFrameConstants->JitteredViewProj, XMMatrixTranspose(jitteredViewProj));
-
-	mFrameConstants->EyePosW = mCamera->GetPosition3f();
-	mFrameConstants->RenderTargetSize = { static_cast<float>(mClientWidth), static_cast<float>(mClientHeight) };
-	mFrameConstants->InvRenderTargetSize = { 1.0f / mClientWidth, 1.0f / mClientHeight };
-	mFrameConstants->NearZ = dynamic_cast<PerspectiveCamera*>(mCamera.get())->GetNearZ();
-	mFrameConstants->FarZ = dynamic_cast<PerspectiveCamera*>(mCamera.get())->GetFarZ();
-	
-	mSsaoPass->GetOffsetVectors(mFrameConstants->OffsetVectors);
-	auto blurWeights = mSsaoPass->CalcGaussWeights(2.5f);
-	mFrameConstants->BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
-    mFrameConstants->BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
-    mFrameConstants->BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
-
-	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel(); ++i)
-	{
-		mFrameConstants->MainLights[i] = mMainLightShadowPass->GetLight(i);
-	}
-
-	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel() + 1; ++i)
-	{
-		mFrameConstants->MainLightSplitZ[i] = mMainLightShadowPass->GetSplitZ(i);
-	}
-
-	mFramePass->SetFrameMap(mDisplayPass->GetFrameMap());
-	mToneMappingPass->SetFrameMap(mDisplayPass->GetFrameMap());
-	mTaaPass->SetFrameMap(mDisplayPass->GetFrameMap());
-
-	mFrameConstants->MeshBufferIdx = mScene->GetMeshBufferIdx();
-	mFrameConstants->CommandBufferIdx = mScene->GetCommandBufferIdx();
-	mFrameConstants->RWFrameMapIdx = mDisplayPass->GetFrameMapUavIdx();
-	mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
 }
 
 void Carol::Renderer::ReleaseIntermediateBuffers()
@@ -321,12 +253,67 @@ void Carol::Renderer::Update()
 	mDescriptorManager->DelayedDelete(mCpuFenceValue, mGpuFenceValue);
 	mHeapManager->DelayedDelete(mCpuFenceValue, mGpuFenceValue);
 
-	mCamera->UpdateViewMatrix();
 	mScene->Update(mTimer.get(), mCpuFenceValue, mGpuFenceValue);
 	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), mCpuFenceValue, mGpuFenceValue, 0.85f);
-	mFramePass->Update(mCpuFenceValue, mGpuFenceValue);
+	mCamera->UpdateViewMatrix();
 
-	UpdateFrameCB();
+	XMMATRIX view = mCamera->GetView();
+	XMMATRIX invView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(view)), view);
+	XMMATRIX proj = mCamera->GetProj();
+	XMMATRIX invProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(proj)), proj);
+	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+	XMMATRIX invViewProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(viewProj)), viewProj);
+		
+	XMStoreFloat4x4(&mFrameConstants->View, XMMatrixTranspose(view));
+	XMStoreFloat4x4(&mFrameConstants->InvView, XMMatrixTranspose(invView));
+	XMStoreFloat4x4(&mFrameConstants->Proj, XMMatrixTranspose(proj));
+	XMStoreFloat4x4(&mFrameConstants->InvProj, XMMatrixTranspose(invProj));
+	XMStoreFloat4x4(&mFrameConstants->ViewProj, XMMatrixTranspose(viewProj));
+	XMStoreFloat4x4(&mFrameConstants->InvViewProj, XMMatrixTranspose(invViewProj));
+	
+	XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
+	mTaaPass->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
+	mTaaPass->SetHistViewProj(viewProj);
+
+	XMMATRIX histViewProj = mTaaPass->GetHistViewProj();
+	XMMATRIX jitteredProj = XMLoadFloat4x4(&jitteredProj4x4f);
+	XMMATRIX jitteredViewProj = XMMatrixMultiply(view, jitteredProj);
+
+	XMStoreFloat4x4(&mFrameConstants->HistViewProj, XMMatrixTranspose(histViewProj));
+	XMStoreFloat4x4(&mFrameConstants->JitteredViewProj, XMMatrixTranspose(jitteredViewProj));
+	mFramePass->Update(XMLoadFloat4x4(&mFrameConstants->ViewProj), XMLoadFloat4x4(&mFrameConstants->HistViewProj), XMLoadFloat3(&mFrameConstants->EyePosW), mCpuFenceValue, mGpuFenceValue);
+
+	mFrameConstants->EyePosW = mCamera->GetPosition3f();
+	mFrameConstants->RenderTargetSize = { static_cast<float>(mClientWidth), static_cast<float>(mClientHeight) };
+	mFrameConstants->InvRenderTargetSize = { 1.0f / mClientWidth, 1.0f / mClientHeight };
+	mFrameConstants->NearZ = dynamic_cast<PerspectiveCamera*>(mCamera.get())->GetNearZ();
+	mFrameConstants->FarZ = dynamic_cast<PerspectiveCamera*>(mCamera.get())->GetFarZ();
+	
+	mSsaoPass->GetOffsetVectors(mFrameConstants->OffsetVectors);
+	auto blurWeights = mSsaoPass->CalcGaussWeights(2.5f);
+	mFrameConstants->BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
+    mFrameConstants->BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
+    mFrameConstants->BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
+
+	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel(); ++i)
+	{
+		mFrameConstants->MainLights[i] = mMainLightShadowPass->GetLight(i);
+	}
+
+	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel() + 1; ++i)
+	{
+		mFrameConstants->MainLightSplitZ[i] = mMainLightShadowPass->GetSplitZ(i);
+	}
+
+	mFramePass->SetFrameMap(mDisplayPass->GetFrameMap());
+	mToneMappingPass->SetFrameMap(mDisplayPass->GetFrameMap());
+	mTaaPass->SetFrameMap(mDisplayPass->GetFrameMap());
+
+	mFrameConstants->MeshBufferIdx = mScene->GetMeshBufferIdx();
+	mFrameConstants->CommandBufferIdx = mScene->GetCommandBufferIdx();
+	mFrameConstants->RWFrameMapIdx = mDisplayPass->GetFrameMapUavIdx();
+
+	mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
 }
 
 void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)

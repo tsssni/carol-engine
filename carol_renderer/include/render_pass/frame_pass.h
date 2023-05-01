@@ -16,6 +16,8 @@ namespace Carol
 	class Heap;
 	class Scene;
 	class DescriptorManager;
+	class CullPass;
+	class MeshPSO;
 
 	class OitppllNode
 	{
@@ -30,7 +32,8 @@ namespace Carol
 	public:
 		FramePass(
 			ID3D12Device* device,
-			Heap* heap,
+			Heap* defaultBuffersHeap,
+			Heap* uploadBuffersHeap,
 			DescriptorManager* descriptorManager,
 			Scene* scene,
 			DXGI_FORMAT frameFormat = DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -39,14 +42,11 @@ namespace Carol
 
 		virtual void Draw(ID3D12GraphicsCommandList* cmdList);
 		void Cull(ID3D12GraphicsCommandList* cmdList);
-		void Update(uint64_t cpuFenceValue, uint64_t completedFenceValue);
+		void Update(DirectX::XMMATRIX viewProj, DirectX::XMMATRIX histViewProj, DirectX::XMVECTOR eyePos, uint64_t cpuFenceValue, uint64_t completedFenceValue);
 
 		void SetFrameMap(ColorBuffer* frameMap);
 		void SetDepthStencilMap(ColorBuffer* depthStencilMap);
 		const StructuredBuffer* GetIndirectCommandBuffer(MeshType type)const;
-
-		uint32_t GetHiZSrvIdx()const;
-		uint32_t GetHiZUavIdx()const;
 
 		uint32_t GetPpllUavIdx()const;
 		uint32_t GetOffsetUavIdx()const;
@@ -55,7 +55,6 @@ namespace Carol
 		uint32_t GetOffsetSrvIdx()const;
 
 	protected:
-		virtual void InitShaders()override;
 		virtual void InitPSOs(ID3D12Device* device)override;
 		virtual void InitBuffers(ID3D12Device* device, Heap* heap, DescriptorManager* descriptorManager);
 		
@@ -63,34 +62,8 @@ namespace Carol
 		void DrawTransparent(ID3D12GraphicsCommandList* cmdList);
 		void DrawSkyBox(ID3D12GraphicsCommandList* cmdList, D3D12_GPU_VIRTUAL_ADDRESS skyBoxMeshCBAddr);
 
-		void Clear(ID3D12GraphicsCommandList* cmdList);
-        void CullInstances(bool opaque, uint32_t iteration, ID3D12GraphicsCommandList* cmdList);
-		void CullMeshlets(bool opaque, uint32_t iteration, ID3D12GraphicsCommandList* cmdList);
-		void GenerateHiZ(ID3D12GraphicsCommandList* cmdList);
-
-		enum
-        {
-            HIZ_DEPTH_IDX,
-            HIZ_IDX,
-			RW_HIZ_IDX,
-            HIZ_SRC_MIP,
-            HIZ_NUM_MIP_LEVEL,
-            HIZ_IDX_COUNT
-        };
-
-        enum
-        {
-            CULL_CULLED_COMMAND_BUFFER_IDX,
-            CULL_MESH_COUNT,
-            CULL_MESH_OFFSET,
-            CULL_HIZ_IDX,
-            CULL_ITERATION,
-            CULL_IDX_COUNT
-        };
-
 		Scene* mScene;
 
-		std::unique_ptr<ColorBuffer> mHiZMap;
 		ColorBuffer* mFrameMap;
 		ColorBuffer* mDepthStencilMap;
 
@@ -98,14 +71,20 @@ namespace Carol
 		std::unique_ptr<RawBuffer> mStartOffsetBuffer; 
 		std::unique_ptr<RawBuffer> mCounterBuffer;
 
-		std::vector<std::unique_ptr<StructuredBuffer>> mCulledCommandBuffer;
-        std::unique_ptr<StructuredBufferPool> mCulledCommandBufferPool;
-
-        std::vector<std::vector<uint32_t>> mCullIdx;
-		std::vector<uint32_t> mHiZIdx;
-		
 		DXGI_FORMAT mFrameFormat;
 		DXGI_FORMAT mDepthStencilFormat;
-		DXGI_FORMAT mHiZFormat;
+
+		std::unique_ptr<CullPass> mCullPass;
+
+		std::unique_ptr<MeshPSO> mBlinnPhongStaticMeshPSO;
+		std::unique_ptr<MeshPSO> mBlinnPhongSkinnedMeshPSO;
+		std::unique_ptr<MeshPSO> mPBRStaticMeshPSO;
+		std::unique_ptr<MeshPSO> mPBRSkinnedMeshPSO;
+		std::unique_ptr<MeshPSO> mBlinnPhongStaticOitppllMeshPSO;
+		std::unique_ptr<MeshPSO> mBlinnPhongSkinnedOitppllMeshPSO;
+		std::unique_ptr<MeshPSO> mPBRStaticOitppllMeshPSO;
+		std::unique_ptr<MeshPSO> mPBRSkinnedOitppllMeshPSO;
+		std::unique_ptr<MeshPSO> mDrawOitppllMeshPSO;
+		std::unique_ptr<MeshPSO> mSkyBoxMeshPSO;
 	};
 }
