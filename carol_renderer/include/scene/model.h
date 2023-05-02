@@ -16,6 +16,7 @@ namespace Carol
 	class AnimationClip;
 	class TextureManager;
 	class Timer;
+	class Mesh;
 
 	class SkinnedConstants
 	{

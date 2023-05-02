@@ -22,6 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\carol.h" />
+    <ClInclude Include="include\global.h" />
     <ClInclude Include="include\render_pass\cull_pass.h" />
     <ClInclude Include="include\dx12\command.h" />
     <ClInclude Include="include\dx12\descriptor.h" />
@@ -47,6 +48,7 @@
     <ClInclude Include="include\scene\camera.h" />
     <ClInclude Include="include\scene\light.h" />
     <ClInclude Include="include\scene\mesh.h" />
+    <ClInclude Include="include\scene\mesh_type.h" />
     <ClInclude Include="include\scene\model.h" />
     <ClInclude Include="include\scene\scene.h" />
     <ClInclude Include="include\scene\scene_node.h" />
@@ -65,7 +67,7 @@
     <ClCompile Include="source\render_pass\oitppll_pass.cpp" />
     <ClCompile Include="source\render_pass\geometry_pass.cpp" />
     <ClCompile Include="source\render_pass\epf_pass.cpp" />
-    <ClCompile Include="source\carol.cpp" />
+    <ClCompile Include="source\global.cpp" />
     <ClCompile Include="source\render_pass\cull_pass.cpp" />
     <ClCompile Include="source\dx12\command.cpp" />
     <ClCompile Include="source\render_pass\render_pass.cpp" />

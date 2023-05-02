@@ -271,8 +271,8 @@ void Carol::Renderer::Draw()
 	ID3D12DescriptorHeap* descriptorHeaps[] = {gDescriptorManager->GetResourceDescriptorHeap()};
 	gGraphicsCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
-	gGraphicsCommandList->SetGraphicsRootSignature(RenderPass::GetRootSignature()->Get());
-	gGraphicsCommandList->SetComputeRootSignature(RenderPass::GetRootSignature()->Get());
+	gGraphicsCommandList->SetGraphicsRootSignature(gRootSignature->Get());
+	gGraphicsCommandList->SetComputeRootSignature(gRootSignature->Get());
 
 	gGraphicsCommandList->SetGraphicsRootConstantBufferView(FRAME_CB, mFrameCBAddr);
 	gGraphicsCommandList->SetComputeRootConstantBufferView(FRAME_CB, mFrameCBAddr);

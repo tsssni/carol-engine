@@ -20,7 +20,6 @@ namespace Carol
 			uint32_t height);
 
 		static void Init();
-		static const RootSignature* GetRootSignature();
 
 	protected:
 		virtual void InitPSOs() = 0;
@@ -33,8 +32,5 @@ namespace Carol
 		uint32_t mWidth;
 		uint32_t mHeight;
 		uint32_t mMipLevel;
-
-		static std::unique_ptr<RootSignature> sRootSignature;
-		static Microsoft::WRL::ComPtr<ID3D12CommandSignature> sCommandSignature;
 	};
 }

@@ -1,4 +1,10 @@
-#include <carol.h>
+#include <scene/scene.h>
+#include <dx12/heap.h>
+#include <dx12/resource.h>
+#include <dx12/indirect_command.h>
+#include <scene/scene_node.h>
+#include <scene/assimp.h>
+#include <global.h>
 
 namespace Carol
 {

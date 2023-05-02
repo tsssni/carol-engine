@@ -1,4 +1,7 @@
-#include <carol.h>
+#include <scene/mesh.h>
+#include <dx12/heap.h>
+#include <dx12/resource.h>
+#include <global.h>
 
 namespace Carol
 {

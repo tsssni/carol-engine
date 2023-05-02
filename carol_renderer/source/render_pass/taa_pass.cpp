@@ -1,4 +1,7 @@
-#include <carol.h>
+#include <render_pass/taa_pass.h>
+#include <dx12/resource.h>
+#include <dx12/pipeline_state.h>
+#include <global.h>
 #include <DirectXColors.h>
 #include <cmath>
 #include <string_view>
@@ -24,7 +27,6 @@ Carol::TaaPass::TaaPass(
 void Carol::TaaPass::InitPSOs()
 {
 	mTaaComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mTaaComputePSO->SetRootSignature(sRootSignature.get());
 	mTaaComputePSO->SetCS(gTaaCS.get());
 	mTaaComputePSO->Finalize();
 }

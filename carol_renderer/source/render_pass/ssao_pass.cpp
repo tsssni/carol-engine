@@ -1,4 +1,9 @@
-#include <carol.h>
+#include <render_pass/ssao_pass.h>
+#include <render_pass/epf_pass.h>
+#include <dx12/heap.h>
+#include <dx12/resource.h>
+#include <dx12/pipeline_state.h>
+#include <global.h>
 #include <DirectXColors.h>
 #include <DirectXPackedVector.h>
 #include <string_view>
@@ -180,7 +185,6 @@ void Carol::SsaoPass::InitRandomVectorMap()
 void Carol::SsaoPass::InitPSOs()
 {
 	mSsaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mSsaoComputePSO->SetRootSignature(sRootSignature.get());
 	mSsaoComputePSO->SetCS(gSsaoCS.get());
 	mSsaoComputePSO->Finalize();
 }

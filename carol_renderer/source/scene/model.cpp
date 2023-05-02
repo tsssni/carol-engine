@@ -1,4 +1,10 @@
-#include <carol.h>
+#include <scene/model.h>
+#include <dx12/resource.h>
+#include <scene/mesh.h>
+#include <scene/texture.h>
+#include <scene/skinned_data.h>
+#include <scene/timer.h>
+#include <global.h>
 #include <cmath>
 #include <algorithm>
 #include <ranges>

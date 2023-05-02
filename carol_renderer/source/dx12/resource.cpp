@@ -1,4 +1,7 @@
-#include <carol.h>
+#include <dx12/resource.h>
+#include <dx12/descriptor.h>
+#include <dx12/heap.h>
+#include <global.h>
 #include <vector>
 
 namespace Carol {

@@ -1,4 +1,9 @@
-#include <carol.h>
+#include <render_pass/display_pass.h>
+#include <dx12/descriptor.h>
+#include <dx12/heap.h>
+#include <dx12/resource.h>
+#include <dx12/pipeline_state.h>
+#include <global.h>
 #include <stdlib.h>
 #include <vector>
 #include <string_view>
@@ -105,7 +110,6 @@ void Carol::DisplayPass::Present()
 void Carol::DisplayPass::InitPSOs()
 {
 	mDisplayMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mDisplayMeshPSO->SetRootSignature(sRootSignature.get());
 	mDisplayMeshPSO->SetRenderTargetFormat(mBackBufferFormat);
 	mDisplayMeshPSO->SetMS(gScreenMS.get());
 	mDisplayMeshPSO->SetPS(gDisplayPS.get());

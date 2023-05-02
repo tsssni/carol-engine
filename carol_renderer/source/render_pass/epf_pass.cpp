@@ -1,4 +1,8 @@
-#include <carol.h>
+#include <render_pass/epf_pass.h>
+#include <dx12/resource.h>
+#include <dx12/pipeline_state.h>
+#include <dx12/root_signature.h>
+#include <global.h>
 
 namespace Carol
 {
@@ -22,7 +26,6 @@ void Carol::EpfPass::Draw()
     uint32_t groupHeight = ceilf(mColorMap->GetHeight() * 1.f / (32 - 2 * borderRadius));
 
 	mColorMap->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	gGraphicsCommandList->SetPipelineState(mEpfComputePSO->Get());
 	gGraphicsCommandList->SetComputeRoot32BitConstant(ROOT_CONSTANTS, mColorMap->GetGpuUavIdx(), 0);
     gGraphicsCommandList->Dispatch(groupWidth, groupHeight , 1);
     mColorMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -31,7 +34,6 @@ void Carol::EpfPass::Draw()
 void Carol::EpfPass::InitPSOs()
 {
 	mEpfComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mEpfComputePSO->SetRootSignature(sRootSignature.get());
 	mEpfComputePSO->SetCS(gEpfCS.get());
 	mEpfComputePSO->Finalize();
 }

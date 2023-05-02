@@ -1,4 +1,10 @@
-#include <carol.h>
+#include <render_pass/render_pass.h>
+#include <dx12/resource.h>
+#include <dx12/shader.h>
+#include <dx12/root_signature.h>
+#include <dx12/indirect_command.h>
+#include <utils/common.h>
+#include <global.h>
 
 namespace Carol
 {
@@ -6,9 +12,6 @@ namespace Carol
 	using std::make_unique;
 	using Microsoft::WRL::ComPtr;
 }
-
-Carol::ComPtr<ID3D12CommandSignature> Carol::RenderPass::sCommandSignature = nullptr;
-Carol::unique_ptr<Carol::RootSignature> Carol::RenderPass::sRootSignature = nullptr;
 
 void Carol::RenderPass::OnResize(
 	uint32_t width,
@@ -30,7 +33,7 @@ void Carol::RenderPass::Init()
 {
 	Shader::InitCompiler();
 	Shader::InitShaders();
-	sRootSignature = make_unique<RootSignature>();
+	gRootSignature = make_unique<RootSignature>();
 
 	D3D12_INDIRECT_ARGUMENT_DESC argDesc[3];
 
@@ -48,12 +51,7 @@ void Carol::RenderPass::Init()
 	cmdSigDesc.ByteStride = sizeof(IndirectCommand);
 	cmdSigDesc.NodeMask = 0;
 
-	ThrowIfFailed(gDevice->CreateCommandSignature(&cmdSigDesc, sRootSignature->Get(), IID_PPV_ARGS(sCommandSignature.GetAddressOf())));
-}
-
-const Carol::RootSignature* Carol::RenderPass::GetRootSignature()
-{
-	return sRootSignature.get();
+	ThrowIfFailed(gDevice->CreateCommandSignature(&cmdSigDesc, gRootSignature->Get(), IID_PPV_ARGS(gCommandSignature.GetAddressOf())));
 }
 
 void Carol::RenderPass::ExecuteIndirect(const StructuredBuffer* indirectCmdBuffer)
@@ -61,7 +59,7 @@ void Carol::RenderPass::ExecuteIndirect(const StructuredBuffer* indirectCmdBuffe
 	if (indirectCmdBuffer && indirectCmdBuffer->GetNumElements() > 0)
 	{
 		gGraphicsCommandList->ExecuteIndirect(
-			sCommandSignature.Get(),
+			gCommandSignature.Get(),
 			indirectCmdBuffer->GetNumElements(),
 			indirectCmdBuffer->Get(),
 			0,

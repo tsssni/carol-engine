@@ -1,4 +1,11 @@
-#include <carol.h>
+#include <render_pass/cull_pass.h>
+#include <dx12/heap.h>
+#include <dx12/resource.h>
+#include <dx12/indirect_command.h>
+#include <dx12/pipeline_state.h>
+#include <dx12/root_signature.h>
+#include <scene/scene.h>
+#include <global.h>
 
 namespace Carol
 {
@@ -94,7 +101,6 @@ void Carol::CullPass::SetDepthMap(ColorBuffer* depthMap)
 void Carol::CullPass::InitPSOs()
 {
 	mOpaqueStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mOpaqueStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mOpaqueStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueStaticCullMeshPSO->SetAS(gOpaqueCullAS.get());
@@ -102,7 +108,6 @@ void Carol::CullPass::InitPSOs()
 	mOpaqueStaticCullMeshPSO->Finalize();
 
 	mOpaqueSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mOpaqueSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mOpaqueSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueSkinnedCullMeshPSO->SetAS(gOpaqueCullAS.get());
@@ -110,7 +115,6 @@ void Carol::CullPass::InitPSOs()
 	mOpaqueSkinnedCullMeshPSO->Finalize();
 
 	mTransparentStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mTransparentStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mTransparentStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentStaticCullMeshPSO->SetAS(gTransparentCullAS.get());
@@ -118,7 +122,6 @@ void Carol::CullPass::InitPSOs()
 	mTransparentStaticCullMeshPSO->Finalize();
 
 	mTransparentSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mTransparentSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mTransparentSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentSkinnedCullMeshPSO->SetAS(gTransparentCullAS.get());
@@ -126,7 +129,6 @@ void Carol::CullPass::InitPSOs()
 	mTransparentSkinnedCullMeshPSO->Finalize();
 
 	mOpaqueHistHiZStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mOpaqueHistHiZStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mOpaqueHistHiZStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueHistHiZStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueHistHiZStaticCullMeshPSO->SetAS(gOpaqueHistHiZCullAS.get());
@@ -134,7 +136,6 @@ void Carol::CullPass::InitPSOs()
 	mOpaqueHistHiZStaticCullMeshPSO->Finalize();
 
 	mOpaqueHistHiZSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mOpaqueHistHiZSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetAS(gOpaqueHistHiZCullAS.get());
@@ -142,7 +143,6 @@ void Carol::CullPass::InitPSOs()
 	mOpaqueHistHiZSkinnedCullMeshPSO->Finalize();
 
 	mTransparentHistHiZStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mTransparentHistHiZStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mTransparentHistHiZStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentHistHiZStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentHistHiZStaticCullMeshPSO->SetAS(gTransparentHistHiZCullAS.get());
@@ -150,7 +150,6 @@ void Carol::CullPass::InitPSOs()
 	mTransparentHistHiZStaticCullMeshPSO->Finalize();
 	
 	mTransparentHistHiZSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mTransparentHistHiZSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mTransparentHistHiZSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentHistHiZSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentHistHiZSkinnedCullMeshPSO->SetAS(gTransparentHistHiZCullAS.get());
@@ -158,17 +157,14 @@ void Carol::CullPass::InitPSOs()
 	mTransparentHistHiZSkinnedCullMeshPSO->Finalize();
 
 	mCullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mCullInstanceComputePSO->SetRootSignature(sRootSignature.get());
 	mCullInstanceComputePSO->SetCS(gCullCS.get());
 	mCullInstanceComputePSO->Finalize();
 
 	mHistHiZCullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mHistHiZCullInstanceComputePSO->SetRootSignature(sRootSignature.get());
 	mHistHiZCullInstanceComputePSO->SetCS(gHistHiZCullCS.get());
 	mHistHiZCullInstanceComputePSO->Finalize();
 
 	mHiZGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mHiZGenerateComputePSO->SetRootSignature(sRootSignature.get());
 	mHiZGenerateComputePSO->SetCS(gHiZGenerateCS.get());
 	mHiZGenerateComputePSO->Finalize();
 }

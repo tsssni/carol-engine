@@ -1,10 +1,15 @@
 #pragma once
 #include <render_pass/render_pass.h>
+#include <scene/mesh_type.h>
+#include <DirectXMath.h>
+#include <vector>
 
 namespace Carol
 {
 	class StructuredBuffer;
+	class ColorBuffer;
 	class RawBuffer;
+	class MeshPSO;
 	class ComputePSO;
 
 	class OitppllNode

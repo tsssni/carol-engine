@@ -1,4 +1,10 @@
-#include <carol.h>
+#include <render_pass/shadow_pass.h>
+#include <render_pass/cull_pass.h>
+#include <dx12/heap.h>
+#include <dx12/resource.h>
+#include <dx12/pipeline_state.h>
+#include <scene/camera.h>
+#include <global.h>
 #include <DirectXColors.h>
 #include <memory>
 #include <string_view>

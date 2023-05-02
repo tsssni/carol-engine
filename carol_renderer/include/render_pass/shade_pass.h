@@ -1,7 +1,7 @@
 #pragma once
 #include <render_pass/render_pass.h>
 #include <scene/light.h>
-#include <scene/mesh.h>
+#include <scene/mesh_type.h>
 #include <DirectXMath.h>
 #include <memory>
 #include <vector>
@@ -14,6 +14,7 @@ namespace Carol
 	class StructuredBuffer;
 	class StructuredBufferPool;
 	class MeshPSO;
+	class ComputePSO;
 
 	class ShadePass :public RenderPass
 	{

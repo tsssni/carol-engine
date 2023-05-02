@@ -1,4 +1,7 @@
-#include <carol.h>
+#include <dx12/pipeline_state.h>
+#include <dx12/root_signature.h>
+#include <dx12/shader.h>
+#include <global.h>
 
 namespace Carol
 {
@@ -15,6 +18,7 @@ Carol::MeshPSO::MeshPSO(PSOInitState init)
 {
 	if (init == PSO_DEFAULT)
 	{
+		mPSODesc.pRootSignature = gRootSignature->Get();
 		mPSODesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		mPSODesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 		mPSODesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
@@ -136,6 +140,7 @@ Carol::ComputePSO::ComputePSO(PSOInitState init)
 {
 	if (init == PSO_DEFAULT)
 	{
+		mPSODesc.pRootSignature = gRootSignature->Get();
 		mPSODesc.NodeMask = 0;
 		mPSODesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	}

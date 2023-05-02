@@ -1,4 +1,6 @@
-#include <carol.h>
+#include <render_pass/tone_mapping_pass.h>
+#include <dx12/pipeline_state.h>
+#include <global.h>
 #include <string_view>
 #include <vector>
 
@@ -26,7 +28,6 @@ void Carol::ToneMappingPass::Draw()
 void Carol::ToneMappingPass::InitPSOs()
 {
 	mLDRToneMappingComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mLDRToneMappingComputePSO->SetRootSignature(sRootSignature.get());
 	mLDRToneMappingComputePSO->SetCS(gLDRToneMappingCS.get());
 	mLDRToneMappingComputePSO->Finalize();
 }

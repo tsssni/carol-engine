@@ -1,4 +1,9 @@
-#include <carol.h>
+#include <render_pass/shade_pass.h>
+#include <dx12/resource.h>
+#include <dx12/pipeline_state.h>
+#include <dx12/root_signature.h>
+#include <scene/scene.h>
+#include <global.h>
 #include <DirectXColors.h>
 #include <string_view>
 #include <span>
@@ -54,12 +59,10 @@ void Carol::ShadePass::SetDepthStencilMap(ColorBuffer* depthStencilMap)
 void Carol::ShadePass::InitPSOs()
 {	
 	mShadeComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mShadeComputePSO->SetRootSignature(sRootSignature.get());
 	mShadeComputePSO->SetCS(gShadeCS.get());
 	mShadeComputePSO->Finalize();
 
 	mSkyBoxMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mSkyBoxMeshPSO->SetRootSignature(sRootSignature.get());
 	mSkyBoxMeshPSO->SetDepthStencilState(gDepthLessEqualState.get());
 	mSkyBoxMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
 	mSkyBoxMeshPSO->SetMS(gSkyBoxMS.get());

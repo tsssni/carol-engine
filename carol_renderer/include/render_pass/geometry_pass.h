@@ -1,5 +1,6 @@
 #pragma once
 #include <render_pass/render_pass.h>
+#include <scene/mesh_type.h>
 #include <d3d12.h>
 
 namespace Carol

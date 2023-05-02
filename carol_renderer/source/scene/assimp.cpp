@@ -1,4 +1,11 @@
-#include <carol.h>
+#include <scene/assimp.h>
+#include <dx12/heap.h>
+#include <dx12/resource.h>
+#include <scene/scene_node.h>
+#include <scene/skinned_data.h>
+#include <scene/texture.h>
+#include <utils/common.h>
+#include <global.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <algorithm>

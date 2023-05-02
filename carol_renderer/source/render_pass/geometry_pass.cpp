@@ -1,4 +1,8 @@
-#include <carol.h>
+#include <render_pass/geometry_pass.h>
+#include <dx12/resource.h>
+#include <dx12/heap.h>
+#include <dx12/pipeline_state.h>
+#include <global.h>
 
 namespace Carol
 {
@@ -98,7 +102,6 @@ void Carol::GeometryPass::InitPSOs()
     DXGI_FORMAT gbufferFormats[4] = { mDiffuseRoughnessFormat,mEmissiveMetallicFormat,mNormalDepthFormat,mVelocityFormat };
 
     mGeometryStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-    mGeometryStaticMeshPSO->SetRootSignature(sRootSignature.get());
 	mGeometryStaticMeshPSO->SetRenderTargetFormat(_countof(gbufferFormats), gbufferFormats, GetDsvFormat(mDepthStencilFormat));
 	mGeometryStaticMeshPSO->SetAS(gCullAS.get());
 	mGeometryStaticMeshPSO->SetMS(gMeshStaticMS.get());
@@ -106,7 +109,6 @@ void Carol::GeometryPass::InitPSOs()
 	mGeometryStaticMeshPSO->Finalize();
 
     mGeometrySkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-    mGeometrySkinnedMeshPSO->SetRootSignature(sRootSignature.get());
 	mGeometrySkinnedMeshPSO->SetRenderTargetFormat(_countof(gbufferFormats), gbufferFormats, GetDsvFormat(mDepthStencilFormat));
 	mGeometrySkinnedMeshPSO->SetAS(gCullAS.get());
 	mGeometrySkinnedMeshPSO->SetMS(gMeshSkinnedMS.get());

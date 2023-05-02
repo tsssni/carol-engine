@@ -4,7 +4,6 @@
 #include "win32/resource.h"
 #include "win32/framework.h"
 #include <carol.h>
-#include <renderer.h>
 #include <windowsx.h>
 #include <ShlObj.h>
 #include <DirectXMath.h>
@@ -21,7 +20,6 @@ HWND hWnd;                                      // 当前窗口
 WCHAR szTitle[MAX_LOADSTRING];                  // 标题栏文本
 WCHAR szWindowClass[MAX_LOADSTRING];            // 主窗口类名
 
-Carol::Renderer* renderer;
 wstring loadModelName;
 
 // 此代码模块中包含的函数的前向声明:
@@ -32,7 +30,6 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK    LoadWndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK    AnimationWndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK    DeleteWndProc(HWND, UINT, WPARAM, LPARAM);
-
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -65,7 +62,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     try
     {
-        renderer = new Carol::Renderer(hWnd,width,height);
+        Carol::gRenderer = std::make_unique<Carol::Renderer>(hWnd,width,height);
 
 		// 主消息循环:
         while (msg.message != WM_QUIT)
@@ -77,13 +74,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			}
 			else
 			{
-				renderer->Tick();
+				Carol::gRenderer->Tick();
 
-                if (!renderer->IsPaused())
+                if (!Carol::gRenderer->IsPaused())
                 {
-					renderer->CalcFrameState();
-                    renderer->Update();
-					renderer->Draw();
+					Carol::gRenderer->CalcFrameState();
+                    Carol::gRenderer->Update();
+					Carol::gRenderer->Draw();
                 }
                 else
                 {
@@ -93,7 +90,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			}
 		}
         
-        delete renderer;
+        Carol::gRenderer.reset();
         return (int) msg.wParam;
     }
     catch (Carol::DxException& e)
@@ -175,16 +172,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
     case WM_ACTIVATE:
         {
-			if (renderer)
+			if (Carol::gRenderer)
 			{
 				int fActive = LOWORD(wParam);
 				if (fActive & (WA_ACTIVE | WA_CLICKACTIVE))
 				{
-					renderer->SetPaused(false);
+					Carol::gRenderer->SetPaused(false);
 				}
 				else
 				{
-					renderer->SetPaused(true);
+					Carol::gRenderer->SetPaused(true);
 				}
 			}
         }
@@ -198,20 +195,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             switch (wmId)
             {
             case ID_LOAD_MODEL:
-                renderer->SetPaused(true);
-                renderer->Stop();
+                Carol::gRenderer->SetPaused(true);
+                Carol::gRenderer->Stop();
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_LOAD), hWnd, LoadWndProc);
 
-                renderer->SetPaused(false);
-                renderer->Start();
+                Carol::gRenderer->SetPaused(false);
+                Carol::gRenderer->Start();
                 break;
             case ID_DELETE_MODEL:
-                renderer->SetPaused(true);
-                renderer->Stop();
+                Carol::gRenderer->SetPaused(true);
+                Carol::gRenderer->Stop();
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_DELETE), hWnd, DeleteWndProc);
 
-                renderer->SetPaused(false);
-                renderer->Start();
+                Carol::gRenderer->SetPaused(false);
+                Carol::gRenderer->Start();
                 break;
             default:
                 return DefWindowProc(hWnd, message, wParam, lParam);
@@ -221,44 +218,44 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // WM_SIZE is sent when the user resizes the window.  
     case WM_SIZE:
         // Save the new client area dimensions.
-        if (renderer)
+        if (Carol::gRenderer)
         {
             uint32_t width = LOWORD(lParam);
 			uint32_t height = HIWORD(lParam);
 
             if (wParam == SIZE_MINIMIZED)
             {
-                renderer->SetPaused(true);
-                renderer->Stop();
-                renderer->SetMinimized(true);
-                renderer->SetMaximized(false);
+                Carol::gRenderer->SetPaused(true);
+                Carol::gRenderer->Stop();
+                Carol::gRenderer->SetMinimized(true);
+                Carol::gRenderer->SetMaximized(false);
             }
             else if (wParam == SIZE_MAXIMIZED)
             {
-                renderer->SetPaused(false);
-                renderer->SetMinimized(false);
-                renderer->SetMaximized(true);               
-                renderer->OnResize(width, height);
+                Carol::gRenderer->SetPaused(false);
+                Carol::gRenderer->SetMinimized(false);
+                Carol::gRenderer->SetMaximized(true);               
+                Carol::gRenderer->OnResize(width, height);
             }
             else if (wParam == SIZE_RESTORED)
             {
 
                 // Restoring from minimized state?
-                if (renderer->IsIconic())
+                if (Carol::gRenderer->IsIconic())
                 {
-                    renderer->SetPaused(false);
-                    renderer->SetMinimized(false);
-                    renderer->OnResize(width, height);
+                    Carol::gRenderer->SetPaused(false);
+                    Carol::gRenderer->SetMinimized(false);
+                    Carol::gRenderer->OnResize(width, height);
                 }
 
                 // Restoring from maximized state?
-                else if (renderer->IsZoomed())
+                else if (Carol::gRenderer->IsZoomed())
                 {
-					renderer->SetPaused(false);
-                    renderer->SetMaximized(false);
-                    renderer->OnResize(width, height);
+					Carol::gRenderer->SetPaused(false);
+                    Carol::gRenderer->SetMaximized(false);
+                    Carol::gRenderer->OnResize(width, height);
                 }
-                else if (renderer->IsResizing())
+                else if (Carol::gRenderer->IsResizing())
                 {
                     // If user is dragging the resize bars, we do not resize 
                     // the buffers here because as the user continuously 
@@ -271,7 +268,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
                 else // API call such as SetWindowPos or mSwapChain->SetFullscreenState.
                 {
-                    renderer->OnResize(width, height);
+                    Carol::gRenderer->OnResize(width, height);
                 }
             }
         }
@@ -280,11 +277,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         // WM_EXITSIZEMOVE is sent when the user grabs the resize bars.
     case WM_ENTERSIZEMOVE:
-        if (renderer)
+        if (Carol::gRenderer)
         {
-            renderer->SetPaused(true);
-			renderer->SetResizing(true);
-			renderer->Stop();
+            Carol::gRenderer->SetPaused(true);
+			Carol::gRenderer->SetResizing(true);
+			Carol::gRenderer->Stop();
         }
         
         break;
@@ -292,7 +289,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // WM_EXITSIZEMOVE is sent when the user releases the resize bars.
         // Here we reset everything based on the new window dimensions.
     case WM_EXITSIZEMOVE:
-        if(renderer)
+        if(Carol::gRenderer)
         {
             RECT clientRect;
             GetClientRect(hWnd, &clientRect);
@@ -300,10 +297,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             uint32_t width = clientRect.right - clientRect.left;
             uint32_t height = clientRect.bottom - clientRect.top;
 
-			renderer->SetPaused(false);
-			renderer->SetResizing(false);
-			renderer->Start(); 
-			renderer->OnResize(width, height);
+			Carol::gRenderer->SetPaused(false);
+			Carol::gRenderer->SetResizing(false);
+			Carol::gRenderer->Start(); 
+			Carol::gRenderer->OnResize(width, height);
         }
 
         break;
@@ -311,27 +308,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_RBUTTONDOWN:
-        if (renderer)
+        if (Carol::gRenderer)
         {
             pushed = true;
-			renderer->OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+			Carol::gRenderer->OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         }
         break;
     case WM_LBUTTONUP:
     case WM_MBUTTONUP:
     case WM_RBUTTONUP:
-        if (renderer)
+        if (Carol::gRenderer)
         {
             pushed = false;
-			renderer->OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+			Carol::gRenderer->OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
         }
         break;
     case WM_MOUSEMOVE:
-        if (renderer)
+        if (Carol::gRenderer)
         {
             if (pushed)
             {
-                renderer->OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+                Carol::gRenderer->OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             }
         }
         break;
@@ -492,7 +489,7 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             auto translation = DirectX::XMMatrixTranslationFromVector(DirectX::XMLoadFloat3(&transl));
             auto rotation = DirectX::XMMatrixRotationAxis(DirectX::XMLoadFloat3(&rotationAxis), DirectX::XM_PI * angle / 180.f);
             auto world = scaling * rotation * translation;
-            renderer->LoadModel(modelPath, textureDirPath, loadModelName, world, animation);
+            Carol::gRenderer->LoadModel(modelPath, textureDirPath, loadModelName, world, animation);
 
             if (animation)
             {
@@ -534,7 +531,7 @@ LRESULT AnimationWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_INITDIALOG:
     {
         auto lbhWnd = GetDlgItem(hWnd, IDC_ANIMATION_LIST);
-        for (auto& aniName : renderer->GetAnimationNames(loadModelName))
+        for (auto& aniName : Carol::gRenderer->GetAnimationNames(loadModelName))
         {
             SendMessage(lbhWnd, LB_ADDSTRING, 0, (LPARAM)aniName.data());
         }
@@ -548,7 +545,7 @@ LRESULT AnimationWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case IDC_ANIMATION_LIST:
             if (HIWORD(wParam) == LBN_DBLCLK)
             {
-                renderer->SetAnimation(loadModelName, GetSelectedAnimation(hWnd, wParam));
+                Carol::gRenderer->SetAnimation(loadModelName, GetSelectedAnimation(hWnd, wParam));
                 EndDialog(hWnd, 0);
             }
 
@@ -583,7 +580,7 @@ LRESULT DeleteWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_INITDIALOG:
     {
         auto lbhWnd = GetDlgItem(hWnd, IDC_DELETE_LIST);
-        for (auto& modelName : renderer->GetModelNames())
+        for (auto& modelName : Carol::gRenderer->GetModelNames())
         {
             SendMessage(lbhWnd, LB_ADDSTRING, 0, (LPARAM)modelName.data());
         }
@@ -597,7 +594,7 @@ LRESULT DeleteWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case IDC_DELETE_LIST:
             if (HIWORD(wParam) == LBN_DBLCLK)
             {
-                renderer->UnloadModel(GetSelectedModel(hWnd, wParam));
+                Carol::gRenderer->UnloadModel(GetSelectedModel(hWnd, wParam));
                 EndDialog(hWnd, 0);
             }
 

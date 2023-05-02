@@ -1,4 +1,7 @@
-#include <carol.h>
+#include <dx12/root_signature.h>
+#include <dx12/shader.h>
+#include <utils/common.h>
+#include <global.h>
 
 namespace Carol {
     using std::make_unique;

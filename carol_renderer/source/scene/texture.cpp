@@ -1,4 +1,8 @@
-#include <carol.h>
+#include <scene/texture.h>
+#include <dx12/heap.h>
+#include <dx12/resource.h>
+#include <utils/common.h>
+#include <global.h>
 #include <DirectXTex.h>
 #include <memory>
 #include <vector>

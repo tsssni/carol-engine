@@ -1,4 +1,8 @@
-#include <carol.h>
+#include <render_pass/oitppll_pass.h>
+#include <dx12/heap.h>
+#include <dx12/resource.h>
+#include <dx12/pipeline_state.h>
+#include <global.h>
 
 namespace Carol
 {
@@ -72,7 +76,6 @@ uint32_t Carol::OitppllPass::GetStartOffsetSrvIdx() const
 void Carol::OitppllPass::InitPSOs()
 {
 	mBuildOitppllStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mBuildOitppllStaticMeshPSO->SetRootSignature(sRootSignature.get());
 	mBuildOitppllStaticMeshPSO->SetRasterizerState(gCullDisabledState.get());
 	mBuildOitppllStaticMeshPSO->SetDepthStencilState(gDepthDisabledState.get());
 	mBuildOitppllStaticMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
@@ -82,7 +85,6 @@ void Carol::OitppllPass::InitPSOs()
 	mBuildOitppllStaticMeshPSO->Finalize();
 
 	mBuildOitppllSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mBuildOitppllSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
 	mBuildOitppllSkinnedMeshPSO->SetRasterizerState(gCullDisabledState.get());
 	mBuildOitppllSkinnedMeshPSO->SetDepthStencilState(gDepthDisabledState.get());
 	mBuildOitppllSkinnedMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
@@ -92,7 +94,6 @@ void Carol::OitppllPass::InitPSOs()
 	mBuildOitppllSkinnedMeshPSO->Finalize();
 
 	mOitppllComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mOitppllComputePSO->SetRootSignature(sRootSignature.get());
 	mOitppllComputePSO->SetCS(gOitppllCS.get());
 	mOitppllComputePSO->Finalize();
 }

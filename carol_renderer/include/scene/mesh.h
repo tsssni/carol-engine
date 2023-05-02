@@ -1,4 +1,5 @@
 #pragma once
+#include <scene/mesh_type.h>
 #include <d3d12.h>
 #include <memory>
 #include <unordered_map>
@@ -71,27 +72,6 @@ namespace Carol
 		DirectX::XMFLOAT3 Extent;
 		DirectX::PackedVector::XMCOLOR NormalCone;
 		float ApexOffset = 0.f;
-	};
-
-	enum MeshType
-	{
-		OPAQUE_STATIC,
-		OPAQUE_SKINNED,
-		TRANSPARENT_STATIC,
-		TRANSPARENT_SKINNED,
-		MESH_TYPE_COUNT
-	};
-
-	enum OpaqueMeshType
-	{
-		OPAQUE_MESH_START = 0,
-		OPAQUE_MESH_TYPE_COUNT = 2
-	};
-
-	enum TransparentMeshType
-	{
-		TRANSPARENT_MESH_START = 2,
-		TRANSPARENT_MESH_TYPE_COUNT = 2
 	};
 
 	class Mesh
