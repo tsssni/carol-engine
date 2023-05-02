@@ -1,5 +1,4 @@
-#include <dx12/shader.h>
-#include <global.h>
+#include <carol.h>
 #include <utils/common.h>
 #include <fstream>
 
@@ -10,6 +9,7 @@ namespace Carol {
     using std::span;
     using std::ifstream;
     using std::ofstream;
+    using std::make_unique;
     using Microsoft::WRL::ComPtr;
 }
 
@@ -94,191 +94,222 @@ void Carol::Shader::InitShaders()
 		L"TRANSPARENT"
 	};
 
-    gScreenMS.SetFileName(L"shader\\screen_ms.hlsl");
-    gScreenMS.SetDefines({});
-    gScreenMS.SetEntryPoint(L"main");
-    gScreenMS.SetTarget(L"ms_6_6");
-    gScreenMS.Finalize();
+    gScreenMS = make_unique<Shader>();
+    gScreenMS->SetFileName(L"shader\\screen_ms.hlsl");
+    gScreenMS->SetDefines({});
+    gScreenMS->SetEntryPoint(L"main");
+    gScreenMS->SetTarget(L"ms_6_6");
+    gScreenMS->Finalize();
 
-    gDisplayPS.SetFileName(L"shader\\display_ps.hlsl");
-    gDisplayPS.SetDefines({});
-    gDisplayPS.SetEntryPoint(L"main");
-    gDisplayPS.SetTarget(L"ps_6_6");
-    gDisplayPS.Finalize();
+    gDisplayPS = make_unique<Shader>();
+    gDisplayPS->SetFileName(L"shader\\display_ps.hlsl");
+    gDisplayPS->SetDefines({});
+    gDisplayPS->SetEntryPoint(L"main");
+    gDisplayPS->SetTarget(L"ps_6_6");
+    gDisplayPS->Finalize();
 
-    gCullCS.SetFileName(L"shader\\cull_cs.hlsl");
-    gCullCS.SetDefines({L"FRUSTUM", L"HIZ_OCCLUSION"});
-    gCullCS.SetEntryPoint(L"main");
-    gCullCS.SetTarget(L"cs_6_6");
-    gCullCS.Finalize();
+    gCullCS = make_unique<Shader>();
+    gCullCS->SetFileName(L"shader\\cull_cs.hlsl");
+    gCullCS->SetDefines({L"FRUSTUM", L"HIZ_OCCLUSION"});
+    gCullCS->SetEntryPoint(L"main");
+    gCullCS->SetTarget(L"cs_6_6");
+    gCullCS->Finalize();
 
-    gCullAS.SetFileName(L"shader\\cull_as.hlsl");
-    gCullAS.SetDefines({});
-    gCullAS.SetEntryPoint(L"main");
-    gCullAS.SetTarget(L"as_6_6");
-    gCullAS.Finalize();
+    gCullAS = make_unique<Shader>();
+    gCullAS->SetFileName(L"shader\\cull_as.hlsl");
+    gCullAS->SetDefines({});
+    gCullAS->SetEntryPoint(L"main");
+    gCullAS->SetTarget(L"as_6_6");
+    gCullAS->Finalize();
 
-    gOpaqueCullAS.SetFileName(L"shader\\cull_as.hlsl");
-    gOpaqueCullAS.SetDefines({L"FRUSTUM", L"NORMAL_CONE" L"HIZ_OCCLUSION", L"WRITE"});
-    gOpaqueCullAS.SetEntryPoint(L"main");
-    gOpaqueCullAS.SetTarget(L"as_6_6");
-    gOpaqueCullAS.Finalize();
+    gOpaqueCullAS = make_unique<Shader>();
+    gOpaqueCullAS->SetFileName(L"shader\\cull_as.hlsl");
+    gOpaqueCullAS->SetDefines({L"FRUSTUM", L"NORMAL_CONE" L"HIZ_OCCLUSION", L"WRITE"});
+    gOpaqueCullAS->SetEntryPoint(L"main");
+    gOpaqueCullAS->SetTarget(L"as_6_6");
+    gOpaqueCullAS->Finalize();
 
-	gTransparentCullAS.SetFileName(L"shader\\cull_as.hlsl");
-    gTransparentCullAS.SetDefines({L"FRUSTUM", L"NORMAL_CONE" L"HIZ_OCCLUSION", L"TRANSPARENT", L"WRITE"});
-    gTransparentCullAS.SetEntryPoint(L"main");
-    gTransparentCullAS.SetTarget(L"as_6_6");
-    gTransparentCullAS.Finalize();
+    gTransparentCullAS = make_unique<Shader>();
+	gTransparentCullAS->SetFileName(L"shader\\cull_as.hlsl");
+    gTransparentCullAS->SetDefines({L"FRUSTUM", L"NORMAL_CONE" L"HIZ_OCCLUSION", L"TRANSPARENT", L"WRITE"});
+    gTransparentCullAS->SetEntryPoint(L"main");
+    gTransparentCullAS->SetTarget(L"as_6_6");
+    gTransparentCullAS->Finalize();
 
-    gHistHiZCullCS.SetFileName(L"shader\\hist_hiz_cull_cs.hlsl");
-    gHistHiZCullCS.SetDefines({L"FRUSTUM", L"NORMAL_CONE" L"HIZ_OCCLUSION", L"WRITE"});
-    gHistHiZCullCS.SetEntryPoint(L"main");
-    gHistHiZCullCS.SetTarget(L"cs_6_6");
-    gHistHiZCullCS.Finalize();
+    gHistHiZCullCS = make_unique<Shader>();
+    gHistHiZCullCS->SetFileName(L"shader\\hist_hiz_cull_cs.hlsl");
+    gHistHiZCullCS->SetDefines({L"FRUSTUM", L"NORMAL_CONE" L"HIZ_OCCLUSION", L"WRITE"});
+    gHistHiZCullCS->SetEntryPoint(L"main");
+    gHistHiZCullCS->SetTarget(L"cs_6_6");
+    gHistHiZCullCS->Finalize();
 
-	gOpaqueHistHiZCullAS.SetFileName(L"shader\\hist_hiz_cull_as.hlsl");
-    gOpaqueHistHiZCullAS.SetDefines({L"FRUSTUM", L"NORMAL_CONE" L"HIZ_OCCLUSION", L"WRITE"});
-    gOpaqueHistHiZCullAS.SetEntryPoint(L"main");
-    gOpaqueHistHiZCullAS.SetTarget(L"as_6_6");
-    gOpaqueHistHiZCullAS.Finalize();
+    gOpaqueHistHiZCullAS = make_unique<Shader>();
+	gOpaqueHistHiZCullAS->SetFileName(L"shader\\hist_hiz_cull_as.hlsl");
+    gOpaqueHistHiZCullAS->SetDefines({L"FRUSTUM", L"NORMAL_CONE" L"HIZ_OCCLUSION", L"WRITE"});
+    gOpaqueHistHiZCullAS->SetEntryPoint(L"main");
+    gOpaqueHistHiZCullAS->SetTarget(L"as_6_6");
+    gOpaqueHistHiZCullAS->Finalize();
 
-	gTransparentHistHiZCullAS.SetFileName(L"shader\\hist_hiz_cull_as.hlsl");
-    gTransparentHistHiZCullAS.SetDefines({L"FRUSTUM", L"NORMAL_CONE" L"HIZ_OCCLUSION", L"TRANSPARENT", L"WRITE"});
-    gTransparentHistHiZCullAS.SetEntryPoint(L"main");
-    gTransparentHistHiZCullAS.SetTarget(L"as_6_6");
-    gTransparentHistHiZCullAS.Finalize();
+    gTransparentHistHiZCullAS = make_unique<Shader>();
+	gTransparentHistHiZCullAS->SetFileName(L"shader\\hist_hiz_cull_as.hlsl");
+    gTransparentHistHiZCullAS->SetDefines({L"FRUSTUM", L"NORMAL_CONE" L"HIZ_OCCLUSION", L"TRANSPARENT", L"WRITE"});
+    gTransparentHistHiZCullAS->SetEntryPoint(L"main");
+    gTransparentHistHiZCullAS->SetTarget(L"as_6_6");
+    gTransparentHistHiZCullAS->Finalize();
 	
-    gHiZGenerateCS.SetFileName(L"shader\\hiz_generate_cs.hlsl");
-    gHiZGenerateCS.SetDefines({});
-    gHiZGenerateCS.SetEntryPoint(L"main");
-    gHiZGenerateCS.SetTarget(L"cs_6_6");
-    gHiZGenerateCS.Finalize();
+    gHiZGenerateCS = make_unique<Shader>();
+    gHiZGenerateCS->SetFileName(L"shader\\hiz_generate_cs.hlsl");
+    gHiZGenerateCS->SetDefines({});
+    gHiZGenerateCS->SetEntryPoint(L"main");
+    gHiZGenerateCS->SetTarget(L"cs_6_6");
+    gHiZGenerateCS->Finalize();
 
-    gDepthStaticCullMS.SetFileName(L"shader\\depth_ms.hlsl");
-    gDepthStaticCullMS.SetDefines({L"CULL"});
-    gDepthStaticCullMS.SetEntryPoint(L"main");
-    gDepthStaticCullMS.SetTarget(L"ms_6_6");
-    gDepthStaticCullMS.Finalize();
+    gDepthStaticCullMS = make_unique<Shader>();
+    gDepthStaticCullMS->SetFileName(L"shader\\depth_ms.hlsl");
+    gDepthStaticCullMS->SetDefines({L"CULL"});
+    gDepthStaticCullMS->SetEntryPoint(L"main");
+    gDepthStaticCullMS->SetTarget(L"ms_6_6");
+    gDepthStaticCullMS->Finalize();
 
-    gDepthSkinnedCullMS.SetFileName(L"shader\\depth_ms.hlsl");
-    gDepthSkinnedCullMS.SetDefines({L"CULL", L"SKINNED"});
-    gDepthSkinnedCullMS.SetEntryPoint(L"main");
-    gDepthSkinnedCullMS.SetTarget(L"ms_6_6");
-    gDepthSkinnedCullMS.Finalize();
+    gDepthSkinnedCullMS = make_unique<Shader>();
+    gDepthSkinnedCullMS->SetFileName(L"shader\\depth_ms.hlsl");
+    gDepthSkinnedCullMS->SetDefines({L"CULL", L"SKINNED"});
+    gDepthSkinnedCullMS->SetEntryPoint(L"main");
+    gDepthSkinnedCullMS->SetTarget(L"ms_6_6");
+    gDepthSkinnedCullMS->Finalize();
 
-    gMeshStaticMS.SetFileName(L"shader\\mesh_ms.hlsl");
-    gMeshStaticMS.SetDefines({ L"TAA" });
-    gMeshStaticMS.SetEntryPoint(L"main");
-    gMeshStaticMS.SetTarget(L"ms_6_6");
-    gMeshStaticMS.Finalize();
+    gMeshStaticMS = make_unique<Shader>();
+    gMeshStaticMS->SetFileName(L"shader\\mesh_ms.hlsl");
+    gMeshStaticMS->SetDefines({ L"TAA" });
+    gMeshStaticMS->SetEntryPoint(L"main");
+    gMeshStaticMS->SetTarget(L"ms_6_6");
+    gMeshStaticMS->Finalize();
 
-    gMeshSkinnedMS.SetFileName(L"shader\\mesh_ms.hlsl");
-    gMeshSkinnedMS.SetDefines({ L"TAA", L"SKINNED"});
-    gMeshSkinnedMS.SetEntryPoint(L"main");
-    gMeshSkinnedMS.SetTarget(L"ms_6_6");
-    gMeshSkinnedMS.Finalize();
+    gMeshSkinnedMS = make_unique<Shader>();
+    gMeshSkinnedMS->SetFileName(L"shader\\mesh_ms.hlsl");
+    gMeshSkinnedMS->SetDefines({ L"TAA", L"SKINNED"});
+    gMeshSkinnedMS->SetEntryPoint(L"main");
+    gMeshSkinnedMS->SetTarget(L"ms_6_6");
+    gMeshSkinnedMS->Finalize();
 
-    gBlinnPhongPS.SetFileName(L"shader\\opaque_ps.hlsl");
-    gBlinnPhongPS.SetDefines({ L"SSAO", L"BLINN_PHONG" });
-    gBlinnPhongPS.SetEntryPoint(L"main");
-    gBlinnPhongPS.SetTarget(L"ps_6_6");
-    gBlinnPhongPS.Finalize();
+    gBlinnPhongPS = make_unique<Shader>();
+    gBlinnPhongPS->SetFileName(L"shader\\opaque_ps.hlsl");
+    gBlinnPhongPS->SetDefines({ L"SSAO", L"BLINN_PHONG" });
+    gBlinnPhongPS->SetEntryPoint(L"main");
+    gBlinnPhongPS->SetTarget(L"ps_6_6");
+    gBlinnPhongPS->Finalize();
 
-    gPBRPS.SetFileName(L"shader\\opaque_ps.hlsl");
-    gPBRPS.SetDefines({ L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED",L"LAMBERTIAN" });
-    gPBRPS.SetEntryPoint(L"main");
-    gPBRPS.SetTarget(L"ps_6_6");
-    gPBRPS.Finalize();
+    gPBRPS = make_unique<Shader>();
+    gPBRPS->SetFileName(L"shader\\opaque_ps.hlsl");
+    gPBRPS->SetDefines({ L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED",L"LAMBERTIAN" });
+    gPBRPS->SetEntryPoint(L"main");
+    gPBRPS->SetTarget(L"ps_6_6");
+    gPBRPS->Finalize();
 
-    gSkyBoxMS.SetFileName(L"shader\\skybox_ms.hlsl");
-    gSkyBoxMS.SetDefines({ L"TAA" });
-    gSkyBoxMS.SetEntryPoint(L"main");
-    gSkyBoxMS.SetTarget(L"ms_6_6");
-    gSkyBoxMS.Finalize();
+    gSkyBoxMS = make_unique<Shader>();
+    gSkyBoxMS->SetFileName(L"shader\\skybox_ms.hlsl");
+    gSkyBoxMS->SetDefines({ L"TAA" });
+    gSkyBoxMS->SetEntryPoint(L"main");
+    gSkyBoxMS->SetTarget(L"ms_6_6");
+    gSkyBoxMS->Finalize();
 
-    gSkyBoxPS.SetFileName(L"shader\\skybox_ps.hlsl");
-    gSkyBoxPS.SetDefines({ L"TAA" });
-    gSkyBoxPS.SetEntryPoint(L"main");
-    gSkyBoxPS.SetTarget(L"ps_6_6");
-    gSkyBoxPS.Finalize();
+    gSkyBoxPS = make_unique<Shader>();
+    gSkyBoxPS->SetFileName(L"shader\\skybox_ps.hlsl");
+    gSkyBoxPS->SetDefines({ L"TAA" });
+    gSkyBoxPS->SetEntryPoint(L"main");
+    gSkyBoxPS->SetTarget(L"ps_6_6");
+    gSkyBoxPS->Finalize();
 
-    gBlinnPhongOitppllPS.SetFileName(L"shader\\oitppll_build_ps.hlsl");
-    gBlinnPhongOitppllPS.SetDefines({ L"SSAO", L"BLINN_PHONG" });
-    gBlinnPhongOitppllPS.SetEntryPoint(L"main");
-    gBlinnPhongOitppllPS.SetTarget(L"ps_6_6");
-    gBlinnPhongOitppllPS.Finalize();
+    gBlinnPhongOitppllPS = make_unique<Shader>();
+    gBlinnPhongOitppllPS->SetFileName(L"shader\\oitppll_build_ps.hlsl");
+    gBlinnPhongOitppllPS->SetDefines({ L"SSAO", L"BLINN_PHONG" });
+    gBlinnPhongOitppllPS->SetEntryPoint(L"main");
+    gBlinnPhongOitppllPS->SetTarget(L"ps_6_6");
+    gBlinnPhongOitppllPS->Finalize();
 
-    gPBROitppllPS.SetFileName(L"shader\\oitppll_build_ps.hlsl");
-    gPBROitppllPS.SetDefines({ L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED",L"LAMBERTIAN" });
-    gPBROitppllPS.SetEntryPoint(L"main");
-    gPBROitppllPS.SetTarget(L"ps_6_6");
-    gPBROitppllPS.Finalize();
+    gPBROitppllPS = make_unique<Shader>();
+    gPBROitppllPS->SetFileName(L"shader\\oitppll_build_ps.hlsl");
+    gPBROitppllPS->SetDefines({ L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED",L"LAMBERTIAN" });
+    gPBROitppllPS->SetEntryPoint(L"main");
+    gPBROitppllPS->SetTarget(L"ps_6_6");
+    gPBROitppllPS->Finalize();
 
-    gDrawOitppllPS.SetFileName(L"shader\\oitppll_ps.hlsl");
-    gDrawOitppllPS.SetDefines({});
-    gDrawOitppllPS.SetEntryPoint(L"main");
-    gDrawOitppllPS.SetTarget(L"ps_6_6");
-    gDrawOitppllPS.Finalize();
+    gDrawOitppllPS = make_unique<Shader>();
+    gDrawOitppllPS->SetFileName(L"shader\\oitppll_ps.hlsl");
+    gDrawOitppllPS->SetDefines({});
+    gDrawOitppllPS->SetEntryPoint(L"main");
+    gDrawOitppllPS->SetTarget(L"ps_6_6");
+    gDrawOitppllPS->Finalize();
 
-    gNormalsStaticMS.SetFileName(L"shader\\normals_ms.hlsl");
-    gNormalsStaticMS.SetDefines({});
-    gNormalsStaticMS.SetEntryPoint(L"main");
-    gNormalsStaticMS.SetTarget(L"ms_6_6");
-    gNormalsStaticMS.Finalize();
+    gNormalsStaticMS = make_unique<Shader>();
+    gNormalsStaticMS->SetFileName(L"shader\\normals_ms.hlsl");
+    gNormalsStaticMS->SetDefines({});
+    gNormalsStaticMS->SetEntryPoint(L"main");
+    gNormalsStaticMS->SetTarget(L"ms_6_6");
+    gNormalsStaticMS->Finalize();
     
-    gNormalsSkinnedMS.SetFileName(L"shader\\normals_ms.hlsl");
-    gNormalsSkinnedMS.SetDefines({L"SKINNED"});
-    gNormalsSkinnedMS.SetEntryPoint(L"main");
-    gNormalsSkinnedMS.SetTarget(L"ms_6_6");
-    gNormalsSkinnedMS.Finalize();
+    gNormalsSkinnedMS = make_unique<Shader>();
+    gNormalsSkinnedMS->SetFileName(L"shader\\normals_ms.hlsl");
+    gNormalsSkinnedMS->SetDefines({L"SKINNED"});
+    gNormalsSkinnedMS->SetEntryPoint(L"main");
+    gNormalsSkinnedMS->SetTarget(L"ms_6_6");
+    gNormalsSkinnedMS->Finalize();
 
-    gNormalsPS.SetFileName(L"shader\\normals_ps.hlsl");
-    gNormalsPS.SetDefines({});
-    gNormalsPS.SetEntryPoint(L"main");
-    gNormalsPS.SetTarget(L"ps_6_6");
-    gNormalsPS.Finalize();
+    gNormalsPS = make_unique<Shader>();
+    gNormalsPS->SetFileName(L"shader\\normals_ps.hlsl");
+    gNormalsPS->SetDefines({});
+    gNormalsPS->SetEntryPoint(L"main");
+    gNormalsPS->SetTarget(L"ps_6_6");
+    gNormalsPS->Finalize();
 
-    gSsaoCS.SetFileName(L"shader\\ssao_cs.hlsl");
-    gSsaoCS.SetDefines({});
-    gSsaoCS.SetEntryPoint(L"main");
-    gSsaoCS.SetTarget(L"cs_6_6");
-    gSsaoCS.Finalize();
+    gSsaoCS = make_unique<Shader>();
+    gSsaoCS->SetFileName(L"shader\\ssao_cs.hlsl");
+    gSsaoCS->SetDefines({});
+    gSsaoCS->SetEntryPoint(L"main");
+    gSsaoCS->SetTarget(L"cs_6_6");
+    gSsaoCS->Finalize();
 
-    gEpfCS.SetFileName(L"shader\\epf_cs.hlsl");
-    gEpfCS.SetDefines({ L"BORDER_RADIUS=5",L"BLUR_COUNT=3" });
-    gEpfCS.SetEntryPoint(L"main");
-    gEpfCS.SetTarget(L"cs_6_6");
-    gEpfCS.Finalize();
+    gEpfCS = make_unique<Shader>();
+    gEpfCS->SetFileName(L"shader\\epf_cs.hlsl");
+    gEpfCS->SetDefines({ L"BORDER_RADIUS=5",L"BLUR_COUNT=3" });
+    gEpfCS->SetEntryPoint(L"main");
+    gEpfCS->SetTarget(L"cs_6_6");
+    gEpfCS->Finalize();
 
-    gVelocityStaticMS.SetFileName(L"shader\\velocity_ms.hlsl");
-    gVelocityStaticMS.SetDefines({});
-    gVelocityStaticMS.SetEntryPoint(L"main");
-    gVelocityStaticMS.SetTarget(L"ms_6_6");
-    gVelocityStaticMS.Finalize();
+    gVelocityStaticMS = make_unique<Shader>();
+    gVelocityStaticMS->SetFileName(L"shader\\velocity_ms.hlsl");
+    gVelocityStaticMS->SetDefines({});
+    gVelocityStaticMS->SetEntryPoint(L"main");
+    gVelocityStaticMS->SetTarget(L"ms_6_6");
+    gVelocityStaticMS->Finalize();
 
-    gVelocitySkinnedMS.SetFileName(L"shader\\velocity_ms.hlsl");
-    gVelocitySkinnedMS.SetDefines({L"SKINNED"});
-    gVelocitySkinnedMS.SetEntryPoint(L"main");
-    gVelocitySkinnedMS.SetTarget(L"ms_6_6");
-    gVelocitySkinnedMS.Finalize();
+    gVelocitySkinnedMS = make_unique<Shader>();
+    gVelocitySkinnedMS->SetFileName(L"shader\\velocity_ms.hlsl");
+    gVelocitySkinnedMS->SetDefines({L"SKINNED"});
+    gVelocitySkinnedMS->SetEntryPoint(L"main");
+    gVelocitySkinnedMS->SetTarget(L"ms_6_6");
+    gVelocitySkinnedMS->Finalize();
 
-    gVelocityPS.SetFileName(L"shader\\velocity_ps.hlsl");
-    gVelocityPS.SetDefines({});
-    gVelocityPS.SetEntryPoint(L"main");
-    gVelocityPS.SetTarget(L"ps_6_6");
-    gVelocityPS.Finalize();
+    gVelocityPS = make_unique<Shader>();
+    gVelocityPS->SetFileName(L"shader\\velocity_ps.hlsl");
+    gVelocityPS->SetDefines({});
+    gVelocityPS->SetEntryPoint(L"main");
+    gVelocityPS->SetTarget(L"ps_6_6");
+    gVelocityPS->Finalize();
 
-    gTaaCS.SetFileName(L"shader\\taa_cs.hlsl");
-    gTaaCS.SetDefines({});
-    gTaaCS.SetEntryPoint(L"main");
-    gTaaCS.SetTarget(L"cs_6_6");
-    gTaaCS.Finalize();
+    gTaaCS = make_unique<Shader>();
+    gTaaCS->SetFileName(L"shader\\taa_cs.hlsl");
+    gTaaCS->SetDefines({});
+    gTaaCS->SetEntryPoint(L"main");
+    gTaaCS->SetTarget(L"cs_6_6");
+    gTaaCS->Finalize();
     
-    gLDRToneMappingCS.SetFileName(L"shader\\tone_mapping_cs.hlsl");
-    gLDRToneMappingCS.SetDefines({});
-    gLDRToneMappingCS.SetEntryPoint(L"main");
-    gLDRToneMappingCS.SetTarget(L"cs_6_6");
-    gLDRToneMappingCS.Finalize();
+    gLDRToneMappingCS = make_unique<Shader>();
+    gLDRToneMappingCS->SetFileName(L"shader\\tone_mapping_cs.hlsl");
+    gLDRToneMappingCS->SetDefines({});
+    gLDRToneMappingCS->SetEntryPoint(L"main");
+    gLDRToneMappingCS->SetTarget(L"cs_6_6");
+    gLDRToneMappingCS->Finalize();
 }
 
 Carol::vector<LPCWSTR> Carol::Shader::SetArgs()

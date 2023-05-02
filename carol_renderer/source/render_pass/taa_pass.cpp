@@ -1,4 +1,4 @@
-#include <global.h>
+#include <carol.h>
 #include <DirectXColors.h>
 #include <cmath>
 #include <string_view>
@@ -31,22 +31,22 @@ void Carol::TaaPass::InitPSOs()
 	mVelocityStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mVelocityStaticMeshPSO->SetRootSignature(sRootSignature.get());
 	mVelocityStaticMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, mVelocityDsvFormat);
-	mVelocityStaticMeshPSO->SetAS(&gCullAS);
-	mVelocityStaticMeshPSO->SetMS(&gVelocityStaticMS);
-	mVelocityStaticMeshPSO->SetPS(&gVelocityPS);
+	mVelocityStaticMeshPSO->SetAS(gCullAS.get());
+	mVelocityStaticMeshPSO->SetMS(gVelocityStaticMS.get());
+	mVelocityStaticMeshPSO->SetPS(gVelocityPS.get());
 	mVelocityStaticMeshPSO->Finalize();
 
 	mVelocitySkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mVelocitySkinnedMeshPSO->SetRootSignature(sRootSignature.get());
 	mVelocitySkinnedMeshPSO->SetRenderTargetFormat(mVelocityMapFormat, mVelocityDsvFormat);
-	mVelocitySkinnedMeshPSO->SetAS(&gCullAS);
-	mVelocitySkinnedMeshPSO->SetMS(&gVelocitySkinnedMS);
-	mVelocitySkinnedMeshPSO->SetPS(&gVelocityPS);
+	mVelocitySkinnedMeshPSO->SetAS(gCullAS.get());
+	mVelocitySkinnedMeshPSO->SetMS(gVelocitySkinnedMS.get());
+	mVelocitySkinnedMeshPSO->SetPS(gVelocityPS.get());
 	mVelocitySkinnedMeshPSO->Finalize();
 
 	mTaaComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mTaaComputePSO->SetRootSignature(sRootSignature.get());
-	mTaaComputePSO->SetCS(&gTaaCS);
+	mTaaComputePSO->SetCS(gTaaCS.get());
 	mTaaComputePSO->Finalize();
 }
 

@@ -1,4 +1,4 @@
-#include <global.h>
+#include <carol.h>
 #include <vector>
 
 namespace Carol {

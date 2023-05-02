@@ -1,4 +1,4 @@
-#include <global.h>
+#include <carol.h>
 #include <DirectXColors.h>
 #include <string_view>
 #include <span>
@@ -100,91 +100,91 @@ void Carol::FramePass::InitPSOs()
 	mBlinnPhongStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mBlinnPhongStaticMeshPSO->SetRootSignature(sRootSignature.get());
 	mBlinnPhongStaticMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
-	mBlinnPhongStaticMeshPSO->SetAS(&gCullAS);
-	mBlinnPhongStaticMeshPSO->SetMS(&gMeshStaticMS);
-	mBlinnPhongStaticMeshPSO->SetPS(&gBlinnPhongPS);
+	mBlinnPhongStaticMeshPSO->SetAS(gCullAS.get());
+	mBlinnPhongStaticMeshPSO->SetMS(gMeshStaticMS.get());
+	mBlinnPhongStaticMeshPSO->SetPS(gBlinnPhongPS.get());
 	mBlinnPhongStaticMeshPSO->Finalize();
 
 	mBlinnPhongSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mBlinnPhongSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
 	mBlinnPhongSkinnedMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
-	mBlinnPhongSkinnedMeshPSO->SetAS(&gCullAS);
-	mBlinnPhongSkinnedMeshPSO->SetMS(&gMeshSkinnedMS);
-	mBlinnPhongSkinnedMeshPSO->SetPS(&gBlinnPhongPS);
+	mBlinnPhongSkinnedMeshPSO->SetAS(gCullAS.get());
+	mBlinnPhongSkinnedMeshPSO->SetMS(gMeshSkinnedMS.get());
+	mBlinnPhongSkinnedMeshPSO->SetPS(gBlinnPhongPS.get());
 	mBlinnPhongSkinnedMeshPSO->Finalize();
 
 	mPBRStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mPBRStaticMeshPSO->SetRootSignature(sRootSignature.get());
 	mPBRStaticMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
-	mPBRStaticMeshPSO->SetAS(&gCullAS);
-	mPBRStaticMeshPSO->SetMS(&gMeshStaticMS);
-	mPBRStaticMeshPSO->SetPS(&gPBRPS);
+	mPBRStaticMeshPSO->SetAS(gCullAS.get());
+	mPBRStaticMeshPSO->SetMS(gMeshStaticMS.get());
+	mPBRStaticMeshPSO->SetPS(gPBRPS.get());
 	mPBRStaticMeshPSO->Finalize();
 
 	mPBRSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mPBRSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
 	mPBRSkinnedMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
-	mPBRSkinnedMeshPSO->SetAS(&gCullAS);
-	mPBRSkinnedMeshPSO->SetMS(&gMeshSkinnedMS);
-	mPBRSkinnedMeshPSO->SetPS(&gPBRPS);
+	mPBRSkinnedMeshPSO->SetAS(gCullAS.get());
+	mPBRSkinnedMeshPSO->SetMS(gMeshSkinnedMS.get());
+	mPBRSkinnedMeshPSO->SetPS(gPBRPS.get());
 	mPBRSkinnedMeshPSO->Finalize();
 
 	mBlinnPhongStaticOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mBlinnPhongStaticOitppllMeshPSO->SetRootSignature(sRootSignature.get());
-	mBlinnPhongStaticOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
-	mBlinnPhongStaticOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+	mBlinnPhongStaticOitppllMeshPSO->SetRasterizerState(gCullDisabledState.get());
+	mBlinnPhongStaticOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState.get());
 	mBlinnPhongStaticOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-	mBlinnPhongStaticOitppllMeshPSO->SetAS(&gCullAS);
-	mBlinnPhongStaticOitppllMeshPSO->SetMS(&gMeshStaticMS);
-	mBlinnPhongStaticOitppllMeshPSO->SetPS(&gBlinnPhongOitppllPS);
+	mBlinnPhongStaticOitppllMeshPSO->SetAS(gCullAS.get());
+	mBlinnPhongStaticOitppllMeshPSO->SetMS(gMeshStaticMS.get());
+	mBlinnPhongStaticOitppllMeshPSO->SetPS(gBlinnPhongOitppllPS.get());
 	mBlinnPhongStaticOitppllMeshPSO->Finalize();
 
 	mBlinnPhongSkinnedOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mBlinnPhongSkinnedOitppllMeshPSO->SetRootSignature(sRootSignature.get());
-	mBlinnPhongSkinnedOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
-	mBlinnPhongSkinnedOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+	mBlinnPhongSkinnedOitppllMeshPSO->SetRasterizerState(gCullDisabledState.get());
+	mBlinnPhongSkinnedOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState.get());
 	mBlinnPhongSkinnedOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-	mBlinnPhongSkinnedOitppllMeshPSO->SetAS(&gCullAS);
-	mBlinnPhongSkinnedOitppllMeshPSO->SetMS(&gMeshSkinnedMS);
-	mBlinnPhongSkinnedOitppllMeshPSO->SetPS(&gBlinnPhongOitppllPS);
+	mBlinnPhongSkinnedOitppllMeshPSO->SetAS(gCullAS.get());
+	mBlinnPhongSkinnedOitppllMeshPSO->SetMS(gMeshSkinnedMS.get());
+	mBlinnPhongSkinnedOitppllMeshPSO->SetPS(gBlinnPhongOitppllPS.get());
 	mBlinnPhongSkinnedOitppllMeshPSO->Finalize();
 
 	mPBRStaticOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mPBRStaticOitppllMeshPSO->SetRootSignature(sRootSignature.get());
-	mPBRStaticOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
-	mPBRStaticOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+	mPBRStaticOitppllMeshPSO->SetRasterizerState(gCullDisabledState.get());
+	mPBRStaticOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState.get());
 	mPBRStaticOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-	mPBRStaticOitppllMeshPSO->SetAS(&gCullAS);
-	mPBRStaticOitppllMeshPSO->SetMS(&gMeshStaticMS);
-	mPBRStaticOitppllMeshPSO->SetPS(&gPBROitppllPS);
+	mPBRStaticOitppllMeshPSO->SetAS(gCullAS.get());
+	mPBRStaticOitppllMeshPSO->SetMS(gMeshStaticMS.get());
+	mPBRStaticOitppllMeshPSO->SetPS(gPBROitppllPS.get());
 	mPBRStaticOitppllMeshPSO->Finalize();
 
 	mPBRSkinnedOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mPBRSkinnedOitppllMeshPSO->SetRootSignature(sRootSignature.get());
-	mPBRSkinnedOitppllMeshPSO->SetRasterizerState(gCullDisabledState);
-	mPBRSkinnedOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+	mPBRSkinnedOitppllMeshPSO->SetRasterizerState(gCullDisabledState.get());
+	mPBRSkinnedOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState.get());
 	mPBRSkinnedOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-	mPBRSkinnedOitppllMeshPSO->SetAS(&gCullAS);
-	mPBRSkinnedOitppllMeshPSO->SetMS(&gMeshSkinnedMS);
-	mPBRSkinnedOitppllMeshPSO->SetPS(&gPBROitppllPS);
+	mPBRSkinnedOitppllMeshPSO->SetAS(gCullAS.get());
+	mPBRSkinnedOitppllMeshPSO->SetMS(gMeshSkinnedMS.get());
+	mPBRSkinnedOitppllMeshPSO->SetPS(gPBROitppllPS.get());
 	mPBRSkinnedOitppllMeshPSO->Finalize();
 
 	mDrawOitppllMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mDrawOitppllMeshPSO->SetRootSignature(sRootSignature.get());
-	mDrawOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState);
+	mDrawOitppllMeshPSO->SetDepthStencilState(gDepthDisabledState.get());
 	mDrawOitppllMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-	mDrawOitppllMeshPSO->SetBlendState(gAlphaBlendState);
+	mDrawOitppllMeshPSO->SetBlendState(gAlphaBlendState.get());
 	mDrawOitppllMeshPSO->SetRenderTargetFormat(mFrameFormat);
-	mDrawOitppllMeshPSO->SetMS(&gScreenMS);
-	mDrawOitppllMeshPSO->SetPS(&gDrawOitppllPS);
+	mDrawOitppllMeshPSO->SetMS(gScreenMS.get());
+	mDrawOitppllMeshPSO->SetPS(gDrawOitppllPS.get());
 	mDrawOitppllMeshPSO->Finalize();
 	
 	mSkyBoxMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mSkyBoxMeshPSO->SetRootSignature(sRootSignature.get());
-	mSkyBoxMeshPSO->SetDepthStencilState(gDepthLessEqualState);
+	mSkyBoxMeshPSO->SetDepthStencilState(gDepthLessEqualState.get());
 	mSkyBoxMeshPSO->SetRenderTargetFormat(mFrameFormat, GetDsvFormat(mDepthStencilFormat));
-	mSkyBoxMeshPSO->SetMS(&gSkyBoxMS);
-	mSkyBoxMeshPSO->SetPS(&gSkyBoxPS);
+	mSkyBoxMeshPSO->SetMS(gSkyBoxMS.get());
+	mSkyBoxMeshPSO->SetPS(gSkyBoxPS.get());
 	mSkyBoxMeshPSO->Finalize();
 }
 

@@ -3,11 +3,8 @@
 
 #include "win32/resource.h"
 #include "win32/framework.h"
+#include <carol.h>
 #include <renderer.h>
-#include <dx12.h>
-#include <render_pass.h>
-#include <scene.h>
-#include <utils.h>
 #include <windowsx.h>
 #include <ShlObj.h>
 #include <DirectXMath.h>

@@ -1,4 +1,4 @@
-#include <global.h>
+#include <carol.h>
 
 namespace Carol
 {
@@ -30,19 +30,19 @@ void Carol::MeshPSO::SetRootSignature(const RootSignature* rootSignature)
 	mPSODesc.pRootSignature = rootSignature->Get();
 }
 
-void Carol::MeshPSO::SetRasterizerState(const D3D12_RASTERIZER_DESC& desc)
+void Carol::MeshPSO::SetRasterizerState(const D3D12_RASTERIZER_DESC* desc)
 {
-	mPSODesc.RasterizerState = desc;
+	mPSODesc.RasterizerState = *desc;
 }
 
-void Carol::MeshPSO::SetDepthStencilState(const D3D12_DEPTH_STENCIL_DESC& desc)
+void Carol::MeshPSO::SetDepthStencilState(const D3D12_DEPTH_STENCIL_DESC* desc)
 {
-	mPSODesc.DepthStencilState = desc;
+	mPSODesc.DepthStencilState = *desc;
 }
 
-void Carol::MeshPSO::SetBlendState(const D3D12_BLEND_DESC& desc)
+void Carol::MeshPSO::SetBlendState(const D3D12_BLEND_DESC* desc)
 {
-	mPSODesc.BlendState = desc;
+	mPSODesc.BlendState = *desc;
 }
 
 void Carol::MeshPSO::SetDepthBias(uint32_t depthBias, float depthBiasClamp, float slopeScaledDepthBias)

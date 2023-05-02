@@ -1,4 +1,4 @@
-#include <global.h>
+#include <carol.h>
 
 namespace Carol
 {
@@ -97,8 +97,8 @@ void Carol::CullPass::InitPSOs()
 	mOpaqueStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mOpaqueStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mOpaqueStaticCullMeshPSO->SetAS(&gOpaqueCullAS);
-	mOpaqueStaticCullMeshPSO->SetMS(&gDepthStaticCullMS);
+	mOpaqueStaticCullMeshPSO->SetAS(gOpaqueCullAS.get());
+	mOpaqueStaticCullMeshPSO->SetMS(gDepthStaticCullMS.get());
 	mOpaqueStaticCullMeshPSO->Finalize();
 	
 
@@ -106,71 +106,71 @@ void Carol::CullPass::InitPSOs()
 	mOpaqueSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mOpaqueSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mOpaqueSkinnedCullMeshPSO->SetAS(&gOpaqueCullAS);
-	mOpaqueSkinnedCullMeshPSO->SetMS(&gDepthSkinnedCullMS);
+	mOpaqueSkinnedCullMeshPSO->SetAS(gOpaqueCullAS.get());
+	mOpaqueSkinnedCullMeshPSO->SetMS(gDepthSkinnedCullMS.get());
 	mOpaqueSkinnedCullMeshPSO->Finalize();
 
 	mTransparentStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mTransparentStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mTransparentStaticCullMeshPSO->SetAS(&gTransparentCullAS);
-	mTransparentStaticCullMeshPSO->SetMS(&gDepthStaticCullMS);
+	mTransparentStaticCullMeshPSO->SetAS(gTransparentCullAS.get());
+	mTransparentStaticCullMeshPSO->SetMS(gDepthStaticCullMS.get());
 	mTransparentStaticCullMeshPSO->Finalize();
 
 	mTransparentSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mTransparentSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mTransparentSkinnedCullMeshPSO->SetAS(&gTransparentCullAS);
-	mTransparentSkinnedCullMeshPSO->SetMS(&gDepthSkinnedCullMS);
+	mTransparentSkinnedCullMeshPSO->SetAS(gTransparentCullAS.get());
+	mTransparentSkinnedCullMeshPSO->SetMS(gDepthSkinnedCullMS.get());
 	mTransparentSkinnedCullMeshPSO->Finalize();
 
 	mOpaqueHistHiZStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueHistHiZStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mOpaqueHistHiZStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueHistHiZStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mOpaqueHistHiZStaticCullMeshPSO->SetAS(&gOpaqueHistHiZCullAS);
-	mOpaqueHistHiZStaticCullMeshPSO->SetMS(&gDepthStaticCullMS);
+	mOpaqueHistHiZStaticCullMeshPSO->SetAS(gOpaqueHistHiZCullAS.get());
+	mOpaqueHistHiZStaticCullMeshPSO->SetMS(gDepthStaticCullMS.get());
 	mOpaqueHistHiZStaticCullMeshPSO->Finalize();
 
 	mOpaqueHistHiZSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mOpaqueHistHiZSkinnedCullMeshPSO->SetAS(&gOpaqueHistHiZCullAS);
-	mOpaqueHistHiZSkinnedCullMeshPSO->SetMS(&gDepthStaticCullMS);
+	mOpaqueHistHiZSkinnedCullMeshPSO->SetAS(gOpaqueHistHiZCullAS.get());
+	mOpaqueHistHiZSkinnedCullMeshPSO->SetMS(gDepthStaticCullMS.get());
 	mOpaqueHistHiZSkinnedCullMeshPSO->Finalize();
 
 	mTransparentHistHiZStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentHistHiZStaticCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mTransparentHistHiZStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentHistHiZStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mTransparentHistHiZStaticCullMeshPSO->SetAS(&gTransparentHistHiZCullAS);
-	mTransparentHistHiZStaticCullMeshPSO->SetMS(&gDepthStaticCullMS);
+	mTransparentHistHiZStaticCullMeshPSO->SetAS(gTransparentHistHiZCullAS.get());
+	mTransparentHistHiZStaticCullMeshPSO->SetMS(gDepthStaticCullMS.get());
 	mTransparentHistHiZStaticCullMeshPSO->Finalize();
 	
 	mTransparentHistHiZSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentHistHiZSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
 	mTransparentHistHiZSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentHistHiZSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mTransparentHistHiZSkinnedCullMeshPSO->SetAS(&gTransparentHistHiZCullAS);
-	mTransparentHistHiZSkinnedCullMeshPSO->SetMS(&gDepthSkinnedCullMS);
+	mTransparentHistHiZSkinnedCullMeshPSO->SetAS(gTransparentHistHiZCullAS.get());
+	mTransparentHistHiZSkinnedCullMeshPSO->SetMS(gDepthSkinnedCullMS.get());
 	mTransparentHistHiZSkinnedCullMeshPSO->Finalize();
 
 	mCullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mCullInstanceComputePSO->SetRootSignature(sRootSignature.get());
-	mCullInstanceComputePSO->SetCS(&gCullCS);
+	mCullInstanceComputePSO->SetCS(gCullCS.get());
 	mCullInstanceComputePSO->Finalize();
 
 	mHistHiZCullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mHistHiZCullInstanceComputePSO->SetRootSignature(sRootSignature.get());
-	mHistHiZCullInstanceComputePSO->SetCS(&gHistHiZCullCS);
+	mHistHiZCullInstanceComputePSO->SetCS(gHistHiZCullCS.get());
 	mHistHiZCullInstanceComputePSO->Finalize();
 
 	mHiZGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mHiZGenerateComputePSO->SetRootSignature(sRootSignature.get());
-	mHiZGenerateComputePSO->SetCS(&gHiZGenerateCS);
+	mHiZGenerateComputePSO->SetCS(gHiZGenerateCS.get());
 	mHiZGenerateComputePSO->Finalize();
 }
 

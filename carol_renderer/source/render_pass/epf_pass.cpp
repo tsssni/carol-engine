@@ -1,4 +1,4 @@
-#include <global.h>
+#include <carol.h>
 
 namespace Carol
 {
@@ -32,7 +32,7 @@ void Carol::EpfPass::InitPSOs()
 {
 	mEpfComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mEpfComputePSO->SetRootSignature(sRootSignature.get());
-	mEpfComputePSO->SetCS(&gEpfCS);
+	mEpfComputePSO->SetCS(gEpfCS.get());
 	mEpfComputePSO->Finalize();
 }
 

@@ -26,9 +26,9 @@ namespace Carol
 		MeshPSO(PSOInitState init = PSO_EMPTY);
 
 		void SetRootSignature(const RootSignature* rootSignature);
-		void SetRasterizerState(const D3D12_RASTERIZER_DESC& desc);
-		void SetDepthStencilState(const D3D12_DEPTH_STENCIL_DESC& desc);
-		void SetBlendState(const D3D12_BLEND_DESC& desc);
+		void SetRasterizerState(const D3D12_RASTERIZER_DESC* desc);
+		void SetDepthStencilState(const D3D12_DEPTH_STENCIL_DESC* desc);
+		void SetBlendState(const D3D12_BLEND_DESC* desc);
 		void SetDepthBias(uint32_t depthBias, float depthBiasClamp, float slopeScaledDepthBias);
 		void SetSampleMask(uint32_t mask);
 		void SetNodeMask(uint32_t mask);

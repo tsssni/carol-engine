@@ -21,7 +21,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\global.h" />
+    <ClInclude Include="include\carol.h" />
     <ClInclude Include="include\render_pass\cull_pass.h" />
     <ClInclude Include="include\dx12\command.h" />
     <ClInclude Include="include\dx12\descriptor.h" />
@@ -33,7 +33,6 @@
     <ClInclude Include="include\dx12\sampler.h" />
     <ClInclude Include="include\dx12\shader.h" />
     <ClInclude Include="include\renderer.h" />
-    <ClInclude Include="include\render_pass.h" />
     <ClInclude Include="include\render_pass\display_pass.h" />
     <ClInclude Include="include\render_pass\epf_pass.h" />
     <ClInclude Include="include\render_pass\frame_pass.h" />
@@ -43,7 +42,6 @@
     <ClInclude Include="include\render_pass\ssao_pass.h" />
     <ClInclude Include="include\render_pass\taa_pass.h" />
     <ClInclude Include="include\render_pass\tone_mapping_pass.h" />
-    <ClInclude Include="include\scene.h" />
     <ClInclude Include="include\scene\assimp.h" />
     <ClInclude Include="include\scene\camera.h" />
     <ClInclude Include="include\scene\light.h" />
@@ -54,19 +52,17 @@
     <ClInclude Include="include\scene\skinned_data.h" />
     <ClInclude Include="include\scene\texture.h" />
     <ClInclude Include="include\scene\timer.h" />
-    <ClInclude Include="include\utils.h" />
     <ClInclude Include="include\utils\bitset.h" />
     <ClInclude Include="include\utils\buddy.h" />
     <ClInclude Include="include\utils\common.h" />
     <ClInclude Include="include\utils\d3dx12.h" />
-    <ClInclude Include="include\dx12.h" />
     <ClInclude Include="win32\framework.h" />
     <ClInclude Include="win32\resource.h" />
     <ClInclude Include="win32\targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\render_pass\epf_pass.cpp" />
-    <ClCompile Include="source\global.cpp" />
+    <ClCompile Include="source\carol.cpp" />
     <ClCompile Include="source\render_pass\cull_pass.cpp" />
     <ClCompile Include="source\dx12\command.cpp" />
     <ClCompile Include="source\render_pass\render_pass.cpp" />

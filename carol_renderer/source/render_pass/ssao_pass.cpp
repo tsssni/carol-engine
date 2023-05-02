@@ -1,4 +1,4 @@
-#include <global.h>
+#include <carol.h>
 #include <DirectXColors.h>
 #include <DirectXPackedVector.h>
 #include <string_view>
@@ -181,7 +181,7 @@ void Carol::SsaoPass::InitPSOs()
 {
 	mSsaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mSsaoComputePSO->SetRootSignature(sRootSignature.get());
-	mSsaoComputePSO->SetCS(&gSsaoCS);
+	mSsaoComputePSO->SetCS(gSsaoCS.get());
 	mSsaoComputePSO->Finalize();
 }
 

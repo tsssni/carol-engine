@@ -1,5 +1,5 @@
 #include <renderer.h>
-#include <global.h>
+#include <carol.h>
 #include <DirectXColors.h>
 
 namespace Carol {
@@ -115,27 +115,27 @@ void Carol::Renderer::InitGraphicsCommandList()
 
 void Carol::Renderer::InitPipelineStates()
 {
-	gCullDisabledState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	gCullDisabledState.CullMode = D3D12_CULL_MODE_NONE;
+	gCullDisabledState = make_unique<D3D12_RASTERIZER_DESC>(CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT));
+	gCullDisabledState->CullMode = D3D12_CULL_MODE_NONE;
 
-	gDepthDisabledState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	gDepthDisabledState.DepthEnable = false;
-	gDepthDisabledState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	gDepthDisabledState = make_unique<D3D12_DEPTH_STENCIL_DESC>(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
+	gDepthDisabledState->DepthEnable = false;
+	gDepthDisabledState->DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 
-	gDepthLessEqualState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
-	gDepthLessEqualState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	gDepthLessEqualState = make_unique<D3D12_DEPTH_STENCIL_DESC>(CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT));
+	gDepthLessEqualState->DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
-	gAlphaBlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	gAlphaBlendState.RenderTarget[0].BlendEnable = true;
-	gAlphaBlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	gAlphaBlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	gAlphaBlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	gAlphaBlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	gAlphaBlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ZERO;
-	gAlphaBlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
-	gAlphaBlendState.RenderTarget[0].LogicOpEnable = false;
-	gAlphaBlendState.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
-	gAlphaBlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	gAlphaBlendState = make_unique<D3D12_BLEND_DESC>(CD3DX12_BLEND_DESC(D3D12_DEFAULT));
+	gAlphaBlendState->RenderTarget[0].BlendEnable = true;
+	gAlphaBlendState->RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	gAlphaBlendState->RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	gAlphaBlendState->RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	gAlphaBlendState->RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	gAlphaBlendState->RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ZERO;
+	gAlphaBlendState->RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+	gAlphaBlendState->RenderTarget[0].LogicOpEnable = false;
+	gAlphaBlendState->RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
+	gAlphaBlendState->RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 }
 
 void Carol::Renderer::InitHeapManager()

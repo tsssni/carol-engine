@@ -1,4 +1,4 @@
-#include <global.h>
+#include <carol.h>
 #include <DirectXColors.h>
 #include <string_view>
 
@@ -61,17 +61,17 @@ void Carol::NormalPass::InitPSOs()
 	mNormalsStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mNormalsStaticMeshPSO->SetRootSignature(sRootSignature.get());
 	mNormalsStaticMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mFrameDsvFormat);
-	mNormalsStaticMeshPSO->SetAS(&gCullAS);
-	mNormalsStaticMeshPSO->SetMS(&gNormalsStaticMS);
-	mNormalsStaticMeshPSO->SetPS(&gNormalsPS);
+	mNormalsStaticMeshPSO->SetAS(gCullAS.get());
+	mNormalsStaticMeshPSO->SetMS(gNormalsStaticMS.get());
+	mNormalsStaticMeshPSO->SetPS(gNormalsPS.get());
 	mNormalsStaticMeshPSO->Finalize();
 
 	mNormalsSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mNormalsSkinnedMeshPSO->SetRootSignature(sRootSignature.get());
 	mNormalsSkinnedMeshPSO->SetRenderTargetFormat(mNormalMapFormat, mFrameDsvFormat);
-	mNormalsSkinnedMeshPSO->SetAS(&gCullAS);
-	mNormalsSkinnedMeshPSO->SetMS(&gNormalsSkinnedMS);
-	mNormalsSkinnedMeshPSO->SetPS(&gNormalsPS);
+	mNormalsSkinnedMeshPSO->SetAS(gCullAS.get());
+	mNormalsSkinnedMeshPSO->SetMS(gNormalsSkinnedMS.get());
+	mNormalsSkinnedMeshPSO->SetPS(gNormalsPS.get());
 	mNormalsSkinnedMeshPSO->Finalize();
 }
 

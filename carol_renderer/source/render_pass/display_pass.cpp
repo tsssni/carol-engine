@@ -1,4 +1,4 @@
-#include <global.h>
+#include <carol.h>
 #include <stdlib.h>
 #include <vector>
 #include <string_view>
@@ -110,8 +110,8 @@ void Carol::DisplayPass::InitPSOs()
 	mDisplayMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mDisplayMeshPSO->SetRootSignature(sRootSignature.get());
 	mDisplayMeshPSO->SetRenderTargetFormat(mBackBufferFormat);
-	mDisplayMeshPSO->SetMS(&gScreenMS);
-	mDisplayMeshPSO->SetPS(&gDisplayPS);
+	mDisplayMeshPSO->SetMS(gScreenMS.get());
+	mDisplayMeshPSO->SetPS(gDisplayPS.get());
 	mDisplayMeshPSO->Finalize();
 }
 

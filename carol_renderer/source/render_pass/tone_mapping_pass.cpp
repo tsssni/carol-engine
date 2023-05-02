@@ -1,4 +1,4 @@
-#include <global.h>
+#include <carol.h>
 #include <string_view>
 #include <vector>
 
@@ -33,7 +33,7 @@ void Carol::ToneMappingPass::InitPSOs()
 {
 	mLDRToneMappingComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mLDRToneMappingComputePSO->SetRootSignature(sRootSignature.get());
-	mLDRToneMappingComputePSO->SetCS(&gLDRToneMappingCS);
+	mLDRToneMappingComputePSO->SetCS(gLDRToneMappingCS.get());
 	mLDRToneMappingComputePSO->Finalize();
 }
 
