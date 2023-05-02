@@ -6,7 +6,8 @@
 struct MeshOut
 {
     float4 PosH : SV_POSITION;
-    float3 PosW : POSITION;
+    float4 PosHist : POSITION0;
+    float3 PosW : POSITION1;
     float3 NormalW : NORMAL;
     float3 TangentW : TANGENT;
     float2 TexC : TEXCOORD; 
@@ -36,6 +37,7 @@ void main(
     {
         StructuredBuffer<MeshIn> vertices = ResourceDescriptorHeap[gVertexBufferIdx];
         MeshIn min = vertices[meshlet.Vertices[gtid]];
+        float3 posL = min.PosL;
             
 #ifdef SKINNED
         min = SkinnedTransform(min);
@@ -53,7 +55,14 @@ void main(
 #else
         mout.PosH = mul(float4(mout.PosW, 1.0f), gViewProj);
 #endif
+        
+#ifdef SKINNED
+        min.PosL = HistSkinnedTransformPosL(posL, min);
+#endif
 
+        float3 posWHist = mul(float4(min.PosL, 1.f), gHistWorld).xyz;
+        mout.PosHist = mul(float4(posWHist, 1.f), gHistViewProj);
+        
         verts[gtid] = mout;
     }
 }

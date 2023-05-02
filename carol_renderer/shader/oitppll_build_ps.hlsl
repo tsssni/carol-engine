@@ -2,33 +2,36 @@
 #include "include/mesh.hlsli"
 #include "include/texture.hlsli"
 #include "include/oitppll.hlsli"
-#include "include/shadow.hlsli"
 
 struct PixelIn
 {
     float4 PosH : SV_POSITION;
-    float3 PosW : POSITION;
+    float4 PosHist : POSITION0;
+    float3 PosW : POSITION1;
     float3 NormalW : NORMAL;
     float3 TangentW : TANGENT;
-    float2 TexC : TEXCOORD;
+    float2 TexC : TEXCOORD; 
 };
 
 void main(PixelIn pin)
 {
-    RWStructuredBuffer<OitNode> oitNodeBuffer = ResourceDescriptorHeap[gRWOitBufferIdx];
-    RWByteAddressBuffer startOffsetBuffer = ResourceDescriptorHeap[gRWOitOffsetBufferIdx];
-    RWByteAddressBuffer counter = ResourceDescriptorHeap[gOitCounterBufferIdx];
+    RWStructuredBuffer<OitNode> oitNodeBuffer = ResourceDescriptorHeap[gRWOitppllBufferIdx];
+    RWByteAddressBuffer startOffsetBuffer = ResourceDescriptorHeap[gRWOitppllStartOffsetBufferIdx];
+    RWByteAddressBuffer counter = ResourceDescriptorHeap[gRWOitppllCounterBufferIdx];
     
     Texture2D diffuseTex = ResourceDescriptorHeap[gDiffuseTextureIdx];
     Texture2D normalTex = ResourceDescriptorHeap[gNormalTextureIdx];
+    Texture2D emissiveTex = ResourceDescriptorHeap[gEmissiveTextureIdx];
     Texture2D metallicRoughnessTex = ResourceDescriptorHeap[gMetallicRoughnessTextureIdx];
 #ifdef SSAO
     Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapIdx];
 #endif
     
     // Interpolation may unnormalize the normal, so renormalize it
+    float2 uv = pin.PosH.xy * gInvRenderTargetSize;
     float4 diffuse = diffuseTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z));
     float3 normal = NormalToWorldSpace(normalTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).rgb, normalize(pin.NormalW), pin.TangentW).rgb;
+    float3 emissive = emissiveTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).rgb;
     float2 metallicRoughness = metallicRoughnessTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).bg;
        
     Material lightMat;
@@ -38,17 +41,15 @@ void main(PixelIn pin)
 
     float3 ambientColor = gAmbientColor * diffuse.rgb;
 #ifdef SSAO
-    float2 ssaoPos = pin.PosH.xy * gInvRenderTargetSize;
-    float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, ssaoPos, 0.0f).r;
+    float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, uv, 0.0f).r;
     ambientColor *= ambientAccess;
 #endif
 
-    float3 litColor = float3(0.f, 0.f, 0.f);
     float3 toEye = normalize(gEyePosW - pin.PosW);
+    float3 emissiveColor = emissive * dot(toEye, normal);
+    float3 litColor = float3(0.f, 0.f, 0.f);
 
-    uint mainLightIdx;
-    float shadowFactor = GetCSMShadowFactor(pin.PosW, pin.PosH, mainLightIdx);
-    litColor += shadowFactor * ComputeDirectionalLight(gMainLights[mainLightIdx], lightMat, normal, toEye);
+    litColor += ComputeDirectionalLight(gMainLights[0], lightMat, normal, toEye);
 
     for (int pointLightIdx = 0; pointLightIdx < gNumPointLights; ++pointLightIdx)
     {
@@ -61,7 +62,7 @@ void main(PixelIn pin)
     }
 
     OitNode link;
-    link.ColorU = float4(ambientColor + litColor, diffuse.a);
+    link.ColorU = float4(ambientColor + emissiveColor + litColor, diffuse.a);
     link.DepthU = pin.PosH.z * 0xffffffff;
 
     uint pixelCount;

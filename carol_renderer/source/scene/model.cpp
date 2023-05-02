@@ -258,6 +258,6 @@ void Carol::Model::LoadSkyBox()
 		indices,
 		false,
 		false);
-	mMeshes[L"SkyBox"]->SetDiffuseMapIdx(gTextureManager->LoadTexture(L"texture\\snowcube1024.dds", false));
+	mMeshes[L"SkyBox"]->SetDiffuseTextureIdx(gTextureManager->LoadTexture(L"texture\\snowcube1024.dds", false));
 	mTexturePath.push_back(L"texture\\snowcube1024.dds");
 }

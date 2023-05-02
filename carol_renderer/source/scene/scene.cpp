@@ -82,6 +82,11 @@ Carol::vector<Carol::wstring_view> Carol::Scene::GetModelNames()const
 	return models;
 }
 
+bool Carol::Scene::IsAnyOpaqueMeshes() const
+{
+	return mMeshes[OPAQUE_STATIC].size() + mMeshes[OPAQUE_SKINNED].size();
+}
+
 bool Carol::Scene::IsAnyTransparentMeshes()const
 {
 	return mMeshes[TRANSPARENT_STATIC].size() + mMeshes[TRANSPARENT_SKINNED].size();

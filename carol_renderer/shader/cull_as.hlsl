@@ -77,6 +77,11 @@ void main(uint dtid : SV_DispatchThreadID)
 #endif
     
 #if (defined WRITE) && (defined TRANSPARENT)
+    if(visible)
+    {
+        ResetMark(dtid, gMeshletCulledMarkBufferIdx);
+    }
+
     DispatchMesh(0, 0, 0, sharedPayload);
 #else
     if (visible)

@@ -37,13 +37,10 @@ namespace Carol
 		ColorBuffer* GetFrameMap()const;
 		ColorBuffer* GetDepthStencilMap()const;
 		uint32_t GetFrameMapUavIdx()const;
+		uint32_t GetHistMapUavIdx()const;
 		uint32_t GetDepthStencilSrvIdx()const;
 
-		DXGI_FORMAT GetFrameFormat()const;
-		DXGI_FORMAT GetDepthStencilFormat()const;
-
 		virtual void Draw()override;
-
 		void Present();
 	private:
 		virtual void InitPSOs()override;
@@ -55,6 +52,7 @@ namespace Carol
 
 		std::vector<std::unique_ptr<Resource>> mBackBuffer;
 		std::unique_ptr<ColorBuffer> mFrameMap;
+		std::unique_ptr<ColorBuffer> mHistMap;
 		std::unique_ptr<ColorBuffer> mDepthStencilMap;
 
 		DXGI_FORMAT mBackBufferFormat;

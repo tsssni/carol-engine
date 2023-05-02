@@ -35,8 +35,9 @@
     <ClInclude Include="include\renderer.h" />
     <ClInclude Include="include\render_pass\display_pass.h" />
     <ClInclude Include="include\render_pass\epf_pass.h" />
-    <ClInclude Include="include\render_pass\frame_pass.h" />
-    <ClInclude Include="include\render_pass\normal_pass.h" />
+    <ClInclude Include="include\render_pass\shade_pass.h" />
+    <ClInclude Include="include\render_pass\geometry_pass.h" />
+    <ClInclude Include="include\render_pass\oitppll_pass.h" />
     <ClInclude Include="include\render_pass\render_pass.h" />
     <ClInclude Include="include\render_pass\shadow_pass.h" />
     <ClInclude Include="include\render_pass\ssao_pass.h" />
@@ -61,14 +62,15 @@
     <ClInclude Include="win32\targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\render_pass\oitppll_pass.cpp" />
+    <ClCompile Include="source\render_pass\geometry_pass.cpp" />
     <ClCompile Include="source\render_pass\epf_pass.cpp" />
     <ClCompile Include="source\carol.cpp" />
     <ClCompile Include="source\render_pass\cull_pass.cpp" />
     <ClCompile Include="source\dx12\command.cpp" />
     <ClCompile Include="source\render_pass\render_pass.cpp" />
     <ClCompile Include="source\dx12\pipeline_state.cpp" />
-    <ClCompile Include="source\render_pass\frame_pass.cpp" />
-    <ClCompile Include="source\render_pass\normal_pass.cpp" />
+    <ClCompile Include="source\render_pass\shade_pass.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="source\dx12\descriptor.cpp" />
     <ClCompile Include="source\dx12\heap.cpp" />
@@ -117,9 +119,6 @@
     <None Include="shader\include\material.hlsli" />
     <None Include="shader\include\pbr.hlsli" />
     <None Include="shader\include\texture.hlsli" />
-    <None Include="shader\velocity_ms.hlsl">
-      <FileType>Document</FileType>
-    </None>
     <None Include="win32\Renderer.aps" />
   </ItemGroup>
   <ItemGroup>
@@ -140,13 +139,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <FileType>Document</FileType>
     </None>
-    <None Include="shader\opaque_ps.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <FileType>Document</FileType>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\ssao_cs.hlsl">
@@ -158,13 +150,6 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">4.0</ShaderModel>
-      <FileType>Document</FileType>
-    </None>
-    <None Include="shader\normals_ms.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <FileType>Document</FileType>
     </None>
     <None Include="shader\hiz_generate_cs.hlsl">
@@ -196,13 +181,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <FileType>Document</FileType>
     </None>
-    <None Include="shader\velocity_ps.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <FileType>Document</FileType>
-    </None>
     <None Include="shader\skybox_ps.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -210,7 +188,7 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <FileType>Document</FileType>
     </None>
-    <None Include="shader\oitppll_ps.hlsl">
+    <None Include="shader\oitppll_cs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
@@ -229,11 +207,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <FileType>Document</FileType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="shader\normals_ps.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>
@@ -257,6 +230,20 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
     </FxCompile>
+    <None Include="shader\shade_cs.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shader\geometry_ps.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <FileType>Document</FileType>
+    </None>
     <None Include="shader\epf_cs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">4.0</ShaderModel>

@@ -81,19 +81,24 @@ uint32_t Carol::Mesh::GetMeshletSize()const
 	return mMeshConstants->MeshletCount;
 }
 
-void Carol::Mesh::SetDiffuseMapIdx(uint32_t idx)
+void Carol::Mesh::SetDiffuseTextureIdx(uint32_t idx)
 {
-	mMeshConstants->DiffuseMapIdx = idx;
+	mMeshConstants->DiffuseTextureIdx = idx;
 }
 
-void Carol::Mesh::SetNormalMapIdx(uint32_t idx)
+void Carol::Mesh::SetNormalTextureIdx(uint32_t idx)
 {
-	mMeshConstants->NormalMapIdx = idx;
+	mMeshConstants->NormalTextureIdx = idx;
 }
 
-void Carol::Mesh::SetMetallicRoughnessMapIdx(uint32_t idx)
+void Carol::Mesh::SetEmissiveTextureIdx(uint32_t idx)
 {
-	mMeshConstants->MetallicRoughnessMapIdx = idx;
+	mMeshConstants->EmissiveTextureIdx = idx;
+}
+
+void Carol::Mesh::SetMetallicRoughnessTextureIdx(uint32_t idx)
+{
+	mMeshConstants->MetallicRoughnessTextureIdx = idx;
 }
 
 void Carol::Mesh::Update(XMMATRIX& world)

@@ -31,21 +31,16 @@ namespace Carol
 	std::unique_ptr<Shader> gDepthSkinnedCullMS;
 	std::unique_ptr<Shader> gMeshStaticMS;
 	std::unique_ptr<Shader> gMeshSkinnedMS;
-	std::unique_ptr<Shader> gBlinnPhongPS;
-	std::unique_ptr<Shader> gPBRPS;
+	std::unique_ptr<Shader> gGeometryPS;
+	std::unique_ptr<Shader> gShadeCS;
 	std::unique_ptr<Shader> gSkyBoxMS;
 	std::unique_ptr<Shader> gSkyBoxPS;
-	std::unique_ptr<Shader> gBlinnPhongOitppllPS;
-	std::unique_ptr<Shader> gPBROitppllPS;
-	std::unique_ptr<Shader> gDrawOitppllPS;
-	std::unique_ptr<Shader> gNormalsStaticMS;
-	std::unique_ptr<Shader> gNormalsSkinnedMS;
-	std::unique_ptr<Shader> gNormalsPS;
+	std::unique_ptr<Shader> gOitStaticMS;
+	std::unique_ptr<Shader> gOitSkinnedMS;
+	std::unique_ptr<Shader> gBuildOitppllPS;
+	std::unique_ptr<Shader> gOitppllCS;
 	std::unique_ptr<Shader> gSsaoCS;
 	std::unique_ptr<Shader> gEpfCS;
-	std::unique_ptr<Shader> gVelocityStaticMS;
-	std::unique_ptr<Shader> gVelocitySkinnedMS;
-	std::unique_ptr<Shader> gVelocityPS;
 	std::unique_ptr<Shader> gTaaCS;
 	std::unique_ptr<Shader> gLDRToneMappingCS;
 

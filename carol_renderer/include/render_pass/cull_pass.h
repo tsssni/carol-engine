@@ -44,10 +44,10 @@ namespace Carol
 	{
 	public:
 		CullPass(
-			uint32_t depthBias = 60000,
-            float depthBiasClamp = 0.01f,
-            float slopeScaledDepthBias = 4.f,
-            DXGI_FORMAT depthFormat = DXGI_FORMAT_R32_FLOAT,
+			uint32_t depthBias = 0,
+            float depthBiasClamp = 0.f,
+            float slopeScaledDepthBias = 0.f,
+            DXGI_FORMAT depthFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
         virtual void Draw()override;

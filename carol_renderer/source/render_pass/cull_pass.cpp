@@ -100,7 +100,6 @@ void Carol::CullPass::InitPSOs()
 	mOpaqueStaticCullMeshPSO->SetAS(gOpaqueCullAS.get());
 	mOpaqueStaticCullMeshPSO->SetMS(gDepthStaticCullMS.get());
 	mOpaqueStaticCullMeshPSO->Finalize();
-	
 
 	mOpaqueSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueSkinnedCullMeshPSO->SetRootSignature(sRootSignature.get());
@@ -193,9 +192,9 @@ void Carol::CullPass::CullReset()
 {
 	gScene->ClearCullMark();
 
-	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
+	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
-		MeshType type = MeshType(OPAQUE_MESH_START + i);
+		MeshType type = MeshType(i);
 
 		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_COPY_DEST);
 		mCulledCommandBuffer[type]->ResetCounter();

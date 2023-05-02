@@ -33,6 +33,7 @@ namespace Carol {
 
 		std::vector<std::wstring_view> GetAnimationClips(std::wstring_view modelName)const;
 		std::vector<std::wstring_view> GetModelNames()const;
+		bool IsAnyOpaqueMeshes()const;
 		bool IsAnyTransparentMeshes()const;
 
 		void LoadModel(

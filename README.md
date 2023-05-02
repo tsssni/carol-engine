@@ -9,7 +9,7 @@
 
 ## Rendering Pipeline
 
-![pipeline](images/pipeline.dot.svg)
+![pipeline](images/pipeline.svg)
 
 ## Samples
 
@@ -40,8 +40,8 @@
       - Normal Distribution Function: GGX Normal Distribution Function
       - Geometry Function: Height-Correlated Masking-Shadowing Function
 
-- **Blinn-Phong Shading**
-  - Specular term is augmented by Schlick Fresnel effect and a equation for approximating the normal distribution function (from DX12 dragon book)  
+- **Deferred Shading**
+  - Store diffuse color, emission, roughness, metalness, normal and view depth in G-Buffer
 
 - **Amplification shader and mesh shader**
   - These are features supported by GPU with Turing or more advanced architectures.

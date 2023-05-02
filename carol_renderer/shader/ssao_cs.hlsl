@@ -43,7 +43,7 @@ void main(int2 dtid : SV_DispatchThreadID)
     float2 texC = (dtid + 0.5f) / size;
 
     Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
-    Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
+    Texture2D normalMap = ResourceDescriptorHeap[gNormalDepthMapIdx];
 
     float centerViewDepth = NdcDepthToViewDepth(depthMap.Sample(gsamLinearClamp, texC).r);;
     float3 centerNormal = normalize(normalMap.Sample(gsamLinearClamp, texC).xyz);

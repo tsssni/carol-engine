@@ -25,8 +25,8 @@ cbuffer MeshCB : register(b0)
     
     uint gDiffuseTextureIdx;
     uint gNormalTextureIdx;
+    uint gEmissiveTextureIdx;
     uint gMetallicRoughnessTextureIdx;
-    float MeshPad3;
 };
 
 cbuffer SkinnedCB : register(b1)
@@ -83,6 +83,25 @@ MeshIn SkinnedTransform(MeshIn min)
     min.TangentL = tangentL;
     
     return min;
+}
+
+float3 HistSkinnedTransformPosL(float3 posL, MeshIn min)
+{    
+    float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    weights[0] = min.BoneWeights.x;
+    weights[1] = min.BoneWeights.y;
+    weights[2] = min.BoneWeights.z;
+    weights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+    
+    float3 histPosL = float3(0.0f, 0.0f, 0.0f);
+
+    [unroll]
+    for(int i = 0; i < 4; ++i)
+    {
+        histPosL += weights[i] * mul(float4(posL, 1.0f), gHistBoneTransforms[min.BoneIndices[i]]).xyz;
+    }
+    
+    return histPosL;
 }
 
 #endif

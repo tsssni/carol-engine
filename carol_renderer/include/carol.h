@@ -27,8 +27,9 @@
 #include <render_pass/cull_pass.h>
 #include <render_pass/display_pass.h>
 #include <render_pass/epf_pass.h>
-#include <render_pass/frame_pass.h>
-#include <render_pass/normal_pass.h>
+#include <render_pass/geometry_pass.h>
+#include <render_pass/oitppll_pass.h>
+#include <render_pass/shade_pass.h>
 #include <render_pass/shadow_pass.h>
 #include <render_pass/ssao_pass.h>
 #include <render_pass/taa_pass.h>
@@ -71,21 +72,16 @@ namespace Carol
 	extern std::unique_ptr<Shader> gDepthSkinnedCullMS;
 	extern std::unique_ptr<Shader> gMeshStaticMS;
 	extern std::unique_ptr<Shader> gMeshSkinnedMS;
-	extern std::unique_ptr<Shader> gBlinnPhongPS;
-	extern std::unique_ptr<Shader> gPBRPS;
+	extern std::unique_ptr<Shader> gGeometryPS;
+	extern std::unique_ptr<Shader> gShadeCS;
 	extern std::unique_ptr<Shader> gSkyBoxMS;
 	extern std::unique_ptr<Shader> gSkyBoxPS;
-	extern std::unique_ptr<Shader> gBlinnPhongOitppllPS;
-	extern std::unique_ptr<Shader> gPBROitppllPS;
-	extern std::unique_ptr<Shader> gDrawOitppllPS;
-	extern std::unique_ptr<Shader> gNormalsStaticMS;
-	extern std::unique_ptr<Shader> gNormalsSkinnedMS;
-	extern std::unique_ptr<Shader> gNormalsPS;
+	extern std::unique_ptr<Shader> gOitStaticMS;
+	extern std::unique_ptr<Shader> gOitSkinnedMS;
+	extern std::unique_ptr<Shader> gBuildOitppllPS;
+	extern std::unique_ptr<Shader> gOitppllCS;
 	extern std::unique_ptr<Shader> gSsaoCS;
 	extern std::unique_ptr<Shader> gEpfCS;
-	extern std::unique_ptr<Shader> gVelocityStaticMS;
-	extern std::unique_ptr<Shader> gVelocitySkinnedMS;
-	extern std::unique_ptr<Shader> gVelocityPS;
 	extern std::unique_ptr<Shader> gTaaCS;
 	extern std::unique_ptr<Shader> gLDRToneMappingCS;
 

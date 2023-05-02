@@ -23,9 +23,13 @@ cbuffer FrameCB : register(b3)
     float4x4 gInvProj;
     float4x4 gViewProj;
     float4x4 gInvViewProj;
-
     float4x4 gHistViewProj;
+
+    float4x4 gJitteredProj;
+    float4x4 gInvJitteredProj;
     float4x4 gJitteredViewProj;
+    float4x4 gInvJitteredViewProj;
+    float4x4 gHistJitteredViewProj;
     
     float3 gEyePosW;
     float gFramePad0;
@@ -64,22 +68,24 @@ cbuffer FrameCB : register(b3)
     uint gInstanceOcclusionCulledMarkBufferIdx;
     uint gInstanceCulledMarkBufferIdx;
 
+    uint gRWFrameMapIdx;
+    uint gRWHistMapIdx;
     uint gDepthStencilMapIdx;
-    uint gNormalMapIdx;
+
+    uint gDiffuseRoughnessMapIdx;
+    uint gEmissiveMetallicMapIdx;
+    uint gNormalDepthMapIdx;
+    uint gVelocityMapIdx;
     
-    uint gRWOitBufferIdx;
-    uint gRWOitOffsetBufferIdx;
-    uint gOitCounterBufferIdx;
-    uint gOitBufferIdx;
-    uint gOitOffsetBufferIdx;
+    uint gRWOitppllBufferIdx;
+    uint gRWOitppllStartOffsetBufferIdx;
+    uint gRWOitppllCounterBufferIdx;
+    uint gOitppllBufferIdx;
+    uint gOitppllStartOffsetBufferIdx;
     
     uint gRandVecMapIdx;
     uint gRWAmbientMapIdx;
     uint gAmbientMapIdx;
-
-    uint gVelocityMapIdx;
-    uint gRWHistMapIdx;
-    uint gRWFrameMapIdx;
 
     float2 gFramePad5;
 }

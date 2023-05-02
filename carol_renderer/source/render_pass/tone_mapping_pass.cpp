@@ -19,14 +19,8 @@ void Carol::ToneMappingPass::Draw()
 	uint32_t groupWidth = ceilf(mWidth / 32.f); 
     uint32_t groupHeight = ceilf(mHeight / 32.f);
 
-	mFrameMap->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	gGraphicsCommandList->SetPipelineState(mLDRToneMappingComputePSO->Get());
 	gGraphicsCommandList->Dispatch(groupWidth, groupHeight, 1);
-}
-
-void Carol::ToneMappingPass::SetFrameMap(ColorBuffer* frameMap)
-{
-	mFrameMap = frameMap;
 }
 
 void Carol::ToneMappingPass::InitPSOs()

@@ -37,13 +37,15 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitConstants();
 
 	InitRenderPass();
-	InitDisplay();
-	InitFrame();
-	InitMainLight();
-	InitNormal();
-	InitSsao();
-	InitToneMapping();
-	InitTaa();
+	InitCullPass();
+	InitDisplayPass();
+	InitGeometryPass();
+	InitOitppllPass();
+	InitShadePass();
+	InitMainLightShadowPass();
+	InitSsaoPass();
+	InitToneMappingPass();
+	InitTaaPass();
 
 	OnResize(width, height, true);
 	ReleaseIntermediateBuffers();
@@ -184,17 +186,32 @@ void Carol::Renderer::InitRenderPass()
 	RenderPass::Init();
 }
 
-void Carol::Renderer::InitDisplay()
+void Carol::Renderer::InitCullPass()
+{
+	mCullPass = make_unique<CullPass>();
+}
+
+void Carol::Renderer::InitDisplayPass()
 {
 	mDisplayPass = make_unique<DisplayPass>(mhWnd, 2);
 }
 
-void Carol::Renderer::InitFrame()
+void Carol::Renderer::InitGeometryPass()
 {
-	mFramePass = make_unique<FramePass>();
+	mGeometryPass = make_unique<GeometryPass>();
 }
 
-void Carol::Renderer::InitMainLight()
+void Carol::Renderer::InitOitppllPass()
+{
+	mOitppllPass = make_unique<OitppllPass>();
+}
+
+void Carol::Renderer::InitShadePass()
+{
+	mShadePass = make_unique<ShadePass>();
+}
+
+void Carol::Renderer::InitMainLightShadowPass()
 {
 	Light light = {};
 	light.Strength = { 1.f,1.f,1.f };
@@ -204,22 +221,17 @@ void Carol::Renderer::InitMainLight()
 	mFrameConstants->AmbientColor = { .4f,.4f,.4f };
 }
 
-void Carol::Renderer::InitNormal()
-{
-	mNormalPass = make_unique<NormalPass>();
-}
-
-void Carol::Renderer::InitSsao()
+void Carol::Renderer::InitSsaoPass()
 {
 	mSsaoPass = make_unique<SsaoPass>();
 }
 
-void Carol::Renderer::InitTaa()
+void Carol::Renderer::InitTaaPass()
 {
 	mTaaPass = make_unique<TaaPass>();
 }
 
-void Carol::Renderer::InitToneMapping()
+void Carol::Renderer::InitToneMappingPass()
 {
 	mToneMappingPass = make_unique<ToneMappingPass>();
 }
@@ -266,23 +278,41 @@ void Carol::Renderer::Draw()
 	gGraphicsCommandList->SetComputeRootConstantBufferView(FRAME_CB, mFrameCBAddr);
 
 	mMainLightShadowPass->Draw();
-	mFramePass->Cull();
+	mCullPass->Draw();
 	
-	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
+	for (int i = 0; i < OPAQUE_MESH_TYPE_COUNT; ++i)
 	{
-		MeshType type = (MeshType)i;
-		const StructuredBuffer* indirectCommandBuffer = mFramePass->GetIndirectCommandBuffer(type);
-		mNormalPass->SetIndirectCommandBuffer(type, indirectCommandBuffer);
-		mTaaPass->SetIndirectCommandBuffer(type, indirectCommandBuffer);
+		MeshType type = MeshType(OPAQUE_MESH_START + i);
+		mGeometryPass->SetIndirectCommandBuffer(type, mCullPass->GetIndirectCommandBuffer(type));
 	}
 
-	mNormalPass->Draw();
+	for (int i = 0; i < TRANSPARENT_MESH_TYPE_COUNT; ++i)
+	{
+		MeshType type = MeshType(TRANSPARENT_MESH_START + i);
+		mOitppllPass->SetIndirectCommandBuffer(type, mCullPass->GetIndirectCommandBuffer(type));
+	}
+
+	// Deferred shading for opaque meshes
+
+	if (gScene->IsAnyOpaqueMeshes())
+	{
+		mGeometryPass->Draw();
+	}
+
 	mSsaoPass->Draw();
-	mFramePass->Draw();
+	mShadePass->Draw();
 
 	// Post process
 	mToneMappingPass->Draw();
 	mTaaPass->Draw();
+
+	// Forward shading for transparent meshes
+	if (gScene->IsAnyTransparentMeshes())
+	{
+		mOitppllPass->Draw();
+	}
+
+	// Display to screen
 	mDisplayPass->Draw();
 	
 	ThrowIfFailed(gGraphicsCommandList->Close());
@@ -436,12 +466,13 @@ void Carol::Renderer::Update()
 	mCamera->UpdateViewMatrix();
 
 	XMMATRIX view = mCamera->GetView();
-	XMMATRIX invView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(view)), view);
+	XMMATRIX invView = XMMatrixInverse(nullptr, view);
 	XMMATRIX proj = mCamera->GetProj();
-	XMMATRIX invProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(proj)), proj);
+	XMMATRIX invProj = XMMatrixInverse(nullptr, proj);
 	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-	XMMATRIX invViewProj = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(viewProj)), viewProj);
+	XMMATRIX invViewProj = XMMatrixInverse(nullptr, viewProj);
 		
+	mFrameConstants->HistViewProj = mFrameConstants->ViewProj;
 	XMStoreFloat4x4(&mFrameConstants->View, XMMatrixTranspose(view));
 	XMStoreFloat4x4(&mFrameConstants->InvView, XMMatrixTranspose(invView));
 	XMStoreFloat4x4(&mFrameConstants->Proj, XMMatrixTranspose(proj));
@@ -451,15 +482,18 @@ void Carol::Renderer::Update()
 	
 	XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
 	mTaaPass->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
-	mTaaPass->SetHistViewProj(viewProj);
 
-	XMMATRIX histViewProj = mTaaPass->GetHistViewProj();
 	XMMATRIX jitteredProj = XMLoadFloat4x4(&jitteredProj4x4f);
+	XMMATRIX invJitteredProj= XMMatrixInverse(nullptr, jitteredProj);
 	XMMATRIX jitteredViewProj = XMMatrixMultiply(view, jitteredProj);
+	XMMATRIX invJitteredViewProj = XMMatrixInverse(nullptr, jitteredViewProj);
 
-	XMStoreFloat4x4(&mFrameConstants->HistViewProj, XMMatrixTranspose(histViewProj));
+	mFrameConstants->HistJitteredViewProj = mFrameConstants->JitteredViewProj;
+	XMStoreFloat4x4(&mFrameConstants->JitteredProj, XMMatrixTranspose(jitteredProj));
+	XMStoreFloat4x4(&mFrameConstants->InvJitteredProj, XMMatrixTranspose(invJitteredProj));
 	XMStoreFloat4x4(&mFrameConstants->JitteredViewProj, XMMatrixTranspose(jitteredViewProj));
-	mFramePass->Update(XMLoadFloat4x4(&mFrameConstants->ViewProj), XMLoadFloat4x4(&mFrameConstants->HistViewProj), XMLoadFloat3(&mFrameConstants->EyePosW));
+	XMStoreFloat4x4(&mFrameConstants->InvJitteredViewProj, XMMatrixTranspose(invJitteredViewProj));
+	mCullPass->Update(XMLoadFloat4x4(&mFrameConstants->JitteredViewProj), XMLoadFloat4x4(&mFrameConstants->HistJitteredViewProj), XMLoadFloat3(&mFrameConstants->EyePosW));
 
 	mFrameConstants->EyePosW = mCamera->GetPosition3f();
 	mFrameConstants->RenderTargetSize = { static_cast<float>(mClientWidth), static_cast<float>(mClientHeight) };
@@ -483,10 +517,6 @@ void Carol::Renderer::Update()
 		mFrameConstants->MainLightSplitZ[i] = mMainLightShadowPass->GetSplitZ(i);
 	}
 
-	mFramePass->SetFrameMap(mDisplayPass->GetFrameMap());
-	mToneMappingPass->SetFrameMap(mDisplayPass->GetFrameMap());
-	mTaaPass->SetFrameMap(mDisplayPass->GetFrameMap());
-
 	mFrameConstants->MeshBufferIdx = gScene->GetMeshBufferIdx();
 	mFrameConstants->CommandBufferIdx = gScene->GetCommandBufferIdx();
 	mFrameConstants->RWFrameMapIdx = mDisplayPass->GetFrameMapUavIdx();
@@ -507,24 +537,23 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mTimer->Start();
 	dynamic_cast<PerspectiveCamera*>(mCamera.get())->SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 1000.0f);
 
+	mCullPass->OnResize(width, height);
 	mDisplayPass->OnResize(width, height);
-	mFramePass->OnResize(width, height);
-	mNormalPass->OnResize(width, height);
+	mGeometryPass->OnResize(width, height);
+	mOitppllPass->OnResize(width, height);
+	mShadePass->OnResize(width, height);
 	mSsaoPass->OnResize(width, height);
-
-	mToneMappingPass->OnResize(width, height);
 	mTaaPass->OnResize(width, height);
+	mToneMappingPass->OnResize(width, height);
 
-	mFramePass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
-	mNormalPass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
-	mTaaPass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
+	mCullPass->SetDepthMap(mDisplayPass->GetDepthStencilMap());
+	mGeometryPass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
+	mShadePass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
+	mShadePass->SetFrameMap(mDisplayPass->GetFrameMap());
 
 	mFrameConstants->InstanceFrustumCulledMarkBufferIdx = gScene->GetInstanceFrustumCulledMarkBufferIdx();
 	mFrameConstants->InstanceOcclusionCulledMarkBufferIdx = gScene->GetInstanceOcclusionCulledMarkBufferIdx();
 	mFrameConstants->InstanceCulledMarkBufferIdx = gScene->GetInstanceCulledMarkBufferIdx();
-	
-	mFrameConstants->DepthStencilMapIdx = mDisplayPass->GetDepthStencilSrvIdx();
-	mFrameConstants->NormalMapIdx = mNormalPass->GetNormalSrvIdx();
 
 	// Main light
 	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel(); ++i)
@@ -532,21 +561,28 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 		mFrameConstants->MainLightShadowMapIdx[i] = mMainLightShadowPass->GetShadowSrvIdx(i);
 	}
 
+	// Display
+	mFrameConstants->RWFrameMapIdx = mDisplayPass->GetFrameMapUavIdx();
+	mFrameConstants->RWHistMapIdx = mDisplayPass->GetHistMapUavIdx();
+	mFrameConstants->DepthStencilMapIdx = mDisplayPass->GetDepthStencilSrvIdx();
+
+	// G-Buffer
+	mFrameConstants->DiffuseRougnessMapIdx = mGeometryPass->GetDiffuseRoughnessMapSrvIdx();
+	mFrameConstants->EmissiveMetallicMapIdx = mGeometryPass->GetEmissiveMetallicMapSrvIdx();
+	mFrameConstants->NormalDepthMapIdx = mGeometryPass->GetNormalDepthMapSrvIdx();
+	mFrameConstants->VelocityMapIdx = mGeometryPass->GetVelocityMapSrvIdx();
+
 	// OITPPLL
-	mFrameConstants->RWOitBufferIdx = mFramePass->GetPpllUavIdx();
-	mFrameConstants->RWOitOffsetBufferIdx = mFramePass->GetOffsetUavIdx();
-	mFrameConstants->OitCounterIdx = mFramePass->GetCounterUavIdx();
-	mFrameConstants->OitBufferIdx = mFramePass->GetPpllSrvIdx();
-	mFrameConstants->OitOffsetBufferIdx = mFramePass->GetOffsetSrvIdx();
+	mFrameConstants->RWOitppllBufferIdx = mOitppllPass->GetPpllUavIdx();
+	mFrameConstants->RWOitppllStartOffsetBufferIdx = mOitppllPass->GetStartOffsetUavIdx();
+	mFrameConstants->RWOitppllCounterIdx = mOitppllPass->GetCounterUavIdx();
+	mFrameConstants->OitppllBufferIdx = mOitppllPass->GetPpllSrvIdx();
+	mFrameConstants->OitppllStartOffsetBufferIdx = mOitppllPass->GetStartOffsetSrvIdx();
 	
 	// SSAO
 	mFrameConstants->RandVecMapIdx = mSsaoPass->GetRandVecSrvIdx();
 	mFrameConstants->RWAmbientMapIdx = mSsaoPass->GetSsaoUavIdx();
 	mFrameConstants->AmbientMapIdx = mSsaoPass->GetSsaoSrvIdx();
-	
-	// TAA
-	mFrameConstants->VelocityMapIdx = mTaaPass->GetVeloctiySrvIdx();
-	mFrameConstants->RWHistMapIdx = mTaaPass->GetHistFrameUavIdx();
 }
 
 void Carol::Renderer::LoadModel(wstring_view path, wstring_view textureDir, wstring_view modelName, DirectX::XMMATRIX world, bool isSkinned)

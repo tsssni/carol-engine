@@ -64,14 +64,14 @@ Carol::ColorBuffer* Carol::DisplayPass::GetDepthStencilMap()const
 	return mDepthStencilMap.get();
 }
 
-DXGI_FORMAT Carol::DisplayPass::GetFrameFormat()const
-{
-	return mFrameFormat;
-}
-
 uint32_t Carol::DisplayPass::GetFrameMapUavIdx()const
 {
 	return mFrameMap->GetGpuUavIdx();
+}
+
+uint32_t Carol::DisplayPass::GetHistMapUavIdx() const
+{
+	return mHistMap->GetGpuUavIdx();
 }
 
 uint32_t Carol::DisplayPass::GetDepthStencilSrvIdx()const
@@ -79,17 +79,14 @@ uint32_t Carol::DisplayPass::GetDepthStencilSrvIdx()const
 	return mDepthStencilMap->GetGpuSrvIdx();
 }
 
-DXGI_FORMAT Carol::DisplayPass::GetDepthStencilFormat() const
-{
-	return mDepthStencilFormat;
-}
-
 void Carol::DisplayPass::Draw()
 {
+	mFrameMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	gGraphicsCommandList->OMSetRenderTargets(1, GetRvaluePtr(mBackBufferRtvAllocInfo->Manager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mBackBufferIdx)), true, nullptr);
 	gGraphicsCommandList->SetPipelineState(mDisplayMeshPSO->Get());
 	static_cast<ID3D12GraphicsCommandList6*>(gGraphicsCommandList.Get())->DispatchMesh(1, 1, 1);
 	mBackBuffer[mBackBufferIdx]->Transition( D3D12_RESOURCE_STATE_PRESENT);
+	mFrameMap->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 void Carol::DisplayPass::Present()
@@ -117,7 +114,8 @@ void Carol::DisplayPass::InitPSOs()
 
 void Carol::DisplayPass::InitBuffers()
 {
-	D3D12_CLEAR_VALUE frameOptClearValue = CD3DX12_CLEAR_VALUE(mFrameFormat, DirectX::Colors::Gray);
+	float frameColor[4] = { 0.f,0.f,0.f,1.f };
+	D3D12_CLEAR_VALUE frameOptClearValue = CD3DX12_CLEAR_VALUE(mFrameFormat, frameColor);
 	mFrameMap = make_unique<ColorBuffer>(
 		mWidth,
 		mHeight,
@@ -128,6 +126,15 @@ void Carol::DisplayPass::InitBuffers()
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		&frameOptClearValue);
+	mHistMap = make_unique<ColorBuffer>(
+		mWidth,
+		mHeight,
+		1,
+		COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
+		mFrameFormat,
+		gHeapManager->GetDefaultBuffersHeap(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	D3D12_CLEAR_VALUE depthStencilOptClearValue = CD3DX12_CLEAR_VALUE(GetDsvFormat(mDepthStencilFormat), 1.f, 0);
 	mDepthStencilMap = make_unique<ColorBuffer>(

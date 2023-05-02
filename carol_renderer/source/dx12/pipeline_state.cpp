@@ -101,7 +101,7 @@ void Carol::MeshPSO::SetRenderTargetFormat(uint32_t numRenderTargets, DXGI_FORMA
 
 	for (int i = 0; i < numRenderTargets; ++i)
 	{
-		mPSODesc.RTVFormats[i] = rtvFormats[0];
+		mPSODesc.RTVFormats[i] = rtvFormats[i];
 	}
 
 }

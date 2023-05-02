@@ -192,19 +192,19 @@ void Carol::Shader::InitShaders()
     gMeshSkinnedMS->SetTarget(L"ms_6_6");
     gMeshSkinnedMS->Finalize();
 
-    gBlinnPhongPS = make_unique<Shader>();
-    gBlinnPhongPS->SetFileName(L"shader\\opaque_ps.hlsl");
-    gBlinnPhongPS->SetDefines({ L"SSAO", L"BLINN_PHONG" });
-    gBlinnPhongPS->SetEntryPoint(L"main");
-    gBlinnPhongPS->SetTarget(L"ps_6_6");
-    gBlinnPhongPS->Finalize();
+    gGeometryPS = make_unique<Shader>();
+    gGeometryPS->SetFileName(L"shader\\geometry_ps.hlsl");
+    gGeometryPS->SetDefines({});
+    gGeometryPS->SetEntryPoint(L"main");
+    gGeometryPS->SetTarget(L"ps_6_6");
+    gGeometryPS->Finalize();
 
-    gPBRPS = make_unique<Shader>();
-    gPBRPS->SetFileName(L"shader\\opaque_ps.hlsl");
-    gPBRPS->SetDefines({ L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED",L"LAMBERTIAN" });
-    gPBRPS->SetEntryPoint(L"main");
-    gPBRPS->SetTarget(L"ps_6_6");
-    gPBRPS->Finalize();
+    gShadeCS = make_unique<Shader>();
+    gShadeCS->SetFileName(L"shader\\shade_cs.hlsl");
+    gShadeCS->SetDefines({ L"TAA", L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED",L"LAMBERTIAN" });
+    gShadeCS->SetEntryPoint(L"main");
+    gShadeCS->SetTarget(L"cs_6_6");
+    gShadeCS->Finalize();
 
     gSkyBoxMS = make_unique<Shader>();
     gSkyBoxMS->SetFileName(L"shader\\skybox_ms.hlsl");
@@ -220,47 +220,33 @@ void Carol::Shader::InitShaders()
     gSkyBoxPS->SetTarget(L"ps_6_6");
     gSkyBoxPS->Finalize();
 
-    gBlinnPhongOitppllPS = make_unique<Shader>();
-    gBlinnPhongOitppllPS->SetFileName(L"shader\\oitppll_build_ps.hlsl");
-    gBlinnPhongOitppllPS->SetDefines({ L"SSAO", L"BLINN_PHONG" });
-    gBlinnPhongOitppllPS->SetEntryPoint(L"main");
-    gBlinnPhongOitppllPS->SetTarget(L"ps_6_6");
-    gBlinnPhongOitppllPS->Finalize();
+    gOitStaticMS = make_unique<Shader>();
+    gOitStaticMS->SetFileName(L"shader\\mesh_ms.hlsl");
+    gOitStaticMS->SetDefines({});
+    gOitStaticMS->SetEntryPoint(L"main");
+    gOitStaticMS->SetTarget(L"ms_6_6");
+    gOitStaticMS->Finalize();
 
-    gPBROitppllPS = make_unique<Shader>();
-    gPBROitppllPS->SetFileName(L"shader\\oitppll_build_ps.hlsl");
-    gPBROitppllPS->SetDefines({ L"SSAO",L"GGX",L"SMITH",L"HEIGHT_CORRELATED",L"LAMBERTIAN" });
-    gPBROitppllPS->SetEntryPoint(L"main");
-    gPBROitppllPS->SetTarget(L"ps_6_6");
-    gPBROitppllPS->Finalize();
+    gOitSkinnedMS = make_unique<Shader>();
+    gOitSkinnedMS->SetFileName(L"shader\\mesh_ms.hlsl");
+    gOitSkinnedMS->SetDefines({ L"SKINNED"});
+    gOitSkinnedMS->SetEntryPoint(L"main");
+    gOitSkinnedMS->SetTarget(L"ms_6_6");
+    gOitSkinnedMS->Finalize();
 
-    gDrawOitppllPS = make_unique<Shader>();
-    gDrawOitppllPS->SetFileName(L"shader\\oitppll_ps.hlsl");
-    gDrawOitppllPS->SetDefines({});
-    gDrawOitppllPS->SetEntryPoint(L"main");
-    gDrawOitppllPS->SetTarget(L"ps_6_6");
-    gDrawOitppllPS->Finalize();
+    gBuildOitppllPS = make_unique<Shader>();
+    gBuildOitppllPS->SetFileName(L"shader\\oitppll_build_ps.hlsl");
+    gBuildOitppllPS->SetDefines({ L"GGX",L"SMITH",L"HEIGHT_CORRELATED",L"LAMBERTIAN" });
+    gBuildOitppllPS->SetEntryPoint(L"main");
+    gBuildOitppllPS->SetTarget(L"ps_6_6");
+    gBuildOitppllPS->Finalize();
 
-    gNormalsStaticMS = make_unique<Shader>();
-    gNormalsStaticMS->SetFileName(L"shader\\normals_ms.hlsl");
-    gNormalsStaticMS->SetDefines({});
-    gNormalsStaticMS->SetEntryPoint(L"main");
-    gNormalsStaticMS->SetTarget(L"ms_6_6");
-    gNormalsStaticMS->Finalize();
-    
-    gNormalsSkinnedMS = make_unique<Shader>();
-    gNormalsSkinnedMS->SetFileName(L"shader\\normals_ms.hlsl");
-    gNormalsSkinnedMS->SetDefines({L"SKINNED"});
-    gNormalsSkinnedMS->SetEntryPoint(L"main");
-    gNormalsSkinnedMS->SetTarget(L"ms_6_6");
-    gNormalsSkinnedMS->Finalize();
-
-    gNormalsPS = make_unique<Shader>();
-    gNormalsPS->SetFileName(L"shader\\normals_ps.hlsl");
-    gNormalsPS->SetDefines({});
-    gNormalsPS->SetEntryPoint(L"main");
-    gNormalsPS->SetTarget(L"ps_6_6");
-    gNormalsPS->Finalize();
+    gOitppllCS = make_unique<Shader>();
+    gOitppllCS->SetFileName(L"shader\\oitppll_cs.hlsl");
+    gOitppllCS->SetDefines({});
+    gOitppllCS->SetEntryPoint(L"main");
+    gOitppllCS->SetTarget(L"cs_6_6");
+    gOitppllCS->Finalize();
 
     gSsaoCS = make_unique<Shader>();
     gSsaoCS->SetFileName(L"shader\\ssao_cs.hlsl");
@@ -275,27 +261,6 @@ void Carol::Shader::InitShaders()
     gEpfCS->SetEntryPoint(L"main");
     gEpfCS->SetTarget(L"cs_6_6");
     gEpfCS->Finalize();
-
-    gVelocityStaticMS = make_unique<Shader>();
-    gVelocityStaticMS->SetFileName(L"shader\\velocity_ms.hlsl");
-    gVelocityStaticMS->SetDefines({});
-    gVelocityStaticMS->SetEntryPoint(L"main");
-    gVelocityStaticMS->SetTarget(L"ms_6_6");
-    gVelocityStaticMS->Finalize();
-
-    gVelocitySkinnedMS = make_unique<Shader>();
-    gVelocitySkinnedMS->SetFileName(L"shader\\velocity_ms.hlsl");
-    gVelocitySkinnedMS->SetDefines({L"SKINNED"});
-    gVelocitySkinnedMS->SetEntryPoint(L"main");
-    gVelocitySkinnedMS->SetTarget(L"ms_6_6");
-    gVelocitySkinnedMS->Finalize();
-
-    gVelocityPS = make_unique<Shader>();
-    gVelocityPS->SetFileName(L"shader\\velocity_ps.hlsl");
-    gVelocityPS->SetDefines({});
-    gVelocityPS->SetEntryPoint(L"main");
-    gVelocityPS->SetTarget(L"ps_6_6");
-    gVelocityPS->Finalize();
 
     gTaaCS = make_unique<Shader>();
     gTaaCS->SetFileName(L"shader\\taa_cs.hlsl");

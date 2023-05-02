@@ -14,12 +14,10 @@ namespace Carol
 		ToneMappingPass();
 
 		virtual void Draw();
-		void SetFrameMap(ColorBuffer* frameMap);
 	protected:
 		virtual void InitPSOs();
 		virtual void InitBuffers();
 
-		ColorBuffer* mFrameMap;
 		std::unique_ptr<ComputePSO> mLDRToneMappingComputePSO;
 	};
 }

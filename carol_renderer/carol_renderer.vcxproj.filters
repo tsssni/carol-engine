@@ -101,10 +101,7 @@
     <ClInclude Include="include\scene\light.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\render_pass\normal_pass.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="include\render_pass\frame_pass.h">
+    <ClInclude Include="include\render_pass\shade_pass.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\scene\scene.h">
@@ -135,6 +132,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\render_pass\epf_pass.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\render_pass\geometry_pass.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="include\render_pass\oitppll_pass.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -196,10 +199,7 @@
     <ClCompile Include="source\dx12\root_signature.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\render_pass\normal_pass.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="source\render_pass\frame_pass.cpp">
+    <ClCompile Include="source\render_pass\shade_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\scene\scene.cpp">
@@ -230,6 +230,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\render_pass\epf_pass.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\render_pass\geometry_pass.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="source\render_pass\oitppll_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -278,9 +284,6 @@
     <None Include="shader\include\shadow.hlsli">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\velocity_ms.hlsl">
-      <Filter>着色器文件</Filter>
-    </None>
     <None Include="shader\include\vertex_in.hlsli">
       <Filter>着色器文件</Filter>
     </None>
@@ -297,19 +300,13 @@
     <None Include="shader\mesh_ms.hlsl">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\opaque_ps.hlsl">
-      <Filter>着色器文件</Filter>
-    </None>
     <None Include="shader\hiz_generate_cs.hlsl">
-      <Filter>着色器文件</Filter>
-    </None>
-    <None Include="shader\normals_ms.hlsl">
       <Filter>着色器文件</Filter>
     </None>
     <None Include="shader\oitppll_build_ps.hlsl">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\oitppll_ps.hlsl">
+    <None Include="shader\oitppll_cs.hlsl">
       <Filter>着色器文件</Filter>
     </None>
     <None Include="shader\screen_ms.hlsl">
@@ -322,12 +319,6 @@
       <Filter>着色器文件</Filter>
     </None>
     <None Include="shader\ssao_cs.hlsl">
-      <Filter>着色器文件</Filter>
-    </None>
-    <None Include="shader\velocity_ps.hlsl">
-      <Filter>着色器文件</Filter>
-    </None>
-    <None Include="shader\normals_ps.hlsl">
       <Filter>着色器文件</Filter>
     </None>
     <None Include=".gitignore" />
@@ -352,6 +343,8 @@
     <None Include="shader\hist_hiz_cull_as.hlsl" />
     <None Include="shader\hist_hiz_cull_cs.hlsl" />
     <None Include="shader\epf_cs.hlsl" />
+    <None Include="shader\geometry_ps.hlsl" />
+    <None Include="shader\shade_cs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\display_ps.hlsl" />

@@ -38,10 +38,10 @@ namespace Carol
 		uint32_t MeshletOcclusionCulledMarkBufferIdx = 0;
 		uint32_t MeshletCulledMarkBufferIdx = 0;
 
-		uint32_t DiffuseMapIdx = 0;
-		uint32_t NormalMapIdx = 0;
-		uint32_t MetallicRoughnessMapIdx = 0;
-		float MeshPad3;
+		uint32_t DiffuseTextureIdx = 0;
+		uint32_t NormalTextureIdx = 0;
+		uint32_t EmissiveTextureIdx = 0;
+		uint32_t MetallicRoughnessTextureIdx = 0;
 	};
 
 	class Vertex
@@ -108,9 +108,10 @@ namespace Carol
 
 		uint32_t GetMeshletSize()const;
 
-		void SetDiffuseMapIdx(uint32_t idx);
-		void SetNormalMapIdx(uint32_t idx);
-		void SetMetallicRoughnessMapIdx(uint32_t idx);
+		void SetDiffuseTextureIdx(uint32_t idx);
+		void SetNormalTextureIdx(uint32_t idx);
+		void SetEmissiveTextureIdx(uint32_t idx);
+		void SetMetallicRoughnessTextureIdx(uint32_t idx);
 
 		void Update(DirectX::XMMATRIX& world);
 		void ClearCullMark();

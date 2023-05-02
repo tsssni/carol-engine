@@ -347,14 +347,17 @@ void Carol::AssimpModel::ReadMeshMaterialAndTextures(
 
 	aiString diffusePath;
 	aiString normalPath;
+	aiString emissivePath;
 	aiString metallicRoughnessPath;
 	
 	matData->GetTexture(aiTextureType_DIFFUSE, 0, &diffusePath);
 	matData->GetTexture(aiTextureType_NORMALS, 0, &normalPath);
+	matData->GetTexture(aiTextureType_EMISSIVE, 0, &emissivePath);
 	matData->GetTexture(aiTextureType_METALNESS, 0, &metallicRoughnessPath);
 
 	LoadTexture(mesh, diffusePath, aiTextureType_DIFFUSE);
 	LoadTexture(mesh, normalPath, aiTextureType_NORMALS);
+	LoadTexture(mesh, emissivePath, aiTextureType_EMISSIVE);
 	LoadTexture(mesh, metallicRoughnessPath, aiTextureType_METALNESS);
 }
 
@@ -386,13 +389,16 @@ void Carol::AssimpModel::LoadTexture(
 		switch (type)
 		{
 		case aiTextureType_DIFFUSE:
-			path = L"texture\\default_diffuse_map.png";
+			path = L"texture\\default_diffuse_texture.png";
 			break;
 		case aiTextureType_NORMALS:
-			path = L"texture\\default_normal_map.png";
+			path = L"texture\\default_normal_texture.png";
+			break;
+		case aiTextureType_EMISSIVE:
+			path = L"texture\\default_emissive_texture.png";
 			break;
 		case aiTextureType_METALNESS:
-			path = L"texture\\default_metallic_roughness_map.png";
+			path = L"texture\\default_metallic_roughness_texture.png";
 			break;
 		}
 	}
@@ -400,15 +406,17 @@ void Carol::AssimpModel::LoadTexture(
 	switch (type)
 	{
 	case aiTextureType_DIFFUSE:
-		mesh->SetDiffuseMapIdx(gTextureManager->LoadTexture(path, false));
+		mesh->SetDiffuseTextureIdx(gTextureManager->LoadTexture(path, false));
 		break;
 	case aiTextureType_NORMALS:
-		mesh->SetNormalMapIdx(gTextureManager->LoadTexture(path, false));
+		mesh->SetNormalTextureIdx(gTextureManager->LoadTexture(path, false));
+		break;
+	case aiTextureType_EMISSIVE:
+		mesh->SetEmissiveTextureIdx(gTextureManager->LoadTexture(path, false));
 		break;
 	case aiTextureType_METALNESS:
-		mesh->SetMetallicRoughnessMapIdx(gTextureManager->LoadTexture(path, false));
+		mesh->SetMetallicRoughnessTextureIdx(gTextureManager->LoadTexture(path, false));
 		break;
-
 	}
 
 	mTexturePath.push_back(path);

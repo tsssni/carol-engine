@@ -1,0 +1,23 @@
+digraph G {
+    splines="FALSE";
+
+    CSM [label = "Cascaded \nShadow Map", shape=square, width=1.25]
+    GDRC [label = "GPU-Driven \nCulling", shape=square, width=1.25]
+    GB [label = "G-Buffer", shape=square, width=1.25]
+    SSAO [label = "SSAO", shape=square, width=1.2]
+    DF [label = "Deferred\n Shading", shape=square, width=1.2]
+    TM [label = "Tone \nMapping", shape=square, width=1.2]
+    TAA [label = "TAA", shape=square, width=1.2]
+    OIT [label = "OITPPLL", shape=square, width=1.2]
+    
+    CSM->GDRC
+    GDRC->GB
+    GB->SSAO
+    SSAO->DF
+    TM->DF[dir=back]
+    TAA->TM[dir=back]
+    OIT->TAA[dir=back]
+
+    { rank=same; CSM; GDRC GB SSAO }
+    { rank=same; DF OIT TM TAA}
+}

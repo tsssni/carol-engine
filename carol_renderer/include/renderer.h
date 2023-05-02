@@ -17,9 +17,11 @@ namespace Carol
 	class Camera;
 	class Timer;
 	class Scene;
+	class CullPass;
 	class DisplayPass;
-    class FramePass;
-    class NormalPass;
+	class GeometryPass;
+	class OitppllPass;
+    class ShadePass;
     class CascadedShadowPass;
     class SsaoPass;
     class TaaPass;
@@ -36,7 +38,13 @@ namespace Carol
 		DirectX::XMFLOAT4X4 ViewProj;
 		DirectX::XMFLOAT4X4 InvViewProj;
 		DirectX::XMFLOAT4X4 HistViewProj;
+
+		// TAA Transformation
+		DirectX::XMFLOAT4X4 JitteredProj;
+		DirectX::XMFLOAT4X4 InvJitteredProj;
 		DirectX::XMFLOAT4X4 JitteredViewProj;
+		DirectX::XMFLOAT4X4 InvJitteredViewProj;
+		DirectX::XMFLOAT4X4 HistJitteredViewProj;
 
 		// View
 		DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
@@ -80,27 +88,30 @@ namespace Carol
 		uint32_t InstanceOcclusionCulledMarkBufferIdx = 0;
 		uint32_t InstanceCulledMarkBufferIdx = 0;
 
+		// Display
+		uint32_t RWFrameMapIdx;
+		uint32_t RWHistMapIdx;
 		uint32_t DepthStencilMapIdx = 0;
-		uint32_t NormalMapIdx = 0;
+
+		// G-Buffer
+		uint32_t DiffuseRougnessMapIdx = 0;
+		uint32_t EmissiveMetallicMapIdx = 0;
+		uint32_t NormalDepthMapIdx = 0;
+		uint32_t VelocityMapIdx = 0;
 
 		// OITPPLL
-		uint32_t OitCounterIdx = 0;
-		uint32_t RWOitBufferIdx = 0;
-		uint32_t RWOitOffsetBufferIdx = 0;
-		uint32_t OitBufferIdx = 0;
-		uint32_t OitOffsetBufferIdx = 0;
+		uint32_t RWOitppllBufferIdx = 0;
+		uint32_t RWOitppllStartOffsetBufferIdx = 0;
+		uint32_t RWOitppllCounterIdx = 0;
+		uint32_t OitppllBufferIdx = 0;
+		uint32_t OitppllStartOffsetBufferIdx = 0;
 
 		// SSAO
 		uint32_t RandVecMapIdx = 0;
 		uint32_t RWAmbientMapIdx = 0;
 		uint32_t AmbientMapIdx = 0;
 		
-		// TAA
-		uint32_t VelocityMapIdx = 0;
-		uint32_t RWHistMapIdx = 0;
-		uint32_t RWFrameMapIdx = 0;
-
-		DirectX::XMFLOAT2 FramePad7;
+		float FramePad7;
 	};
  
     class Renderer
@@ -155,13 +166,15 @@ namespace Carol
 		void InitConstants();
 
 		void InitRenderPass();
-		void InitDisplay();
-        void InitFrame();
-        void InitMainLight();
-        void InitNormal();
-        void InitSsao();
-		void InitToneMapping();
-        void InitTaa();
+		void InitCullPass();
+		void InitDisplayPass();
+		void InitGeometryPass();
+		void InitOitppllPass();
+		void InitShadePass();
+        void InitMainLightShadowPass();
+        void InitSsaoPass();
+		void InitToneMappingPass();
+        void InitTaaPass();
 		
 		float AspectRatio();
 		void FlushCommandQueue();
@@ -184,9 +197,11 @@ namespace Carol
 		bool mMinimized = false;
 		bool mResizing = false;
 
+		std::unique_ptr<CullPass> mCullPass;
         std::unique_ptr<DisplayPass> mDisplayPass;
-		std::unique_ptr<FramePass> mFramePass;
-        std::unique_ptr<NormalPass> mNormalPass;
+		std::unique_ptr<GeometryPass> mGeometryPass;
+		std::unique_ptr<OitppllPass> mOitppllPass;
+		std::unique_ptr<ShadePass> mShadePass;
         std::unique_ptr<CascadedShadowPass> mMainLightShadowPass;
         std::unique_ptr<SsaoPass> mSsaoPass;
         std::unique_ptr<TaaPass> mTaaPass;
