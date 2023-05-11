@@ -207,20 +207,6 @@ void Carol::Shader::InitShaders()
     gShadeCS->SetTarget(L"cs_6_6");
     gShadeCS->Finalize();
 
-    gSkyBoxMS = make_unique<Shader>();
-    gSkyBoxMS->SetFileName(L"shader\\skybox_ms.hlsl");
-    gSkyBoxMS->SetDefines({ L"TAA" });
-    gSkyBoxMS->SetEntryPoint(L"main");
-    gSkyBoxMS->SetTarget(L"ms_6_6");
-    gSkyBoxMS->Finalize();
-
-    gSkyBoxPS = make_unique<Shader>();
-    gSkyBoxPS->SetFileName(L"shader\\skybox_ps.hlsl");
-    gSkyBoxPS->SetDefines({ L"TAA" });
-    gSkyBoxPS->SetEntryPoint(L"main");
-    gSkyBoxPS->SetTarget(L"ps_6_6");
-    gSkyBoxPS->Finalize();
-
     gOitStaticMS = make_unique<Shader>();
     gOitStaticMS->SetFileName(L"shader\\mesh_ms.hlsl");
     gOitStaticMS->SetDefines({});

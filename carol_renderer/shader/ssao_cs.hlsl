@@ -1,25 +1,11 @@
 #include "include/common.hlsli"
 #include "include/compute.hlsli"
 #include "include/texture.hlsli"
+#include "include/transform.hlsli"
 
 #ifndef SAMPLE_COUNT
 #define SAMPLE_COUNT 14
 #endif
-
-#ifndef BLUR_COUNT
-#define BLUR_COUNT 3
-#endif
-
-float4 GetViewPos(float2 pos)
-{
-    float4 posV = mul(float4(2.f * pos.x - 1.f, 1.f - 2.f * pos.y, 0.f, 1.f), gInvProj);
-    return posV / posV.w;
-}
-
-float NdcDepthToViewDepth(float depth)
-{
-    return gProj._43 / (depth - gProj._33);
-}
 
 float OcclusionFunction(float distZ)
 {
@@ -43,16 +29,15 @@ void main(int2 dtid : SV_DispatchThreadID)
     float2 texC = (dtid + 0.5f) / size;
 
     Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
-    Texture2D normalMap = ResourceDescriptorHeap[gNormalDepthMapIdx];
+    Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
 
-    float centerViewDepth = NdcDepthToViewDepth(depthMap.Sample(gsamLinearClamp, texC).r);;
-    float3 centerNormal = normalize(normalMap.Sample(gsamLinearClamp, texC).xyz);
+    float centerViewDepth = NdcDepthToViewDepth(depthMap.Sample(gsamLinearClamp, texC).r, gProj);
+    float3 centerNormal = mul(normalize(normalMap.Sample(gsamLinearClamp, texC).xyz), (float3x3) gView);
 
     if (TextureBorderTest(dtid, size))
     {
         Texture2D randVecMap = ResourceDescriptorHeap[gRandVecMapIdx];
-        float4 posV = GetViewPos(texC);
-        float3 viewPos = (centerViewDepth / posV.z) * posV.xyz;
+        float3 viewPos = TexPosToViewPos(texC, centerViewDepth, gInvProj);
 
         float3 randVec = 2.0f * randVecMap.Sample(gsamPointWrap, 4.0f * texC).xyz - 1.0f;
         float occlusionSum = 0.0f;
@@ -64,14 +49,14 @@ void main(int2 dtid : SV_DispatchThreadID)
             float flip = sign(dot(offset, centerNormal));
             float3 offsetPos = viewPos + flip * gOcclusionRadius * offset;
         
-            float2 screenOffsetPos = GetTexCoord(mul(float4(offsetPos, 1.0f), gProj)).xy;
-            float offsetDepth = NdcDepthToViewDepth(depthMap.Sample(gsamDepthMap, screenOffsetPos).r);
+            float2 offsetTexPos = ProjPosToTexPos(mul(float4(offsetPos, 1.0f), gProj));
+            float offsetDepth = NdcDepthToViewDepth(depthMap.Sample(gsamDepthMap, offsetTexPos).r, gProj);
+            float3 offsetViewPos = TexPosToViewPos(offsetTexPos, offsetDepth, gInvProj);
+
+            float distZ = viewPos.z - offsetViewPos.z;
+            float ndotv = max(dot(normalize(offsetViewPos - viewPos), centerNormal), 0.0f);
         
-            float3 screenPos = (offsetDepth / offsetPos.z) * offsetPos;
-            float distZ = viewPos.z - screenPos.z;
-            float normalAngle = max(dot(normalize(screenPos - viewPos), centerNormal), 0.0f);
-        
-            float occlusion = normalAngle * OcclusionFunction(distZ);
+            float occlusion = ndotv * OcclusionFunction(distZ);
             occlusionSum += occlusion;
         }
     

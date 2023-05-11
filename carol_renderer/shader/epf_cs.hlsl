@@ -1,6 +1,7 @@
 #include "include/compute.hlsli"
 #include "include/common.hlsli"
 #include "include/texture.hlsli"
+#include "include/transform.hlsli"
 
 #ifndef BLUR_COUNT
 #define BLUR_COUNT 3
@@ -8,33 +9,27 @@
 
 cbuffer EpfCB : register(b4)
 {
-    uint ColorMapIdx;
+    uint gColorMapIdx;
 }
 
 groupshared float4 color[32][32];
 groupshared float viewDepth[32][32];
 groupshared float3 normal[32][32];
 
-
-float NdcDepthToViewDepth(float depth)
-{
-    return gProj._43 / (depth - gProj._33);
-}
-
 [numthreads(32, 32, 1)]
 void main(uint2 gid : SV_GroupID, uint2 gtid : SV_GroupThreadID )
 {
     int2 size;
-    RWTexture2D<float4> colorMap = ResourceDescriptorHeap[gRWAmbientMapIdx];
+    RWTexture2D<float4> colorMap = ResourceDescriptorHeap[gColorMapIdx];
     colorMap.GetDimensions(size.x, size.y);
 
     int2 uid = GetUavId(gid, gtid);
     float2 texC = (uid + 0.5f) / size;
 
     Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
-    Texture2D normalMap = ResourceDescriptorHeap[gNormalDepthMapIdx];
+    Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
 
-    float centerViewDepth = NdcDepthToViewDepth(depthMap.Sample(gsamLinearClamp, texC).r);;
+    float centerViewDepth = NdcDepthToViewDepth(depthMap.Sample(gsamLinearClamp, texC).r, gProj);
     float3 centerNormal = normalize(normalMap.Sample(gsamLinearClamp, texC).xyz);
 
     color[gtid.x][gtid.y] = TextureBorderTest(uid, size) ? colorMap[uid] : 0.f;

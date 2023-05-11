@@ -41,14 +41,12 @@ namespace Carol {
 			std::wstring_view path,
 			std::wstring_view textureDir,
 			bool isSkinned);
-		void LoadSkyBox();
 
 		void UnloadModel(std::wstring_view modelName);
 		void ReleaseIntermediateBuffers();
 		void ReleaseIntermediateBuffers(std::wstring_view modelName);
 
 		uint32_t GetMeshesCount(MeshType type)const;
-		const Mesh* GetSkyBox()const;
 		uint32_t GetModelsCount()const;
 
 		void SetWorld(std::wstring_view modelName, DirectX::XMMATRIX world);
@@ -69,7 +67,6 @@ namespace Carol {
 		void ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot);
 		void InitBuffers();
 	
-		std::unique_ptr<Model> mSkyBox;
 		std::vector<Light> mLights;
 		std::unique_ptr<SceneNode> mRootNode;
 

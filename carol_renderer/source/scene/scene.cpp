@@ -123,12 +123,6 @@ void Carol::Scene::LoadModel(
 	}
 }
 
-void Carol::Scene::LoadSkyBox()
-{
-	mSkyBox = make_unique<Model>();
-	mSkyBox->LoadSkyBox();
-}
-
 void Carol::Scene::UnloadModel(wstring_view modelName)
 {
 	for (auto itr = mRootNode->Children.begin(); itr != mRootNode->Children.end(); ++itr)
@@ -173,11 +167,6 @@ uint32_t Carol::Scene::GetMeshesCount(MeshType type)const
 uint32_t Carol::Scene::GetModelsCount()const
 {
 	return mModels.size();
-}
-
-const Carol::Mesh* Carol::Scene::GetSkyBox()const
-{
-	return mSkyBox->GetMesh(L"SkyBox");
 }
 
 void Carol::Scene::SetWorld(wstring_view modelName, DirectX::XMMATRIX world)
@@ -313,9 +302,6 @@ void Carol::Scene::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t complet
 			++meshIdx;
 		}
 	}
-
-	mMeshBuffer->CopyElements(GetSkyBox()->GetMeshConstants(), meshIdx);
-    mSkyBox->SetMeshCBAddress(L"SkyBox", mMeshBuffer->GetElementAddress(meshIdx));
 }
 
 void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot)

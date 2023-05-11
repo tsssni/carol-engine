@@ -57,7 +57,7 @@ namespace Carol
 
 		// Ssao
 		DirectX::XMFLOAT4 OffsetVectors[14];
-		DirectX::XMFLOAT4 GaussBlurWeights[3];
+		float GaussBlurWeights[12];
 		float OcclusionRadius = 0.5f;
 		float OcclusionFadeStart = 0.2f;
 		float OcclusionFadeEnd = 1.0f;
@@ -89,14 +89,15 @@ namespace Carol
 		uint32_t InstanceCulledMarkBufferIdx = 0;
 
 		// Display
-		uint32_t RWFrameMapIdx;
-		uint32_t RWHistMapIdx;
+		uint32_t RWFrameMapIdx = 0;
+		uint32_t RWHistMapIdx = 0;
 		uint32_t DepthStencilMapIdx = 0;
+		uint32_t SkyBoxIdx = 0;
 
 		// G-Buffer
 		uint32_t DiffuseRougnessMapIdx = 0;
 		uint32_t EmissiveMetallicMapIdx = 0;
-		uint32_t NormalDepthMapIdx = 0;
+		uint32_t NormalMapIdx = 0;
 		uint32_t VelocityMapIdx = 0;
 
 		// OITPPLL
@@ -111,7 +112,7 @@ namespace Carol
 		uint32_t RWAmbientMapIdx = 0;
 		uint32_t AmbientMapIdx = 0;
 		
-		float FramePad7;
+		DirectX::XMFLOAT3 FramePad7;
 	};
  
     class Renderer
@@ -163,7 +164,11 @@ namespace Carol
 		void InitTimer();
 		void InitCamera();
         void InitScene();
+
 		void InitConstants();
+		void InitSkyBox();
+		void InitRandomVectors();
+		void InitGaussWeights();
 
 		void InitRenderPass();
 		void InitCullPass();

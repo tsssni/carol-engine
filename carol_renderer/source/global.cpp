@@ -35,8 +35,6 @@ namespace Carol
 	std::unique_ptr<Shader> gMeshSkinnedMS;
 	std::unique_ptr<Shader> gGeometryPS;
 	std::unique_ptr<Shader> gShadeCS;
-	std::unique_ptr<Shader> gSkyBoxMS;
-	std::unique_ptr<Shader> gSkyBoxPS;
 	std::unique_ptr<Shader> gOitStaticMS;
 	std::unique_ptr<Shader> gOitSkinnedMS;
 	std::unique_ptr<Shader> gBuildOitppllPS;

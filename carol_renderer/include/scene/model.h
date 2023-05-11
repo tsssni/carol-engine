@@ -32,7 +32,6 @@ namespace Carol
 		virtual ~Model();
 		
 		bool IsSkinned()const;
-		void LoadSkyBox();
 		
 		void ReleaseIntermediateBuffers();
 

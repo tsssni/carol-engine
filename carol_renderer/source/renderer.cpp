@@ -34,7 +34,11 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitTimer();
 	InitCamera();
 	InitScene();
+
 	InitConstants();
+	InitSkyBox();
+	InitRandomVectors();
+	InitGaussWeights();
 
 	InitRenderPass();
 	InitCullPass();
@@ -172,13 +176,77 @@ void Carol::Renderer::InitCamera()
 void Carol::Renderer::InitScene()
 {
 	gScene = make_unique<Scene>(L"Test");
-	gScene->LoadSkyBox();
 }
 
 void Carol::Renderer::InitConstants()
 {
 	mFrameConstants = make_unique<FrameConstants>();
 	mFrameCBAllocator = make_unique<FastConstantBufferAllocator>(1024, sizeof(FrameConstants), gHeapManager->GetUploadBuffersHeap());
+}
+
+void Carol::Renderer::InitSkyBox()
+{
+	mFrameConstants->SkyBoxIdx = gTextureManager->LoadTexture(L"texture/snowcube1024.dds", false);
+}
+
+void Carol::Renderer::InitRandomVectors()
+{
+	XMFLOAT4 offsets[14];
+
+	offsets[0] = XMFLOAT4(+1.0f, +1.0f, +1.0f, 0.0f);
+	offsets[1] = XMFLOAT4(-1.0f, -1.0f, -1.0f, 0.0f);
+
+	offsets[2] = XMFLOAT4(-1.0f, +1.0f, +1.0f, 0.0f);
+	offsets[3] = XMFLOAT4(+1.0f, -1.0f, -1.0f, 0.0f);
+
+	offsets[4] = XMFLOAT4(+1.0f, +1.0f, -1.0f, 0.0f);
+	offsets[5] = XMFLOAT4(-1.0f, -1.0f, +1.0f, 0.0f);
+
+	offsets[6] = XMFLOAT4(-1.0f, +1.0f, -1.0f, 0.0f);
+	offsets[7] = XMFLOAT4(+1.0f, -1.0f, +1.0f, 0.0f);
+
+	// 6 centers of cube faces
+	offsets[8] = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+	offsets[9] = XMFLOAT4(+1.0f, 0.0f, 0.0f, 0.0f);
+
+	offsets[10] = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
+	offsets[11] = XMFLOAT4(0.0f, +1.0f, 0.0f, 0.0f);
+
+	offsets[12] = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
+	offsets[13] = XMFLOAT4(0.0f, 0.0f, +1.0f, 0.0f);
+
+	for (int i = 0; i < 14; ++i)
+	{
+		float s = 0.25f + rand() * 1.0f / RAND_MAX * (1.0f - 0.25f);
+		XMVECTOR v = s * XMVector4Normalize(XMLoadFloat4(&offsets[i]));
+
+		XMStoreFloat4(&mFrameConstants->OffsetVectors[i], v);
+	}
+}
+
+void Carol::Renderer::InitGaussWeights()
+{
+	constexpr int maxGaussRadius = 5;
+	constexpr float sigma = 2.5;
+
+	int blurRadius = (int)ceil(2.0f * sigma);
+	assert(blurRadius <= maxGaussRadius);
+
+	vector<float> weights;
+	float weightsSum = 0.0f;
+
+	weights.resize(2 * blurRadius + 1);
+
+	for (int i = -blurRadius; i <= blurRadius; ++i)
+	{
+		weights[blurRadius + i] = expf(-i * i / (2.0f * sigma * sigma));
+		weightsSum += weights[blurRadius + i];
+	}
+
+	for (int i = 0; i < blurRadius * 2 + 1; ++i)
+	{
+		mFrameConstants->GaussBlurWeights[i] = weights[i] / weightsSum;
+	}
 }
 
 void Carol::Renderer::InitRenderPass()
@@ -496,17 +564,9 @@ void Carol::Renderer::Update()
 	mCullPass->Update(XMLoadFloat4x4(&mFrameConstants->JitteredViewProj), XMLoadFloat4x4(&mFrameConstants->HistJitteredViewProj), XMLoadFloat3(&mFrameConstants->EyePosW));
 
 	mFrameConstants->EyePosW = mCamera->GetPosition3f();
-	mFrameConstants->RenderTargetSize = { static_cast<float>(mClientWidth), static_cast<float>(mClientHeight) };
-	mFrameConstants->InvRenderTargetSize = { 1.0f / mClientWidth, 1.0f / mClientHeight };
 	mFrameConstants->NearZ = dynamic_cast<PerspectiveCamera*>(mCamera.get())->GetNearZ();
 	mFrameConstants->FarZ = dynamic_cast<PerspectiveCamera*>(mCamera.get())->GetFarZ();
 	
-	mSsaoPass->GetOffsetVectors(mFrameConstants->OffsetVectors);
-	auto blurWeights = mSsaoPass->CalcGaussWeights(2.5f);
-	mFrameConstants->GaussBlurWeights[0] = XMFLOAT4(&blurWeights[0]);
-    mFrameConstants->GaussBlurWeights[1] = XMFLOAT4(&blurWeights[4]);
-    mFrameConstants->GaussBlurWeights[2] = XMFLOAT4(&blurWeights[8]);
-
 	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel(); ++i)
 	{
 		mFrameConstants->MainLights[i] = mMainLightShadowPass->GetLight(i);
@@ -519,7 +579,6 @@ void Carol::Renderer::Update()
 
 	mFrameConstants->MeshBufferIdx = gScene->GetMeshBufferIdx();
 	mFrameConstants->CommandBufferIdx = gScene->GetCommandBufferIdx();
-	mFrameConstants->RWFrameMapIdx = mDisplayPass->GetFrameMapUavIdx();
 
 	mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
 }
@@ -533,6 +592,9 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 
 	mClientWidth = width;
 	mClientHeight = height;
+
+	mFrameConstants->RenderTargetSize = { float(mClientWidth),float(mClientHeight) };
+	mFrameConstants->InvRenderTargetSize = { 1.0f / mClientWidth, 1.0f / mClientHeight };
 
 	mTimer->Start();
 	dynamic_cast<PerspectiveCamera*>(mCamera.get())->SetLens(0.25f * DirectX::XM_PI, AspectRatio(), 1.0f, 1000.0f);
@@ -548,8 +610,6 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 
 	mCullPass->SetDepthMap(mDisplayPass->GetDepthStencilMap());
 	mGeometryPass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
-	mShadePass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
-	mShadePass->SetFrameMap(mDisplayPass->GetFrameMap());
 
 	mFrameConstants->InstanceFrustumCulledMarkBufferIdx = gScene->GetInstanceFrustumCulledMarkBufferIdx();
 	mFrameConstants->InstanceOcclusionCulledMarkBufferIdx = gScene->GetInstanceOcclusionCulledMarkBufferIdx();
@@ -569,7 +629,7 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	// G-Buffer
 	mFrameConstants->DiffuseRougnessMapIdx = mGeometryPass->GetDiffuseRoughnessMapSrvIdx();
 	mFrameConstants->EmissiveMetallicMapIdx = mGeometryPass->GetEmissiveMetallicMapSrvIdx();
-	mFrameConstants->NormalDepthMapIdx = mGeometryPass->GetNormalDepthMapSrvIdx();
+	mFrameConstants->NormalMapIdx = mGeometryPass->GetNormalMapSrvIdx();
 	mFrameConstants->VelocityMapIdx = mGeometryPass->GetVelocityMapSrvIdx();
 
 	// OITPPLL

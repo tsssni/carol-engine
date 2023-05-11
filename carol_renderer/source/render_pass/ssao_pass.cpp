@@ -29,7 +29,6 @@ Carol::SsaoPass::SsaoPass(
 	mEpfPass(make_unique<EpfPass>())
 {
 	InitPSOs();
-	InitRandomVectors();
 	InitRandomVectorMap();
 }
 
@@ -82,32 +81,6 @@ void Carol::SsaoPass::Draw()
 	mEpfPass->Draw();
 }
 
-Carol::vector<float> Carol::SsaoPass::CalcGaussWeights(float sigma)
-{
-	static int maxGaussRadius = 5;
-
-	int blurRadius = (int)ceil(2.0f * sigma);
-	assert(blurRadius <= maxGaussRadius);
-
-	vector<float> weights;
-	float weightsSum = 0.0f;
-
-	weights.resize(2 * blurRadius + 1);
-
-	for (int i = -blurRadius; i <= blurRadius; ++i)
-	{
-		weights[blurRadius + i] = expf(-i * i / (2.0f * sigma * sigma));
-		weightsSum += weights[blurRadius + i];
-	}
-
-	for (int i = 0; i < blurRadius * 2 + 1; ++i)
-	{
-		weights[i] /= weightsSum;
-	}
-
-	return weights;
-}
-
 void Carol::SsaoPass::InitBuffers()
 {
 	mAmbientMap = make_unique<ColorBuffer>(
@@ -119,39 +92,6 @@ void Carol::SsaoPass::InitBuffers()
 		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-}
-
-void Carol::SsaoPass::InitRandomVectors()
-{
-	mOffsets[0] = XMFLOAT4(+1.0f, +1.0f, +1.0f, 0.0f);
-	mOffsets[1] = XMFLOAT4(-1.0f, -1.0f, -1.0f, 0.0f);
-
-	mOffsets[2] = XMFLOAT4(-1.0f, +1.0f, +1.0f, 0.0f);
-	mOffsets[3] = XMFLOAT4(+1.0f, -1.0f, -1.0f, 0.0f);
-
-	mOffsets[4] = XMFLOAT4(+1.0f, +1.0f, -1.0f, 0.0f);
-	mOffsets[5] = XMFLOAT4(-1.0f, -1.0f, +1.0f, 0.0f);
-
-	mOffsets[6] = XMFLOAT4(-1.0f, +1.0f, -1.0f, 0.0f);
-	mOffsets[7] = XMFLOAT4(+1.0f, -1.0f, +1.0f, 0.0f);
-
-	// 6 centers of cube faces
-	mOffsets[8] = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
-	mOffsets[9] = XMFLOAT4(+1.0f, 0.0f, 0.0f, 0.0f);
-
-	mOffsets[10] = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
-	mOffsets[11] = XMFLOAT4(0.0f, +1.0f, 0.0f, 0.0f);
-
-	mOffsets[12] = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
-	mOffsets[13] = XMFLOAT4(0.0f, 0.0f, +1.0f, 0.0f);
-
-	for (int i = 0; i < 14; ++i)
-	{
-		float s = 0.25f + rand() * 1.0f / RAND_MAX * (1.0f - 0.25f);
-		XMVECTOR v = s * XMVector4Normalize(XMLoadFloat4(&mOffsets[i]));
-
-		XMStoreFloat4(&mOffsets[i], v);
-	}
 }
 
 void Carol::SsaoPass::InitRandomVectorMap()
@@ -187,9 +127,4 @@ void Carol::SsaoPass::InitPSOs()
 	mSsaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mSsaoComputePSO->SetCS(gSsaoCS.get());
 	mSsaoComputePSO->Finalize();
-}
-
-void Carol::SsaoPass::GetOffsetVectors(XMFLOAT4 offsets[14])
-{
-	std::copy(&mOffsets[0], &mOffsets[14], offsets);
 }

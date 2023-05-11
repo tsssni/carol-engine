@@ -15,7 +15,7 @@ namespace Carol
 		GeometryPass(
 			DXGI_FORMAT diffuseRoughnessFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
 			DXGI_FORMAT emissiveMetallicFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
-			DXGI_FORMAT normalDepthFormat = DXGI_FORMAT_R32G32B32A32_FLOAT,
+			DXGI_FORMAT normalFormat = DXGI_FORMAT_R32G32B32A32_FLOAT,
 			DXGI_FORMAT velocityFormat = DXGI_FORMAT_R16G16_FLOAT,
 			DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 
@@ -24,7 +24,7 @@ namespace Carol
 
 		uint32_t GetDiffuseRoughnessMapSrvIdx();
 		uint32_t GetEmissiveMetallicMapSrvIdx();
-		uint32_t GetNormalDepthMapSrvIdx();
+		uint32_t GetNormalMapSrvIdx();
 		uint32_t GetVelocityMapSrvIdx();
 
 		virtual void Draw()override;
@@ -34,14 +34,14 @@ namespace Carol
 
 		std::unique_ptr<ColorBuffer> mDiffuseRoughnessMap;
 		std::unique_ptr<ColorBuffer> mEmissiveMetallicMap;
-		std::unique_ptr<ColorBuffer> mNormalDepthMap;
+		std::unique_ptr<ColorBuffer> mNormalMap;
 		std::unique_ptr<ColorBuffer> mVelocityMap;
 		ColorBuffer* mDepthStencilMap;
 		std::vector<const StructuredBuffer*> mIndirectCommandBuffer;
 
 		DXGI_FORMAT mDiffuseRoughnessFormat;
 		DXGI_FORMAT mEmissiveMetallicFormat;
-		DXGI_FORMAT mNormalDepthFormat;
+		DXGI_FORMAT mNormalFormat;
 		DXGI_FORMAT mVelocityFormat;
 		DXGI_FORMAT mDepthStencilFormat;
 

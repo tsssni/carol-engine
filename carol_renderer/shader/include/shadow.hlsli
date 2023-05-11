@@ -5,17 +5,12 @@
 
 #include "common.hlsli"
 #include "texture.hlsli"
+#include "transform.hlsli"
 
-float CalcShadowFactor(float4 shadowPosH, uint shadowMapIdx)
+float CalcShadowFactor(float2 pos, float depth, uint shadowMapIdx)
 {
     Texture2D gShadowMap = ResourceDescriptorHeap[shadowMapIdx];
     
-    // Complete projection by doing division by w.
-    shadowPosH = GetTexCoord(shadowPosH);
-
-    // Depth in NDC space.
-    float depth = shadowPosH.z;
-
     uint width, height, numMips;
     gShadowMap.GetDimensions(0, width, height, numMips);
 
@@ -34,7 +29,7 @@ float CalcShadowFactor(float4 shadowPosH, uint shadowMapIdx)
     for(int i = 0; i < 9; ++i)
     {
         percentLit += gShadowMap.SampleCmpLevelZero(gsamShadow,
-            shadowPosH.xy + offsets[i], depth).r;
+            pos.xy + offsets[i], depth).r;
     }
     
     return percentLit / 9.0f;
@@ -64,15 +59,16 @@ float GetCSMShadowFactor(float3 posW, float depth, out uint lightIdx)
         if (depth >= mainLightSplitZ[i] && depth < mainLightSplitZ[i + 1])
         {
             lightIdx = i;
-            shadowFactor = CalcShadowFactor(mul(float4(posW, 1.0f), gMainLights[i].ViewProj), mainLightShadowMapIdx[i]);
+            float4 currLevelShadowPos = mul(float4(posW, 1.0f), gMainLights[i].ViewProj);
+            shadowFactor = CalcShadowFactor(ProjPosToTexPos(currLevelShadowPos), ProjPosToNdcPos(currLevelShadowPos).z, mainLightShadowMapIdx[i]);
 
             if (i < MAIN_LIGHT_SPLIT_LEVEL - 1 && (mainLightSplitZ[i + 1] - depth) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) < CSM_BLEND_BORDER)
             {
                 float4 nextLevelShadowPos = mul(float4(posW, 1.0f), gMainLights[i + 1].ViewProj);
                 
-                if (TextureBorderTest(GetTexCoord(nextLevelShadowPos).xyz))
+                if (TextureBorderTest(ProjPosToNdcPos(nextLevelShadowPos).xyz))
                 {
-                    float nextLevelShadowFactor = CalcShadowFactor(nextLevelShadowPos, mainLightShadowMapIdx[i + 1]);
+                    float nextLevelShadowFactor = CalcShadowFactor(ProjPosToTexPos(nextLevelShadowPos), ProjPosToNdcPos(nextLevelShadowPos).z, mainLightShadowMapIdx[i + 1]);
                     float weight = (mainLightSplitZ[i + 1] - depth) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) / CSM_BLEND_BORDER;
                     shadowFactor = weight * shadowFactor + (1.f - weight) * nextLevelShadowFactor;
                 }

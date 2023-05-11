@@ -12,12 +12,12 @@ namespace Carol
 Carol::GeometryPass::GeometryPass(
     DXGI_FORMAT diffuseRoughnessFormat,
     DXGI_FORMAT emissiveMetallicFormat,
-    DXGI_FORMAT normalDepthFormat,
+    DXGI_FORMAT normalFormat,
     DXGI_FORMAT velocityFormat,
     DXGI_FORMAT depthStencilFormat)
     :mDiffuseRoughnessFormat(diffuseRoughnessFormat),
     mEmissiveMetallicFormat(emissiveMetallicFormat),
-    mNormalDepthFormat(normalDepthFormat),
+    mNormalFormat(normalFormat),
     mVelocityFormat(velocityFormat),
     mDepthStencilFormat(depthStencilFormat),
     mIndirectCommandBuffer(OPAQUE_MESH_TYPE_COUNT)
@@ -34,23 +34,23 @@ void Carol::GeometryPass::Draw()
     {
         mDiffuseRoughnessMap->GetRtv(),
         mEmissiveMetallicMap->GetRtv(),
-        mNormalDepthMap->GetRtv(),
+        mNormalMap->GetRtv(),
         mVelocityMap->GetRtv()
     };
 
     mDiffuseRoughnessMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
     mEmissiveMetallicMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
-    mNormalDepthMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
+    mNormalMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
     mVelocityMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     float diffuseRoughnessColor[4] = {0.f,0.f,0.f,1.f};
     float emissiveMetallicColor[4] = {0.f,0.f,0.f,0.f};
-    float normalDepthColor[4] = { 0.f,0.f,0.f,1000.f };
+    float normalColor[4] = { 0.f,0.f,0.f,1000.f };
     float velocityColor[4] = { 0.f,0.f,0.f,0.f };
 
     gGraphicsCommandList->ClearRenderTargetView(mDiffuseRoughnessMap->GetRtv(), diffuseRoughnessColor, 0, nullptr);
     gGraphicsCommandList->ClearRenderTargetView(mEmissiveMetallicMap->GetRtv(), emissiveMetallicColor, 0, nullptr);
-    gGraphicsCommandList->ClearRenderTargetView(mNormalDepthMap->GetRtv(), normalDepthColor, 0, nullptr);
+    gGraphicsCommandList->ClearRenderTargetView(mNormalMap->GetRtv(), normalColor, 0, nullptr);
     gGraphicsCommandList->ClearRenderTargetView(mVelocityMap->GetRtv(), velocityColor, 0, nullptr);
     gGraphicsCommandList->ClearDepthStencilView(mDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
     gGraphicsCommandList->OMSetRenderTargets(_countof(gbufferRtvs), gbufferRtvs, false, GetRvaluePtr(mDepthStencilMap->GetDsv()));
@@ -63,7 +63,7 @@ void Carol::GeometryPass::Draw()
 
     mDiffuseRoughnessMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     mEmissiveMetallicMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    mNormalDepthMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    mNormalMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     mVelocityMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }
 
@@ -87,9 +87,9 @@ uint32_t Carol::GeometryPass::GetEmissiveMetallicMapSrvIdx()
     return mEmissiveMetallicMap->GetGpuSrvIdx();
 }
 
-uint32_t Carol::GeometryPass::GetNormalDepthMapSrvIdx()
+uint32_t Carol::GeometryPass::GetNormalMapSrvIdx()
 {
-    return mNormalDepthMap->GetGpuSrvIdx();
+    return mNormalMap->GetGpuSrvIdx();
 }
 
 uint32_t Carol::GeometryPass::GetVelocityMapSrvIdx()
@@ -99,7 +99,7 @@ uint32_t Carol::GeometryPass::GetVelocityMapSrvIdx()
 
 void Carol::GeometryPass::InitPSOs()
 {
-    DXGI_FORMAT gbufferFormats[4] = { mDiffuseRoughnessFormat,mEmissiveMetallicFormat,mNormalDepthFormat,mVelocityFormat };
+    DXGI_FORMAT gbufferFormats[4] = { mDiffuseRoughnessFormat,mEmissiveMetallicFormat,mNormalFormat,mVelocityFormat };
 
     mGeometryStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mGeometryStaticMeshPSO->SetRenderTargetFormat(_countof(gbufferFormats), gbufferFormats, GetDsvFormat(mDepthStencilFormat));
@@ -146,19 +146,19 @@ void Carol::GeometryPass::InitBuffers()
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
         &emissiveMetallicOptClearValue);
 
-    float normalDepthColor[4] = { 0.f,0.f,0.f,1000.f };
-    D3D12_CLEAR_VALUE normalDepthOptClearValue  = CD3DX12_CLEAR_VALUE(mNormalDepthFormat, normalDepthColor);
+    float normalColor[4] = { 0.f,0.f,0.f,1000.f };
+    D3D12_CLEAR_VALUE normalOptClearValue  = CD3DX12_CLEAR_VALUE(mNormalFormat, normalColor);
 
-	mNormalDepthMap = make_unique<ColorBuffer>(
+	mNormalMap = make_unique<ColorBuffer>(
         mWidth,
         mHeight,
         1,
         COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
-        mNormalDepthFormat,
+        mNormalFormat,
         gHeapManager->GetDefaultBuffersHeap(),
         D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
         D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
-        &normalDepthOptClearValue);
+        &normalOptClearValue);
 
     float velocityColor[4] = { 0.f,0.f,0.f,0.f };
 	D3D12_CLEAR_VALUE velocityOptClearValue = CD3DX12_CLEAR_VALUE(mVelocityFormat, velocityColor);

@@ -24,8 +24,6 @@ namespace Carol
 		virtual void OnResize(uint32_t width, uint32_t height)override;
 
 		void ReleaseIntermediateBuffers();
-		std::vector<float> CalcGaussWeights(float sigma);
-		void GetOffsetVectors(DirectX::XMFLOAT4 offsets[14]);
 
 		uint32_t GetRandVecSrvIdx()const;
 		uint32_t GetSsaoSrvIdx()const;
@@ -35,7 +33,6 @@ namespace Carol
 		virtual void InitPSOs()override;
 		virtual void InitBuffers()override;
 
-		void InitRandomVectors();
 		void InitRandomVectorMap();
 
 		std::unique_ptr<ColorBuffer> mRandomVecMap;
@@ -43,7 +40,6 @@ namespace Carol
 
 		DXGI_FORMAT mAmbientMapFormat = DXGI_FORMAT_R16_UNORM;
 		uint32_t mBlurCount;
-		DirectX::XMFLOAT4 mOffsets[14];
 
 		std::unique_ptr<ComputePSO> mSsaoComputePSO;
 

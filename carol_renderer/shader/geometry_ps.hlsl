@@ -16,7 +16,7 @@ struct PixelOut
 {
     float4 DiffuseRoughness : SV_Target0;
     float4 EmissiveMetallic : SV_Target1;
-    float4 NormalDepth : SV_Target2;
+    float4 Normal : SV_Target2;
     float2 Velocity : SV_Target3;
 };
 
@@ -36,8 +36,8 @@ PixelOut main(PixelIn pin)
 
     // Normal
     Texture2D normalTex = ResourceDescriptorHeap[gNormalTextureIdx];
-    float3 normal = NormalToWorldSpace(normalTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).rgb, normalize(pin.NormalW), pin.TangentW).rgb;
-    pout.NormalDepth.rgb = normal;
+    float3 normal = NormalToWorldSpace(normalTex.SampleLevel(gsamAnisotropicWrap, pin.TexC, LOD(pin.PosH.z)).rgb, normalize(pin.NormalW), normalize(pin.TangentW)).rgb;
+    pout.Normal = float4(normal, 1.f);
     
     // Metallic & Roughness
     Texture2D metallicRoughnessTex = ResourceDescriptorHeap[gMetallicRoughnessTextureIdx];
@@ -45,9 +45,6 @@ PixelOut main(PixelIn pin)
     pout.DiffuseRoughness.a = metallicRoughness.g;
     pout.EmissiveMetallic.a = metallicRoughness.r;
 
-    // Depth
-    pout.NormalDepth.a = pin.PosH.w;
-    
     // Velocity
     pin.PosHist /= pin.PosHist.w;
     
