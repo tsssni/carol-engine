@@ -74,7 +74,7 @@ namespace Carol
             DXGI_FORMAT shadowFormat = DXGI_FORMAT_R32_FLOAT,
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
-        void Update(uint32_t lightIdx, const PerspectiveCamera* camera, float zn, float zf);
+        void Update(uint32_t lightIdx, const PerspectiveCamera* eyeCamera, float zn, float zf);
     protected:
         virtual void InitCamera()override;
     };
@@ -94,7 +94,7 @@ namespace Carol
             DXGI_FORMAT hiZFormat = DXGI_FORMAT_R32_FLOAT);
 
 		virtual void Draw()override;
-        void Update(const PerspectiveCamera* camera, float logWeight = 0.5f, float bias = 0.f);
+        void Update(const PerspectiveCamera* eyeCamera, float logWeight = 0.5f, float bias = 0.f);
         
         uint32_t GetSplitLevel()const;
         float GetSplitZ(uint32_t idx)const;

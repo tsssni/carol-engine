@@ -14,16 +14,16 @@ bool TextureBorderTest(int2 pos, uint2 size)
 bool TextureBorderTest(float2 pos)
 {
     return
-    pos.x >= 0.0f || pos.x < 1.f
-    || pos.y >= 0.0f || pos.y < 1.f;
+    pos.x >= .01f || pos.x < .99f
+    || pos.y >= .01f || pos.y < .99f;
 }
 
 bool TextureBorderTest(float3 pos)
 {
     return 
-    pos.x >= 0.0f || pos.x < 1.f 
-    || pos.y >= 0.0f || pos.y < 1.f
-    || pos.z >= 0.0f || pos.z < 1.f;
+    pos.x >= .01f || pos.x < .99f 
+    || pos.y >= .01f || pos.y < .99f
+    || pos.z >= .01f || pos.z < .99f;
 }
 
 float3 NormalToWorldSpace(float3 normal, float3 normalW, float3 tangentW)

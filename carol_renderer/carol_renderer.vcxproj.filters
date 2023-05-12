@@ -264,6 +264,18 @@
     <Image Include="texture\snowcube1024.dds">
       <Filter>资源文件</Filter>
     </Image>
+    <Image Include="texture\default_diffuse_texture.png">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="texture\default_emissive_texture.png">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="texture\default_metallic_roughness_texture.png">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="texture\default_normal_texture.png">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\include\light.hlsli">
@@ -318,12 +330,6 @@
     <None Include="shader\screen_ms.hlsl">
       <Filter>着色器文件</Filter>
     </None>
-    <None Include="shader\skybox_ms.hlsl">
-      <Filter>着色器文件</Filter>
-    </None>
-    <None Include="shader\skybox_ps.hlsl">
-      <Filter>着色器文件</Filter>
-    </None>
     <None Include="shader\ssao_cs.hlsl">
       <Filter>着色器文件</Filter>
     </None>
@@ -351,6 +357,7 @@
     <None Include="shader\epf_cs.hlsl" />
     <None Include="shader\geometry_ps.hlsl" />
     <None Include="shader\shade_cs.hlsl" />
+    <None Include="shader\include\transform.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\display_ps.hlsl" />

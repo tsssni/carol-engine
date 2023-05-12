@@ -79,6 +79,11 @@ uint32_t Carol::DisplayPass::GetHistMapUavIdx() const
 	return mHistMap->GetGpuUavIdx();
 }
 
+uint32_t Carol::DisplayPass::GetHistMapSrvIdx() const
+{
+	return mHistMap->GetGpuSrvIdx();
+}
+
 uint32_t Carol::DisplayPass::GetDepthStencilSrvIdx()const
 {
 	return mDepthStencilMap->GetGpuSrvIdx();

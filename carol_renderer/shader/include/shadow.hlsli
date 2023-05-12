@@ -60,20 +60,7 @@ float GetCSMShadowFactor(float3 posW, float depth, out uint lightIdx)
         {
             lightIdx = i;
             float4 currLevelShadowPos = mul(float4(posW, 1.0f), gMainLights[i].ViewProj);
-            shadowFactor = CalcShadowFactor(ProjPosToTexPos(currLevelShadowPos), ProjPosToNdcPos(currLevelShadowPos).z, mainLightShadowMapIdx[i]);
-
-            if (i < MAIN_LIGHT_SPLIT_LEVEL - 1 && (mainLightSplitZ[i + 1] - depth) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) < CSM_BLEND_BORDER)
-            {
-                float4 nextLevelShadowPos = mul(float4(posW, 1.0f), gMainLights[i + 1].ViewProj);
-                
-                if (TextureBorderTest(ProjPosToNdcPos(nextLevelShadowPos).xyz))
-                {
-                    float nextLevelShadowFactor = CalcShadowFactor(ProjPosToTexPos(nextLevelShadowPos), ProjPosToNdcPos(nextLevelShadowPos).z, mainLightShadowMapIdx[i + 1]);
-                    float weight = (mainLightSplitZ[i + 1] - depth) / (mainLightSplitZ[i + 1] - mainLightSplitZ[i]) / CSM_BLEND_BORDER;
-                    shadowFactor = weight * shadowFactor + (1.f - weight) * nextLevelShadowFactor;
-                }
-            }
-            
+            shadowFactor = CalcShadowFactor(ProjPosToTexPos(currLevelShadowPos), ProjPosToNdcPos(currLevelShadowPos).z, mainLightShadowMapIdx[i]);            
             break;
         }
     }

@@ -62,6 +62,7 @@ void main(
 
         float3 posWHist = mul(float4(min.PosL, 1.f), gHistWorld).xyz;
         mout.PosHist = mul(float4(posWHist, 1.f), gHistViewProj);
+        mout.PosHist /= mout.PosHist.w;
         
         verts[gtid] = mout;
     }

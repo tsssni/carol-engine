@@ -138,7 +138,7 @@ Carol::DirectLightShadowPass::DirectLightShadowPass(
 
 void Carol::DirectLightShadowPass::Update(
 	uint32_t lightIdx,
-	const PerspectiveCamera* camera,
+	const PerspectiveCamera* eyeCamera,
 	float zn,
 	float zf)
 {
@@ -147,16 +147,16 @@ void Carol::DirectLightShadowPass::Update(
 
 	XMFLOAT4 pointNear;
 	pointNear.z = zn;
-	pointNear.y = zn * tanf(0.5f * camera->GetFovY());
-	pointNear.x = zn * tanf(0.5f * camera->GetFovX());
+	pointNear.y = zn * tanf(0.5f * eyeCamera->GetFovY());
+	pointNear.x = zn * tanf(0.5f * eyeCamera->GetFovX());
 	
 	XMFLOAT4 pointFar;
 	pointFar.z = zf;
-	pointFar.y = zf * tanf(0.5f * camera->GetFovY());
-	pointFar.x = zf * tanf(0.5f * camera->GetFovX());
+	pointFar.y = zf * tanf(0.5f * eyeCamera->GetFovY());
+	pointFar.x = zf * tanf(0.5f * eyeCamera->GetFovX());
 
 	vector<XMFLOAT4> frustumSliceExtremaPoints;
-	XMMATRIX perspView = camera->GetView();
+	XMMATRIX perspView = eyeCamera->GetView();
 	XMMATRIX invPerspView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(perspView)), perspView);
 	XMMATRIX orthoView = mCamera->GetView();
 	XMMATRIX invOrthoView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(orthoView)), orthoView);
@@ -192,8 +192,13 @@ void Carol::DirectLightShadowPass::Update(
 	XMFLOAT4 center;
 	XMStoreFloat4(&center, XMVector4Transform(0.5f * (XMLoadFloat4(&boxMin) + XMLoadFloat4(&boxMax)), invOrthoView));
 
-	dynamic_cast<OrthographicCamera*>(mCamera.get())->SetLens(boxMax.x - boxMin.x, boxMax.y - boxMin.y, 1.f, boxMax.z + boxMax.z - boxMin.z);
-	mCamera->LookAt(XMLoadFloat4(&center) - 140.f * XMLoadFloat3(&mLight->Direction), XMLoadFloat4(&center), { 0.f,1.f,0.f,0.f });
+	dynamic_cast<OrthographicCamera*>(mCamera.get())->SetLens(
+		boxMax.x - boxMin.x,
+		boxMax.y - boxMin.y,
+		boxMin.z - boxMax.z + boxMin.z,
+		boxMax.z + boxMax.z - boxMin.z);
+
+	mCamera->LookAt(XMLoadFloat4(&center) - XMLoadFloat3(&mLight->Direction), XMLoadFloat4(&center), { 0.f,1.f,0.f,0.f });
 	mCamera->UpdateViewMatrix();
 
 	ShadowPass::Update(lightIdx);
@@ -202,7 +207,7 @@ void Carol::DirectLightShadowPass::Update(
 void Carol::DirectLightShadowPass::InitCamera()
 {
 	mLight->Position = XMFLOAT3(-mLight->Direction.x * 140.f, -mLight->Direction.y * 140.f, -mLight->Direction.z * 140.f);
-	mCamera = make_unique<OrthographicCamera>(70, 0, 280);
+	mCamera = make_unique<OrthographicCamera>(50, 0, 200);
 	mCamera->LookAt(mLight->Position, { 0.f,0.f,0.f }, { 0.f,1.f,0.f });
 	mCamera->UpdateViewMatrix();
 }
@@ -244,12 +249,12 @@ void Carol::CascadedShadowPass::Draw()
 }
 
 void Carol::CascadedShadowPass::Update(
-	const PerspectiveCamera* camera,
+	const PerspectiveCamera* eyeCamera,
 	float logWeight,
 	float bias)
 {
-	float nearZ = camera->GetNearZ();
-	float farZ = camera->GetFarZ();
+	float nearZ = eyeCamera->GetNearZ();
+	float farZ = eyeCamera->GetFarZ();
 
 	for (int i = 0; i < mSplitLevel + 1; ++i)
 	{
@@ -258,7 +263,7 @@ void Carol::CascadedShadowPass::Update(
 
 	for (int i = 0; i < mSplitLevel; ++i)
 	{
-		mShadow[i]->Update(i, camera, mSplitZ[i], mSplitZ[i + 1]);
+		mShadow[i]->Update(i, eyeCamera, mSplitZ[i], mSplitZ[i + 1]);
 	}
 }
 

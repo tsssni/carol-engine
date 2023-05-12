@@ -530,7 +530,7 @@ void Carol::Renderer::Update()
 	gHeapManager->DelayedDelete(gCpuFenceValue, gGpuFenceValue);
 
 	gScene->Update(mTimer.get(), gCpuFenceValue, gGpuFenceValue);
-	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), 0.85f);
+	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), 0.5);
 	mCamera->UpdateViewMatrix();
 
 	XMMATRIX view = mCamera->GetView();
@@ -624,6 +624,7 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	// Display
 	mFrameConstants->RWFrameMapIdx = mDisplayPass->GetFrameMapUavIdx();
 	mFrameConstants->RWHistMapIdx = mDisplayPass->GetHistMapUavIdx();
+	mFrameConstants->HistMapIdx = mDisplayPass->GetHistMapSrvIdx();
 	mFrameConstants->DepthStencilMapIdx = mDisplayPass->GetDepthStencilSrvIdx();
 
 	// G-Buffer
