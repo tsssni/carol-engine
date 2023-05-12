@@ -624,7 +624,6 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	// Display
 	mFrameConstants->RWFrameMapIdx = mDisplayPass->GetFrameMapUavIdx();
 	mFrameConstants->RWHistMapIdx = mDisplayPass->GetHistMapUavIdx();
-	mFrameConstants->HistMapIdx = mDisplayPass->GetHistMapSrvIdx();
 	mFrameConstants->DepthStencilMapIdx = mDisplayPass->GetDepthStencilSrvIdx();
 
 	// G-Buffer

@@ -70,7 +70,6 @@ cbuffer FrameCB : register(b3)
 
     uint gRWFrameMapIdx;
     uint gRWHistMapIdx;
-    uint gHistMapIdx;
     uint gDepthStencilMapIdx;
     uint gSkyBoxIdx;
 
@@ -89,7 +88,7 @@ cbuffer FrameCB : register(b3)
     uint gRWAmbientMapIdx;
     uint gAmbientMapIdx;
 
-    float2 gFramePad5;
+    float3 gFramePad5;
 }
 
 SamplerState gsamPointWrap : register(s0);
