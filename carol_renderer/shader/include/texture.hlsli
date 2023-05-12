@@ -11,21 +11,6 @@ bool TextureBorderTest(int2 pos, uint2 size)
     return pos.x >= 0 && pos.x < size.x && pos.y >= 0 && pos.y < size.y;
 }
 
-bool TextureBorderTest(float2 pos)
-{
-    return
-    pos.x >= .01f || pos.x < .99f
-    || pos.y >= .01f || pos.y < .99f;
-}
-
-bool TextureBorderTest(float3 pos)
-{
-    return 
-    pos.x >= .01f || pos.x < .99f 
-    || pos.y >= .01f || pos.y < .99f
-    || pos.z >= .01f || pos.z < .99f;
-}
-
 float3 NormalToWorldSpace(float3 normal, float3 normalW, float3 tangentW)
 {
     normal = 2.0f * normal - 1.0f;
