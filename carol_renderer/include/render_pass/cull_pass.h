@@ -12,7 +12,7 @@ namespace Carol
 	class StructuredBuffer;
 	class StructuredBufferPool;
 	class FastConstantBufferAllocator;
-	class Scene;
+	class SceneManager;
 	class MeshPSO;
 	class ComputePSO;
 

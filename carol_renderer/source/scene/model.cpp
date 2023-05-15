@@ -16,8 +16,8 @@ namespace Carol
 	using std::unique_ptr;
 	using std::make_unique;
 	using std::unordered_map;
-	using std::wstring;
-	using std::wstring_view;
+	using std::string;
+	using std::string_view;
 	using std::pair;
 	using std::make_pair;
 	using namespace DirectX;
@@ -45,29 +45,29 @@ void Carol::Model::ReleaseIntermediateBuffers()
 	}
 }
 
-const Carol::Mesh* Carol::Model::GetMesh(wstring_view meshName)const
+const Carol::Mesh* Carol::Model::GetMesh(string_view meshName)const
 {
 	return mMeshes.at(meshName.data()).get();
 }
 
-const Carol::unordered_map<Carol::wstring, Carol::unique_ptr<Carol::Mesh>>& Carol::Model::GetMeshes()const
+const Carol::unordered_map<Carol::string, Carol::unique_ptr<Carol::Mesh>>& Carol::Model::GetMeshes()const
 {
 	return mMeshes;
 }
 
-Carol::vector<Carol::wstring_view> Carol::Model::GetAnimationClips()const
+Carol::vector<Carol::string_view> Carol::Model::GetAnimationClips()const
 {
-	vector<wstring_view> animations;
+	vector<string_view> animations;
 
 	for (auto& [name, animation] : mAnimationClips)
 	{
-		animations.push_back(wstring_view(name.c_str(),name.size()));
+		animations.push_back(string_view(name.c_str(),name.size()));
 	}
 
 	return animations;
 }
 
-void Carol::Model::SetAnimationClip(wstring_view clipName)
+void Carol::Model::SetAnimationClip(string_view clipName)
 {
 	if (!mSkinned || mAnimationClips.count(clipName.data()) == 0)
 	{
@@ -110,9 +110,9 @@ void Carol::Model::Update(Timer* timer)
 	}
 }
 
-void Carol::Model::GetFinalTransforms(wstring_view clipName, float t, vector<XMFLOAT4X4>& finalTransforms)
+void Carol::Model::GetFinalTransforms(string_view clipName, float t, vector<XMFLOAT4X4>& finalTransforms)
 {
-	auto& clip = mAnimationClips[wstring(clipName)];
+	auto& clip = mAnimationClips[string(clipName)];
 	uint32_t boneCount = mBoneHierarchy.size();
 
 	vector<XMFLOAT4X4> toParentTransforms(boneCount);
@@ -138,7 +138,7 @@ void Carol::Model::GetFinalTransforms(wstring_view clipName, float t, vector<XMF
 	}
 }
 
-void Carol::Model::GetSkinnedVertices(wstring_view clipName, span<Vertex> vertices, vector<vector<Vertex>>& skinnedVertices)const
+void Carol::Model::GetSkinnedVertices(string_view clipName, span<Vertex> vertices, vector<vector<Vertex>>& skinnedVertices)const
 {
 	auto& frameTransforms = mFrameTransforms.at(clipName.data());
 	skinnedVertices.resize(frameTransforms.size());
@@ -204,7 +204,7 @@ const Carol::SkinnedConstants* Carol::Model::GetSkinnedConstants()const
 	return mSkinnedConstants.get();
 }
 
-void Carol::Model::SetMeshCBAddress(wstring_view meshName, D3D12_GPU_VIRTUAL_ADDRESS addr)
+void Carol::Model::SetMeshCBAddress(string_view meshName, D3D12_GPU_VIRTUAL_ADDRESS addr)
 {
 	mMeshes[meshName.data()]->SetMeshCBAddress(addr);
 }

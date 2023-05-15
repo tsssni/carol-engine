@@ -2,6 +2,7 @@
 #include <dx12/resource.h>
 #include <dx12/heap.h>
 #include <dx12/pipeline_state.h>
+#include <dx12/shader.h>
 #include <global.h>
 
 namespace Carol
@@ -38,6 +39,9 @@ void Carol::GeometryPass::Draw()
         mVelocityMap->GetRtv()
     };
 
+    auto depthStencilDsv = mDepthStencilMap->GetDsv();
+
+
     mDiffuseRoughnessMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
     mEmissiveMetallicMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
     mNormalMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -53,7 +57,7 @@ void Carol::GeometryPass::Draw()
     gGraphicsCommandList->ClearRenderTargetView(mNormalMap->GetRtv(), normalColor, 0, nullptr);
     gGraphicsCommandList->ClearRenderTargetView(mVelocityMap->GetRtv(), velocityColor, 0, nullptr);
     gGraphicsCommandList->ClearDepthStencilView(mDepthStencilMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
-    gGraphicsCommandList->OMSetRenderTargets(_countof(gbufferRtvs), gbufferRtvs, false, GetRvaluePtr(mDepthStencilMap->GetDsv()));
+    gGraphicsCommandList->OMSetRenderTargets(_countof(gbufferRtvs), gbufferRtvs, false, &depthStencilDsv);
 
     gGraphicsCommandList->SetPipelineState(mGeometryStaticMeshPSO->Get());
     ExecuteIndirect(mIndirectCommandBuffer[OPAQUE_STATIC - OPAQUE_MESH_START]);
@@ -103,16 +107,16 @@ void Carol::GeometryPass::InitPSOs()
 
     mGeometryStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mGeometryStaticMeshPSO->SetRenderTargetFormat(_countof(gbufferFormats), gbufferFormats, GetDsvFormat(mDepthStencilFormat));
-	mGeometryStaticMeshPSO->SetAS(gCullAS.get());
-	mGeometryStaticMeshPSO->SetMS(gMeshStaticMS.get());
-	mGeometryStaticMeshPSO->SetPS(gGeometryPS.get());
+	mGeometryStaticMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/cull_as.dxil"));
+	mGeometryStaticMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/static_mesh_ms.dxil"));
+	mGeometryStaticMeshPSO->SetPS(gShaderManager->LoadShader("shader/dxil/geometry_ps.dxil"));
 	mGeometryStaticMeshPSO->Finalize();
 
     mGeometrySkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mGeometrySkinnedMeshPSO->SetRenderTargetFormat(_countof(gbufferFormats), gbufferFormats, GetDsvFormat(mDepthStencilFormat));
-	mGeometrySkinnedMeshPSO->SetAS(gCullAS.get());
-	mGeometrySkinnedMeshPSO->SetMS(gMeshSkinnedMS.get());
-	mGeometrySkinnedMeshPSO->SetPS(gGeometryPS.get());
+	mGeometrySkinnedMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/cull_as.dxil"));
+	mGeometrySkinnedMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/skinned_mesh_ms.dxil"));
+	mGeometrySkinnedMeshPSO->SetPS(gShaderManager->LoadShader("shader/dxil/geometry_ps.dxil"));
 	mGeometrySkinnedMeshPSO->Finalize();
 }
 

@@ -1,6 +1,7 @@
 #include <render_pass/taa_pass.h>
 #include <dx12/resource.h>
 #include <dx12/pipeline_state.h>
+#include <dx12/shader.h>
 #include <global.h>
 #include <DirectXColors.h>
 #include <cmath>
@@ -27,7 +28,7 @@ Carol::TaaPass::TaaPass(
 void Carol::TaaPass::InitPSOs()
 {
 	mTaaComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mTaaComputePSO->SetCS(gTaaCS.get());
+	mTaaComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/taa_cs.dxil"));
 	mTaaComputePSO->Finalize();
 }
 

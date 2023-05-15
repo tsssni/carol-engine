@@ -10,17 +10,17 @@
 
 #define MAX_LOADSTRING 100
 
-using std::wstring;
+using std::string;
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 
 // 全局变量:
 HINSTANCE hInst;                                // 当前实例
 HWND hWnd;                                      // 当前窗口
-WCHAR szTitle[MAX_LOADSTRING];                  // 标题栏文本
-WCHAR szWindowClass[MAX_LOADSTRING];            // 主窗口类名
+CHAR szTitle[MAX_LOADSTRING];                  // 标题栏文本
+CHAR szWindowClass[MAX_LOADSTRING];            // 主窗口类名
 
-wstring loadModelName;
+string loadModelName;
 
 // 此代码模块中包含的函数的前向声明:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -42,8 +42,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // TODO: 在此处放置代码。
 
     // 初始化全局字符串
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_CAROLRENDERER, szWindowClass, MAX_LOADSTRING);
+    LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+    LoadString(hInstance, IDC_CAROLRENDERER, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
     // 执行应用程序初始化:
@@ -95,7 +95,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
     catch (Carol::DxException& e)
     {
-        MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+        MessageBox(nullptr, e.ToString().c_str(), "HR Failed", MB_OK);
         return 0;
     } 
 }
@@ -109,7 +109,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 //
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
-    WNDCLASSEXW wcex;
+    WNDCLASSEX wcex;
 
     wcex.cbSize = sizeof(WNDCLASSEX);
 
@@ -121,11 +121,11 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_CAROLRENDERER));
     wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDR_MENU);
+    wcex.lpszMenuName   = MAKEINTRESOURCE(IDR_MENU);
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
-    return RegisterClassExW(&wcex);
+    return RegisterClassEx(&wcex);
 }
 
 //
@@ -142,7 +142,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // 将实例句柄存储在全局变量中
 
-   hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+   hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
       CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
    
    RECT clientRect;
@@ -344,8 +344,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    static wstring modelPath;
-    static wstring textureDirPath;
+    static string modelPath;
+    static string textureDirPath;
 
     static float scale;
     static DirectX::XMFLOAT3 transl;
@@ -357,16 +357,16 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     static auto GetEditTextFloat = [](HWND hWnd, int resourceId, float& num, float defaultNum)
     {
-        WCHAR buffer[1024];
+        CHAR buffer[1024];
 
         HWND edithWnd = GetDlgItem(hWnd, resourceId);
         GetWindowText(edithWnd, buffer, 1024);
-        num = buffer[0] == 0 ? defaultNum : _wtof(buffer);
+        num = buffer[0] == 0 ? defaultNum : atof(buffer);
     };
 
-    static auto GetEditTextWString = [](HWND hWnd, int resourceId, wstring& str)
+    static auto GetEditTextWString = [](HWND hWnd, int resourceId, string& str)
     {
-        WCHAR buffer[1024];
+        CHAR buffer[1024];
 
         HWND edithWnd = GetDlgItem(hWnd, resourceId);
         GetWindowText(edithWnd, buffer, 1024);
@@ -382,17 +382,17 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_INITDIALOG:
-        SetDlgItemText(hWnd, IDC_MODEL_NAME_EDIT, L"");
-        SetDlgItemText(hWnd, IDC_MODEL_PATH_EDIT, L"");
-        SetDlgItemText(hWnd, IDC_TEXTURE_PATH_EDIT, L"");
-        SetDlgItemText(hWnd, IDC_SCALE, L"1.0");
-        SetDlgItemText(hWnd, IDC_TRANSLATION_X, L"0.0");
-        SetDlgItemText(hWnd, IDC_TRANSLATION_Y, L"0.0");
-        SetDlgItemText(hWnd, IDC_TRANSLATION_Z, L"0.0");
-        SetDlgItemText(hWnd, IDC_ROTATION, L"0.0");
-        SetDlgItemText(hWnd, IDC_ROTATION_AXIS_X, L"0.0");
-        SetDlgItemText(hWnd, IDC_ROTATION_AXIS_Y, L"1.0");
-        SetDlgItemText(hWnd, IDC_ROTATION_AXIS_Z, L"0.0");
+        SetDlgItemText(hWnd, IDC_MODEL_NAME_EDIT, "");
+        SetDlgItemText(hWnd, IDC_MODEL_PATH_EDIT, "");
+        SetDlgItemText(hWnd, IDC_TEXTURE_PATH_EDIT, "");
+        SetDlgItemText(hWnd, IDC_SCALE, "1.0");
+        SetDlgItemText(hWnd, IDC_TRANSLATION_X, "0.0");
+        SetDlgItemText(hWnd, IDC_TRANSLATION_Y, "0.0");
+        SetDlgItemText(hWnd, IDC_TRANSLATION_Z, "0.0");
+        SetDlgItemText(hWnd, IDC_ROTATION, "0.0");
+        SetDlgItemText(hWnd, IDC_ROTATION_AXIS_X, "0.0");
+        SetDlgItemText(hWnd, IDC_ROTATION_AXIS_Y, "1.0");
+        SetDlgItemText(hWnd, IDC_ROTATION_AXIS_Z, "0.0");
 
         break;
     case WM_COMMAND:
@@ -418,11 +418,11 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ThrowIfFailed(pfd->GetResult(psi.GetAddressOf()));
                 ThrowIfFailed(psi->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &path));
 
-                SetDlgItemText(hWnd, IDC_MODEL_PATH_EDIT, path);
+                SetDlgItemText(hWnd, IDC_MODEL_PATH_EDIT, Carol::WStringToString(path).data());
             }
             catch (DxException& e)
 			{
-				MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+				MessageBox(nullptr, e.ToString().c_str(), "HR Failed", MB_OK);
 				return 0;
 			}
         }
@@ -449,11 +449,11 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ThrowIfFailed(pfd->GetResult(&psi));
                 ThrowIfFailed(psi->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &path));
 
-                SetDlgItemText(hWnd, IDC_TEXTURE_PATH_EDIT, path);
+                SetDlgItemText(hWnd, IDC_TEXTURE_PATH_EDIT, Carol::WStringToString(path).data());
             }
             catch (DxException& e)
 			{
-				MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+				MessageBox(nullptr, e.ToString().c_str(), "HR Failed", MB_OK);
 				return 0;
 			}
         }
@@ -520,10 +520,10 @@ LRESULT AnimationWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         auto lbhWnd = GetDlgItem(hWnd, IDC_ANIMATION_LIST);
 		int lbItem = SendMessage(lbhWnd, LB_GETCURSEL, 0, 0);
 
-        WCHAR bufw[1024];
-        SendMessage(lbhWnd, LB_GETTEXT, lbItem, (LPARAM)bufw);
+        CHAR buf[1024];
+        SendMessage(lbhWnd, LB_GETTEXT, lbItem, (LPARAM)buf);
 
-        return wstring(bufw);
+        return string(buf);
     };
 
     switch (message)
@@ -569,10 +569,10 @@ LRESULT DeleteWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         auto lbhWnd = GetDlgItem(hWnd, IDC_DELETE_LIST);
 		int lbItem = SendMessage(lbhWnd, LB_GETCURSEL, 0, 0);
 
-        WCHAR bufw[1024];
-        SendMessage(lbhWnd, LB_GETTEXT, lbItem, (LPARAM)bufw);
+        CHAR buf[1024];
+        SendMessage(lbhWnd, LB_GETTEXT, lbItem, (LPARAM)buf);
 
-        return wstring(bufw);
+        return string(buf);
     };
 
     switch (message)

@@ -1,5 +1,5 @@
 #include <dx12/command.h>
-#include <utils/common.h>
+#include <utils/exception.h>
 #include <global.h>
 
 namespace Carol

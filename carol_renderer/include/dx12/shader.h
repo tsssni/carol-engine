@@ -6,6 +6,7 @@
 #include <string_view>
 #include <span>
 #include <memory>
+#include <unordered_map>
 #include <wrl/client.h>
 
 namespace Carol
@@ -13,28 +14,20 @@ namespace Carol
 	class Shader
 	{
 	public:
-		void SetFileName(std::wstring_view fileName);
-		void SetDefines(const std::vector<std::wstring_view>& defines);
-		void SetEntryPoint(std::wstring_view entryPoint);
-		void SetTarget(std::wstring_view target);
-		void Finalize();
-
-		LPVOID GetBufferPointer()const;
+		Shader(std::string_view path);
+		void* GetBufferPointer()const;
 		size_t GetBufferSize()const;
-
-		static void InitCompiler();
-		static void InitShaders();
 	private:
-		std::vector<LPCWSTR> SetArgs();
-		Microsoft::WRL::ComPtr<IDxcResult> Compile(std::span<LPCWSTR> args);
-		void CheckError(Microsoft::WRL::ComPtr<IDxcResult>& result);
-		void OutputPdb(Microsoft::WRL::ComPtr<IDxcResult>& result);
+		std::vector<std::byte> mBlob;
+	};
 
-		std::wstring mFileName;
-		std::vector<std::wstring> mDefines;
-		std::wstring mEntryPoint;
-		std::wstring mTarget;
+	class ShaderManager
+	{
+	public:
+		ShaderManager();
+		Shader* LoadShader(std::string_view path);
 
-		Microsoft::WRL::ComPtr<IDxcBlob> mShader;
+	private:
+		std::unordered_map<std::string, std::unique_ptr<Shader>> mShaders;
 	};
 }

@@ -2,6 +2,7 @@
 #include <dx12/resource.h>
 #include <dx12/pipeline_state.h>
 #include <dx12/root_signature.h>
+#include <dx12/shader.h>
 #include <scene/scene.h>
 #include <global.h>
 #include <DirectXColors.h>
@@ -37,7 +38,7 @@ void Carol::ShadePass::Draw()
 void Carol::ShadePass::InitPSOs()
 {	
 	mShadeComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mShadeComputePSO->SetCS(gShadeCS.get());
+	mShadeComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/shade_cs.dxil"));
 	mShadeComputePSO->Finalize();
 }
 

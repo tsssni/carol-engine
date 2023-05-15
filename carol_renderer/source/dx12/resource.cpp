@@ -1161,8 +1161,9 @@ Carol::StructuredBuffer& Carol::StructuredBuffer::operator=(StructuredBuffer&& s
 
 void Carol::StructuredBuffer::InitCounterResetBuffer(Heap* heap)
 {
+	auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(uint32_t));
 	sCounterResetBuffer = make_unique<Resource>(
-		GetRvaluePtr(CD3DX12_RESOURCE_DESC::Buffer(sizeof(uint32_t))),
+		&desc,
 		heap,
 		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 

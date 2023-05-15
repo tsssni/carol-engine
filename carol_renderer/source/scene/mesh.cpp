@@ -10,8 +10,8 @@ namespace Carol
 	using std::make_unique;
 	using std::span;
 	using std::pair;
-	using std::wstring;
-	using std::wstring_view;
+	using std::string;
+	using std::string_view;
 	using std::unordered_map;
 	using namespace DirectX;
 	void BoundingBoxCompare(const XMFLOAT3& pos, XMFLOAT3& boxMin, XMFLOAT3& boxMax);
@@ -42,7 +42,7 @@ void Carol::RadiusCompare(const XMVECTOR& pos, const XMVECTOR& center, const XMV
 
 Carol::Mesh::Mesh(
 	span<Vertex> vertices,
-	span<pair<wstring, vector<vector<Vertex>>>> skinnedVertices,
+	span<pair<string, vector<vector<Vertex>>>> skinnedVertices,
 	span<uint32_t> indices,
 	bool isSkinned,
 	bool isTransparent)
@@ -120,9 +120,9 @@ void Carol::Mesh::ClearCullMark()
 	gGraphicsCommandList->ClearUnorderedAccessViewUint(mMeshletCulledMarkBuffer->GetGpuUav(), mMeshletCulledMarkBuffer->GetCpuUav(), mMeshletCulledMarkBuffer->Get(), &clear1, 0, nullptr);
 }
 
-void Carol::Mesh::SetAnimationClip(std::wstring_view clipName)
+void Carol::Mesh::SetAnimationClip(std::string_view clipName)
 {
-	wstring name(clipName);
+	string name(clipName);
 	mMeshConstants->CullDataBufferIdx = mCullDataBuffer[name]->GetGpuSrvIdx();
 	mMeshConstants->Center = mBoundingBoxes[name].Center;
 	mMeshConstants->Extents = mBoundingBoxes[name].Extents;
@@ -237,9 +237,9 @@ void Carol::Mesh::LoadMeshlets()
 
 void Carol::Mesh::LoadCullData()
 {
-	static wstring staticName = L"mesh";
+	static string staticName = "mesh";
 	vector<vector<Vertex>> vertices;
-	pair<wstring, vector<vector<Vertex>>> staticPair;
+	pair<string, vector<vector<Vertex>>> staticPair;
 
 	if (!mSkinned)
 	{
@@ -308,9 +308,9 @@ void Carol::Mesh::InitCullMark()
 	mMeshConstants->MeshletCulledMarkBufferIdx = mMeshletCulledMarkBuffer->GetGpuUavIdx();
 }
 
-void Carol::Mesh::LoadMeshletBoundingBox(wstring_view clipName, span<vector<Vertex>> vertices)
+void Carol::Mesh::LoadMeshletBoundingBox(string_view clipName, span<vector<Vertex>> vertices)
 {
-	wstring name(clipName);
+	string name(clipName);
 	XMFLOAT3 meshBoxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
 	XMFLOAT3 meshBoxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
 
@@ -340,9 +340,9 @@ void Carol::Mesh::LoadMeshletBoundingBox(wstring_view clipName, span<vector<Vert
 	BoundingBox::CreateFromPoints(mBoundingBoxes[name], XMLoadFloat3(&meshBoxMin), XMLoadFloat3(&meshBoxMax));
 }
 
-void Carol::Mesh::LoadMeshletNormalCone(wstring_view clipName, span<vector<Vertex>> vertices)
+void Carol::Mesh::LoadMeshletNormalCone(string_view clipName, span<vector<Vertex>> vertices)
 {
-	wstring name(clipName);
+	string name(clipName);
 
 	for (int i = 0; i < mMeshlets.size(); ++i)
 	{

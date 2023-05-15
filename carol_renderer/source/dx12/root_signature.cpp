@@ -1,6 +1,6 @@
 #include <dx12/root_signature.h>
 #include <dx12/shader.h>
-#include <utils/common.h>
+#include <utils/exception.h>
 #include <global.h>
 
 namespace Carol {
@@ -9,13 +9,7 @@ namespace Carol {
 
 Carol::RootSignature::RootSignature()
 {
-    Shader rootSignatureShader;
-    rootSignatureShader.SetFileName(L"shader\\root_signature.hlsl");
-    rootSignatureShader.SetDefines({});
-    rootSignatureShader.SetEntryPoint(L"main");
-    rootSignatureShader.SetTarget(L"ms_6_6");
-    rootSignatureShader.Finalize();
-
+    Shader rootSignatureShader("shader/dxil/root_signature.dxil");
     ThrowIfFailed(gDevice->CreateRootSignature(0, rootSignatureShader.GetBufferPointer(), rootSignatureShader.GetBufferSize(), IID_PPV_ARGS(mRootSignature.GetAddressOf())));
 }
 

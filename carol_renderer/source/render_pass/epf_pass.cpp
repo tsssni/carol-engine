@@ -2,6 +2,7 @@
 #include <dx12/resource.h>
 #include <dx12/pipeline_state.h>
 #include <dx12/root_signature.h>
+#include <dx12/shader.h>
 #include <global.h>
 
 namespace Carol
@@ -35,7 +36,7 @@ void Carol::EpfPass::Draw()
 void Carol::EpfPass::InitPSOs()
 {
 	mEpfComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mEpfComputePSO->SetCS(gEpfCS.get());
+	mEpfComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/epf_cs.dxil"));
 	mEpfComputePSO->Finalize();
 }
 

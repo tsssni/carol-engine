@@ -16,7 +16,7 @@ namespace Carol
 	{
 	public:
 		Texture(
-			std::wstring_view fileName,
+			std::string_view fileName,
 			bool isSrgb);
 
 		uint32_t GetGpuSrvIdx(uint32_t planeSlice = 0);
@@ -36,13 +36,13 @@ namespace Carol
 		TextureManager();
 
 		uint32_t LoadTexture(
-			std::wstring_view fileName,
+			std::string_view fileName,
 			bool isSrgb);
-		void UnloadTexture(std::wstring_view fileName);
-		void ReleaseIntermediateBuffers(std::wstring_view fileName);
+		void UnloadTexture(std::string_view fileName);
+		void ReleaseIntermediateBuffers(std::string_view fileName);
 
 	protected:
-		std::unordered_map<std::wstring, std::unique_ptr<Texture>> mTextures;
+		std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
 	};
 }
 

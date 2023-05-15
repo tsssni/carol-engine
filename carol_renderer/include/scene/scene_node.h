@@ -13,7 +13,7 @@ namespace Carol {
 	{
 	public:
 		SceneNode();
-		std::wstring Name;
+		std::string Name;
 		std::vector<Mesh*> Meshes;
 		std::vector<std::unique_ptr<SceneNode>> Children;
 		DirectX::XMFLOAT4X4 Transformation;

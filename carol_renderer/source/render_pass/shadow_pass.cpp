@@ -157,9 +157,9 @@ void Carol::DirectLightShadowPass::Update(
 
 	vector<XMFLOAT4> frustumSliceExtremaPoints;
 	XMMATRIX perspView = eyeCamera->GetView();
-	XMMATRIX invPerspView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(perspView)), perspView);
+	XMMATRIX invPerspView = XMMatrixInverse(nullptr, perspView);
 	XMMATRIX orthoView = mCamera->GetView();
-	XMMATRIX invOrthoView = XMMatrixInverse(GetRvaluePtr(XMMatrixDeterminant(orthoView)), orthoView);
+	XMMATRIX invOrthoView = XMMatrixInverse(nullptr, orthoView);
 	XMMATRIX invPerspOrthoView = XMMatrixMultiply(invPerspView, orthoView);
 
 	for (int i = 0; i < 4; ++i)

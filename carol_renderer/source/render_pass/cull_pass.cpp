@@ -4,6 +4,7 @@
 #include <dx12/indirect_command.h>
 #include <dx12/pipeline_state.h>
 #include <dx12/root_signature.h>
+#include <dx12/shader.h>
 #include <scene/scene.h>
 #include <global.h>
 
@@ -70,14 +71,14 @@ void Carol::CullPass::Update(XMMATRIX viewProj, XMMATRIX histViewProj, XMVECTOR 
 	{
 		MeshType type = MeshType(i);
 		mCulledCommandBufferPool->DiscardBuffer(mCulledCommandBuffer[type].release(), gCpuFenceValue);
-		mCulledCommandBuffer[type] = mCulledCommandBufferPool->RequestBuffer(gGpuFenceValue, gScene->GetMeshesCount(type));
+		mCulledCommandBuffer[type] = mCulledCommandBufferPool->RequestBuffer(gGpuFenceValue, gSceneManager->GetMeshesCount(type));
 
 		XMStoreFloat4x4(&mCullConstants[i]->ViewProj, viewProj);
 		XMStoreFloat4x4(&mCullConstants[i]->HistViewProj, histViewProj);
 		XMStoreFloat3(&mCullConstants[i]->EyePos, eyePos);
 		mCullConstants[i]->CulledCommandBufferIdx = mCulledCommandBuffer[type]->GetGpuUavIdx();
-		mCullConstants[i]->MeshCount = gScene->GetMeshesCount(type);
-		mCullConstants[i]->MeshOffset = gScene->GetMeshCBStartOffet(type);
+		mCullConstants[i]->MeshCount = gSceneManager->GetMeshesCount(type);
+		mCullConstants[i]->MeshOffset = gSceneManager->GetMeshCBStartOffet(type);
 		mCullConstants[i]->HiZMapIdx = mHiZMap->GetGpuSrvIdx();
 
 		mCullCBAddr[i] = mCullCBAllocator->Allocate(mCullConstants[i].get());
@@ -103,69 +104,69 @@ void Carol::CullPass::InitPSOs()
 	mOpaqueStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mOpaqueStaticCullMeshPSO->SetAS(gOpaqueCullAS.get());
-	mOpaqueStaticCullMeshPSO->SetMS(gDepthStaticCullMS.get());
+	mOpaqueStaticCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/opaque_cull_as.dxil"));
+	mOpaqueStaticCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/static_depth_ms.dxil"));
 	mOpaqueStaticCullMeshPSO->Finalize();
 
 	mOpaqueSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mOpaqueSkinnedCullMeshPSO->SetAS(gOpaqueCullAS.get());
-	mOpaqueSkinnedCullMeshPSO->SetMS(gDepthSkinnedCullMS.get());
+	mOpaqueSkinnedCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/opaque_cull_as.dxil"));
+	mOpaqueSkinnedCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/skinned_depth_ms.dxil"));
 	mOpaqueSkinnedCullMeshPSO->Finalize();
 
 	mTransparentStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mTransparentStaticCullMeshPSO->SetAS(gTransparentCullAS.get());
-	mTransparentStaticCullMeshPSO->SetMS(gDepthStaticCullMS.get());
+	mTransparentStaticCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/transparent_cull_as.dxil"));
+	mTransparentStaticCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/static_depth_ms.dxil"));
 	mTransparentStaticCullMeshPSO->Finalize();
 
 	mTransparentSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mTransparentSkinnedCullMeshPSO->SetAS(gTransparentCullAS.get());
-	mTransparentSkinnedCullMeshPSO->SetMS(gDepthSkinnedCullMS.get());
+	mTransparentSkinnedCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/transparent_cull_as.dxil"));
+	mTransparentSkinnedCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/skinned_depth_ms.dxil"));
 	mTransparentSkinnedCullMeshPSO->Finalize();
 
 	mOpaqueHistHiZStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueHistHiZStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueHistHiZStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mOpaqueHistHiZStaticCullMeshPSO->SetAS(gOpaqueHistHiZCullAS.get());
-	mOpaqueHistHiZStaticCullMeshPSO->SetMS(gDepthStaticCullMS.get());
+	mOpaqueHistHiZStaticCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/opaque_hist_hiz_cull_as.dxil"));
+	mOpaqueHistHiZStaticCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/static_depth_ms.dxil"));
 	mOpaqueHistHiZStaticCullMeshPSO->Finalize();
 
 	mOpaqueHistHiZSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mOpaqueHistHiZSkinnedCullMeshPSO->SetAS(gOpaqueHistHiZCullAS.get());
-	mOpaqueHistHiZSkinnedCullMeshPSO->SetMS(gDepthStaticCullMS.get());
+	mOpaqueHistHiZSkinnedCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/opaque_hist_hiz_cull_as.dxil"));
+	mOpaqueHistHiZSkinnedCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/skinned_depth_ms.dxil"));
 	mOpaqueHistHiZSkinnedCullMeshPSO->Finalize();
 
 	mTransparentHistHiZStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentHistHiZStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentHistHiZStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mTransparentHistHiZStaticCullMeshPSO->SetAS(gTransparentHistHiZCullAS.get());
-	mTransparentHistHiZStaticCullMeshPSO->SetMS(gDepthStaticCullMS.get());
+	mTransparentHistHiZStaticCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/transparent_hist_hiz_cull_as.dxil"));
+	mTransparentHistHiZStaticCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/static_depth_ms.dxil"));
 	mTransparentHistHiZStaticCullMeshPSO->Finalize();
 	
 	mTransparentHistHiZSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentHistHiZSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentHistHiZSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
-	mTransparentHistHiZSkinnedCullMeshPSO->SetAS(gTransparentHistHiZCullAS.get());
-	mTransparentHistHiZSkinnedCullMeshPSO->SetMS(gDepthSkinnedCullMS.get());
+	mTransparentHistHiZSkinnedCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/transparent_hist_hiz_cull_as.dxil"));
+	mTransparentHistHiZSkinnedCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/skinned_depth_ms.dxil"));
 	mTransparentHistHiZSkinnedCullMeshPSO->Finalize();
 
 	mCullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mCullInstanceComputePSO->SetCS(gCullCS.get());
+	mCullInstanceComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/cull_cs.dxil"));
 	mCullInstanceComputePSO->Finalize();
 
 	mHistHiZCullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mHistHiZCullInstanceComputePSO->SetCS(gHistHiZCullCS.get());
+	mHistHiZCullInstanceComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/hist_hiz_cull_cs.dxil"));
 	mHistHiZCullInstanceComputePSO->Finalize();
 
 	mHiZGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mHiZGenerateComputePSO->SetCS(gHiZGenerateCS.get());
+	mHiZGenerateComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/hiz_generate_cs.dxil"));
 	mHiZGenerateComputePSO->Finalize();
 }
 
@@ -186,7 +187,7 @@ void Carol::CullPass::InitBuffers()
 
 void Carol::CullPass::CullReset()
 {
-	gScene->ClearCullMark();
+	gSceneManager->ClearCullMark();
 
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
@@ -243,8 +244,9 @@ void Carol::CullPass::OcclusionCullInstancesRecheck()
 
 void Carol::CullPass::CullMeshes()
 {
-	gGraphicsCommandList->ClearDepthStencilView(mDepthMap->GetDsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-	gGraphicsCommandList->OMSetRenderTargets(0, nullptr, true, GetRvaluePtr(mDepthMap->GetDsv()));
+	auto depthStencilDsv = mDepthMap->GetDsv();
+	gGraphicsCommandList->ClearDepthStencilView(depthStencilDsv, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+	gGraphicsCommandList->OMSetRenderTargets(0, nullptr, true, &depthStencilDsv);
 
 	ID3D12PipelineState* pso[] = {mOpaqueStaticCullMeshPSO->Get(), mOpaqueSkinnedCullMeshPSO->Get(), mTransparentStaticCullMeshPSO->Get(), mTransparentSkinnedCullMeshPSO->Get()};
 

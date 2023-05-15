@@ -9,8 +9,8 @@
 namespace Carol
 {
 	using std::vector;
-	using std::wstring;
-	using std::wstring_view;
+	using std::string;
+	using std::string_view;
 	using std::unordered_map;
 	using std::unique_ptr;
 	using std::make_unique;
@@ -18,8 +18,8 @@ namespace Carol
 	using Microsoft::WRL::ComPtr;
 }
 
-Carol::Scene::Scene(
-	wstring_view name)
+Carol::SceneManager::SceneManager(
+	string_view name)
 	:mRootNode(make_unique<SceneNode>()),
 	mMeshes(MESH_TYPE_COUNT)
 {
@@ -27,7 +27,7 @@ Carol::Scene::Scene(
 	InitBuffers();
 }
 
-void Carol::Scene::InitBuffers()
+void Carol::SceneManager::InitBuffers()
 {
 	mInstanceFrustumCulledMarkBuffer = make_unique<RawBuffer>(
 		2 << 16,
@@ -72,36 +72,36 @@ void Carol::Scene::InitBuffers()
 		true);
 }
 
-Carol::vector<Carol::wstring_view> Carol::Scene::GetAnimationClips(wstring_view modelName)const
+Carol::vector<Carol::string_view> Carol::SceneManager::GetAnimationClips(string_view modelName)const
 {
 	return mModels.at(modelName.data())->GetAnimationClips();
 }
 
-Carol::vector<Carol::wstring_view> Carol::Scene::GetModelNames()const
+Carol::vector<Carol::string_view> Carol::SceneManager::GetModelNames()const
 {
-	vector<wstring_view> models;
+	vector<string_view> models;
 	for (auto& [name, model] : mModels)
 	{
-		models.push_back(wstring_view(name.c_str(), name.size()));
+		models.push_back(string_view(name.c_str(), name.size()));
 	}
 
 	return models;
 }
 
-bool Carol::Scene::IsAnyOpaqueMeshes() const
+bool Carol::SceneManager::IsAnyOpaqueMeshes() const
 {
 	return mMeshes[OPAQUE_STATIC].size() + mMeshes[OPAQUE_SKINNED].size();
 }
 
-bool Carol::Scene::IsAnyTransparentMeshes()const
+bool Carol::SceneManager::IsAnyTransparentMeshes()const
 {
 	return mMeshes[TRANSPARENT_STATIC].size() + mMeshes[TRANSPARENT_SKINNED].size();
 }
 
-void Carol::Scene::LoadModel(
-	wstring_view name,
-	wstring_view path,
-	wstring_view textureDir,
+void Carol::SceneManager::LoadModel(
+	string_view name,
+	string_view path,
+	string_view textureDir,
 	bool isSkinned)
 {
 	mRootNode->Children.push_back(make_unique<SceneNode>());
@@ -117,13 +117,13 @@ void Carol::Scene::LoadModel(
 
 	for (auto& [name, mesh] : mModels[node->Name]->GetMeshes())
 	{
-		wstring meshName = node->Name + L'_' + name;
+		string meshName = node->Name + '_' + name;
 		uint32_t type = uint32_t(mesh->IsSkinned()) | (uint32_t(mesh->IsTransparent()) << 1);
 		mMeshes[type][meshName] = mesh.get();
 	}
 }
 
-void Carol::Scene::UnloadModel(wstring_view modelName)
+void Carol::SceneManager::UnloadModel(string_view modelName)
 {
 	for (auto itr = mRootNode->Children.begin(); itr != mRootNode->Children.end(); ++itr)
 	{
@@ -134,11 +134,11 @@ void Carol::Scene::UnloadModel(wstring_view modelName)
 		}
 	}
 
-	wstring name(modelName);
+	string name(modelName);
 
 	for (auto& [meshName, mesh] : mModels[name]->GetMeshes())
 	{
-		wstring modelMeshName = name + L"_" + meshName;
+		string modelMeshName = name + "_" + meshName;
 		uint32_t type = uint32_t(mesh->IsSkinned()) | (uint32_t(mesh->IsTransparent()) << 1);
 		mMeshes[type].erase(modelMeshName);
 	}
@@ -146,7 +146,7 @@ void Carol::Scene::UnloadModel(wstring_view modelName)
 	mModels.erase(name);
 }
 
-void Carol::Scene::ReleaseIntermediateBuffers()
+void Carol::SceneManager::ReleaseIntermediateBuffers()
 {
 	for (auto& [name ,model] : mModels)
 	{
@@ -154,22 +154,22 @@ void Carol::Scene::ReleaseIntermediateBuffers()
 	}
 }
 
-void Carol::Scene::ReleaseIntermediateBuffers(wstring_view modelName)
+void Carol::SceneManager::ReleaseIntermediateBuffers(string_view modelName)
 {
 	mModels[modelName.data()]->ReleaseIntermediateBuffers();
 }
 
-uint32_t Carol::Scene::GetMeshesCount(MeshType type)const
+uint32_t Carol::SceneManager::GetMeshesCount(MeshType type)const
 {
 	return mMeshes[type].size();
 }
 
-uint32_t Carol::Scene::GetModelsCount()const
+uint32_t Carol::SceneManager::GetModelsCount()const
 {
 	return mModels.size();
 }
 
-void Carol::Scene::SetWorld(wstring_view modelName, DirectX::XMMATRIX world)
+void Carol::SceneManager::SetWorld(string_view modelName, DirectX::XMMATRIX world)
 {
 	for (auto& node : mRootNode->Children)
 	{
@@ -180,16 +180,16 @@ void Carol::Scene::SetWorld(wstring_view modelName, DirectX::XMMATRIX world)
 	}
 }
 
-void Carol::Scene::SetAnimationClip(wstring_view modelName, wstring_view clipName)
+void Carol::SceneManager::SetAnimationClip(string_view modelName, string_view clipName)
 {
 	mModels[modelName.data()]->SetAnimationClip(clipName);
 }
 
-void Carol::Scene::Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes)
+void Carol::SceneManager::Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes)
 {
 }
 
-void Carol::Scene::ClearCullMark()
+void Carol::SceneManager::ClearCullMark()
 {
 	static const uint32_t clear0 = 0;
 	static const uint32_t clear1 = 0xffffffff;
@@ -206,37 +206,37 @@ void Carol::Scene::ClearCullMark()
 	}
 }
 
-uint32_t Carol::Scene::GetMeshCBStartOffet(MeshType type)const
+uint32_t Carol::SceneManager::GetMeshCBStartOffet(MeshType type)const
 {
 	return mMeshStartOffset[type];
 }
 
-uint32_t Carol::Scene::GetMeshBufferIdx()const
+uint32_t Carol::SceneManager::GetMeshBufferIdx()const
 {
 	return mMeshBuffer->GetGpuSrvIdx();
 }
 
-uint32_t Carol::Scene::GetCommandBufferIdx()const
+uint32_t Carol::SceneManager::GetCommandBufferIdx()const
 {
 	return mIndirectCommandBuffer->GetGpuSrvIdx();
 }
 
-uint32_t Carol::Scene::GetInstanceFrustumCulledMarkBufferIdx()const
+uint32_t Carol::SceneManager::GetInstanceFrustumCulledMarkBufferIdx()const
 {
 	return mInstanceFrustumCulledMarkBuffer->GetGpuUavIdx();
 }
 
-uint32_t Carol::Scene::GetInstanceOcclusionCulledMarkBufferIdx()const
+uint32_t Carol::SceneManager::GetInstanceOcclusionCulledMarkBufferIdx()const
 {
 	return mInstanceOcclusionCulledMarkBuffer->GetGpuUavIdx();
 }
 
-uint32_t Carol::Scene::GetInstanceCulledMarkBufferIdx() const
+uint32_t Carol::SceneManager::GetInstanceCulledMarkBufferIdx() const
 {
 	return mInstanceCulledMarkBuffer->GetGpuUavIdx();
 }
 
-void Carol::Scene::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t completedFenceValue)
+void Carol::SceneManager::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t completedFenceValue)
 {
 	for (auto& [name, model] : mModels)
 	{
@@ -304,7 +304,7 @@ void Carol::Scene::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t complet
 	}
 }
 
-void Carol::Scene::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot)
+void Carol::SceneManager::ProcessNode(SceneNode* node, DirectX::XMMATRIX parentToRoot)
 {
 	XMMATRIX toParent = XMLoadFloat4x4(&node->Transformation);
 	XMMATRIX world = toParent * parentToRoot;

@@ -1,7 +1,7 @@
 #include <dx12/descriptor.h>
 #include <utils/bitset.h>
 #include <utils/buddy.h>
-#include <utils/common.h>
+#include <utils/exception.h>
 #include <global.h>
 
 namespace Carol {

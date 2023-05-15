@@ -1,7 +1,7 @@
 #include <dx12/heap.h>
 #include <utils/bitset.h>
 #include <utils/buddy.h>
-#include <utils/common.h>
+#include <utils/exception.h>
 #include <utils/d3dx12.h>
 #include <global.h>
 #include <assert.h>

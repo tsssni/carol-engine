@@ -1,5 +1,6 @@
 #include <render_pass/tone_mapping_pass.h>
 #include <dx12/pipeline_state.h>
+#include <dx12/shader.h>
 #include <global.h>
 #include <string_view>
 #include <vector>
@@ -28,7 +29,7 @@ void Carol::ToneMappingPass::Draw()
 void Carol::ToneMappingPass::InitPSOs()
 {
 	mLDRToneMappingComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mLDRToneMappingComputePSO->SetCS(gLDRToneMappingCS.get());
+	mLDRToneMappingComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/tone_mapping_cs.dxil"));
 	mLDRToneMappingComputePSO->Finalize();
 }
 

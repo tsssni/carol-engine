@@ -21,7 +21,6 @@ void main(uint dtid : SV_DispatchThreadID)
 {
     bool visible = false;
 
-#ifdef WRITE
     if (dtid < gMeshletCount 
         && !GetMark(dtid, gMeshletFrustumCulledMarkBufferIdx) 
         && !GetMark(dtid, gMeshletNormalConeCulledMarkBufferIdx) 
@@ -32,18 +31,13 @@ void main(uint dtid : SV_DispatchThreadID)
 
         visible = !MeshletHiZOcclusionCull(dtid, cd);
     }
-#else
-    visible = dtid < gMeshletCount && !GetMark(dtid, gMeshletCulledMarkBufferIdx);
-#endif 
     
-#if (defined WRITE) && (defined TRANSPARENT)
+#ifdef TRANSPARENT
     DispatchMesh(0, 0, 0, sharedPayload);
 #else
     if (visible)
     {
-#ifdef WRITE
         ResetMark(dtid, gMeshletCulledMarkBufferIdx);
-#endif
         uint idx = WavePrefixCountBits(visible);
         sharedPayload.MeshletIndices[idx] = dtid;
     }

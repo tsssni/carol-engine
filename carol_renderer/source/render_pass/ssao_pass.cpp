@@ -3,6 +3,7 @@
 #include <dx12/heap.h>
 #include <dx12/resource.h>
 #include <dx12/pipeline_state.h>
+#include <dx12/shader.h>
 #include <global.h>
 #include <DirectXColors.h>
 #include <DirectXPackedVector.h>
@@ -125,6 +126,6 @@ void Carol::SsaoPass::InitRandomVectorMap()
 void Carol::SsaoPass::InitPSOs()
 {
 	mSsaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mSsaoComputePSO->SetCS(gSsaoCS.get());
+	mSsaoComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/ssao_cs.dxil"));
 	mSsaoComputePSO->Finalize();
 }

@@ -19,8 +19,6 @@ namespace Carol
 			uint32_t width,
 			uint32_t height);
 
-		static void Init();
-
 	protected:
 		virtual void InitPSOs() = 0;
 		virtual void InitBuffers() = 0;

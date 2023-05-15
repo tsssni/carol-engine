@@ -143,11 +143,11 @@ namespace Carol
 		void SetResizing(bool state);
 		bool IsResizing();
 
-        void LoadModel(std::wstring_view path, std::wstring_view textureDir, std::wstring_view modelName, DirectX::XMMATRIX world, bool isSkinned);
-        void UnloadModel(std::wstring_view modelName);
-        std::vector<std::wstring_view> GetAnimationNames(std::wstring_view modelName);
-        void SetAnimation(std::wstring_view modelName, std::wstring_view animationName);
-        std::vector<std::wstring_view> GetModelNames();
+        void LoadModel(std::string_view path, std::string_view textureDir, std::string_view modelName, DirectX::XMMATRIX world, bool isSkinned);
+        void UnloadModel(std::string_view modelName);
+        std::vector<std::string_view> GetAnimationNames(std::string_view modelName);
+        void SetAnimation(std::string_view modelName, std::string_view animationName);
+        std::vector<std::string_view> GetModelNames();
     protected:
 		void InitDebug();
 		void InitDxgiFactory();
@@ -156,21 +156,22 @@ namespace Carol
 		void InitCommandQueue();
 		void InitCommandAllocatorPool();
 		void InitGraphicsCommandList();
-        void InitPipelineStates();
+		void InitRootSignature();
+		void InitCommandSignature();
 
 		void InitHeapManager();
 		void InitDescriptorManager();
+		void InitShaderManager();
 		void InitTextureManager();
+        void InitSceneManager();
 		void InitTimer();
 		void InitCamera();
-        void InitScene();
 
 		void InitConstants();
 		void InitSkyBox();
 		void InitRandomVectors();
 		void InitGaussWeights();
 
-		void InitRenderPass();
 		void InitCullPass();
 		void InitDisplayPass();
 		void InitGeometryPass();
@@ -192,7 +193,7 @@ namespace Carol
 		std::unique_ptr<Timer> mTimer;
 
 		HWND mhWnd;
-		std::wstring mMainWndCaption = L"Carol";
+		std::string mMainWndCaption = "Carol";
 		D3D_DRIVER_TYPE md3dDriverType = D3D_DRIVER_TYPE_HARDWARE;
 
 		DirectX::XMINT2 mLastMousePos = { 0,0 };

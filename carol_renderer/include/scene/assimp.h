@@ -18,8 +18,8 @@ namespace Carol
 	public:
 		AssimpModel(
 			SceneNode* rootNode,
-		    std::wstring_view path,
-			std::wstring_view textureDir,
+		    std::string_view path,
+			std::string_view textureDir,
 			bool isSkinned);
 		AssimpModel(const AssimpModel&) = delete;
 		AssimpModel(AssimpModel&&) = delete;
@@ -55,6 +55,6 @@ namespace Carol
 			aiTextureType type);
 
 	protected:
-		std::unordered_map<std::wstring, uint32_t> mBoneIndices;
+		std::unordered_map<std::string, uint32_t> mBoneIndices;
 	};
 }

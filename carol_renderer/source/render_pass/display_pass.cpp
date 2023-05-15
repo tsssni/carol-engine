@@ -3,6 +3,7 @@
 #include <dx12/heap.h>
 #include <dx12/resource.h>
 #include <dx12/pipeline_state.h>
+#include <dx12/shader.h>
 #include <global.h>
 #include <stdlib.h>
 #include <vector>
@@ -86,10 +87,13 @@ uint32_t Carol::DisplayPass::GetDepthStencilSrvIdx()const
 
 void Carol::DisplayPass::Draw()
 {
+	auto backBufferRtv = mBackBufferRtvAllocInfo->Manager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mBackBufferIdx);
 	mFrameMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	gGraphicsCommandList->OMSetRenderTargets(1, GetRvaluePtr(mBackBufferRtvAllocInfo->Manager->GetRtvHandle(mBackBufferRtvAllocInfo.get(), mBackBufferIdx)), true, nullptr);
+	gGraphicsCommandList->OMSetRenderTargets(1, &backBufferRtv, true, nullptr);
+
 	gGraphicsCommandList->SetPipelineState(mDisplayMeshPSO->Get());
 	static_cast<ID3D12GraphicsCommandList6*>(gGraphicsCommandList.Get())->DispatchMesh(1, 1, 1);
+
 	mBackBuffer[mBackBufferIdx]->Transition( D3D12_RESOURCE_STATE_PRESENT);
 	mFrameMap->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
@@ -111,8 +115,8 @@ void Carol::DisplayPass::InitPSOs()
 {
 	mDisplayMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
 	mDisplayMeshPSO->SetRenderTargetFormat(mBackBufferFormat);
-	mDisplayMeshPSO->SetMS(gScreenMS.get());
-	mDisplayMeshPSO->SetPS(gDisplayPS.get());
+	mDisplayMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/screen_ms.dxil"));
+	mDisplayMeshPSO->SetPS(gShaderManager->LoadShader("shader/dxil/display_ps.dxil"));
 	mDisplayMeshPSO->Finalize();
 }
 

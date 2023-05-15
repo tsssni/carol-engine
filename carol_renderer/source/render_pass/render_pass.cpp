@@ -3,7 +3,7 @@
 #include <dx12/shader.h>
 #include <dx12/root_signature.h>
 #include <dx12/indirect_command.h>
-#include <utils/common.h>
+#include <utils/exception.h>
 #include <global.h>
 
 namespace Carol
@@ -27,31 +27,6 @@ void Carol::RenderPass::OnResize(
 
 		InitBuffers();
 	}
-}
-
-void Carol::RenderPass::Init()
-{
-	Shader::InitCompiler();
-	Shader::InitShaders();
-	gRootSignature = make_unique<RootSignature>();
-
-	D3D12_INDIRECT_ARGUMENT_DESC argDesc[3];
-
-	argDesc[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW;
-	argDesc[0].ConstantBufferView.RootParameterIndex = MESH_CB;
-	
-	argDesc[1].Type = D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT_BUFFER_VIEW;
-	argDesc[1].ConstantBufferView.RootParameterIndex = SKINNED_CB;
-
-	argDesc[2].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH_MESH;
-	
-	D3D12_COMMAND_SIGNATURE_DESC cmdSigDesc;
-	cmdSigDesc.pArgumentDescs = argDesc;
-	cmdSigDesc.NumArgumentDescs = _countof(argDesc);
-	cmdSigDesc.ByteStride = sizeof(IndirectCommand);
-	cmdSigDesc.NodeMask = 0;
-
-	ThrowIfFailed(gDevice->CreateCommandSignature(&cmdSigDesc, gRootSignature->Get(), IID_PPV_ARGS(gCommandSignature.GetAddressOf())));
 }
 
 void Carol::RenderPass::ExecuteIndirect(const StructuredBuffer* indirectCmdBuffer)

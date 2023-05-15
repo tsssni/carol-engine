@@ -35,36 +35,36 @@ namespace Carol
 		
 		void ReleaseIntermediateBuffers();
 
-		const Mesh* GetMesh(std::wstring_view meshName)const;
-		const std::unordered_map<std::wstring, std::unique_ptr<Mesh>>& GetMeshes()const;
+		const Mesh* GetMesh(std::string_view meshName)const;
+		const std::unordered_map<std::string, std::unique_ptr<Mesh>>& GetMeshes()const;
 
-		std::vector<std::wstring_view> GetAnimationClips()const;
-		void SetAnimationClip(std::wstring_view clipName);
+		std::vector<std::string_view> GetAnimationClips()const;
+		void SetAnimationClip(std::string_view clipName);
 
 		const SkinnedConstants* GetSkinnedConstants()const;
-		void SetMeshCBAddress(std::wstring_view meshName, D3D12_GPU_VIRTUAL_ADDRESS addr);
+		void SetMeshCBAddress(std::string_view meshName, D3D12_GPU_VIRTUAL_ADDRESS addr);
 		void SetSkinnedCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr);
 
 		void Update(Timer* timer);
-		void GetFinalTransforms(std::wstring_view clipName, float t, std::vector<DirectX::XMFLOAT4X4>& toRootTransforms);
-		void GetSkinnedVertices(std::wstring_view clipName, std::span<Vertex> vertices, std::vector<std::vector<Vertex>>& skinnedVertices)const;
+		void GetFinalTransforms(std::string_view clipName, float t, std::vector<DirectX::XMFLOAT4X4>& toRootTransforms);
+		void GetSkinnedVertices(std::string_view clipName, std::span<Vertex> vertices, std::vector<std::vector<Vertex>>& skinnedVertices)const;
 
 	protected:
-		std::wstring mModelName;
-		std::wstring mTexDir;
-		std::unordered_map<std::wstring, std::unique_ptr<Mesh>> mMeshes;
+		std::string mModelName;
+		std::string mTexDir;
+		std::unordered_map<std::string, std::unique_ptr<Mesh>> mMeshes;
 
 		bool mSkinned = false;
 		float mTimePos = 0.f;
-		std::wstring mClipName;
+		std::string mClipName;
 
 		std::vector<int> mBoneHierarchy;
 		std::vector<DirectX::XMFLOAT4X4> mBoneOffsets;
 
-		std::unordered_map<std::wstring, std::unique_ptr<AnimationClip>> mAnimationClips;
-		std::unordered_map<std::wstring, std::vector<std::vector<DirectX::XMFLOAT4X4>>> mFrameTransforms;
+		std::unordered_map<std::string, std::unique_ptr<AnimationClip>> mAnimationClips;
+		std::unordered_map<std::string, std::vector<std::vector<DirectX::XMFLOAT4X4>>> mFrameTransforms;
 		std::unique_ptr<SkinnedConstants> mSkinnedConstants;
 
-		std::vector<std::wstring> mTexturePath;
+		std::vector<std::string> mTexturePath;
 	};
 }

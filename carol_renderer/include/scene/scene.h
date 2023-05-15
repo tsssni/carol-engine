@@ -22,35 +22,35 @@ namespace Carol {
 	class DescriptorManager;
 	class StructuredBufferPool;
 
-	class Scene
+	class SceneManager
 	{
 	public:
-		Scene(
-			std::wstring_view name);
-		Scene(const Scene&) = delete;
-		Scene(Scene&&) = delete;
-		Scene& operator=(const Scene&) = delete;
+		SceneManager(
+			std::string_view name);
+		SceneManager(const SceneManager&) = delete;
+		SceneManager(SceneManager&&) = delete;
+		SceneManager& operator=(const SceneManager&) = delete;
 
-		std::vector<std::wstring_view> GetAnimationClips(std::wstring_view modelName)const;
-		std::vector<std::wstring_view> GetModelNames()const;
+		std::vector<std::string_view> GetAnimationClips(std::string_view modelName)const;
+		std::vector<std::string_view> GetModelNames()const;
 		bool IsAnyOpaqueMeshes()const;
 		bool IsAnyTransparentMeshes()const;
 
 		void LoadModel(
-			std::wstring_view name,
-			std::wstring_view path,
-			std::wstring_view textureDir,
+			std::string_view name,
+			std::string_view path,
+			std::string_view textureDir,
 			bool isSkinned);
 
-		void UnloadModel(std::wstring_view modelName);
+		void UnloadModel(std::string_view modelName);
 		void ReleaseIntermediateBuffers();
-		void ReleaseIntermediateBuffers(std::wstring_view modelName);
+		void ReleaseIntermediateBuffers(std::string_view modelName);
 
 		uint32_t GetMeshesCount(MeshType type)const;
 		uint32_t GetModelsCount()const;
 
-		void SetWorld(std::wstring_view modelName, DirectX::XMMATRIX world);
-		void SetAnimationClip(std::wstring_view modelName, std::wstring_view clipName);
+		void SetWorld(std::string_view modelName, DirectX::XMMATRIX world);
+		void SetAnimationClip(std::string_view modelName, std::string_view clipName);
 		void Update(Timer* timer, uint64_t cpuFenceValue, uint64_t completedFenceValue);
 		void Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
 
@@ -70,8 +70,8 @@ namespace Carol {
 		std::vector<Light> mLights;
 		std::unique_ptr<SceneNode> mRootNode;
 
-		std::unordered_map<std::wstring, std::unique_ptr<Model>> mModels;
-		std::vector<std::unordered_map<std::wstring, Mesh*>> mMeshes;
+		std::unordered_map<std::string, std::unique_ptr<Model>> mModels;
+		std::vector<std::unordered_map<std::string, Mesh*>> mMeshes;
 
 		std::unique_ptr<StructuredBuffer> mIndirectCommandBuffer;
 		std::unique_ptr<StructuredBuffer> mMeshBuffer;

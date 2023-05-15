@@ -4,7 +4,7 @@
 #include <scene/scene_node.h>
 #include <scene/skinned_data.h>
 #include <scene/texture.h>
-#include <utils/common.h>
+#include <utils/exception.h>
 #include <global.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
@@ -17,8 +17,8 @@
 
 namespace Carol {
 	using std::vector;
-	using std::wstring;
-	using std::wstring_view;
+	using std::string;
+	using std::string_view;
 	using std::unique_ptr;
 	using std::make_unique;
 	using std::unordered_map;
@@ -57,13 +57,13 @@ Carol::XMVECTOR ai2XM(const aiVector3D& aiV)
 
 Carol::AssimpModel::AssimpModel(
 	SceneNode* rootNode,
-	wstring_view path,
-	wstring_view textureDir,
+	string_view path,
+	string_view textureDir,
 	bool isSkinned)
 	:Model()
 {
 	Assimp::Importer mImporter;
-	const aiScene* scene = mImporter.ReadFile(WStringToString(path), isSkinned ? aiProcess_Skinned : aiProcess_Static);
+	const aiScene* scene = mImporter.ReadFile(path.data(), isSkinned ? aiProcess_Skinned : aiProcess_Static);
 	assert(scene);
 
 	mTexDir = textureDir;
@@ -112,12 +112,12 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(
 	aiMesh* mesh,
 	const aiScene* scene)
 {	
-	wstring meshName = StringToWString(mesh->mName.C_Str());
+	string meshName = mesh->mName.C_Str();
 
 	if (mMeshes.count(meshName) == 0)
 	{
 		vector<Vertex> vertices;
-		vector<pair<wstring, vector<vector<Vertex>>>> skinnedVertices;
+		vector<pair<string, vector<vector<Vertex>>>> skinnedVertices;
 		vector<uint32_t> indices;
 
 		ReadMeshVerticesAndIndices(vertices, indices, mesh);
@@ -148,13 +148,13 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(
 
 void Carol::AssimpModel::ReadBoneHierachy(aiNode* node)
 {
-	wstring nodeName = StringToWString(node->mName.C_Str());
+	string nodeName = node->mName.C_Str();
 	mBoneIndices[nodeName] = mBoneHierarchy.size();
 	mBoneHierarchy.emplace_back(-1);
 
 	if (node->mParent)
 	{
-		wstring parentName = StringToWString(node->mParent->mName.C_Str());
+		string parentName = node->mParent->mName.C_Str();
 		mBoneHierarchy[mBoneIndices[nodeName]] = mBoneIndices[parentName];
 	}
 
@@ -173,7 +173,7 @@ void Carol::AssimpModel::ReadBoneOffsets(const aiScene* scene)
 		for (int j = 0; j < scene->mMeshes[i]->mNumBones; ++j)
 		{
 			auto* bone = scene->mMeshes[i]->mBones[j];
-			uint32_t boneIdx = mBoneIndices[StringToWString(bone->mName.C_Str())];
+			uint32_t boneIdx = mBoneIndices[bone->mName.C_Str()];
 			XMStoreFloat4x4(&mBoneOffsets[boneIdx], ai2XM(bone->mOffsetMatrix));
 		}
 	}
@@ -185,7 +185,7 @@ void Carol::AssimpModel::ReadMeshBones(vector<Vertex>& vertices, aiMesh* mesh)
 
 	for (int i = 0; i < mesh->mNumBones; ++i)
 	{
-		wstring boneName = StringToWString(mesh->mBones[i]->mName.C_Str());
+		string boneName = mesh->mBones[i]->mName.C_Str();
 		boneIndex = mBoneIndices[boneName];
 
 		for (int j = 0; j < mesh->mBones[i]->mNumWeights; ++j)
@@ -222,7 +222,7 @@ void Carol::AssimpModel::InsertBoneWeightToVertex(Vertex& vertex, uint32_t boneI
 
 void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 {
-	unordered_map<wstring, vector<vector<XMFLOAT4X4>>> criticalFrames;
+	unordered_map<string, vector<vector<XMFLOAT4X4>>> criticalFrames;
 	uint32_t boneCount = mBoneHierarchy.size();
 
 	for (int i = 0; i < scene->mNumAnimations; ++i)
@@ -239,7 +239,7 @@ void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 		for (int j = 0; j < animation->mNumChannels; ++j)
 		{
 			auto* nodeAnimation = animation->mChannels[j];
-			wstring boneName = StringToWString(nodeAnimation->mNodeName.C_Str());
+			string boneName = nodeAnimation->mNodeName.C_Str();
 			auto& boneAnimation = boneAnimations[mBoneIndices[boneName]];
 
 			auto& transKey = boneAnimation.TranslationKeyframes;
@@ -281,7 +281,7 @@ void Carol::AssimpModel::ReadAnimations(const aiScene* scene)
 
 		animationClip->CalcClipStartTime();
 		animationClip->CalcClipEndTime();
-		wstring clipName = StringToWString(animation->mName.C_Str());
+		string clipName = animation->mName.C_Str();
 		mAnimationClips[clipName] = std::move(animationClip);
 	}
 
@@ -373,7 +373,7 @@ void Carol::AssimpModel::LoadTexture(
 	aiString aiPath,
 	aiTextureType type)
 {
-	wstring path = StringToWString(aiPath.C_Str());
+	string path = aiPath.C_Str();
 
 	bool flag = path.size();
 	if(flag)
@@ -385,7 +385,7 @@ void Carol::AssimpModel::LoadTexture(
 			lastSeparator = path.find_last_of(L'/');
 		}
 
-		path = mTexDir + L'\\' + path.substr(lastSeparator + 1);
+		path = mTexDir + '\\' + path.substr(lastSeparator + 1);
 		
 		std::ifstream fstream(path);
 		flag = fstream.good();
@@ -396,16 +396,16 @@ void Carol::AssimpModel::LoadTexture(
 		switch (type)
 		{
 		case aiTextureType_DIFFUSE:
-			path = L"texture\\default_diffuse_texture.png";
+			path = "texture\\default_diffuse_texture.png";
 			break;
 		case aiTextureType_NORMALS:
-			path = L"texture\\default_normal_texture.png";
+			path = "texture\\default_normal_texture.png";
 			break;
 		case aiTextureType_EMISSIVE:
-			path = L"texture\\default_emissive_texture.png";
+			path = "texture\\default_emissive_texture.png";
 			break;
 		case aiTextureType_METALNESS:
-			path = L"texture\\default_metallic_roughness_texture.png";
+			path = "texture\\default_metallic_roughness_texture.png";
 			break;
 		}
 	}

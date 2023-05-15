@@ -79,7 +79,7 @@ namespace Carol
 	public:
 		Mesh(
 			std::span<Vertex> vertices,
-			std::span<std::pair<std::wstring, std::vector<std::vector<Vertex>>>> skinnedVertices,
+			std::span<std::pair<std::string, std::vector<std::vector<Vertex>>>> skinnedVertices,
 			std::span<uint32_t> indices,
 			bool isSkinned,
 			bool isTransparent);
@@ -95,7 +95,7 @@ namespace Carol
 
 		void Update(DirectX::XMMATRIX& world);
 		void ClearCullMark();
-		void SetAnimationClip(std::wstring_view clipName);
+		void SetAnimationClip(std::string_view clipName);
 
 		const MeshConstants* GetMeshConstants()const;
 		void SetMeshCBAddress(D3D12_GPU_VIRTUAL_ADDRESS addr);
@@ -112,8 +112,8 @@ namespace Carol
 		void LoadCullData();
 		void InitCullMark();
 
-		void LoadMeshletBoundingBox(std::wstring_view clipName, std::span<std::vector<Vertex>> vertices);
-		void LoadMeshletNormalCone(std::wstring_view clipName, std::span<std::vector<Vertex>> vertices);
+		void LoadMeshletBoundingBox(std::string_view clipName, std::span<std::vector<Vertex>> vertices);
+		void LoadMeshletNormalCone(std::string_view clipName, std::span<std::vector<Vertex>> vertices);
 	
 		DirectX::XMVECTOR LoadConeCenter(const Meshlet& meshlet, std::span<std::vector<Vertex>> vertices);
 		float LoadConeSpread(const Meshlet& meshlet, const DirectX::XMVECTOR& normalCone, std::span<std::vector<Vertex>> vertices);
@@ -121,22 +121,22 @@ namespace Carol
 		float LoadBottomRadius(const Meshlet& meshlet, const DirectX::XMVECTOR& center, const DirectX::XMVECTOR& normalCone, float tanConeSpread, std::span<std::vector<Vertex>> vertices);
 
 		std::span<Vertex> mVertices;
-		std::span<std::pair<std::wstring, std::vector<std::vector<Vertex>>>> mSkinnedVertices;
+		std::span<std::pair<std::string, std::vector<std::vector<Vertex>>>> mSkinnedVertices;
 		std::span<uint32_t> mIndices;
 
 		std::vector<Meshlet> mMeshlets;
-		std::unordered_map<std::wstring, std::vector<CullData>> mCullData;
+		std::unordered_map<std::string, std::vector<CullData>> mCullData;
 
 		std::unique_ptr<StructuredBuffer> mVertexBuffer;
 		std::unique_ptr<StructuredBuffer> mMeshletBuffer;
-		std::unordered_map<std::wstring, std::unique_ptr<StructuredBuffer>> mCullDataBuffer;
+		std::unordered_map<std::string, std::unique_ptr<StructuredBuffer>> mCullDataBuffer;
 
 		std::unique_ptr<RawBuffer> mMeshletFrustumCulledMarkBuffer;
 		std::unique_ptr<RawBuffer> mMeshletNormalConeCulledMarkBuffer;
 		std::unique_ptr<RawBuffer> mMeshletOcclusionCulledMarkBuffer;
 		std::unique_ptr<RawBuffer> mMeshletCulledMarkBuffer;
 		
-		std::unordered_map<std::wstring, DirectX::BoundingBox> mBoundingBoxes;
+		std::unordered_map<std::string, DirectX::BoundingBox> mBoundingBoxes;
 
 		std::unique_ptr<MeshConstants> mMeshConstants;
 		D3D12_GPU_VIRTUAL_ADDRESS mMeshCBAddr = 0;

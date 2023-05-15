@@ -1,7 +1,8 @@
 #include <scene/texture.h>
 #include <dx12/heap.h>
 #include <dx12/resource.h>
-#include <utils/common.h>
+#include <utils/exception.h>
+#include <utils/string.h>
 #include <global.h>
 #include <DirectXTex.h>
 #include <memory>
@@ -9,33 +10,33 @@
 
 namespace Carol {
 	using std::vector;
-	using std::wstring;
-	using std::wstring_view;
+	using std::string;
+	using std::string_view;
 	using std::unordered_map;
 	using std::make_unique;
 	using namespace DirectX;
 }
 
 Carol::Texture::Texture(
-	wstring_view fileName,
+	string_view fileName,
 	bool isSrgb)
 	:mNumRef(1)
 {
-	wstring_view suffix = fileName.substr(fileName.find_last_of(L'.') + 1, 3);
+	string_view suffix = fileName.substr(fileName.find_last_of(L'.') + 1, 3);
 	TexMetadata metaData;
 	ScratchImage scratchImage;
 
-	if (suffix == L"dds")
+	if (suffix == "dds")
 	{
-		ThrowIfFailed(LoadFromDDSFile(fileName.data(), DDS_FLAGS_NONE, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromDDSFile(StringToWString(fileName).data(), DDS_FLAGS_NONE, &metaData, scratchImage));
 	}
-	else if (suffix == L"tga")
+	else if (suffix == "tga")
 	{
-		ThrowIfFailed(LoadFromTGAFile(fileName.data(), TGA_FLAGS_NONE, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromTGAFile(StringToWString(fileName).data(), TGA_FLAGS_NONE, &metaData, scratchImage));
 	}
 	else
 	{
-		ThrowIfFailed(LoadFromWICFile(fileName.data(), WIC_FLAGS_NONE, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromWICFile(StringToWString(fileName).data(), WIC_FLAGS_NONE, &metaData, scratchImage));
 	}
 
 	if (isSrgb)
@@ -150,7 +151,7 @@ Carol::TextureManager::TextureManager()
 }
 
 uint32_t Carol::TextureManager::LoadTexture(
-	wstring_view fileName,
+	string_view fileName,
 	bool isSrgb)
 {
 	if (fileName.size() == 0)
@@ -158,7 +159,7 @@ uint32_t Carol::TextureManager::LoadTexture(
 		return -1;
 	}
 
-	wstring name(fileName);
+	string name(fileName);
 
 	if (mTextures.count(name) == 0)
 	{
@@ -174,9 +175,9 @@ uint32_t Carol::TextureManager::LoadTexture(
 	return mTextures[name]->GetGpuSrvIdx();
 }
 
-void Carol::TextureManager::UnloadTexture(wstring_view fileName)
+void Carol::TextureManager::UnloadTexture(string_view fileName)
 {
-	wstring name(fileName);
+	string name(fileName);
 	mTextures[name]->DecRef();
 
 	if (mTextures[name]->GetRef() == 0)
@@ -185,9 +186,9 @@ void Carol::TextureManager::UnloadTexture(wstring_view fileName)
 	}
 }
 
-void Carol::TextureManager::ReleaseIntermediateBuffers(wstring_view fileName)
+void Carol::TextureManager::ReleaseIntermediateBuffers(string_view fileName)
 {
-	wstring name(fileName);
+	string name(fileName);
 
 	if (mTextures.count(name) == 0)
 	{

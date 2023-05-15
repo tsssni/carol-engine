@@ -2,6 +2,7 @@
 #include <dx12/heap.h>
 #include <dx12/resource.h>
 #include <dx12/pipeline_state.h>
+#include <dx12/shader.h>
 #include <global.h>
 
 namespace Carol
@@ -75,26 +76,45 @@ uint32_t Carol::OitppllPass::GetStartOffsetSrvIdx() const
 
 void Carol::OitppllPass::InitPSOs()
 {
+	auto cullDisabledState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	cullDisabledState.CullMode = D3D12_CULL_MODE_NONE;
+
+	auto depthDisabledState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	depthDisabledState.DepthEnable = false;
+	depthDisabledState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+
+	auto alphaBlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	alphaBlendState.RenderTarget[0].BlendEnable = true;
+	alphaBlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	alphaBlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	alphaBlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	alphaBlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	alphaBlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ZERO;
+	alphaBlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+	alphaBlendState.RenderTarget[0].LogicOpEnable = false;
+	alphaBlendState.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
+	alphaBlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
 	mBuildOitppllStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mBuildOitppllStaticMeshPSO->SetRasterizerState(gCullDisabledState.get());
-	mBuildOitppllStaticMeshPSO->SetDepthStencilState(gDepthDisabledState.get());
+	mBuildOitppllStaticMeshPSO->SetRasterizerState(&cullDisabledState);
+	mBuildOitppllStaticMeshPSO->SetDepthStencilState(&depthDisabledState);
 	mBuildOitppllStaticMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-	mBuildOitppllStaticMeshPSO->SetAS(gCullAS.get());
-	mBuildOitppllStaticMeshPSO->SetMS(gOitStaticMS.get());
-	mBuildOitppllStaticMeshPSO->SetPS(gBuildOitppllPS.get());
+	mBuildOitppllStaticMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/cull_as.dxil"));
+	mBuildOitppllStaticMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/static_mesh_ms.dxil"));
+	mBuildOitppllStaticMeshPSO->SetPS(gShaderManager->LoadShader("shader/dxil/oitppll_build_ps.dxil"));
 	mBuildOitppllStaticMeshPSO->Finalize();
 
 	mBuildOitppllSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
-	mBuildOitppllSkinnedMeshPSO->SetRasterizerState(gCullDisabledState.get());
-	mBuildOitppllSkinnedMeshPSO->SetDepthStencilState(gDepthDisabledState.get());
+	mBuildOitppllSkinnedMeshPSO->SetRasterizerState(&cullDisabledState);
+	mBuildOitppllSkinnedMeshPSO->SetDepthStencilState(&depthDisabledState);
 	mBuildOitppllSkinnedMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
-	mBuildOitppllSkinnedMeshPSO->SetAS(gCullAS.get());
-	mBuildOitppllSkinnedMeshPSO->SetMS(gOitSkinnedMS.get());
-	mBuildOitppllSkinnedMeshPSO->SetPS(gBuildOitppllPS.get());
+	mBuildOitppllSkinnedMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/cull_as.dxil"));
+	mBuildOitppllSkinnedMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/skinned_mesh_ms.dxil"));
+	mBuildOitppllSkinnedMeshPSO->SetPS(gShaderManager->LoadShader("shader/dxil/oitppll_build_ps.dxil"));
 	mBuildOitppllSkinnedMeshPSO->Finalize();
 
 	mOitppllComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mOitppllComputePSO->SetCS(gOitppllCS.get());
+	mOitppllComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/oitppll_cs.dxil"));
 	mOitppllComputePSO->Finalize();
 }
 
