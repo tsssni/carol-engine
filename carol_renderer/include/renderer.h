@@ -37,14 +37,9 @@ namespace Carol
 		DirectX::XMFLOAT4X4 InvProj;
 		DirectX::XMFLOAT4X4 ViewProj;
 		DirectX::XMFLOAT4X4 InvViewProj;
+		
+		DirectX::XMFLOAT4X4 VeloViewProj;
 		DirectX::XMFLOAT4X4 HistViewProj;
-
-		// TAA Transformation
-		DirectX::XMFLOAT4X4 JitteredProj;
-		DirectX::XMFLOAT4X4 InvJitteredProj;
-		DirectX::XMFLOAT4X4 JitteredViewProj;
-		DirectX::XMFLOAT4X4 InvJitteredViewProj;
-		DirectX::XMFLOAT4X4 HistJitteredViewProj;
 
 		// View
 		DirectX::XMFLOAT3 EyePosW = { 0.0f, 0.0f, 0.0f };
@@ -61,7 +56,7 @@ namespace Carol
 		float OcclusionRadius = 0.5f;
 		float OcclusionFadeStart = 0.2f;
 		float OcclusionFadeEnd = 1.0f;
-		float SurfaceEplison = 0.05f;
+		float SurfaceEplison = 0.2f;
 
 		Light MainLights[MAIN_LIGHT_SPLIT_LEVEL];
 		float MainLightSplitZ[MAIN_LIGHT_SPLIT_LEVEL + 1];
@@ -163,7 +158,7 @@ namespace Carol
 		void InitDescriptorManager();
 		void InitShaderManager();
 		void InitTextureManager();
-        void InitSceneManager();
+        void InitModelManager();
 		void InitTimer();
 		void InitCamera();
 

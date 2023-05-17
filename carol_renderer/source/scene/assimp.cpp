@@ -1,8 +1,7 @@
 #include <scene/assimp.h>
 #include <dx12/heap.h>
 #include <dx12/resource.h>
-#include <scene/scene_node.h>
-#include <scene/skinned_data.h>
+#include <scene/skinned_animation.h>
 #include <scene/texture.h>
 #include <utils/exception.h>
 #include <global.h>
@@ -56,7 +55,7 @@ Carol::XMVECTOR ai2XM(const aiVector3D& aiV)
 }
 
 Carol::AssimpModel::AssimpModel(
-	SceneNode* rootNode,
+	ModelNode* rootNode,
 	string_view path,
 	string_view textureDir,
 	bool isSkinned)
@@ -87,7 +86,7 @@ Carol::AssimpModel::AssimpModel(
 
 void Carol::AssimpModel::ProcessNode(
 	aiNode* node,
-	SceneNode* sceneNode,
+	ModelNode* sceneNode,
 	const aiScene* scene)
 {
 	for (int i = 0; i < node->mNumMeshes; ++i)

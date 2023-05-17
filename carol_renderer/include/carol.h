@@ -15,9 +15,8 @@
 #include <scene/light.h>
 #include <scene/mesh.h>
 #include <scene/model.h>
-#include <scene/scene.h>
-#include <scene/scene_node.h>
-#include <scene/skinned_data.h>
+#include <scene/model.h>
+#include <scene/skinned_animation.h>
 #include <scene/texture.h>
 #include <scene/timer.h>
 

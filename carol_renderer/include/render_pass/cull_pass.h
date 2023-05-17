@@ -1,6 +1,6 @@
 #pragma once
 #include <render_pass/render_pass.h>
-#include <scene/mesh_type.h>
+#include <scene/mesh.h>
 #include <DirectXMath.h>
 #include <vector>
 #include <memory>
@@ -12,7 +12,7 @@ namespace Carol
 	class StructuredBuffer;
 	class StructuredBufferPool;
 	class FastConstantBufferAllocator;
-	class SceneManager;
+	class ModelManager;
 	class MeshPSO;
 	class ComputePSO;
 

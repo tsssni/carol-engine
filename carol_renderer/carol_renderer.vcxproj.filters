@@ -65,7 +65,7 @@
     <ClInclude Include="include\scene\model.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\scene\skinned_data.h">
+    <ClInclude Include="include\scene\skinned_animation.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\scene\texture.h">
@@ -104,16 +104,10 @@
     <ClInclude Include="include\render_pass\shade_pass.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="include\scene\scene.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="include\dx12\pipeline_state.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\dx12\indirect_command.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scene\scene_node.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\scene\mesh.h">
@@ -141,9 +135,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\carol.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scene\mesh_type.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="include\utils\string.h">
@@ -187,7 +178,7 @@
     <ClCompile Include="source\scene\model.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\scene\skinned_data.cpp">
+    <ClCompile Include="source\scene\skinned_animation.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\scene\texture.cpp">
@@ -211,16 +202,10 @@
     <ClCompile Include="source\render_pass\shade_pass.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="source\scene\scene.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="source\dx12\pipeline_state.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\render_pass\render_pass.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="source\scene\scene_node.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="source\scene\mesh.cpp">
@@ -367,6 +352,8 @@
     <None Include="shader\shade_cs.hlsl" />
     <None Include="shader\include\transform.hlsli" />
     <None Include="packages.config" />
+    <None Include="shader\compile_debug.ps1" />
+    <None Include="shader\compile_release.ps1" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader\display_ps.hlsl" />

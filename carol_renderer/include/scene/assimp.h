@@ -9,7 +9,7 @@
 
 namespace Carol
 {
-	class SceneNode;
+	class ModelNode;
 	class HeapManager;
 	class DescriptorManager;
 
@@ -17,7 +17,7 @@ namespace Carol
 	{
 	public:
 		AssimpModel(
-			SceneNode* rootNode,
+			ModelNode* rootNode,
 		    std::string_view path,
 			std::string_view textureDir,
 			bool isSkinned);
@@ -28,7 +28,7 @@ namespace Carol
 	protected:
 		void ProcessNode(
 			aiNode* node,
-			SceneNode* sceneNode,
+			ModelNode* sceneNode,
 			const aiScene* scene);
 		Mesh* ProcessMesh(
 			aiMesh* mesh,

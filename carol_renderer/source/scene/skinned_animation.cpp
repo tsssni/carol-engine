@@ -1,4 +1,4 @@
-#include <scene/skinned_data.h>
+#include <scene/skinned_animation.h>
 #include <cmath>
 
 namespace Carol {

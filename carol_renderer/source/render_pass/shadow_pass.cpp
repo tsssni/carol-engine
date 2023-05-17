@@ -192,11 +192,12 @@ void Carol::DirectLightShadowPass::Update(
 	XMFLOAT4 center;
 	XMStoreFloat4(&center, XMVector4Transform(0.5f * (XMLoadFloat4(&boxMin) + XMLoadFloat4(&boxMax)), invOrthoView));
 
+	float zRange = boxMax.z - boxMin.z;
 	dynamic_cast<OrthographicCamera*>(mCamera.get())->SetLens(
 		boxMax.x - boxMin.x,
 		boxMax.y - boxMin.y,
-		boxMin.z - boxMax.z + boxMin.z,
-		boxMax.z + boxMax.z - boxMin.z);
+		boxMin.z - zRange,
+		boxMax.z + zRange);
 
 	mCamera->LookAt(XMLoadFloat4(&center) - XMLoadFloat3(&mLight->Direction), XMLoadFloat4(&center), { 0.f,1.f,0.f,0.f });
 	mCamera->UpdateViewMatrix();
@@ -206,7 +207,7 @@ void Carol::DirectLightShadowPass::Update(
 
 void Carol::DirectLightShadowPass::InitCamera()
 {
-	mLight->Position = XMFLOAT3(-mLight->Direction.x * 140.f, -mLight->Direction.y * 140.f, -mLight->Direction.z * 140.f);
+	mLight->Position = XMFLOAT3(-mLight->Direction.x, -mLight->Direction.y, -mLight->Direction.z);
 	mCamera = make_unique<OrthographicCamera>(50, 0, 200);
 	mCamera->LookAt(mLight->Position, { 0.f,0.f,0.f }, { 0.f,1.f,0.f });
 	mCamera->UpdateViewMatrix();

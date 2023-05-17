@@ -14,7 +14,7 @@ namespace Carol
 	class HeapManager;
 	class ShaderManager;
 	class TextureManager;
-	class SceneManager;
+	class ModelManager;
 	class Renderer;
 
 	extern Microsoft::WRL::ComPtr<ID3D12Debug> gDebugLayer;
@@ -34,7 +34,7 @@ namespace Carol
 	extern std::unique_ptr<HeapManager> gHeapManager;
 	extern std::unique_ptr<ShaderManager> gShaderManager;
 	extern std::unique_ptr<TextureManager> gTextureManager;
-	extern std::unique_ptr<SceneManager> gSceneManager;
+	extern std::unique_ptr<ModelManager> gModelManager;
 
 	extern std::unique_ptr<Renderer> gRenderer;
 }

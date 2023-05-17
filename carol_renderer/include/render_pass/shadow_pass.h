@@ -1,7 +1,7 @@
 #pragma once
 #include <render_pass/render_pass.h>
 #include <scene/light.h>
-#include <scene/mesh_type.h>
+#include <scene/mesh.h>
 #include <DirectXMath.h>
 #include <vector>
 #include <memory>

@@ -35,7 +35,7 @@ float CalcShadowFactor(float2 pos, float depth, uint shadowMapIdx)
     return percentLit / 9.0f;
 }
 
-float GetCSMShadowFactor(float3 posW, float depth, out uint lightIdx)
+float GetCSMShadowFactor(float3 posW, float viewDepth, out uint lightIdx)
 {
     float shadowFactor = 1.f;
     
@@ -56,11 +56,14 @@ float GetCSMShadowFactor(float3 posW, float depth, out uint lightIdx)
     [unroll]
     for (int i = 0; i < MAIN_LIGHT_SPLIT_LEVEL; ++i)
     {
-        if (depth >= mainLightSplitZ[i] && depth < mainLightSplitZ[i + 1])
+        if (viewDepth >= mainLightSplitZ[i] && viewDepth < mainLightSplitZ[i + 1])
         {
             lightIdx = i;
             float4 currLevelShadowPos = mul(float4(posW, 1.0f), gMainLights[i].ViewProj);
-            shadowFactor = CalcShadowFactor(ProjPosToTexPos(currLevelShadowPos), ProjPosToNdcPos(currLevelShadowPos).z, mainLightShadowMapIdx[i]);            
+            float4 currLevelShadowNdcPos = ProjPosToNdcPos(currLevelShadowPos);
+            float2 currLevelShadowTexPos = NdcTexPosToTexPos(currLevelShadowNdcPos.xy);
+
+            shadowFactor = CalcShadowFactor(currLevelShadowTexPos, currLevelShadowNdcPos.z, mainLightShadowMapIdx[i]);            
             break;
         }
     }

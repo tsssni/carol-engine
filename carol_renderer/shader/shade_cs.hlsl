@@ -6,11 +6,7 @@ float3 GetPosW(float2 uv, float depth)
 {
     float2 pos = float2(uv.x / gRenderTargetSize.x, uv.y / gRenderTargetSize.y);
 
-#ifdef TAA
-    return ViewPosToWorldPos(TexPosToViewPos(pos, NdcDepthToViewDepth(depth, gJitteredProj), gInvJitteredProj), gInvView);
-#else
     return ViewPosToWorldPos(TexPosToViewPos(pos, NdcDepthToViewDepth(depth, gProj), gInvProj), gInvView);
-#endif
 }
 
 [numthreads(32, 32, 1)]
@@ -21,9 +17,7 @@ void main(uint2 dtid : SV_DispatchThreadID)
     Texture2D emissiveMetallicMap = ResourceDescriptorHeap[gEmissiveMetallicMapIdx];
     Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
     Texture2D depthStencilMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
-#ifdef SSAO
     Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapIdx];
-#endif
 
     if (TextureBorderTest(dtid, gRenderTargetSize))
     {
@@ -42,11 +36,7 @@ void main(uint2 dtid : SV_DispatchThreadID)
             float3 normal = normalMap[dtid].rgb;
 
             float viewDepth;
-#ifdef TAA
-        viewDepth=NdcDepthToViewDepth(depth, gJitteredProj);
-#else
             viewDepth = NdcDepthToViewDepth(depth, gProj);
-#endif
 
             Material lightMat;
             lightMat.SubsurfaceAlbedo = diffuse;
@@ -54,10 +44,8 @@ void main(uint2 dtid : SV_DispatchThreadID)
             lightMat.Roughness = max(1e-6f, roughness);
 
             float3 ambientColor = gAmbientColor * diffuse.rgb;
-#ifdef SSAO
-        float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, uv, 0.0f).r;
-        ambientColor *= ambientAccess;
-#endif
+            float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, uv, 0.0f).r;
+            ambientColor *= ambientAccess;
 
             float3 toEye = normalize(gEyePosW - posW);
             float3 emissiveColor = emissive * dot(toEye, normal);

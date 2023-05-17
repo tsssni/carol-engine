@@ -48,11 +48,8 @@
     <ClInclude Include="include\scene\camera.h" />
     <ClInclude Include="include\scene\light.h" />
     <ClInclude Include="include\scene\mesh.h" />
-    <ClInclude Include="include\scene\mesh_type.h" />
     <ClInclude Include="include\scene\model.h" />
-    <ClInclude Include="include\scene\scene.h" />
-    <ClInclude Include="include\scene\scene_node.h" />
-    <ClInclude Include="include\scene\skinned_data.h" />
+    <ClInclude Include="include\scene\skinned_animation.h" />
     <ClInclude Include="include\scene\texture.h" />
     <ClInclude Include="include\scene\timer.h" />
     <ClInclude Include="include\utils\bitset.h" />
@@ -92,9 +89,7 @@
     <ClCompile Include="source\scene\camera.cpp" />
     <ClCompile Include="source\scene\mesh.cpp" />
     <ClCompile Include="source\scene\model.cpp" />
-    <ClCompile Include="source\scene\scene.cpp" />
-    <ClCompile Include="source\scene\scene_node.cpp" />
-    <ClCompile Include="source\scene\skinned_data.cpp" />
+    <ClCompile Include="source\scene\skinned_animation.cpp" />
     <ClCompile Include="source\scene\texture.cpp" />
     <ClCompile Include="source\scene\timer.cpp" />
     <ClCompile Include="source\utils\bitset.cpp" />
@@ -118,6 +113,8 @@
   <ItemGroup>
     <None Include=".gitignore" />
     <None Include="packages.config" />
+    <None Include="shader\compile_debug.ps1" />
+    <None Include="shader\compile_release.ps1" />
     <None Include="shader\cull_as.hlsl" />
     <None Include="shader\include\blinn_phong.hlsli" />
     <None Include="shader\include\compute.hlsli" />

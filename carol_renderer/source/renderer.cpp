@@ -33,7 +33,7 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitDescriptorManager();
 	InitShaderManager();
 	InitTextureManager();
-	InitSceneManager();
+	InitModelManager();
 	InitTimer();
 	InitCamera();
 
@@ -144,7 +144,6 @@ void Carol::Renderer::InitCommandSignature()
 	cmdSigDesc.NodeMask = 0;
 
 	ThrowIfFailed(gDevice->CreateCommandSignature(&cmdSigDesc, gRootSignature->Get(), IID_PPV_ARGS(gCommandSignature.GetAddressOf())));
-
 }
 
 void Carol::Renderer::InitHeapManager()
@@ -181,9 +180,9 @@ void Carol::Renderer::InitCamera()
 	mCamera->UpdateViewMatrix();
 }
 
-void Carol::Renderer::InitSceneManager()
+void Carol::Renderer::InitModelManager()
 {
-	gSceneManager = make_unique<SceneManager>("Carol");
+	gModelManager = make_unique<ModelManager>("Carol");
 }
 
 void Carol::Renderer::InitConstants()
@@ -289,7 +288,7 @@ void Carol::Renderer::InitMainLightShadowPass()
 	XMStoreFloat3(&light.Direction, { .8f,-1.f,1.f });
 
 	mMainLightShadowPass = make_unique<CascadedShadowPass>(light);
-	mFrameConstants->AmbientColor = { .4f,.4f,.4f };
+	mFrameConstants->AmbientColor = { .1f,.1f,.1f };
 }
 
 void Carol::Renderer::InitSsaoPass()
@@ -329,7 +328,7 @@ void Carol::Renderer::FlushCommandQueue()
 
 void Carol::Renderer::ReleaseIntermediateBuffers()
 {
-	gSceneManager->ReleaseIntermediateBuffers();
+	gModelManager->ReleaseIntermediateBuffers();
 	mSsaoPass->ReleaseIntermediateBuffers();
 }
 
@@ -365,7 +364,7 @@ void Carol::Renderer::Draw()
 
 	// Deferred shading for opaque meshes
 
-	if (gSceneManager->IsAnyOpaqueMeshes())
+	if (gModelManager->IsAnyOpaqueMeshes())
 	{
 		mGeometryPass->Draw();
 	}
@@ -378,7 +377,7 @@ void Carol::Renderer::Draw()
 	mTaaPass->Draw();
 
 	// Forward shading for transparent meshes
-	if (gSceneManager->IsAnyTransparentMeshes())
+	if (gModelManager->IsAnyTransparentMeshes())
 	{
 		mOitppllPass->Draw();
 	}
@@ -532,40 +531,35 @@ void Carol::Renderer::Update()
 	gDescriptorManager->DelayedDelete(gCpuFenceValue, gGpuFenceValue);
 	gHeapManager->DelayedDelete(gCpuFenceValue, gGpuFenceValue);
 
-	gSceneManager->Update(mTimer.get(), gCpuFenceValue, gGpuFenceValue);
-	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), 0.5);
+	gModelManager->Update(mTimer.get(), gCpuFenceValue, gGpuFenceValue);
 	mCamera->UpdateViewMatrix();
+	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), 0.85);
 
-	XMMATRIX view = mCamera->GetView();
-	XMMATRIX invView = XMMatrixInverse(nullptr, view);
-	XMMATRIX proj = mCamera->GetProj();
-	XMMATRIX invProj = XMMatrixInverse(nullptr, proj);
-	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-	XMMATRIX invViewProj = XMMatrixInverse(nullptr, viewProj);
-		
-	mFrameConstants->HistViewProj = mFrameConstants->ViewProj;
-	XMStoreFloat4x4(&mFrameConstants->View, XMMatrixTranspose(view));
-	XMStoreFloat4x4(&mFrameConstants->InvView, XMMatrixTranspose(invView));
-	XMStoreFloat4x4(&mFrameConstants->Proj, XMMatrixTranspose(proj));
-	XMStoreFloat4x4(&mFrameConstants->InvProj, XMMatrixTranspose(invProj));
-	XMStoreFloat4x4(&mFrameConstants->ViewProj, XMMatrixTranspose(viewProj));
-	XMStoreFloat4x4(&mFrameConstants->InvViewProj, XMMatrixTranspose(invViewProj));
-	
 	XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
 	mTaaPass->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
 
+	XMMATRIX view = mCamera->GetView();
+	XMMATRIX invView = XMMatrixInverse(nullptr, view);
 	XMMATRIX jitteredProj = XMLoadFloat4x4(&jitteredProj4x4f);
-	XMMATRIX invJitteredProj= XMMatrixInverse(nullptr, jitteredProj);
-	XMMATRIX jitteredViewProj = XMMatrixMultiply(view, jitteredProj);
-	XMMATRIX invJitteredViewProj = XMMatrixInverse(nullptr, jitteredViewProj);
+	XMMATRIX invJitteredProj = XMMatrixInverse(nullptr, jitteredProj);
+	XMMATRIX viewJitteredProj = XMMatrixMultiply(view, jitteredProj);
+	XMMATRIX invViewJitteredProj = XMMatrixInverse(nullptr, viewJitteredProj);
+		
+	XMStoreFloat4x4(&mFrameConstants->View, XMMatrixTranspose(view));
+	XMStoreFloat4x4(&mFrameConstants->InvView, XMMatrixTranspose(invView));
+	XMStoreFloat4x4(&mFrameConstants->Proj, XMMatrixTranspose(jitteredProj));
+	XMStoreFloat4x4(&mFrameConstants->InvProj, XMMatrixTranspose(invJitteredProj));
+	XMStoreFloat4x4(&mFrameConstants->ViewProj, XMMatrixTranspose(viewJitteredProj));
+	XMStoreFloat4x4(&mFrameConstants->InvViewProj, XMMatrixTranspose(invViewJitteredProj));
 
-	mFrameConstants->HistJitteredViewProj = mFrameConstants->JitteredViewProj;
-	XMStoreFloat4x4(&mFrameConstants->JitteredProj, XMMatrixTranspose(jitteredProj));
-	XMStoreFloat4x4(&mFrameConstants->InvJitteredProj, XMMatrixTranspose(invJitteredProj));
-	XMStoreFloat4x4(&mFrameConstants->JitteredViewProj, XMMatrixTranspose(jitteredViewProj));
-	XMStoreFloat4x4(&mFrameConstants->InvJitteredViewProj, XMMatrixTranspose(invJitteredViewProj));
-	mCullPass->Update(XMLoadFloat4x4(&mFrameConstants->JitteredViewProj), XMLoadFloat4x4(&mFrameConstants->HistJitteredViewProj), XMLoadFloat3(&mFrameConstants->EyePosW));
+	mCullPass->Update(XMLoadFloat4x4(&mFrameConstants->ViewProj), XMLoadFloat4x4(&mFrameConstants->HistViewProj), XMLoadFloat3(&mFrameConstants->EyePosW));
 
+	XMMATRIX veloProj = mCamera->GetProj();
+	XMMATRIX veloViewProj = XMMatrixMultiply(view, veloProj);
+
+	mFrameConstants->HistViewProj = mFrameConstants->VeloViewProj;
+	XMStoreFloat4x4(&mFrameConstants->VeloViewProj, XMMatrixTranspose(veloViewProj));
+	
 	mFrameConstants->EyePosW = mCamera->GetPosition3f();
 	mFrameConstants->NearZ = dynamic_cast<PerspectiveCamera*>(mCamera.get())->GetNearZ();
 	mFrameConstants->FarZ = dynamic_cast<PerspectiveCamera*>(mCamera.get())->GetFarZ();
@@ -580,8 +574,8 @@ void Carol::Renderer::Update()
 		mFrameConstants->MainLightSplitZ[i] = mMainLightShadowPass->GetSplitZ(i);
 	}
 
-	mFrameConstants->MeshBufferIdx = gSceneManager->GetMeshBufferIdx();
-	mFrameConstants->CommandBufferIdx = gSceneManager->GetCommandBufferIdx();
+	mFrameConstants->MeshBufferIdx = gModelManager->GetMeshBufferIdx();
+	mFrameConstants->CommandBufferIdx = gModelManager->GetCommandBufferIdx();
 
 	mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
 }
@@ -614,9 +608,9 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mCullPass->SetDepthMap(mDisplayPass->GetDepthStencilMap());
 	mGeometryPass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
 
-	mFrameConstants->InstanceFrustumCulledMarkBufferIdx = gSceneManager->GetInstanceFrustumCulledMarkBufferIdx();
-	mFrameConstants->InstanceOcclusionCulledMarkBufferIdx = gSceneManager->GetInstanceOcclusionCulledMarkBufferIdx();
-	mFrameConstants->InstanceCulledMarkBufferIdx = gSceneManager->GetInstanceCulledMarkBufferIdx();
+	mFrameConstants->InstanceFrustumCulledMarkBufferIdx = gModelManager->GetInstanceFrustumCulledMarkBufferIdx();
+	mFrameConstants->InstanceOcclusionCulledMarkBufferIdx = gModelManager->GetInstanceOcclusionCulledMarkBufferIdx();
+	mFrameConstants->InstanceCulledMarkBufferIdx = gModelManager->GetInstanceCulledMarkBufferIdx();
 
 	// Main light
 	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel(); ++i)
@@ -654,13 +648,13 @@ void Carol::Renderer::LoadModel(string_view path, string_view textureDir, string
 	gCommandAllocator = gCommandAllocatorPool->RequestAllocator(gGpuFenceValue);
 	ThrowIfFailed(gGraphicsCommandList->Reset(gCommandAllocator.Get(), nullptr));
 
-	gSceneManager->LoadModel(
+	gModelManager->LoadModel(
 		modelName,
 		path,
 		textureDir,
 		isSkinned);
-	gSceneManager->SetWorld(modelName, world);
-	gSceneManager->ReleaseIntermediateBuffers(modelName);
+	gModelManager->SetWorld(modelName, world);
+	gModelManager->ReleaseIntermediateBuffers(modelName);
 
 	gGraphicsCommandList->Close();
 	vector<ID3D12CommandList*> cmdLists = { gGraphicsCommandList.Get() };
@@ -672,20 +666,20 @@ void Carol::Renderer::LoadModel(string_view path, string_view textureDir, string
 
 void Carol::Renderer::UnloadModel(string_view modelName)
 {
-	gSceneManager->UnloadModel(modelName);
+	gModelManager->UnloadModel(modelName);
 }
 
 Carol::vector<Carol::string_view> Carol::Renderer::GetAnimationNames(string_view modelName)
 {
-	return gSceneManager->GetAnimationClips(modelName);
+	return gModelManager->GetAnimationClips(modelName);
 }
 
 void Carol::Renderer::SetAnimation(string_view modelName, string_view animationName)
 {
-	gSceneManager->SetAnimationClip(modelName, animationName);
+	gModelManager->SetAnimationClip(modelName, animationName);
 }
 
 Carol::vector<Carol::string_view> Carol::Renderer::GetModelNames()
 {
-	return gSceneManager->GetModelNames();
+	return gModelManager->GetModelNames();
 }

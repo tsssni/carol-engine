@@ -5,8 +5,9 @@
 struct PixelIn
 {
 	float4 PosH : SV_POSITION;
-    float4 PosHist : POSITION0;
-    float3 PosW : POSITION1;
+    float4 PosVelo : POSITION0;
+    float4 PosHist : POSITION1;
+    float3 PosW : POSITION2;
     float3 NormalW : NORMAL;
     float3 TangentW : TANGENT;
     float2 TexC : TEXCOORD;
@@ -46,14 +47,11 @@ PixelOut main(PixelIn pin)
     pout.EmissiveMetallic.a = metallicRoughness.r;
 
     // Velocity
+    pin.PosVelo /= pin.PosVelo.w;
     pin.PosHist /= pin.PosHist.w;
-    
-    float2 histPos;
-    histPos.x = (pin.PosHist.x + 1.0f) / 2.0f;
-    histPos.y = (1.0f - pin.PosHist.y) / 2.0f;
-    histPos *= gRenderTargetSize;
-    
-    pout.Velocity = histPos - pin.PosH.xy;
+    float2 veloPos = gRenderTargetSize * float2(pin.PosVelo.x, -pin.PosVelo.y) * .5f + .5f;
+    float2 histPos = gRenderTargetSize * float2(pin.PosHist.x, -pin.PosHist.y) * .5f + .5f;
+    pout.Velocity = histPos - veloPos;
 
     return pout;
 }

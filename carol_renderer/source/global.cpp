@@ -19,7 +19,7 @@ namespace Carol
 	std::unique_ptr<HeapManager> gHeapManager;
 	std::unique_ptr<ShaderManager> gShaderManager;
 	std::unique_ptr<TextureManager> gTextureManager;
-	std::unique_ptr<SceneManager> gSceneManager;
+	std::unique_ptr<ModelManager> gModelManager;
 
 	std::unique_ptr<Renderer> gRenderer;
 }

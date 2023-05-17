@@ -3,7 +3,7 @@
 #include <dx12/pipeline_state.h>
 #include <dx12/root_signature.h>
 #include <dx12/shader.h>
-#include <scene/scene.h>
+#include <scene/model.h>
 #include <global.h>
 #include <DirectXColors.h>
 #include <string_view>

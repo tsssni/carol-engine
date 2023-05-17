@@ -6,8 +6,9 @@
 struct PixelIn
 {
     float4 PosH : SV_POSITION;
-    float4 PosHist : POSITION0;
-    float3 PosW : POSITION1;
+    float4 PosVelo : POSITION0;
+    float4 PosVeloHist : POSITION1;
+    float3 PosW : POSITION2;
     float3 NormalW : NORMAL;
     float3 TangentW : TANGENT;
     float2 TexC : TEXCOORD; 
@@ -23,9 +24,7 @@ void main(PixelIn pin)
     Texture2D normalTex = ResourceDescriptorHeap[gNormalTextureIdx];
     Texture2D emissiveTex = ResourceDescriptorHeap[gEmissiveTextureIdx];
     Texture2D metallicRoughnessTex = ResourceDescriptorHeap[gMetallicRoughnessTextureIdx];
-#ifdef SSAO
     Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapIdx];
-#endif
     
     // Interpolation may unnormalize the normal, so renormalize it
     float2 uv = pin.PosH.xy * gInvRenderTargetSize;
@@ -40,10 +39,8 @@ void main(PixelIn pin)
     lightMat.Roughness = max(1e-6f, metallicRoughness.g);
 
     float3 ambientColor = gAmbientColor * diffuse.rgb;
-#ifdef SSAO
     float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, uv, 0.0f).r;
     ambientColor *= ambientAccess;
-#endif
 
     float3 toEye = normalize(gEyePosW - pin.PosW);
     float3 emissiveColor = emissive * dot(toEye, normal);
