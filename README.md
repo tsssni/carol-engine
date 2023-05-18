@@ -3,9 +3,9 @@
 ## Dependencies:
 
 - *Assimp* 5.2.5
-- *DirectXTex* 2022.12.18.1
-- *D3D12 Agility* 1.608.2
-- *DirectX Shader Compiler* 1.7.2212.23
+- *DirectXTex* 2023.4.28.1
+- *D3D12 Agility* 1.610.3
+- *DirectX Shader Compiler* 1.7.2303.01
 
 ## Rendering Pipeline
 
@@ -41,7 +41,7 @@
       - Geometry Function: Height-Correlated Masking-Shadowing Function
 
 - **Deferred Shading**
-  - Store diffuse color, emission, roughness, metalness, normal and view depth in G-Buffer
+  - Store diffuse color, emission, roughness, metalness and normal in G-Buffer
 
 - **Amplification shader and mesh shader**
   - These are features supported by GPU with Turing or more advanced architectures.
@@ -72,8 +72,9 @@
   - ACES
 
 - **Temporal Anti-Aliasing**
+  - Impleted vai compute shader
   - Jitter the sample position via Halton low-discrepancy sequence (from Unreal Engine 4)
   - Blend current and history pixel colors in YCoCg space (from Unreal Engine 4)
   - Clip the history pixel color via the bounding-box constructed by the expectation and variance of colors of the sampled neighboring pixel (from NVIDIA)
 - **OIT**
-  - Implemented via per-pixel linked-list
+  - Implemented via per-pixel linked-list and compute shader
