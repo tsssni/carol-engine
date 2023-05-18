@@ -20,7 +20,7 @@ dxc -E main -T ms_6_6 -Fo dxil/skinned_cull_ms.dxil -D CULL -D SKINNED depth_ms.
 dxc -E main -T ps_6_6 -Fo dxil/display_ps.dxil display_ps.hlsl
 
 # epf_cs.hlsl
-dxc -E main -T cs_6_6 -Fo dxil/epf_cs.dxil -D BORDER_RADIUS=5 epf_cs.hlsl
+dxc -E main -T cs_6_6 -Fo dxil/epf_cs.dxil epf_cs.hlsl
 
 # geometry_ps.hlsl
 dxc -E main -T ps_6_6 -Fo dxil/geometry_ps.dxil geometry_ps.hlsl

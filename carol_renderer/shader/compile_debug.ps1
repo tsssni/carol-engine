@@ -26,7 +26,7 @@ dxc -E main -T ms_6_6 -Fo dxil/skinned_cull_ms.dxil -Zi -Qembed_debug -Fd pdb/sk
 dxc -E main -T ps_6_6 -Fo dxil/display_ps.dxil -Zi -Qembed_debug -Fd pdb/display_ps.pdb -Od display_ps.hlsl
 
 # epf_cs.hlsl
-dxc -E main -T cs_6_6 -Fo dxil/epf_cs.dxil -Zi -Qembed_debug -Fd pdb/epf_cs.pdb -D BORDER_RADIUS=5 -Od epf_cs.hlsl
+dxc -E main -T cs_6_6 -Fo dxil/epf_cs.dxil -Zi -Qembed_debug -Fd pdb/epf_cs.pdb -D -Od epf_cs.hlsl
 
 # geometry_ps.hlsl
 dxc -E main -T ps_6_6 -Fo dxil/geometry_ps.dxil -Zi -Qembed_debug -Fd pdb/geometry_ps.pdb -Od geometry_ps.hlsl
