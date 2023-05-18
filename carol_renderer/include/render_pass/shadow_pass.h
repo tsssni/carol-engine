@@ -7,8 +7,6 @@
 #include <memory>
 #include <span>
 
-#define MAX_LIGHTS 16
-
 namespace Carol
 {
     class ColorBuffer;

@@ -85,7 +85,7 @@ void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
     RWTexture2D<float4> frameMap = ResourceDescriptorHeap[gRWFrameMapIdx];
     RWTexture2D<float4> histMap = ResourceDescriptorHeap[gRWHistMapIdx];
 
-    int2 uid = GetUavId(gid, gtid);
+    int2 uid = GetUavId(gid, gtid, BORDER_RADIUS);
     depth[gtid.x][gtid.y] = TextureBorderTest(uid, gRenderTargetSize) ? depthMap[uid].r : 1.f;
     color[gtid.x][gtid.y] = frameMap[clamp(uid, 0, gRenderTargetSize)];
     GroupMemoryBarrierWithGroupSync();
@@ -93,7 +93,7 @@ void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
     float minZ = 1.0f;
     int2 minZPos = gtid;
     
-    if (GroupBorderTest(gtid) && TextureBorderTest(uid, gRenderTargetSize))
+    if (GroupBorderTest(gtid, BORDER_RADIUS) && TextureBorderTest(uid, gRenderTargetSize))
     {
         [unroll]
         for (int i = 0; i < SAMPLE_COUNT; ++i)
@@ -109,7 +109,7 @@ void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
         }
     
         int2 framePos = gtid;
-        int2 histPos = uid + .5f + velocityMap[GetUavId(gid, minZPos)].rg;
+        int2 histPos = uid + .5f + velocityMap[GetUavId(gid, minZPos, BORDER_RADIUS)].rg;
         
         float4 framePixelColor = color[gtid.x][gtid.y];
         float4 histPixelColor = histMap[histPos];

@@ -24,7 +24,7 @@ void main(PixelIn pin)
     Texture2D normalTex = ResourceDescriptorHeap[gNormalTextureIdx];
     Texture2D emissiveTex = ResourceDescriptorHeap[gEmissiveTextureIdx];
     Texture2D metallicRoughnessTex = ResourceDescriptorHeap[gMetallicRoughnessTextureIdx];
-    Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapIdx];
+    Texture2D ambientMap = ResourceDescriptorHeap[gAmbientMapIdx];
     
     // Interpolation may unnormalize the normal, so renormalize it
     float2 uv = pin.PosH.xy * gInvRenderTargetSize;
@@ -39,7 +39,7 @@ void main(PixelIn pin)
     lightMat.Roughness = max(1e-6f, metallicRoughness.g);
 
     float3 ambientColor = gAmbientColor * diffuse.rgb;
-    float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, uv, 0.0f).r;
+    float ambientAccess = ambientMap.SampleLevel(gsamLinearClamp, uv, 0.0f).r;
     ambientColor *= ambientAccess;
 
     float3 toEye = normalize(gEyePosW - pin.PosW);

@@ -17,7 +17,7 @@ void main(uint2 dtid : SV_DispatchThreadID)
     Texture2D emissiveMetallicMap = ResourceDescriptorHeap[gEmissiveMetallicMapIdx];
     Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
     Texture2D depthStencilMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
-    Texture2D ssaoMap = ResourceDescriptorHeap[gAmbientMapIdx];
+    Texture2D ambientMap = ResourceDescriptorHeap[gAmbientMapIdx];
 
     if (TextureBorderTest(dtid, gRenderTargetSize))
     {
@@ -44,7 +44,7 @@ void main(uint2 dtid : SV_DispatchThreadID)
             lightMat.Roughness = max(1e-6f, roughness);
 
             float3 ambientColor = gAmbientColor * diffuse.rgb;
-            float ambientAccess = ssaoMap.SampleLevel(gsamLinearClamp, uv, 0.0f).r;
+            float ambientAccess = ambientMap.SampleLevel(gsamLinearClamp, uv, 0.0f).r;
             ambientColor *= ambientAccess;
 
             float3 toEye = normalize(gEyePosW - posW);

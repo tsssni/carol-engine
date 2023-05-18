@@ -10,6 +10,8 @@
 cbuffer EpfCB : register(b4)
 {
     uint gColorMapIdx;
+    uint gBlurRadius;
+    uint gBlurCount;
 }
 
 groupshared float4 color[32][32];
@@ -23,7 +25,7 @@ void main(uint2 gid : SV_GroupID, uint2 gtid : SV_GroupThreadID )
     RWTexture2D<float4> colorMap = ResourceDescriptorHeap[gColorMapIdx];
     colorMap.GetDimensions(size.x, size.y);
 
-    int2 uid = GetUavId(gid, gtid);
+    int2 uid = GetUavId(gid, gtid, gBlurRadius);
     float2 texC = (uid + 0.5f) / size;
 
     Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
@@ -43,29 +45,27 @@ void main(uint2 gid : SV_GroupID, uint2 gtid : SV_GroupThreadID )
         gGaussWeights[2].x, gGaussWeights[2].y, gGaussWeights[2].z, gGaussWeights[2].w,
     };
 
-    [unroll]
-    for (int blurCount = 0; blurCount < BLUR_COUNT; ++blurCount)
+    for (int blurCount = 0; blurCount < gBlurCount; ++blurCount)
     {
         [unroll]
         for (int direction = 0; direction < 2; ++direction)
         {
-            if (!GroupBorderTest(gtid) && TextureBorderTest(uid, size))
+            if (!GroupBorderTest(gtid, gBlurRadius) && TextureBorderTest(uid, size))
             {
                 color[gtid.x][gtid.y] = colorMap[uid].r;
             }
             
             GroupMemoryBarrierWithGroupSync();
 
-            if (GroupBorderTest(gtid) && TextureBorderTest(uid, size))
+            if (GroupBorderTest(gtid, gBlurRadius) && TextureBorderTest(uid, size))
             {
                 float2 texOffset = direction ? float2(0.0f, 1.f / size.y) : float2(1.f / size.x, 0.0f);
                 int2 uavOffset = direction ? int2(0, 1) : int2(1, 0);
             
-                float4 blurredColor = blurWeights[BORDER_RADIUS] * color[gtid.x][gtid.y];
-                float totalWeight = blurWeights[BORDER_RADIUS];
+                float4 blurredColor = blurWeights[gBlurRadius] * color[gtid.x][gtid.y];
+                float totalWeight = blurWeights[gBlurRadius];
     
-                [unroll]
-                for (int i = -BORDER_RADIUS; i <= BORDER_RADIUS; ++i)
+                for (int i = -gBlurRadius; i <= gBlurRadius; ++i)
                 {
                     if (i == 0)
                     {
@@ -80,8 +80,8 @@ void main(uint2 gid : SV_GroupID, uint2 gtid : SV_GroupThreadID )
  
                     if (TextureBorderTest(offsetUid, size) && dot(centerNormal, neighborNormal) >= 0.8f && abs(centerViewDepth - neighborViewDepth) <= 0.2f)
                     {
-                        blurredColor += blurWeights[i + BORDER_RADIUS] * color[offsetGtid.x][offsetGtid.y];
-                        totalWeight += blurWeights[i + BORDER_RADIUS];
+                        blurredColor += blurWeights[i + gBlurRadius] * color[offsetGtid.x][offsetGtid.y];
+                        totalWeight += blurWeights[i + gBlurRadius];
                     }
                 }
                 

@@ -7,7 +7,7 @@
 #include <string>
 #include <string_view>
 
-#define MAIN_LIGHT_SPLIT_LEVEL 5
+#define MAX_MAIN_LIGHT_SPLIT_LEVEL 8
 #define MAX_POINT_LIGHTS 64
 #define MAX_SPOT_LIGHTS 64
 
@@ -58,23 +58,19 @@ namespace Carol
 		float OcclusionFadeEnd = 1.0f;
 		float SurfaceEplison = 0.2f;
 
-		Light MainLights[MAIN_LIGHT_SPLIT_LEVEL];
-		float MainLightSplitZ[MAIN_LIGHT_SPLIT_LEVEL + 1];
-		DirectX::XMFLOAT2 FramePad2;
+		uint32_t NumMainLights;
 		DirectX::XMFLOAT3 AmbientColor;
-		float FramePad3;
+		Light MainLights[MAX_MAIN_LIGHT_SPLIT_LEVEL];
+		float MainLightSplitZ[MAX_MAIN_LIGHT_SPLIT_LEVEL];
+		uint32_t MainLightShadowMapIdx[MAX_MAIN_LIGHT_SPLIT_LEVEL] = { 0 };
 
 		uint32_t NumPointLights = 0;
-		DirectX::XMFLOAT3 FramePad4;
+		DirectX::XMFLOAT3 FramePad2;
 		Light PointLights[MAX_POINT_LIGHTS];
 
 		uint32_t NumSpotLights = 0;
-		DirectX::XMFLOAT3 FramePad5;
+		DirectX::XMFLOAT3 FramePad3;
 		Light SpotLights[MAX_POINT_LIGHTS];
-
-		// Main light
-		uint32_t MainLightShadowMapIdx[MAIN_LIGHT_SPLIT_LEVEL] = { 0 };
-		DirectX::XMFLOAT3 FramePad6;
 
 		uint32_t MeshBufferIdx = 0;
 		uint32_t CommandBufferIdx = 0;
@@ -107,7 +103,7 @@ namespace Carol
 		uint32_t RWAmbientMapIdx = 0;
 		uint32_t AmbientMapIdx = 0;
 		
-		DirectX::XMFLOAT3 FramePad7;
+		DirectX::XMFLOAT3 FramePad5;
 	};
  
     class Renderer

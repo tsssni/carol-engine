@@ -1,8 +1,6 @@
 #ifndef SHADOW_HEADER
 #define SHADOW_HEADER
 
-#define CSM_BLEND_BORDER 0.2f
-
 #include "common.hlsli"
 #include "texture.hlsli"
 #include "transform.hlsli"
@@ -39,22 +37,20 @@ float GetCSMShadowFactor(float3 posW, float viewDepth, out uint lightIdx)
 {
     float shadowFactor = 1.f;
     
-    float mainLightShadowMapIdx[MAIN_LIGHT_SPLIT_LEVEL];
-    [unroll]
-    for (int shadowIdx = 0; shadowIdx < MAIN_LIGHT_SPLIT_LEVEL;++shadowIdx)
+    float mainLightShadowMapIdx[MAX_MAIN_LIGHT_SPLIT_LEVEL];
+    for (int shadowIdx = 0; shadowIdx < gNumMainLights;++shadowIdx)
     {
         mainLightShadowMapIdx[shadowIdx] = gMainLightShadowMapIdx[shadowIdx / 4][shadowIdx % 4];
     }
     
-    float mainLightSplitZ[MAIN_LIGHT_SPLIT_LEVEL + 1];
-    [unroll]
-    for (int splitIdx = 0; splitIdx < MAIN_LIGHT_SPLIT_LEVEL + 1;++splitIdx)
+    float mainLightSplitZ[MAX_MAIN_LIGHT_SPLIT_LEVEL + 1];
+    mainLightSplitZ[0] = 0.f;
+    for (int splitIdx = 0; splitIdx < gNumMainLights ;++splitIdx)
     {
-        mainLightSplitZ[splitIdx] = gMainLightSplitZ[splitIdx / 4][splitIdx % 4];
+        mainLightSplitZ[splitIdx + 1] = gMainLightSplitZ[splitIdx / 4][splitIdx % 4];
     }
 
-    [unroll]
-    for (int i = 0; i < MAIN_LIGHT_SPLIT_LEVEL; ++i)
+    for (int i = 0; i < gNumMainLights; ++i)
     {
         if (viewDepth >= mainLightSplitZ[i] && viewDepth < mainLightSplitZ[i + 1])
         {

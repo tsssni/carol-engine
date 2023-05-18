@@ -1,13 +1,9 @@
-#ifndef BORDER_RADIUS
-#define BORDER_RADIUS 0
-#endif
-
-bool GroupBorderTest(uint2 pos)
+bool GroupBorderTest(uint2 pos, uint radius)
 {
-    return pos.x >= BORDER_RADIUS && pos.x <= 31 - BORDER_RADIUS && pos.y >= BORDER_RADIUS && pos.y <= 31 - BORDER_RADIUS;
+    return pos.x >= radius && pos.x <= 31 - radius && pos.y >= radius && pos.y <= 31 - radius;
 }
 
-int2 GetUavId(uint2 gid, uint2 gtid)
+int2 GetUavId(uint2 gid, uint2 gtid, uint radius)
 {
-    return gid * (32 - 2 * BORDER_RADIUS) + gtid - BORDER_RADIUS;
+    return gid * (32 - 2 * radius) + gtid - radius;
 }

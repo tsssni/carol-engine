@@ -294,6 +294,8 @@ void Carol::Renderer::InitMainLightShadowPass()
 void Carol::Renderer::InitSsaoPass()
 {
 	mSsaoPass = make_unique<SsaoPass>();
+	mSsaoPass->SetBlurRadius(5);
+	mSsaoPass->SetBlurCount(3);
 }
 
 void Carol::Renderer::InitTaaPass()
@@ -533,7 +535,7 @@ void Carol::Renderer::Update()
 
 	gModelManager->Update(mTimer.get(), gCpuFenceValue, gGpuFenceValue);
 	mCamera->UpdateViewMatrix();
-	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), 0.85);
+	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), .75f);
 
 	XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
 	mTaaPass->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
@@ -564,13 +566,10 @@ void Carol::Renderer::Update()
 	mFrameConstants->NearZ = dynamic_cast<PerspectiveCamera*>(mCamera.get())->GetNearZ();
 	mFrameConstants->FarZ = dynamic_cast<PerspectiveCamera*>(mCamera.get())->GetFarZ();
 	
-	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel(); ++i)
+	mFrameConstants->NumMainLights = mMainLightShadowPass->GetSplitLevel();
+	for (int i = 0; i < mFrameConstants->NumMainLights; ++i)
 	{
 		mFrameConstants->MainLights[i] = mMainLightShadowPass->GetLight(i);
-	}
-
-	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel() + 1; ++i)
-	{
 		mFrameConstants->MainLightSplitZ[i] = mMainLightShadowPass->GetSplitZ(i);
 	}
 

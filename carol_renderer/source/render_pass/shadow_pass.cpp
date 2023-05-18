@@ -224,7 +224,7 @@ Carol::CascadedShadowPass::CascadedShadowPass(
 	DXGI_FORMAT shadowFormat,
 	DXGI_FORMAT hiZFormat)
 	:mSplitLevel(splitLevel),
-	mSplitZ(splitLevel + 1),
+	mSplitZ(splitLevel),
 	mShadow(splitLevel)
 {
 	for (auto& shadow : mShadow)
@@ -257,14 +257,14 @@ void Carol::CascadedShadowPass::Update(
 	float nearZ = eyeCamera->GetNearZ();
 	float farZ = eyeCamera->GetFarZ();
 
-	for (int i = 0; i < mSplitLevel + 1; ++i)
+	for (int i = 1; i <= mSplitLevel; ++i)
 	{
-		mSplitZ[i] = logWeight * nearZ * pow(farZ / nearZ, 1.f * i / mSplitLevel) + (1 - logWeight) * (nearZ + (farZ - nearZ) * (1.f * i / mSplitLevel)) + bias;
+		mSplitZ[i - 1] = logWeight * nearZ * pow(farZ / nearZ, 1.f * i / mSplitLevel) + (1 - logWeight) * (nearZ + (farZ - nearZ) * (1.f * i / mSplitLevel)) + bias;
 	}
 
 	for (int i = 0; i < mSplitLevel; ++i)
 	{
-		mShadow[i]->Update(i, eyeCamera, mSplitZ[i], mSplitZ[i + 1]);
+		mShadow[i]->Update(i, eyeCamera, i == 0 ? 0.f : mSplitZ[i - 1], mSplitZ[i]);
 	}
 }
 

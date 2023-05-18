@@ -1,17 +1,9 @@
 #ifndef ROOT_SIGNATURE_HEADER
 #define ROOT_SIGNATURE_HEADER
 
-#ifndef MAIN_LIGHT_SPLIT_LEVEL
-#define MAIN_LIGHT_SPLIT_LEVEL 5
-#endif
-
-#ifndef MAX_POINT_LIGHTS
+#define MAX_MAIN_LIGHT_SPLIT_LEVEL 8
 #define MAX_POINT_LIGHTS 64
-#endif
-
-#ifndef MAX_SPOT_LIGHTS
 #define MAX_SPOT_LIGHTS 64
-#endif
 
 #include "light.hlsli"
 
@@ -42,10 +34,11 @@ cbuffer FrameCB : register(b3)
     float gOcclusionFadeEnd;
     float gSurfaceEplison;
 
-    Light gMainLights[MAIN_LIGHT_SPLIT_LEVEL];
-    float4 gMainLightSplitZ[2];
+    uint gNumMainLights;
     float3 gAmbientColor;
-    float gFramePad2;
+    Light gMainLights[MAX_MAIN_LIGHT_SPLIT_LEVEL];
+    float4 gMainLightSplitZ[2];
+    uint4 gMainLightShadowMapIdx[2];
 
     uint gNumPointLights;
     float3 gFramePad3;
@@ -55,8 +48,6 @@ cbuffer FrameCB : register(b3)
     float3 gFramePad4;
     Light gSpotLights[MAX_SPOT_LIGHTS];
     
-    uint4 gMainLightShadowMapIdx[2];
-
     uint gMeshBufferIdx;
     uint gCommandBufferIdx;
 

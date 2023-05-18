@@ -20,15 +20,26 @@ void Carol::EpfPass::SetColorMap(ColorBuffer* colorMap)
 	mColorMap = colorMap;
 }
 
+void Carol::EpfPass::SetBlurRadius(uint32_t blurRadius)
+{
+	mBlurRadius = blurRadius;
+}
+
+void Carol::EpfPass::SetBlurCount(uint32_t blurCount)
+{
+	mBlurCount = blurCount;
+}
+
 void Carol::EpfPass::Draw()
 {
-	constexpr uint32_t borderRadius = 5;
-	uint32_t groupWidth = ceilf(mColorMap->GetWidth() * 1.f / (32 - 2 * borderRadius)); 
-    uint32_t groupHeight = ceilf(mColorMap->GetHeight() * 1.f / (32 - 2 * borderRadius));
+	uint32_t groupWidth = ceilf(mColorMap->GetWidth() * 1.f / (32 - 2 * mBlurRadius)); 
+    uint32_t groupHeight = ceilf(mColorMap->GetHeight() * 1.f / (32 - 2 * mBlurRadius));
+
+	uint32_t epfConstants[] = { mColorMap->GetGpuUavIdx(), mBlurRadius, mBlurCount };
 
 	mColorMap->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	gGraphicsCommandList->SetPipelineState(mEpfComputePSO->Get());
-	gGraphicsCommandList->SetComputeRoot32BitConstant(ROOT_CONSTANTS, mColorMap->GetGpuUavIdx(), 0);
+	gGraphicsCommandList->SetComputeRoot32BitConstants(ROOT_CONSTANTS, _countof(epfConstants), epfConstants, 0);
     gGraphicsCommandList->Dispatch(groupWidth, groupHeight , 1);
     mColorMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 }

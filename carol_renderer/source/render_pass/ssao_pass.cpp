@@ -22,11 +22,8 @@ namespace Carol
 	using Microsoft::WRL::ComPtr;
 }
 
-Carol::SsaoPass::SsaoPass(
-	uint32_t blurCount,
-	DXGI_FORMAT ambientMapFormat)
-	:mBlurCount(blurCount),
-	mAmbientMapFormat(ambientMapFormat),
+Carol::SsaoPass::SsaoPass(DXGI_FORMAT ambientMapFormat)
+	:mAmbientMapFormat(ambientMapFormat),
 	mEpfPass(make_unique<EpfPass>())
 {
 	InitPSOs();
@@ -66,6 +63,16 @@ void Carol::SsaoPass::OnResize(
 
 		InitBuffers();
 	}
+}
+
+void Carol::SsaoPass::SetBlurRadius(uint32_t blurRadius)
+{
+	mEpfPass->SetBlurRadius(blurRadius);
+}
+
+void Carol::SsaoPass::SetBlurCount(uint32_t blurCount)
+{
+	mEpfPass->SetBlurCount(blurCount);
 }
 
 void Carol::SsaoPass::Draw()

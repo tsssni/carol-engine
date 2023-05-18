@@ -16,12 +16,12 @@ namespace Carol
 	class SsaoPass : public RenderPass
 	{
 	public:
-		SsaoPass(
-			uint32_t blurCount = 3,
-			DXGI_FORMAT ambientMapFormat = DXGI_FORMAT_R16_UNORM);
+		SsaoPass(DXGI_FORMAT ambientMapFormat = DXGI_FORMAT_R16_UNORM);
 
 		virtual void Draw()override;
 		virtual void OnResize(uint32_t width, uint32_t height)override;
+		void SetBlurRadius(uint32_t blurRadius);
+		void SetBlurCount(uint32_t blurCount);
 
 		void ReleaseIntermediateBuffers();
 
