@@ -72,13 +72,6 @@ namespace Carol
 		DirectX::XMFLOAT3 FramePad3;
 		Light SpotLights[MAX_POINT_LIGHTS];
 
-		uint32_t MeshBufferIdx = 0;
-		uint32_t CommandBufferIdx = 0;
-
-		uint32_t InstanceFrustumCulledMarkBufferIdx = 0;
-		uint32_t InstanceOcclusionCulledMarkBufferIdx = 0;
-		uint32_t InstanceCulledMarkBufferIdx = 0;
-
 		// Display
 		uint32_t RWFrameMapIdx = 0;
 		uint32_t RWHistMapIdx = 0;

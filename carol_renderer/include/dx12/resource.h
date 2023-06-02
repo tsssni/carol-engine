@@ -275,18 +275,18 @@ namespace Carol
 		uint32_t mCurrOffset;
 	};
 
-	class StructuredBufferPool
+	class FrameBufferAllocator
 	{
 	public:
-		StructuredBufferPool(
+		FrameBufferAllocator(
 			uint32_t numElements,
 			uint32_t elementSize,
 			Heap* heap,
 			D3D12_RESOURCE_STATES initState,
 			D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
 			bool isConstant = false);
-		StructuredBufferPool(StructuredBufferPool&& structuredBufferPool);
-		StructuredBufferPool& operator=(StructuredBufferPool&& structuredBufferPool);
+		FrameBufferAllocator(FrameBufferAllocator&& structuredBufferPool);
+		FrameBufferAllocator& operator=(FrameBufferAllocator&& structuredBufferPool);
 
 		std::unique_ptr<StructuredBuffer> RequestBuffer(uint32_t completedFenceValue, uint32_t numElements);
 		void DiscardBuffer(StructuredBuffer* buffer, uint32_t cpuFenceValue);

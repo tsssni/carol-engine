@@ -1,6 +1,8 @@
 #pragma once
 #include <d3d12.h>
 
+namespace Carol
+{
 #pragma pack(1)
 	class IndirectCommand
 	{
@@ -10,3 +12,4 @@
 		D3D12_DISPATCH_MESH_ARGUMENTS DispatchMeshArgs;
 	};
 #pragma pack()
+}

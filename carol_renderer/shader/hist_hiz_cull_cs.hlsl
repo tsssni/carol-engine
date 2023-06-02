@@ -7,7 +7,7 @@ bool InstanceHiZOcclusionCull(uint dtid, MeshConstants mc)
         
     if(HiZOcclusionTest(mc.Center, mc.Extents, occlusionWorldViewProj, gCullHiZMapIdx))
     {
-        ResetMark(gCullMeshOffset + dtid, gInstanceOcclusionCulledMarkBufferIdx);
+        ResetMark(dtid, gInstanceOcclusionCulledMarkBufferIdx);
         return false;
     }
 
@@ -18,14 +18,14 @@ bool InstanceHiZOcclusionCull(uint dtid, MeshConstants mc)
 void main(uint dtid : SV_DispatchThreadID)
 {
     if(dtid >= gCullMeshCount 
-        || GetMark(gCullMeshOffset + dtid, gInstanceFrustumCulledMarkBufferIdx)
-        || !GetMark(gCullMeshOffset + dtid, gInstanceOcclusionCulledMarkBufferIdx))
+        || GetMark(dtid, gInstanceFrustumCulledMarkBufferIdx)
+        || !GetMark(dtid, gInstanceOcclusionCulledMarkBufferIdx))
     {
         return;
     }
     
     StructuredBuffer<MeshConstants> meshCB = ResourceDescriptorHeap[gMeshBufferIdx];
-    MeshConstants mc = meshCB.Load(gCullMeshOffset + dtid);
+    MeshConstants mc = meshCB.Load(dtid);
 
     if (!InstanceHiZOcclusionCull(dtid, mc))
     {
@@ -33,6 +33,6 @@ void main(uint dtid : SV_DispatchThreadID)
         AppendStructuredBuffer<IndirectCommand> cullingPassedCommandBuffer = ResourceDescriptorHeap[gCullPassedCommandBufferIdx];
 
         ResetMark(dtid, gInstanceCulledMarkBufferIdx);
-        cullingPassedCommandBuffer.Append(commandBuffer.Load(gCullMeshOffset + dtid));
+        cullingPassedCommandBuffer.Append(commandBuffer.Load(dtid));
     }
 }

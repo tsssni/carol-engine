@@ -7,7 +7,7 @@ bool InstanceFrustumCull(uint dtid, MeshConstants mc)
 
     if (AabbFrustumTest(mc.Center, mc.Extents, frustumWorldViewProj) == OUTSIDE)
     {
-        SetMark(gCullMeshOffset + dtid, gInstanceFrustumCulledMarkBufferIdx);
+        SetMark(dtid, gInstanceFrustumCulledMarkBufferIdx);
         return true;
     }
 
@@ -20,7 +20,7 @@ bool InstanceHiZOcclusionCull(uint dtid, MeshConstants mc)
 
     if(HiZOcclusionTest(mc.Center, mc.Extents, occlusionWorldViewProj, gCullHiZMapIdx))
     {
-        ResetMark(gCullMeshOffset + dtid, gInstanceOcclusionCulledMarkBufferIdx);
+        ResetMark(dtid, gInstanceOcclusionCulledMarkBufferIdx);
         return false;
     }
 
@@ -30,14 +30,14 @@ bool InstanceHiZOcclusionCull(uint dtid, MeshConstants mc)
 [numthreads(32, 1, 1)]
 void main(uint dtid : SV_DispatchThreadID)
 {
-    if(dtid >= gCullMeshCount || !GetMark(gCullMeshOffset + dtid, gInstanceCulledMarkBufferIdx))
+    if(dtid >= gCullMeshCount)
     {
         return;
     }
     
     bool culled = false;
     StructuredBuffer<MeshConstants> meshCB = ResourceDescriptorHeap[gMeshBufferIdx];
-    MeshConstants mc = meshCB.Load(gCullMeshOffset + dtid);
+    MeshConstants mc = meshCB.Load(dtid);
 
 #ifdef FRUSTUM
     if(!culled)
@@ -58,6 +58,6 @@ void main(uint dtid : SV_DispatchThreadID)
         AppendStructuredBuffer<IndirectCommand> cullingPassedCommandBuffer = ResourceDescriptorHeap[gCullPassedCommandBufferIdx];
 
         ResetMark(dtid, gInstanceCulledMarkBufferIdx);
-        cullingPassedCommandBuffer.Append(commandBuffer.Load(gCullMeshOffset + dtid));
+        cullingPassedCommandBuffer.Append(commandBuffer.Load(dtid));
     }
 }

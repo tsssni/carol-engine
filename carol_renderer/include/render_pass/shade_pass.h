@@ -12,7 +12,7 @@ namespace Carol
 {
 	class ColorBuffer;
 	class StructuredBuffer;
-	class StructuredBufferPool;
+	class FrameBufferAllocator;
 	class MeshPSO;
 	class ComputePSO;
 

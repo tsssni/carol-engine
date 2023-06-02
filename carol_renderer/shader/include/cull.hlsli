@@ -15,12 +15,18 @@ cbuffer CullCB : register(b2)
     float4x4 gCullViewProj;
     float4x4 gCullHistViewProj;
     float3 gCullEyePos;
-    float gCullPad0;
+    uint gCullMeshCount;
     
     uint gCullPassedCommandBufferIdx;
-    uint gCullMeshCount;
-    uint gCullMeshOffset;
+    uint gCommandBufferIdx;
+    uint gMeshBufferIdx;
+
+    uint gInstanceFrustumCulledMarkBufferIdx;
+    uint gInstanceOcclusionCulledMarkBufferIdx;
+    uint gInstanceCulledMarkBufferIdx;
+    
     uint gCullHiZMapIdx;
+    float gCullPad0;
 }
 
 struct CullData

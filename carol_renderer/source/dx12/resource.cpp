@@ -1292,7 +1292,7 @@ D3D12_GPU_VIRTUAL_ADDRESS Carol::FastConstantBufferAllocator::Allocate(const voi
 	return addr;
 }
 
-Carol::StructuredBufferPool::StructuredBufferPool(uint32_t numElements, uint32_t elementSize, Heap* heap, D3D12_RESOURCE_STATES initState, D3D12_RESOURCE_FLAGS flags, bool isConstant)
+Carol::FrameBufferAllocator::FrameBufferAllocator(uint32_t numElements, uint32_t elementSize, Heap* heap, D3D12_RESOURCE_STATES initState, D3D12_RESOURCE_FLAGS flags, bool isConstant)
 	:mNumElements(numElements),
 	mElementSize(elementSize),
 	mHeap(heap),
@@ -1302,7 +1302,7 @@ Carol::StructuredBufferPool::StructuredBufferPool(uint32_t numElements, uint32_t
 {
 }
 
-Carol::StructuredBufferPool::StructuredBufferPool(StructuredBufferPool&& structuredBufferPool)
+Carol::FrameBufferAllocator::FrameBufferAllocator(FrameBufferAllocator&& structuredBufferPool)
 	:mBufferQueue(std::move(structuredBufferPool.mBufferQueue)),
 	mNumElements(structuredBufferPool.mNumElements),
 	mElementSize(structuredBufferPool.mElementSize),
@@ -1313,13 +1313,13 @@ Carol::StructuredBufferPool::StructuredBufferPool(StructuredBufferPool&& structu
 {
 }
 
-Carol::StructuredBufferPool& Carol::StructuredBufferPool::operator=(StructuredBufferPool&& structuredBufferPool)
+Carol::FrameBufferAllocator& Carol::FrameBufferAllocator::operator=(FrameBufferAllocator&& structuredBufferPool)
 {
-	this->StructuredBufferPool::StructuredBufferPool(std::move(structuredBufferPool));
+	this->FrameBufferAllocator::FrameBufferAllocator(std::move(structuredBufferPool));
 	return *this;
 }
 
-Carol::unique_ptr<Carol::StructuredBuffer> Carol::StructuredBufferPool::RequestBuffer(uint32_t completedFenceValue, uint32_t numElements)
+Carol::unique_ptr<Carol::StructuredBuffer> Carol::FrameBufferAllocator::RequestBuffer(uint32_t completedFenceValue, uint32_t numElements)
 {
 	lock_guard<mutex> lock(mAllocatorMutex);
 
@@ -1356,7 +1356,7 @@ Carol::unique_ptr<Carol::StructuredBuffer> Carol::StructuredBufferPool::RequestB
 	return buffer;
 }
 
-void Carol::StructuredBufferPool::DiscardBuffer(StructuredBuffer* buffer, uint32_t cpuFenceValue)
+void Carol::FrameBufferAllocator::DiscardBuffer(StructuredBuffer* buffer, uint32_t cpuFenceValue)
 {
 	if (buffer)
 	{

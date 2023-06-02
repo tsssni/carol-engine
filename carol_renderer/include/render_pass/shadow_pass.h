@@ -11,7 +11,7 @@ namespace Carol
 {
     class ColorBuffer;
     class StructuredBuffer;
-    class StructuredBufferPool;
+    class FrameBufferAllocator;
     class Scene;
     class Camera; 
     class PerspectiveCamera;

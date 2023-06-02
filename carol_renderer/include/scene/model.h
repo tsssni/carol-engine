@@ -19,7 +19,7 @@ namespace Carol
 	class Mesh;
 	class Camera;
 	class StructuredBuffer;
-	class StructuredBufferPool;
+	class FrameBufferAllocator;
 	
 	class SkinnedConstants
 	{
@@ -112,16 +112,13 @@ namespace Carol
 		void SetWorld(std::string_view modelName, DirectX::XMMATRIX world);
 		void SetAnimationClip(std::string_view modelName, std::string_view clipName);
 		void Update(Timer* timer, uint64_t cpuFenceValue, uint64_t completedFenceValue);
-		void Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes);
-
 		void ClearCullMark();
-		uint32_t GetMeshCBStartOffet(MeshType type)const;
 
-		uint32_t GetMeshBufferIdx()const;
-		uint32_t GetCommandBufferIdx()const;
-		uint32_t GetInstanceFrustumCulledMarkBufferIdx()const;
-		uint32_t GetInstanceOcclusionCulledMarkBufferIdx()const;
-		uint32_t GetInstanceCulledMarkBufferIdx()const;
+		uint32_t GetMeshBufferIdx(MeshType type)const;
+		uint32_t GetCommandBufferIdx(MeshType type)const;
+		uint32_t GetInstanceFrustumCulledMarkBufferIdx(MeshType type)const;
+		uint32_t GetInstanceOcclusionCulledMarkBufferIdx(MeshType type)const;
+		uint32_t GetInstanceCulledMarkBufferIdx(MeshType type)const;
 
 	protected:
 		void ProcessNode(ModelNode* node, DirectX::XMMATRIX parentToRoot);
@@ -132,17 +129,17 @@ namespace Carol
 		std::unordered_map<std::string, std::unique_ptr<Model>> mModels;
 		std::vector<std::unordered_map<std::string, Mesh*>> mMeshes;
 
-		std::unique_ptr<StructuredBuffer> mIndirectCommandBuffer;
-		std::unique_ptr<StructuredBuffer> mMeshBuffer;
+		std::vector<std::unique_ptr<StructuredBuffer>> mIndirectCommandBuffer;
+		std::vector<std::unique_ptr<StructuredBuffer>> mMeshBuffer;
 		std::unique_ptr<StructuredBuffer> mSkinnedBuffer;
 
-		std::unique_ptr<StructuredBufferPool> mIndirectCommandBufferPool;
-		std::unique_ptr<StructuredBufferPool> mMeshBufferPool;
-		std::unique_ptr<StructuredBufferPool> mSkinnedBufferPool;
+		std::unique_ptr<FrameBufferAllocator> mIndirectCommandBufferAllocator;
+		std::unique_ptr<FrameBufferAllocator> mMeshBufferAllocator;
+		std::unique_ptr<FrameBufferAllocator> mSkinnedBufferAllocator;
 
-		std::unique_ptr<RawBuffer> mInstanceFrustumCulledMarkBuffer;
-		std::unique_ptr<RawBuffer> mInstanceOcclusionCulledMarkBuffer;
-		std::unique_ptr<RawBuffer> mInstanceCulledMarkBuffer;
+		std::vector<std::unique_ptr<RawBuffer>> mInstanceFrustumCulledMarkBuffer;
+		std::vector<std::unique_ptr<RawBuffer>> mInstanceOcclusionCulledMarkBuffer;
+		std::vector<std::unique_ptr<RawBuffer>> mInstanceCulledMarkBuffer;
 
 		uint32_t mMeshStartOffset[MESH_TYPE_COUNT];
 	};

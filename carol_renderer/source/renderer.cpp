@@ -573,9 +573,6 @@ void Carol::Renderer::Update()
 		mFrameConstants->MainLightSplitZ[i] = mMainLightShadowPass->GetSplitZ(i);
 	}
 
-	mFrameConstants->MeshBufferIdx = gModelManager->GetMeshBufferIdx();
-	mFrameConstants->CommandBufferIdx = gModelManager->GetCommandBufferIdx();
-
 	mFrameCBAddr = mFrameCBAllocator->Allocate(mFrameConstants.get());
 }
 
@@ -606,10 +603,6 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 
 	mCullPass->SetDepthMap(mDisplayPass->GetDepthStencilMap());
 	mGeometryPass->SetDepthStencilMap(mDisplayPass->GetDepthStencilMap());
-
-	mFrameConstants->InstanceFrustumCulledMarkBufferIdx = gModelManager->GetInstanceFrustumCulledMarkBufferIdx();
-	mFrameConstants->InstanceOcclusionCulledMarkBufferIdx = gModelManager->GetInstanceOcclusionCulledMarkBufferIdx();
-	mFrameConstants->InstanceCulledMarkBufferIdx = gModelManager->GetInstanceCulledMarkBufferIdx();
 
 	// Main light
 	for (int i = 0; i < mMainLightShadowPass->GetSplitLevel(); ++i)

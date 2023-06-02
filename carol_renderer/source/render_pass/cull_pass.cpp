@@ -33,7 +33,7 @@ Carol::CullPass::CullPass(
 {
 	InitPSOs();
 
-	mCulledCommandBufferPool = make_unique<StructuredBufferPool>(
+	mCulledCommandBufferAllocator = make_unique<FrameBufferAllocator>(
 		1024,
 		sizeof(IndirectCommand),
 		gHeapManager->GetDefaultBuffersHeap(),
@@ -70,15 +70,19 @@ void Carol::CullPass::Update(XMMATRIX viewProj, XMMATRIX histViewProj, XMVECTOR 
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(i);
-		mCulledCommandBufferPool->DiscardBuffer(mCulledCommandBuffer[type].release(), gCpuFenceValue);
-		mCulledCommandBuffer[type] = mCulledCommandBufferPool->RequestBuffer(gGpuFenceValue, gModelManager->GetMeshesCount(type));
+		mCulledCommandBufferAllocator->DiscardBuffer(mCulledCommandBuffer[type].release(), gCpuFenceValue);
+		mCulledCommandBuffer[type] = mCulledCommandBufferAllocator->RequestBuffer(gGpuFenceValue, gModelManager->GetMeshesCount(type));
 
 		XMStoreFloat4x4(&mCullConstants[i]->ViewProj, viewProj);
 		XMStoreFloat4x4(&mCullConstants[i]->HistViewProj, histViewProj);
 		XMStoreFloat3(&mCullConstants[i]->EyePos, eyePos);
-		mCullConstants[i]->CulledCommandBufferIdx = mCulledCommandBuffer[type]->GetGpuUavIdx();
 		mCullConstants[i]->MeshCount = gModelManager->GetMeshesCount(type);
-		mCullConstants[i]->MeshOffset = gModelManager->GetMeshCBStartOffet(type);
+		mCullConstants[i]->CulledCommandBufferIdx = mCulledCommandBuffer[type]->GetGpuUavIdx();
+		mCullConstants[i]->CommandBufferIdx = gModelManager->GetCommandBufferIdx(type);
+		mCullConstants[i]->MeshBufferIdx = gModelManager->GetMeshBufferIdx(type);
+		mCullConstants[i]->InstanceFrustumCulledMarkBufferIdx = gModelManager->GetInstanceFrustumCulledMarkBufferIdx(type);
+		mCullConstants[i]->InstanceOcclusionCulledMarkBufferIdx = gModelManager->GetInstanceOcclusionCulledMarkBufferIdx(type);
+		mCullConstants[i]->InstanceCulledMarkBufferIdx = gModelManager->GetInstanceCulledMarkBufferIdx(type);
 		mCullConstants[i]->HiZMapIdx = mHiZMap->GetGpuSrvIdx();
 
 		mCullCBAddr[i] = mCullCBAllocator->Allocate(mCullConstants[i].get());

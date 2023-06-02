@@ -10,7 +10,7 @@ namespace Carol
 {
 	class ColorBuffer;
 	class StructuredBuffer;
-	class StructuredBufferPool;
+	class FrameBufferAllocator;
 	class FastConstantBufferAllocator;
 	class ModelManager;
 	class MeshPSO;
@@ -22,12 +22,18 @@ namespace Carol
 		DirectX::XMFLOAT4X4 ViewProj;
 		DirectX::XMFLOAT4X4 HistViewProj;
 		DirectX::XMFLOAT3 EyePos;
-		float CullPad0;
+		uint32_t MeshCount;
 
 		uint32_t CulledCommandBufferIdx;
-		uint32_t MeshCount;
-		uint32_t MeshOffset;
+		uint32_t CommandBufferIdx;
+		uint32_t MeshBufferIdx;
+
+		uint32_t InstanceFrustumCulledMarkBufferIdx;
+		uint32_t InstanceOcclusionCulledMarkBufferIdx;
+		uint32_t InstanceCulledMarkBufferIdx;
+
 		uint32_t HiZMapIdx;
+		float Pad0;
 	};
 
 	class HiZConstants
@@ -78,7 +84,7 @@ namespace Carol
 		std::unique_ptr<FastConstantBufferAllocator> mHiZCBAllocator;
 
 		std::vector<std::unique_ptr<StructuredBuffer>> mCulledCommandBuffer;
-        std::unique_ptr<StructuredBufferPool> mCulledCommandBufferPool;
+        std::unique_ptr<FrameBufferAllocator> mCulledCommandBufferAllocator;
 
 		std::unique_ptr<ColorBuffer> mHiZMap;
 

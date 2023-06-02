@@ -234,7 +234,12 @@ bool Carol::Model::IsSkinned()const
 Carol::ModelManager::ModelManager(
 	string_view name)
 	:mRootNode(make_unique<ModelNode>()),
-	mMeshes(MESH_TYPE_COUNT)
+	mMeshes(MESH_TYPE_COUNT),
+	mIndirectCommandBuffer(MESH_TYPE_COUNT),
+	mMeshBuffer(MESH_TYPE_COUNT),
+	mInstanceFrustumCulledMarkBuffer(MESH_TYPE_COUNT),
+	mInstanceOcclusionCulledMarkBuffer(MESH_TYPE_COUNT),
+	mInstanceCulledMarkBuffer(MESH_TYPE_COUNT)
 {
 	mRootNode->Name = name;
 	InitBuffers();
@@ -242,25 +247,28 @@ Carol::ModelManager::ModelManager(
 
 void Carol::ModelManager::InitBuffers()
 {
-	mInstanceFrustumCulledMarkBuffer = make_unique<RawBuffer>(
-		2 << 16,
-		gHeapManager->GetDefaultBuffersHeap(),
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
+	{
+		mInstanceFrustumCulledMarkBuffer[i] = make_unique<RawBuffer>(
+			2 << 16,
+			gHeapManager->GetDefaultBuffersHeap(),
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-	mInstanceOcclusionCulledMarkBuffer = make_unique<RawBuffer>(
-		2 << 16,
-		gHeapManager->GetDefaultBuffersHeap(),
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		mInstanceOcclusionCulledMarkBuffer[i] = make_unique<RawBuffer>(
+			2 << 16,
+			gHeapManager->GetDefaultBuffersHeap(),
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-	mInstanceCulledMarkBuffer = make_unique<RawBuffer>(
-		2 << 16,
-		gHeapManager->GetDefaultBuffersHeap(),
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		mInstanceCulledMarkBuffer[i] = make_unique<RawBuffer>(
+			2 << 16,
+			gHeapManager->GetDefaultBuffersHeap(),
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	}
 
-	mIndirectCommandBufferPool = make_unique<StructuredBufferPool>(
+	mIndirectCommandBufferAllocator = make_unique<FrameBufferAllocator>(
 		1024,
 		sizeof(IndirectCommand),
 		gHeapManager->GetUploadBuffersHeap(),
@@ -268,7 +276,7 @@ void Carol::ModelManager::InitBuffers()
 		D3D12_RESOURCE_FLAG_NONE,
 		false);
 
-	mMeshBufferPool = make_unique<StructuredBufferPool>(
+	mMeshBufferAllocator = make_unique<FrameBufferAllocator>(
 		1024,
 		sizeof(MeshConstants),
 		gHeapManager->GetUploadBuffersHeap(),
@@ -276,7 +284,7 @@ void Carol::ModelManager::InitBuffers()
 		D3D12_RESOURCE_FLAG_NONE,
 		true);
 
-	mSkinnedBufferPool = make_unique<StructuredBufferPool>(
+	mSkinnedBufferAllocator = make_unique<FrameBufferAllocator>(
 		1024,
 		sizeof(SkinnedConstants),
 		gHeapManager->GetUploadBuffersHeap(),
@@ -398,20 +406,17 @@ void Carol::ModelManager::SetAnimationClip(string_view modelName, string_view cl
 	mModels[modelName.data()]->SetAnimationClip(clipName);
 }
 
-void Carol::ModelManager::Contain(Camera* camera, std::vector<std::vector<Mesh*>>& meshes)
-{
-}
-
 void Carol::ModelManager::ClearCullMark()
 {
 	static const uint32_t clear0 = 0;
 	static const uint32_t clear1 = 0xffffffff;
-	gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceFrustumCulledMarkBuffer->GetGpuUav(), mInstanceFrustumCulledMarkBuffer->GetCpuUav(), mInstanceFrustumCulledMarkBuffer->Get(), &clear0, 0, nullptr);
-	gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceOcclusionCulledMarkBuffer->GetGpuUav(), mInstanceOcclusionCulledMarkBuffer->GetCpuUav(), mInstanceOcclusionCulledMarkBuffer->Get(), &clear1, 0, nullptr);
-	gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceCulledMarkBuffer->GetGpuUav(), mInstanceCulledMarkBuffer->GetCpuUav(), mInstanceCulledMarkBuffer->Get(), &clear1, 0, nullptr);
 
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
+		gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceFrustumCulledMarkBuffer[i]->GetGpuUav(), mInstanceFrustumCulledMarkBuffer[i]->GetCpuUav(), mInstanceFrustumCulledMarkBuffer[i]->Get(), &clear0, 0, nullptr);
+		gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceOcclusionCulledMarkBuffer[i]->GetGpuUav(), mInstanceOcclusionCulledMarkBuffer[i]->GetCpuUav(), mInstanceOcclusionCulledMarkBuffer[i]->Get(), &clear1, 0, nullptr);
+		gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceCulledMarkBuffer[i]->GetGpuUav(), mInstanceCulledMarkBuffer[i]->GetCpuUav(), mInstanceCulledMarkBuffer[i]->Get(), &clear1, 0, nullptr);
+
 		for (auto& [name, mesh] : mMeshes[i])
 		{
 			mesh->ClearCullMark();
@@ -419,34 +424,29 @@ void Carol::ModelManager::ClearCullMark()
 	}
 }
 
-uint32_t Carol::ModelManager::GetMeshCBStartOffet(MeshType type)const
+uint32_t Carol::ModelManager::GetMeshBufferIdx(MeshType type)const
 {
-	return mMeshStartOffset[type];
+	return mMeshBuffer[uint32_t(type)]->GetGpuSrvIdx();
 }
 
-uint32_t Carol::ModelManager::GetMeshBufferIdx()const
+uint32_t Carol::ModelManager::GetCommandBufferIdx(MeshType type)const
 {
-	return mMeshBuffer->GetGpuSrvIdx();
+	return mIndirectCommandBuffer[uint32_t(type)]->GetGpuSrvIdx();
 }
 
-uint32_t Carol::ModelManager::GetCommandBufferIdx()const
+uint32_t Carol::ModelManager::GetInstanceFrustumCulledMarkBufferIdx(MeshType type)const
 {
-	return mIndirectCommandBuffer->GetGpuSrvIdx();
+	return mInstanceFrustumCulledMarkBuffer[uint32_t(type)]->GetGpuUavIdx();
 }
 
-uint32_t Carol::ModelManager::GetInstanceFrustumCulledMarkBufferIdx()const
+uint32_t Carol::ModelManager::GetInstanceOcclusionCulledMarkBufferIdx(MeshType type)const
 {
-	return mInstanceFrustumCulledMarkBuffer->GetGpuUavIdx();
+	return mInstanceOcclusionCulledMarkBuffer[uint32_t(type)]->GetGpuUavIdx();
 }
 
-uint32_t Carol::ModelManager::GetInstanceOcclusionCulledMarkBufferIdx()const
+uint32_t Carol::ModelManager::GetInstanceCulledMarkBufferIdx(MeshType type) const
 {
-	return mInstanceOcclusionCulledMarkBuffer->GetGpuUavIdx();
-}
-
-uint32_t Carol::ModelManager::GetInstanceCulledMarkBufferIdx() const
-{
-	return mInstanceCulledMarkBuffer->GetGpuUavIdx();
+	return mInstanceCulledMarkBuffer[uint32_t(type)]->GetGpuUavIdx();
 }
 
 void Carol::ModelManager::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t completedFenceValue)
@@ -458,29 +458,17 @@ void Carol::ModelManager::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t 
 
 	ProcessNode(mRootNode.get(), XMMatrixIdentity());
 
-	uint32_t totalMeshCount = 0;
-
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
-		totalMeshCount += GetMeshesCount(MeshType(i));
+		mIndirectCommandBufferAllocator->DiscardBuffer(mIndirectCommandBuffer[i].release(), cpuFenceValue);
+		mIndirectCommandBuffer[i] = mIndirectCommandBufferAllocator->RequestBuffer(completedFenceValue, gModelManager->GetMeshesCount(MeshType(i)));
 
-		if (i == 0)
-		{
-			mMeshStartOffset[i] = 0;
-		}
-		else
-		{
-			mMeshStartOffset[i] = mMeshStartOffset[i - 1] + GetMeshesCount(MeshType(i - 1));
-		}
+		mMeshBufferAllocator->DiscardBuffer(mMeshBuffer[i].release(), cpuFenceValue);
+		mMeshBuffer[i] = mMeshBufferAllocator->RequestBuffer(completedFenceValue, gModelManager->GetMeshesCount(MeshType(i)));
 	}
-	
-	mIndirectCommandBufferPool->DiscardBuffer(mIndirectCommandBuffer.release(), cpuFenceValue);
-	mMeshBufferPool->DiscardBuffer(mMeshBuffer.release(), cpuFenceValue);
-	mSkinnedBufferPool->DiscardBuffer(mSkinnedBuffer.release(), cpuFenceValue);
-	
-	mIndirectCommandBuffer = mIndirectCommandBufferPool->RequestBuffer(completedFenceValue, totalMeshCount);
-	mMeshBuffer = mMeshBufferPool->RequestBuffer(completedFenceValue, totalMeshCount);
-	mSkinnedBuffer = mSkinnedBufferPool->RequestBuffer(completedFenceValue, GetModelsCount());
+
+	mSkinnedBufferAllocator->DiscardBuffer(mSkinnedBuffer.release(), cpuFenceValue);
+	mSkinnedBuffer = mSkinnedBufferAllocator->RequestBuffer(completedFenceValue, GetModelsCount());
 
 	int modelIdx = 0;
 	for (auto& [name, model] : mModels)
@@ -493,13 +481,14 @@ void Carol::ModelManager::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t 
 		}
 	}
 
-	int meshIdx = 0;
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
+		int meshIdx = 0;
+
 		for (auto& [name, mesh] : mMeshes[i])
 		{
-			mMeshBuffer->CopyElements(mesh->GetMeshConstants(), meshIdx);
-			mesh->SetMeshCBAddress(mMeshBuffer->GetElementAddress(meshIdx));
+			mMeshBuffer[i]->CopyElements(mesh->GetMeshConstants(), meshIdx);
+			mesh->SetMeshCBAddress(mMeshBuffer[i]->GetElementAddress(meshIdx));
 
 			IndirectCommand indirectCmd;
 			
@@ -510,7 +499,7 @@ void Carol::ModelManager::Update(Timer* timer, uint64_t cpuFenceValue, uint64_t 
 			indirectCmd.DispatchMeshArgs.ThreadGroupCountY = 1;
 			indirectCmd.DispatchMeshArgs.ThreadGroupCountZ = 1;
 
-			mIndirectCommandBuffer->CopyElements(&indirectCmd, meshIdx);
+			mIndirectCommandBuffer[i]->CopyElements(&indirectCmd, meshIdx);
 
 			++meshIdx;
 		}
