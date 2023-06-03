@@ -74,6 +74,9 @@ namespace Carol
 		DirectX::XMFLOAT3 FramePad3;
 		Light SpotLights[MAX_POINT_LIGHTS];
 
+		// Cull
+		uint32_t FrameHiZMapIdx = 0;
+
 		// Display
 		uint32_t RWFrameMapIdx = 0;
 		uint32_t RWHistMapIdx = 0;
@@ -104,7 +107,7 @@ namespace Carol
 		// Utils
 		uint32_t RandVecMapIdx = 0;
 
-		DirectX::XMFLOAT2 FramePad4;
+		float FramePad4;
 	};
  
     class Renderer

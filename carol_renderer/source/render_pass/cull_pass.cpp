@@ -93,6 +93,11 @@ void Carol::CullPass::Update(XMMATRIX viewProj, XMMATRIX histViewProj, XMVECTOR 
 	mHiZConstants->HiZMapIdx = mHiZMap->GetGpuSrvIdx();
 }
 
+uint32_t Carol::CullPass::GetHiZMapSrvIdx()
+{
+	return mHiZMap->GetGpuSrvIdx();
+}
+
 Carol::StructuredBuffer* Carol::CullPass::GetIndirectCommandBuffer(MeshType type)
 {
 	return mCulledCommandBuffer[type].get();

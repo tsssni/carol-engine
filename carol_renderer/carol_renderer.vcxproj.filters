@@ -369,4 +369,7 @@
     <None Include="shader\display_ps.hlsl" />
     <None Include="shader\ssgi_cs.hlsl" />
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="shader\scene_color_generate_cs.hlsl" />
+  </ItemGroup>
 </Project>

@@ -377,6 +377,7 @@ void Carol::Renderer::Draw()
 	}
 
 	mSsaoPass->Draw();
+	mSsgiPass->Draw();
 	mShadePass->Draw();
 
 	// Post process
@@ -603,6 +604,7 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mOitppllPass->OnResize(width, height);
 	mShadePass->OnResize(width, height);
 	mSsaoPass->OnResize(width, height);
+	mSsgiPass->OnResize(width, height);
 	mTaaPass->OnResize(width, height);
 	mToneMappingPass->OnResize(width, height);
 
@@ -614,6 +616,9 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	{
 		mFrameConstants->MainLightShadowMapIdx[i] = mMainLightShadowPass->GetShadowSrvIdx(i);
 	}
+
+	// Cull
+	mFrameConstants->FrameHiZMapIdx = mCullPass->GetHiZMapSrvIdx();
 
 	// Display
 	mFrameConstants->RWFrameMapIdx = mDisplayPass->GetFrameMapUavIdx();
@@ -634,9 +639,15 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mFrameConstants->OitppllStartOffsetBufferIdx = mOitppllPass->GetStartOffsetSrvIdx();
 	
 	// SSAO
-	mFrameConstants->RandVecMapIdx = mUtilsPass->GetRandVecSrvIdx();
 	mFrameConstants->RWAmbientMapIdx = mSsaoPass->GetSsaoUavIdx();
 	mFrameConstants->AmbientMapIdx = mSsaoPass->GetSsaoSrvIdx();
+
+	// SSGI
+	mFrameConstants->RWSsgiMapIdx = mSsgiPass->GetSsgiUavIdx();
+	mFrameConstants->SsgiMapIdx = mSsgiPass->GetSsgiSrvIdx();
+
+	// Utils
+	mFrameConstants->RandVecMapIdx = mUtilsPass->GetRandVecSrvIdx();
 }
 
 void Carol::Renderer::LoadModel(string_view path, string_view textureDir, string_view modelName, DirectX::XMMATRIX world, bool isSkinned)

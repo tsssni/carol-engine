@@ -54,6 +54,9 @@ dxc -E main -T cs_6_6 -Fo dxil/oitppll_cs.dxil -Zi -Qembed_debug -Fd pdb/oitppll
 # root_signature.hlsl
 dxc -E main -T ms_6_6 -Fo dxil/root_signature.dxil -Zi -Qembed_debug -Fd pdb/root_signature.pdb -Od root_signature.hlsl
 
+# scene_color_generate_cs.hlsl
+dxc -E main -T cs_6_6 -Fo dxil/scene_color_generate_cs.dxil -Zi -Qembed_debug -Fd pdb/scene_color_generate_cs.pdb -Od scene_color_generate_cs.hlsl
+
 # screen_ms.hlsl
 dxc -E main -T ms_6_6 -Fo dxil/screen_ms.dxil -Zi -Qembed_debug -Fd pdb/screen_ms.pdb -Od screen_ms.hlsl
 

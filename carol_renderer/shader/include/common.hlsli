@@ -47,6 +47,8 @@ cbuffer FrameCB : register(b3)
     uint gNumSpotLights;
     float3 gFramePad4;
     Light gSpotLights[MAX_SPOT_LIGHTS];
+
+    uint gFrameHiZMapIdx;
     
     uint gRWFrameMapIdx;
     uint gRWHistMapIdx;
@@ -72,7 +74,7 @@ cbuffer FrameCB : register(b3)
     
     uint gRandVecMapIdx;
 
-    float2 gFramePad5;
+    float gFramePad5;
 }
 
 SamplerState gsamPointWrap : register(s0);
