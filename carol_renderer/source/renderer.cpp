@@ -285,8 +285,8 @@ void Carol::Renderer::InitShadePass()
 void Carol::Renderer::InitMainLightShadowPass()
 {
 	Light light = {};
-	light.Strength = { 1.f,1.f,1.f };
-	XMStoreFloat3(&light.Direction, { .8f,-1.f,1.f });
+	light.Strength = { 1.f,.95f,.8f };
+	XMStoreFloat3(&light.Direction, { .4f,-1.f,.2f });
 
 	mMainLightShadowPass = make_unique<CascadedShadowPass>(light);
 	mFrameConstants->AmbientColor = { .1f,.1f,.1f };
@@ -541,7 +541,7 @@ void Carol::Renderer::Update()
 
 	gModelManager->Update(mTimer.get(), gCpuFenceValue, gGpuFenceValue);
 	mCamera->UpdateViewMatrix();
-	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), .75f);
+	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), .4f);
 
 	XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
 	mTaaPass->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
@@ -643,6 +643,8 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mFrameConstants->AmbientMapIdx = mSsaoPass->GetSsaoSrvIdx();
 
 	// SSGI
+	mFrameConstants->RWSceneColorIdx = mSsgiPass->GetSceneColorUavIdx();
+	mFrameConstants->SceneColorIdx = mSsgiPass->GetSceneColorSrvIdx();
 	mFrameConstants->RWSsgiMapIdx = mSsgiPass->GetSsgiUavIdx();
 	mFrameConstants->SsgiMapIdx = mSsgiPass->GetSsgiSrvIdx();
 

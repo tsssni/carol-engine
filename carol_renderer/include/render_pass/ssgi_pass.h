@@ -23,6 +23,8 @@ namespace Carol
 
 		virtual void Draw()override;
 
+		uint32_t GetSceneColorSrvIdx();
+		uint32_t GetSceneColorUavIdx();
 		uint32_t GetSsgiSrvIdx();
 		uint32_t GetSsgiUavIdx();
 

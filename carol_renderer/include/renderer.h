@@ -101,13 +101,15 @@ namespace Carol
 		uint32_t AmbientMapIdx = 0;
 
 		// SSGI
+		uint32_t RWSceneColorIdx = 0;
+		uint32_t SceneColorIdx = 0;
 		uint32_t RWSsgiMapIdx = 0;
 		uint32_t SsgiMapIdx = 0;
 
 		// Utils
 		uint32_t RandVecMapIdx = 0;
 
-		float FramePad4;
+		DirectX::XMFLOAT3 FramePad4;
 	};
  
     class Renderer

@@ -26,6 +26,16 @@ void Carol::SsgiPass::Draw()
     DrawSsgi();
 }
 
+uint32_t Carol::SsgiPass::GetSceneColorSrvIdx()
+{
+    return mSceneColorMap->GetGpuSrvIdx();
+}
+
+uint32_t Carol::SsgiPass::GetSceneColorUavIdx()
+{
+    return mSceneColorMap->GetGpuUavIdx();
+}
+
 uint32_t Carol::SsgiPass::GetSsgiSrvIdx()
 {
     return mSsgiMap->GetGpuSrvIdx();
@@ -57,7 +67,9 @@ void Carol::SsgiPass::InitBuffers()
         mSsgiFormat,
         gHeapManager->GetDefaultBuffersHeap(),
         D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        nullptr,
+        mMipLevel);
 
     mSsgiMap = make_unique<ColorBuffer>(
         mWidth,

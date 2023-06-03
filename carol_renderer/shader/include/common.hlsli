@@ -69,6 +69,8 @@ cbuffer FrameCB : register(b3)
     uint gRWAmbientMapIdx;
     uint gAmbientMapIdx;
 
+    uint gRWSceneColorMapIdx;
+    uint gSceneColorMapIdx;
     uint gRWSsgiMapIdx;
     uint gSsgiMapIdx;
     

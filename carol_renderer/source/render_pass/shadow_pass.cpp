@@ -196,7 +196,7 @@ void Carol::DirectLightShadowPass::Update(
 	dynamic_cast<OrthographicCamera*>(mCamera.get())->SetLens(
 		boxMax.x - boxMin.x,
 		boxMax.y - boxMin.y,
-		boxMin.z - zRange,
+		boxMin.z - zRange * 4,
 		boxMax.z + zRange);
 
 	mCamera->LookAt(XMLoadFloat4(&center) - XMLoadFloat3(&mLight->Direction), XMLoadFloat4(&center), { 0.f,1.f,0.f,0.f });
