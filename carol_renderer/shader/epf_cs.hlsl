@@ -3,14 +3,10 @@
 #include "include/texture.hlsli"
 #include "include/transform.hlsli"
 
-#ifndef BLUR_COUNT
-#define BLUR_COUNT 3
-#endif
-
 cbuffer EpfCB : register(b4)
 {
     uint gColorMapIdx;
-    uint gBlurRadius;
+    int gBlurRadius;
     uint gBlurCount;
 }
 
