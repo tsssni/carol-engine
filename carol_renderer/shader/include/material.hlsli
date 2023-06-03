@@ -12,7 +12,7 @@ struct Material
 
 float3 SchlickFresnel(float3 R0, float3 normal, float3 toLight)
 {
-    float cosIncidentAngle = saturate(dot(normal, toLight));
+    float cosIncidentAngle = saturate(dot(normalize(normal), normalize(toLight)));
 
     float f0 = 1.0f - cosIncidentAngle;
     float3 reflectPercent = R0 + (1.0f - R0) * pow(f0, 5.f);

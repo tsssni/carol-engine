@@ -18,6 +18,7 @@ void main(uint2 dtid : SV_DispatchThreadID)
     Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
     Texture2D depthStencilMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
     Texture2D ambientMap = ResourceDescriptorHeap[gAmbientMapIdx];
+    Texture2D ssgiMap = ResourceDescriptorHeap[gSsgiMapIdx];
 
     if (TextureBorderTest(dtid, gRenderTargetSize))
     {
@@ -34,35 +35,42 @@ void main(uint2 dtid : SV_DispatchThreadID)
             float roughness = diffuseRoughnessMap[dtid].a;
             float metallic = emissiveMetallicMap[dtid].a;
             float3 normal = normalMap[dtid].rgb;
+            float3 ssgi = ssgiMap.Sample(gsamLinearClamp, uv).rgb;
 
             float viewDepth;
             viewDepth = NdcDepthToViewDepth(depth, gProj);
 
-            Material lightMat;
-            lightMat.SubsurfaceAlbedo = diffuse;
-            lightMat.Metallic = metallic;
-            lightMat.Roughness = max(1e-6f, roughness);
+            Material mat;
+            mat.SubsurfaceAlbedo = diffuse;
+            mat.Metallic = metallic;
+            mat.Roughness = max(1e-6f, roughness);
 
             float3 ambientColor = gAmbientColor * diffuse.rgb;
-            float ambientAccess = ambientMap.SampleLevel(gsamLinearClamp, uv, 0.0f).r;
+            float ambientAccess = ambientMap.Sample(gsamLinearClamp, uv).r;
             ambientColor *= ambientAccess;
 
             float3 toEye = normalize(gEyePosW - posW);
             float3 emissiveColor = emissive * dot(toEye, normal);
             float3 litColor = float3(0.f, 0.f, 0.f);
 
+            Light indirectLight;
+            indirectLight.Strength = ssgi;
+            indirectLight.Direction = -normal;
+
+            litColor += ComputeDirectionalLight(indirectLight, mat, normal, toEye);
+
             uint mainLightIdx;
             float shadowFactor = GetCSMShadowFactor(posW, viewDepth, mainLightIdx);
-            litColor += shadowFactor * ComputeDirectionalLight(gMainLights[mainLightIdx], lightMat, normal, toEye);
+            litColor += shadowFactor * ComputeDirectionalLight(gMainLights[mainLightIdx], mat, normal, toEye);
 
             for (int pointLightIdx = 0; pointLightIdx < gNumPointLights; ++pointLightIdx)
             {
-                litColor += ComputePointLight(gPointLights[pointLightIdx], lightMat, posW, normal, toEye);
+                litColor += ComputePointLight(gPointLights[pointLightIdx], mat, posW, normal, toEye);
             }
 
             for (int spotLightIdx = 0; spotLightIdx < gNumPointLights; ++spotLightIdx)
             {
-                litColor += ComputePointLight(gPointLights[spotLightIdx], lightMat, posW, normal, toEye);
+                litColor += ComputePointLight(gPointLights[spotLightIdx], mat, posW, normal, toEye);
             }
 
             frameMap[dtid] = float4(ambientColor + emissiveColor + litColor, 1.f);

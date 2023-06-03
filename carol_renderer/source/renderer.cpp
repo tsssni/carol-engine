@@ -285,11 +285,11 @@ void Carol::Renderer::InitShadePass()
 void Carol::Renderer::InitMainLightShadowPass()
 {
 	Light light = {};
-	light.Strength = { 1.f,.95f,.8f };
+	light.Strength = { 2.f,1.9f,1.6f };
 	XMStoreFloat3(&light.Direction, { .4f,-1.f,.2f });
 
 	mMainLightShadowPass = make_unique<CascadedShadowPass>(light);
-	mFrameConstants->AmbientColor = { .1f,.1f,.1f };
+	mFrameConstants->AmbientColor = { .5f,.4525f,.4f };
 }
 
 void Carol::Renderer::InitSsaoPass()
@@ -377,8 +377,8 @@ void Carol::Renderer::Draw()
 	}
 
 	mSsaoPass->Draw();
-	mSsgiPass->Draw();
 	mShadePass->Draw();
+	// mSsgiPass->Draw();
 
 	// Post process
 	mToneMappingPass->Draw();
@@ -617,9 +617,6 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 		mFrameConstants->MainLightShadowMapIdx[i] = mMainLightShadowPass->GetShadowSrvIdx(i);
 	}
 
-	// Cull
-	mFrameConstants->FrameHiZMapIdx = mCullPass->GetHiZMapSrvIdx();
-
 	// Display
 	mFrameConstants->RWFrameMapIdx = mDisplayPass->GetFrameMapUavIdx();
 	mFrameConstants->RWHistMapIdx = mDisplayPass->GetHistMapUavIdx();
@@ -645,6 +642,8 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	// SSGI
 	mFrameConstants->RWSceneColorIdx = mSsgiPass->GetSceneColorUavIdx();
 	mFrameConstants->SceneColorIdx = mSsgiPass->GetSceneColorSrvIdx();
+	mFrameConstants->RWSsgiHiZMapIdx = mSsgiPass->GetSsgiHiZUavIdx();
+	mFrameConstants->SsgiHiZMapIdx = mSsgiPass->GetSsgiHiZSrvIdx();
 	mFrameConstants->RWSsgiMapIdx = mSsgiPass->GetSsgiUavIdx();
 	mFrameConstants->SsgiMapIdx = mSsgiPass->GetSsgiSrvIdx();
 

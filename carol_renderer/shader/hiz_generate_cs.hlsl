@@ -63,9 +63,8 @@ void main( uint2 dtid : SV_DispatchThreadID, uint2 gtid : SV_GroupThreadID)
             if (TextureBorderTest(dtid, size))
             {
                 writeHiZMap[dtid>>i].r = GetMaxDepth(gtid, exp2(i - 1));
+                GroupMemoryBarrierWithGroupSync();
             }
         }
-        
-        DeviceMemoryBarrierWithGroupSync();
     }
 }

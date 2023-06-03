@@ -32,9 +32,6 @@ dxc -E main -T as_6_6 -Fo dxil/transparent_hist_hiz_cull_as.dxil -D TRANSPARENT 
 # hist_hiz_cull_cs.hlsl
 dxc -E main -T cs_6_6 -Fo dxil/hist_hiz_cull_cs.dxil hist_hiz_cull_cs.hlsl
 
-# hiz_generate_cs.hlsl
-dxc -E main -T cs_6_6 -Fo dxil/hiz_generate_cs.dxil hiz_generate_cs.hlsl
-
 # mesh_ms.hlsl
 dxc -E main -T ms_6_6 -Fo dxil/static_mesh_ms.dxil mesh_ms.hlsl
 dxc -E main -T ms_6_6 -Fo dxil/skinned_mesh_ms.dxil -D SKINNED mesh_ms.hlsl
@@ -59,6 +56,9 @@ dxc -E main -T cs_6_6 -Fo dxil/shade_cs.dxil -D SMITH -D GGX -D HEIGHT_CORRELATE
 
 # ssao_cs.hlsl
 dxc -E main -T cs_6_6 -Fo dxil/ssao_cs.dxil ssao_cs.hlsl
+
+# ssgi_generate_cs.hlsl
+dxc -E main -T cs_6_6 -Fo dxil/ssgi_generate_cs.dxil ssgi_generate_cs.hlsl
 
 # ssgi_cs.hlsl
 dxc -E main -T cs_6_6 -Fo dxil/ssgi_cs.dxil ssgi_cs.hlsl

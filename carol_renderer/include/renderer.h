@@ -74,9 +74,6 @@ namespace Carol
 		DirectX::XMFLOAT3 FramePad3;
 		Light SpotLights[MAX_POINT_LIGHTS];
 
-		// Cull
-		uint32_t FrameHiZMapIdx = 0;
-
 		// Display
 		uint32_t RWFrameMapIdx = 0;
 		uint32_t RWHistMapIdx = 0;
@@ -103,6 +100,8 @@ namespace Carol
 		// SSGI
 		uint32_t RWSceneColorIdx = 0;
 		uint32_t SceneColorIdx = 0;
+		uint32_t RWSsgiHiZMapIdx = 0;
+		uint32_t SsgiHiZMapIdx = 0;
 		uint32_t RWSsgiMapIdx = 0;
 		uint32_t SsgiMapIdx = 0;
 

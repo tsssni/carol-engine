@@ -86,8 +86,6 @@ void main(uint2 gid : SV_GroupID, uint2 gtid : SV_GroupThreadID )
                 blurredColor /= totalWeight;
                 color[gtid.x][gtid.y] = blurredColor;
                 colorMap[uid] = blurredColor;
-
-                DeviceMemoryBarrier();
             }
         }
     }

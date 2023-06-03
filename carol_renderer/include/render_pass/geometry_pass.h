@@ -16,7 +16,7 @@ namespace Carol
 			DXGI_FORMAT diffuseRoughnessFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
 			DXGI_FORMAT emissiveMetallicFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
 			DXGI_FORMAT normalFormat = DXGI_FORMAT_R32G32B32A32_FLOAT,
-			DXGI_FORMAT velocityFormat = DXGI_FORMAT_R32G32_FLOAT,
+			DXGI_FORMAT velocityFormat = DXGI_FORMAT_R16G16_FLOAT,
 			DXGI_FORMAT depthStencilFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS);
 
 		void SetDepthStencilMap(ColorBuffer* depthStencilMap);

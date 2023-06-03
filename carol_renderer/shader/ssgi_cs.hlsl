@@ -27,9 +27,6 @@ float OcclusionFunction(float distZ)
 [numthreads(32, 32, 1)]
 void main(int2 dtid : SV_DispatchThreadID)
 {
-    const float stepLen = .1f;
-    const float compareTolerance = 0.05f;
-
     uint2 size;
     RWTexture2D<float4> ssgiMap = ResourceDescriptorHeap[gRWSsgiMapIdx];
     ssgiMap.GetDimensions(size.x, size.y);
@@ -37,7 +34,7 @@ void main(int2 dtid : SV_DispatchThreadID)
     float2 texC = (dtid + 0.5f) / size;
 
     Texture2D sceneColorMap = ResourceDescriptorHeap[gSceneColorMapIdx];
-    Texture2D depthMap = ResourceDescriptorHeap[gFrameHiZMapIdx];
+    Texture2D depthMap = ResourceDescriptorHeap[gSsgiHiZMapIdx];
     Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
 
     float ndcDepth = depthMap.Sample(gsamLinearClamp, texC).r;
@@ -58,7 +55,7 @@ void main(int2 dtid : SV_DispatchThreadID)
         for (int sampleStep = 0; sampleStep < SAMPLE_COUNT; ++sampleStep)
         {
             float3 traceVec = normalize(reflect(gOffsetVectors[sampleStep].xyz, randVec));
-            traceVec *= sign(dot(traceVec, centerNormal)) * stepLen;
+            traceVec *= sign(dot(traceVec, centerNormal)) * .1f;
 
             int traceStep;
             int traceSubstep;
@@ -80,11 +77,12 @@ void main(int2 dtid : SV_DispatchThreadID)
                 [unroll]
                 for (traceSubstep = 0; traceSubstep < 4; ++traceSubstep)
                 {
-                    samplesPos[traceSubstep] = viewPos + (traceStep * (traceSubstep + 1)) * traceVec;
+                    samplesPos[traceSubstep] = viewPos + (traceStep + traceSubstep + 1) * traceVec;
                 }
 
                 sampleMip = mipLevel;
-                mipLevel += 8 / NUM_STEPS;
+                mipLevel += 8.f / NUM_STEPS;
+                traceVec *= exp2(8.f / NUM_STEPS);
 
                 [unroll]
                 for (int sampleStep = 0; sampleStep < 4; ++sampleStep)
@@ -98,7 +96,7 @@ void main(int2 dtid : SV_DispatchThreadID)
                 }
                 
                 float4 depthDiff = samplesZ - sampleDepth;
-                multisampleHit = abs(depthDiff + compareTolerance) < compareTolerance;
+                multisampleHit = depthDiff > 0.f;
                 foundAnyHit = any(multisampleHit);
 
                 if (foundAnyHit)
@@ -123,11 +121,12 @@ void main(int2 dtid : SV_DispatchThreadID)
 
                 float3 hitPos = viewPos + hitStep * traceVec;
                 float2 uv = ProjPosToTexPos(mul(float4(hitPos, 1.f), gProj));
-                sampleColor += sceneColorMap.SampleLevel(gsamLinearClamp, uv, mipLevel);
+                sampleColor += sceneColorMap.SampleLevel(gsamLinearClamp, uv, mipLevel - 8.f / SAMPLE_COUNT) * dot(centerNormal, normalize(traceVec));
                 ++sampleCount;
             }
             
-            ssgiMap[dtid] = sampleColor / max(sampleCount, 1);
         }
+        
+        ssgiMap[dtid] = sampleColor / max(sampleCount, 1);
     }
 }

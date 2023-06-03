@@ -59,7 +59,6 @@ namespace Carol
         virtual void Draw()override;
 		void Update(DirectX::XMMATRIX viewProj, DirectX::XMMATRIX histViewProj, DirectX::XMVECTOR eyePos);
 		
-		uint32_t GetHiZMapSrvIdx();
 		StructuredBuffer* GetIndirectCommandBuffer(MeshType type);
 		void SetDepthMap(ColorBuffer* depthMap);
 

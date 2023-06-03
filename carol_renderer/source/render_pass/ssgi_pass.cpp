@@ -11,8 +11,9 @@ namespace Carol
     using std::make_unique;
 }
 
-Carol::SsgiPass::SsgiPass(DXGI_FORMAT ssgiFormat)
-    :mSsgiFormat(ssgiFormat)
+Carol::SsgiPass::SsgiPass(DXGI_FORMAT ssgiFormat, DXGI_FORMAT ssgiHiZFormat)
+    :mSsgiFormat(ssgiFormat),
+    mSsgiHiZFormat(ssgiHiZFormat)
 {
     InitPSOs();
     
@@ -22,7 +23,7 @@ Carol::SsgiPass::SsgiPass(DXGI_FORMAT ssgiFormat)
 
 void Carol::SsgiPass::Draw()
 {
-    GenerateSceneColor();
+    Generate();
     DrawSsgi();
 }
 
@@ -34,6 +35,16 @@ uint32_t Carol::SsgiPass::GetSceneColorSrvIdx()
 uint32_t Carol::SsgiPass::GetSceneColorUavIdx()
 {
     return mSceneColorMap->GetGpuUavIdx();
+}
+
+uint32_t Carol::SsgiPass::GetSsgiHiZSrvIdx()
+{
+    return mSsgiHiZMap->GetGpuSrvIdx();
+}
+
+uint32_t Carol::SsgiPass::GetSsgiHiZUavIdx()
+{
+    return mSsgiHiZMap->GetGpuUavIdx();
 }
 
 uint32_t Carol::SsgiPass::GetSsgiSrvIdx()
@@ -48,9 +59,9 @@ uint32_t Carol::SsgiPass::GetSsgiUavIdx()
 
 void Carol::SsgiPass::InitPSOs()
 { 
-    mSceneColorComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
-	mSceneColorComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/scene_color_generate_cs.dxil"));
-	mSceneColorComputePSO->Finalize();
+    mSsgiGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mSsgiGenerateComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/ssgi_generate_cs.dxil"));
+	mSsgiGenerateComputePSO->Finalize();
 
     mSsgiComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
 	mSsgiComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/ssgi_cs.dxil"));
@@ -71,6 +82,18 @@ void Carol::SsgiPass::InitBuffers()
         nullptr,
         mMipLevel);
 
+    mSsgiHiZMap = make_unique<ColorBuffer>(
+        mWidth,
+        mHeight,
+        1,
+        COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2D,
+        mSsgiHiZFormat,
+        gHeapManager->GetDefaultBuffersHeap(),
+        D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+        nullptr,
+        mMipLevel);
+
     mSsgiMap = make_unique<ColorBuffer>(
         mWidth,
         mHeight,
@@ -82,9 +105,9 @@ void Carol::SsgiPass::InitBuffers()
         D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 }
 
-void Carol::SsgiPass::GenerateSceneColor()
+void Carol::SsgiPass::Generate()
 {
-    gGraphicsCommandList->SetPipelineState(mSceneColorComputePSO->Get());
+    gGraphicsCommandList->SetPipelineState(mSsgiGenerateComputePSO->Get());
 
 	for (int i = 0; i < mMipLevel - 1; i += 5)
 	{

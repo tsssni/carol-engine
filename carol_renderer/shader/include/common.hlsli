@@ -48,8 +48,6 @@ cbuffer FrameCB : register(b3)
     float3 gFramePad4;
     Light gSpotLights[MAX_SPOT_LIGHTS];
 
-    uint gFrameHiZMapIdx;
-    
     uint gRWFrameMapIdx;
     uint gRWHistMapIdx;
     uint gDepthStencilMapIdx;
@@ -71,6 +69,8 @@ cbuffer FrameCB : register(b3)
 
     uint gRWSceneColorMapIdx;
     uint gSceneColorMapIdx;
+    uint gRWSsgiHiZMapIdx;
+    uint gSsgiHiZMapIdx;
     uint gRWSsgiMapIdx;
     uint gSsgiMapIdx;
     

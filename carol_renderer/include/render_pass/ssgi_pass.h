@@ -19,12 +19,15 @@ namespace Carol
 	class SsgiPass : public RenderPass
 	{
 	public:
-		SsgiPass(DXGI_FORMAT ssgiFormat = DXGI_FORMAT_R16G16B16A16_FLOAT);
+		SsgiPass(DXGI_FORMAT ssgiFormat = DXGI_FORMAT_R16G16B16A16_FLOAT,
+			DXGI_FORMAT ssgiHiZFormat = DXGI_FORMAT_R32_FLOAT);
 
 		virtual void Draw()override;
 
 		uint32_t GetSceneColorSrvIdx();
 		uint32_t GetSceneColorUavIdx();
+		uint32_t GetSsgiHiZSrvIdx();
+		uint32_t GetSsgiHiZUavIdx();
 		uint32_t GetSsgiSrvIdx();
 		uint32_t GetSsgiUavIdx();
 
@@ -32,7 +35,7 @@ namespace Carol
 		virtual void InitPSOs()override;
 		virtual void InitBuffers()override;
 
-		void GenerateSceneColor();
+		void Generate();
 		void DrawSsgi();
 
 		std::unique_ptr<SceneColorConstants> mSceneColorConstants;
@@ -40,10 +43,13 @@ namespace Carol
 		std::unique_ptr<FastConstantBufferAllocator> mSceneColorCBAllocator;
 
 		std::unique_ptr<ColorBuffer> mSceneColorMap;
+		std::unique_ptr<ColorBuffer> mSsgiHiZMap;
 		std::unique_ptr<ColorBuffer> mSsgiMap;
-		DXGI_FORMAT mSsgiFormat;
 
-		std::unique_ptr<ComputePSO> mSceneColorComputePSO;
+		DXGI_FORMAT mSsgiFormat;
+		DXGI_FORMAT mSsgiHiZFormat;
+
+		std::unique_ptr<ComputePSO> mSsgiGenerateComputePSO;
 		std::unique_ptr<ComputePSO> mSsgiComputePSO;
 	};
 }
