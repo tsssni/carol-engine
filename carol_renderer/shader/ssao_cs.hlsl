@@ -31,11 +31,13 @@ void main(int2 dtid : SV_DispatchThreadID)
     Texture2D depthMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
     Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
 
-    float centerViewDepth = NdcDepthToViewDepth(depthMap.Sample(gsamLinearClamp, texC).r, gProj);
-    float3 centerNormal = mul(normalize(normalMap.Sample(gsamLinearClamp, texC).xyz), (float3x3) gView);
+    float ndcDepth = depthMap.Sample(gsamLinearClamp, texC).r;
 
-    if (TextureBorderTest(dtid, size))
+    if (ndcDepth < 1.f && TextureBorderTest(dtid, size))
     {
+        float centerViewDepth = NdcDepthToViewDepth(ndcDepth, gProj);
+        float3 centerNormal = mul(normalize(normalMap.Sample(gsamLinearClamp, texC).xyz), (float3x3) gView);
+
         Texture2D randVecMap = ResourceDescriptorHeap[gRandVecMapIdx];
         float3 viewPos = TexPosToViewPos(texC, centerViewDepth, gInvProj);
 

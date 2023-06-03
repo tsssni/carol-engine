@@ -52,7 +52,6 @@ cbuffer FrameCB : register(b3)
     
     uint gRWFrameMapIdx;
     uint gRWHistMapIdx;
-    uint gHistMapIdx;
     uint gDepthStencilMapIdx;
     uint gSkyBoxIdx;
 

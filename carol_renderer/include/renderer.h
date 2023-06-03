@@ -80,7 +80,6 @@ namespace Carol
 		// Display
 		uint32_t RWFrameMapIdx = 0;
 		uint32_t RWHistMapIdx = 0;
-		uint32_t HistMapIdx = 0;
 		uint32_t DepthStencilMapIdx = 0;
 		uint32_t SkyBoxIdx = 0;
 
