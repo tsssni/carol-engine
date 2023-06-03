@@ -105,8 +105,6 @@ namespace Carol
 			bool isSkinned,
 			bool isTransparent);
 
-		void ReleaseIntermediateBuffer();
-
 		uint32_t GetMeshletSize()const;
 
 		void SetDiffuseTextureIdx(uint32_t idx);
@@ -132,6 +130,7 @@ namespace Carol
 		void LoadMeshlets();
 		void LoadCullData();
 		void InitCullMark();
+		void ReleaseIntermediateBuffer();
 
 		void LoadMeshletBoundingBox(std::string_view clipName, std::span<std::vector<Vertex>> vertices);
 		void LoadMeshletNormalCone(std::string_view clipName, std::span<std::vector<Vertex>> vertices);

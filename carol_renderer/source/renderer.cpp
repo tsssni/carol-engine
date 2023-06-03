@@ -49,11 +49,12 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	InitShadePass();
 	InitMainLightShadowPass();
 	InitSsaoPass();
+	InitSsgiPass();
 	InitToneMappingPass();
 	InitTaaPass();
+	InitUtilsPass();
 
 	OnResize(width, height, true);
-	ReleaseIntermediateBuffers();
 
 	gGraphicsCommandList->Close();
 	vector<ID3D12CommandList*> cmdLists = { gGraphicsCommandList.Get() };
@@ -298,9 +299,19 @@ void Carol::Renderer::InitSsaoPass()
 	mSsaoPass->SetBlurCount(3);
 }
 
+void Carol::Renderer::InitSsgiPass()
+{
+	mSsgiPass = make_unique<SsgiPass>();
+}
+
 void Carol::Renderer::InitTaaPass()
 {
 	mTaaPass = make_unique<TaaPass>();
+}
+
+void Carol::Renderer::InitUtilsPass()
+{
+	mUtilsPass = make_unique<UtilsPass>();
 }
 
 void Carol::Renderer::InitToneMappingPass()
@@ -326,12 +337,6 @@ void Carol::Renderer::FlushCommandQueue()
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
-}
-
-void Carol::Renderer::ReleaseIntermediateBuffers()
-{
-	gModelManager->ReleaseIntermediateBuffers();
-	mSsaoPass->ReleaseIntermediateBuffers();
 }
 
 void Carol::Renderer::Draw()
@@ -629,7 +634,7 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mFrameConstants->OitppllStartOffsetBufferIdx = mOitppllPass->GetStartOffsetSrvIdx();
 	
 	// SSAO
-	mFrameConstants->RandVecMapIdx = mSsaoPass->GetRandVecSrvIdx();
+	mFrameConstants->RandVecMapIdx = mUtilsPass->GetRandVecSrvIdx();
 	mFrameConstants->RWAmbientMapIdx = mSsaoPass->GetSsaoUavIdx();
 	mFrameConstants->AmbientMapIdx = mSsaoPass->GetSsaoSrvIdx();
 }
@@ -646,7 +651,6 @@ void Carol::Renderer::LoadModel(string_view path, string_view textureDir, string
 		textureDir,
 		isSkinned);
 	gModelManager->SetWorld(modelName, world);
-	gModelManager->ReleaseIntermediateBuffers(modelName);
 
 	gGraphicsCommandList->Close();
 	vector<ID3D12CommandList*> cmdLists = { gGraphicsCommandList.Get() };

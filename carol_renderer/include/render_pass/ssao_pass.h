@@ -23,9 +23,6 @@ namespace Carol
 		void SetBlurRadius(uint32_t blurRadius);
 		void SetBlurCount(uint32_t blurCount);
 
-		void ReleaseIntermediateBuffers();
-
-		uint32_t GetRandVecSrvIdx()const;
 		uint32_t GetSsaoSrvIdx()const;
 		uint32_t GetSsaoUavIdx()const;
 
@@ -33,12 +30,9 @@ namespace Carol
 		virtual void InitPSOs()override;
 		virtual void InitBuffers()override;
 
-		void InitRandomVectorMap();
-
-		std::unique_ptr<ColorBuffer> mRandomVecMap;
 		std::unique_ptr<ColorBuffer> mAmbientMap;
 
-		DXGI_FORMAT mAmbientMapFormat = DXGI_FORMAT_R16_UNORM;
+		DXGI_FORMAT mAmbientMapFormat;
 		uint32_t mBlurCount;
 
 		std::unique_ptr<ComputePSO> mSsaoComputePSO;

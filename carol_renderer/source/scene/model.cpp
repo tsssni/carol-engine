@@ -46,14 +46,6 @@ Carol::Model::~Model()
 	}
 }
 
-void Carol::Model::ReleaseIntermediateBuffers()
-{
-	for (auto& [name, mesh] : mMeshes)
-	{
-		mesh->ReleaseIntermediateBuffer();
-	}
-}
-
 const Carol::Mesh* Carol::Model::GetMesh(string_view meshName)const
 {
 	return mMeshes.at(meshName.data()).get();
@@ -365,19 +357,6 @@ void Carol::ModelManager::UnloadModel(string_view modelName)
 	}
 
 	mModels.erase(name);
-}
-
-void Carol::ModelManager::ReleaseIntermediateBuffers()
-{
-	for (auto& [name ,model] : mModels)
-	{
-		model->ReleaseIntermediateBuffers();
-	}
-}
-
-void Carol::ModelManager::ReleaseIntermediateBuffers(string_view modelName)
-{
-	mModels[modelName.data()]->ReleaseIntermediateBuffers();
 }
 
 uint32_t Carol::ModelManager::GetMeshesCount(MeshType type)const

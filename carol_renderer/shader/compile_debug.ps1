@@ -63,6 +63,9 @@ dxc -E main -T cs_6_6 -Fo dxil/shade_cs.dxil -Zi -Qembed_debug -Fd pdb/shade_cs.
 # ssao_cs.hlsl
 dxc -E main -T cs_6_6 -Fo dxil/ssao_cs.dxil -Zi -Qembed_debug -Fd pdb/ssao_cs.pdb -Od ssao_cs.hlsl
 
+# ssgi_cs.hlsl
+dxc -E main -T cs_6_6 -Fo dxil/ssgi_cs.dxil -Zi -Qembed_debug -Fd pdb/ssgi_cs.pdb -Od ssgi_cs.hlsl
+
 # taa_cs.hlsl
 dxc -E main -T cs_6_6 -Fo dxil/taa_cs.dxil -Zi -Qembed_debug -Fd pdb/taa_cs.pdb -Od taa_cs.hlsl
 

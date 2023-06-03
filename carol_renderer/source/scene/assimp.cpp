@@ -115,24 +115,22 @@ Carol::Mesh* Carol::AssimpModel::ProcessMesh(
 
 	if (mMeshes.count(meshName) == 0)
 	{
-		vector<Vertex> vertices;
-		vector<pair<string, vector<vector<Vertex>>>> skinnedVertices;
-		vector<uint32_t> indices;
+		ReadMeshVerticesAndIndices(mVertices, mIndices, mesh);
+		ReadMeshBones(mVertices, mesh);
 
-		ReadMeshVerticesAndIndices(vertices, indices, mesh);
-		ReadMeshBones(vertices, mesh);
+		vector<pair<string, vector<vector<Vertex>>>> skinnedVertices;
 
 		for (auto& [name, clip] : mAnimationClips)
 		{
 			auto skinnedVerticesPair = make_pair(name, vector<vector<Vertex>>());
-			GetSkinnedVertices(name, vertices, skinnedVerticesPair.second);
+			GetSkinnedVertices(name, mVertices, skinnedVerticesPair.second);
 			skinnedVertices.emplace_back(std::move(skinnedVerticesPair));
 		}
 
 		mMeshes[meshName] = make_unique<Mesh>(
-			vertices,
+			mVertices,
 			skinnedVertices,
-			indices,
+			mIndices,
 			mSkinned & bool(mesh->mNumBones),
 			false);
 

@@ -64,9 +64,15 @@ cbuffer FrameCB : register(b3)
     uint gOitppllBufferIdx;
     uint gOitppllStartOffsetBufferIdx;
     
-    uint gRandVecMapIdx;
     uint gRWAmbientMapIdx;
     uint gAmbientMapIdx;
+
+    uint gRWSsgiMapIdx;
+    uint gSsgiMapIdx;
+    
+    uint gRandVecMapIdx;
+
+    float2 gFramePad5;
 }
 
 SamplerState gsamPointWrap : register(s0);

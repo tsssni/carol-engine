@@ -57,6 +57,7 @@ Carol::Mesh::Mesh(
 	LoadMeshlets();
 	LoadCullData();
 	InitCullMark();
+	ReleaseIntermediateBuffer();
 }
 
 void Carol::Mesh::ReleaseIntermediateBuffer()
@@ -67,15 +68,6 @@ void Carol::Mesh::ReleaseIntermediateBuffer()
 	for (auto& [name, buffer] : mCullDataBuffer)
 	{
 		buffer->ReleaseIntermediateBuffer();
-	}
-
-	mMeshlets.clear();
-	mMeshlets.shrink_to_fit();
-
-	for (auto& [name, data] : mCullData)
-	{
-		data.clear();
-		data.shrink_to_fit();
 	}
 }
 

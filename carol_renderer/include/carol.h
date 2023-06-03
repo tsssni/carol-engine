@@ -29,8 +29,10 @@
 #include <render_pass/shade_pass.h>
 #include <render_pass/shadow_pass.h>
 #include <render_pass/ssao_pass.h>
+#include <render_pass/ssgi_pass.h>
 #include <render_pass/taa_pass.h>
 #include <render_pass/tone_mapping_pass.h>
+#include <render_pass/utils_pass.h>
 
 #include <utils/bitset.h>
 #include <utils/buddy.h>

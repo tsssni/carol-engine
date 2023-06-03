@@ -47,8 +47,6 @@ namespace Carol
 		
 		bool IsSkinned()const;
 		
-		void ReleaseIntermediateBuffers();
-
 		const Mesh* GetMesh(std::string_view meshName)const;
 		const std::unordered_map<std::string, std::unique_ptr<Mesh>>& GetMeshes()const;
 
@@ -67,6 +65,9 @@ namespace Carol
 		std::string mModelName;
 		std::string mTexDir;
 		std::unordered_map<std::string, std::unique_ptr<Mesh>> mMeshes;
+
+		std::vector<Vertex> mVertices;
+		std::vector<uint32_t> mIndices;
 
 		bool mSkinned = false;
 		float mTimePos = 0.f;
@@ -101,10 +102,7 @@ namespace Carol
 			std::string_view path,
 			std::string_view textureDir,
 			bool isSkinned);
-
 		void UnloadModel(std::string_view modelName);
-		void ReleaseIntermediateBuffers();
-		void ReleaseIntermediateBuffers(std::string_view modelName);
 
 		uint32_t GetMeshesCount(MeshType type)const;
 		uint32_t GetModelsCount()const;

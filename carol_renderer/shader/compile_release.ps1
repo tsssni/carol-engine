@@ -57,6 +57,9 @@ dxc -E main -T cs_6_6 -Fo dxil/shade_cs.dxil -D SMITH -D GGX -D HEIGHT_CORRELATE
 # ssao_cs.hlsl
 dxc -E main -T cs_6_6 -Fo dxil/ssao_cs.dxil ssao_cs.hlsl
 
+# ssgi_cs.hlsl
+dxc -E main -T cs_6_6 -Fo dxil/ssgi_cs.dxil ssgi_cs.hlsl
+
 # taa_cs.hlsl
 dxc -E main -T cs_6_6 -Fo dxil/taa_cs.dxil taa_cs.hlsl
 

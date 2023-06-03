@@ -24,8 +24,10 @@ namespace Carol
     class ShadePass;
     class CascadedShadowPass;
     class SsaoPass;
+    class SsgiPass;
     class TaaPass;
 	class ToneMappingPass;
+	class UtilsPass;
 
 	class FrameConstants
 	{
@@ -92,11 +94,17 @@ namespace Carol
 		uint32_t OitppllStartOffsetBufferIdx = 0;
 
 		// SSAO
-		uint32_t RandVecMapIdx = 0;
 		uint32_t RWAmbientMapIdx = 0;
 		uint32_t AmbientMapIdx = 0;
-		
-		DirectX::XMFLOAT3 FramePad5;
+
+		// SSGI
+		uint32_t RWSsgiMapIdx = 0;
+		uint32_t SsgiMapIdx = 0;
+
+		// Utils
+		uint32_t RandVecMapIdx = 0;
+
+		DirectX::XMFLOAT2 FramePad4;
 	};
  
     class Renderer
@@ -163,12 +171,13 @@ namespace Carol
 		void InitShadePass();
         void InitMainLightShadowPass();
         void InitSsaoPass();
+		void InitSsgiPass();
 		void InitToneMappingPass();
         void InitTaaPass();
+		void InitUtilsPass();
 		
 		float AspectRatio();
 		void FlushCommandQueue();
-        void ReleaseIntermediateBuffers();
 
     protected:
 		uint32_t mClientWidth = 0;
@@ -194,8 +203,10 @@ namespace Carol
 		std::unique_ptr<ShadePass> mShadePass;
         std::unique_ptr<CascadedShadowPass> mMainLightShadowPass;
         std::unique_ptr<SsaoPass> mSsaoPass;
+		std::unique_ptr<SsgiPass> mSsgiPass;
         std::unique_ptr<TaaPass> mTaaPass;
 		std::unique_ptr<ToneMappingPass> mToneMappingPass;
+		std::unique_ptr<UtilsPass> mUtilsPass;
 
 		std::unique_ptr<FrameConstants> mFrameConstants;
         std::unique_ptr<FastConstantBufferAllocator> mFrameCBAllocator;
