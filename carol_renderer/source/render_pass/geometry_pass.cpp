@@ -8,6 +8,7 @@
 namespace Carol
 {
     using std::make_unique;
+    using std::vector;
 }
 
 Carol::GeometryPass::GeometryPass(
@@ -40,12 +41,14 @@ void Carol::GeometryPass::Draw()
     };
 
     auto depthStencilDsv = mDepthStencilMap->GetDsv();
+    vector<Resource*> resources{
+        mDiffuseRoughnessMap.get(),
+        mEmissiveMetallicMap.get(), 
+        mNormalMap.get(),
+        mVelocityMap.get()
+    };
 
-
-    mDiffuseRoughnessMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
-    mEmissiveMetallicMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
-    mNormalMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
-    mVelocityMap->Transition(D3D12_RESOURCE_STATE_RENDER_TARGET);
+    MultipleResourceTransition(resources, { 4, D3D12_RESOURCE_STATE_RENDER_TARGET });
 
     float diffuseRoughnessColor[4] = {0.f,0.f,0.f,1.f};
     float emissiveMetallicColor[4] = {0.f,0.f,0.f,0.f};
@@ -65,10 +68,7 @@ void Carol::GeometryPass::Draw()
     gGraphicsCommandList->SetPipelineState(mGeometrySkinnedMeshPSO->Get());
     ExecuteIndirect(mIndirectCommandBuffer[OPAQUE_SKINNED - OPAQUE_MESH_START]);
 
-    mDiffuseRoughnessMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    mEmissiveMetallicMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    mNormalMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    mVelocityMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    MultipleResourceTransition(resources, { 4, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE });
 }
 
 void Carol::GeometryPass::SetDepthStencilMap(ColorBuffer* depthStencilMap)

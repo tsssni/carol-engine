@@ -14,22 +14,30 @@ namespace Carol
 	class HeapAllocInfo;
 	class DescriptorManager;
 	class DescriptorAllocInfo;
+	class Resource;
 
 	DXGI_FORMAT GetBaseFormat(DXGI_FORMAT format);
 	DXGI_FORMAT GetUavFormat(DXGI_FORMAT format);
 	DXGI_FORMAT GetDsvFormat(DXGI_FORMAT format);
 	uint32_t GetPlaneSize(DXGI_FORMAT format);
 
+	void MultipleResourceTransition(const std::vector<Resource*> resources, const std::vector<D3D12_RESOURCE_STATES>& states);
+	void MultipleUavBarrier(const std::vector<Resource*> resources);
+
 	class Resource
 	{
+		friend void MultipleResourceTransition(const std::vector<Resource*> resources, const std::vector<D3D12_RESOURCE_STATES>& states);
+		friend void MultipleUavBarrier(const std::vector<Resource*> resources);
+
 	public:
 		Resource();
-		Resource(
+		virtual ~Resource();
+
+		void InitResource(
 			D3D12_RESOURCE_DESC* desc,
 			Heap* heap,
 			D3D12_RESOURCE_STATES initState = D3D12_RESOURCE_STATE_COMMON,
 			D3D12_CLEAR_VALUE* optimizedClearValue = nullptr);
-		virtual ~Resource();
 
 		ID3D12Resource* Get()const;
 		ID3D12Resource** GetAddressOf();
@@ -61,6 +69,8 @@ namespace Carol
 
 	protected:
 		Microsoft::WRL::ComPtr<ID3D12Resource> mResource;
+		D3D12_RESOURCE_DESC mResourceDesc;
+
 		std::unique_ptr<HeapAllocInfo> mHeapAllocInfo;
 		D3D12_RESOURCE_STATES mState = D3D12_RESOURCE_STATE_COMMON;
 
@@ -70,41 +80,13 @@ namespace Carol
 		byte* mMappedData = nullptr;
 	};
 
-	class Buffer
+	class Buffer : public Resource
 	{
 	public:
 		Buffer();
 		Buffer(Buffer&& buffer);
 		Buffer& operator=(Buffer&& buffer);
 		~Buffer();
-
-		ID3D12Resource* Get()const;
-		ID3D12Resource** GetAddressOf()const;
-
-		Microsoft::WRL::ComPtr<ID3D12Device> GetDevice()const;
-		Heap* GetHeap()const;
-		HeapAllocInfo* GetAllocInfo()const;
-		DescriptorManager* GetDescriptorManager()const;
-		D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress()const;
-
-		void Transition(D3D12_RESOURCE_STATES afterState);
-		void UavBarrier();
-
-		void CopySubresources(
-			Heap* intermediateHeap,
-			const void* data,
-			uint32_t byteSize
-		);
-
-		void CopySubresources(
-			Heap* intermediateHeap,
-			D3D12_SUBRESOURCE_DATA* subresources,
-			uint32_t firstSubresource,
-			uint32_t numSubresources
-		);
-
-		void CopyData(const void* data, uint32_t byteSize, uint32_t offset = 0);
-		void ReleaseIntermediateBuffer();
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(uint32_t planeSlice = 0)const;
 		D3D12_CPU_DESCRIPTOR_HANDLE GetShaderCpuSrv(uint32_t planeSlice = 0)const;
@@ -132,9 +114,6 @@ namespace Carol
 		virtual void CreateUavs(std::span<const D3D12_UNORDERED_ACCESS_VIEW_DESC> uavDesc, bool counter);
 		virtual void CreateRtvs(std::span<const D3D12_RENDER_TARGET_VIEW_DESC> rtvDesc);
 		virtual void CreateDsvs(std::span<const D3D12_DEPTH_STENCIL_VIEW_DESC> dsvDesc);
-
-		std::unique_ptr<Resource> mResource;
-		D3D12_RESOURCE_DESC mResourceDesc = {};
 
 		std::unique_ptr<DescriptorAllocInfo> mCpuCbvAllocInfo;
 		std::unique_ptr<DescriptorAllocInfo> mGpuCbvAllocInfo;

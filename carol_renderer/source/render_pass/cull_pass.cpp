@@ -191,12 +191,18 @@ void Carol::CullPass::InitBuffers()
 
 void Carol::CullPass::CullReset()
 {
-	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
-	{
-		MeshType type = MeshType(i);
+	vector<Resource*> buffers;
 
-		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_COPY_DEST);
-		mCulledCommandBuffer[type]->ResetCounter();
+	for (auto& buffer : mCulledCommandBuffer)
+	{
+		buffers.push_back(buffer.get());
+	}
+
+	MultipleResourceTransition(buffers, { 4,D3D12_RESOURCE_STATE_COPY_DEST });
+
+	for (auto& buffer : mCulledCommandBuffer)
+	{
+		buffer->ResetCounter();
 	}
 }
 
@@ -218,7 +224,6 @@ void Carol::CullPass::CullInstances()
 		gGraphicsCommandList->SetComputeRootConstantBufferView(PASS_CB, mCullCBAddr[i]);
 		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		gGraphicsCommandList->Dispatch(count, 1, 1);
-		mCulledCommandBuffer[type]->UavBarrier();
 	}
 }
 
@@ -240,7 +245,6 @@ void Carol::CullPass::OcclusionCullInstancesRecheck()
 		gGraphicsCommandList->SetComputeRootConstantBufferView(PASS_CB, mCullCBAddr[i]);
 		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		gGraphicsCommandList->Dispatch(count, 1, 1);
-		mCulledCommandBuffer[type]->UavBarrier();
 	}
 }
 
@@ -255,7 +259,6 @@ void Carol::CullPass::CullMeshes()
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(i);
-		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
 		if (mCullConstants[type]->MeshCount == 0)
 		{
@@ -264,6 +267,7 @@ void Carol::CullPass::CullMeshes()
 
 		gGraphicsCommandList->SetPipelineState(pso[i]);
 		gGraphicsCommandList->SetGraphicsRootConstantBufferView(PASS_CB, mCullCBAddr[i]);
+		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 		ExecuteIndirect(mCulledCommandBuffer[type].get());
 	}
 }
@@ -275,7 +279,6 @@ void Carol::CullPass::OcclusionCullMeshesRecheck()
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(i);
-		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 
 		if (mCullConstants[type]->MeshCount == 0)
 		{
@@ -284,6 +287,7 @@ void Carol::CullPass::OcclusionCullMeshesRecheck()
 
 		gGraphicsCommandList->SetPipelineState(pso[i]);
 		gGraphicsCommandList->SetGraphicsRootConstantBufferView(PASS_CB, mCullCBAddr[i]);
+		mCulledCommandBuffer[type]->Transition(D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
 		ExecuteIndirect(mCulledCommandBuffer[type].get());
 	}
 }
@@ -301,6 +305,5 @@ void Carol::CullPass::GenerateHiZ()
 		uint32_t width = ceilf((mWidth >> i) / 32.f);
 		uint32_t height = ceilf((mHeight >> i) / 32.f);
 		gGraphicsCommandList->Dispatch(width, height, 1);
-		mHiZMap->UavBarrier();
 	}
 }

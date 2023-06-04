@@ -3,16 +3,27 @@
 
 groupshared Payload sharedPayload;
 
+void InitCullMark(uint dtid)
+{
+    if(dtid % 8 == 0)
+    {
+        ResetByte(dtid / 8, gMeshletCulledMarkBufferIdx);
+#ifdef FRUSTUM
+        ResetByte(dtid / 8, gMeshletFrustumCulledMarkBufferIdx);
+#endif
+#ifdef NORMAL_CONE
+        ResetByte(dtid / 8, gMeshletNormalConeCulledMarkBufferIdx);
+#endif
+#ifdef HIZ_OCCLUSION
+        SetByte(dtid / 8, gMeshletOcclusionCulledMarkBufferIdx);
+#endif
+        DeviceMemoryBarrier();
+    }
+}
+
 bool MeshletFrustumCull(uint dtid, CullData cd)
 {
     float4x4 frustumWorldViewProj = mul(gWorld, gCullViewProj);
-
-    if(dtid % 8 == 0)
-    {
-        ResetByte(dtid / 8, gMeshletFrustumCulledMarkBufferIdx);
-    }
-
-    DeviceMemoryBarrier();
 
     if (AabbFrustumTest(cd.Center, cd.Extents, frustumWorldViewProj) == OUTSIDE)
     {
@@ -25,13 +36,6 @@ bool MeshletFrustumCull(uint dtid, CullData cd)
 
 bool MeshletNormalConeCull(uint dtid, CullData cd)
 {
-    if(dtid % 8 == 0)
-    {
-        ResetByte(dtid / 8, gMeshletNormalConeCulledMarkBufferIdx);
-    }
-
-    DeviceMemoryBarrier();
-
     if (!NormalConeTest(cd.Center, cd.NormalCone, cd.ApexOffset, gWorld, gCullEyePos))
     {
         SetMark(dtid, gMeshletNormalConeCulledMarkBufferIdx);
@@ -44,13 +48,6 @@ bool MeshletNormalConeCull(uint dtid, CullData cd)
 bool MeshletHiZOcclusionCull(uint dtid, CullData cd)
 {
     float4x4 occlusionWorldViewProj = mul(gHistWorld, gCullHistViewProj);
-
-    if(dtid % 8 == 0)
-    {
-        SetByte(dtid / 8, gMeshletOcclusionCulledMarkBufferIdx);
-    }
-
-    DeviceMemoryBarrier();
 
     if (HiZOcclusionTest(cd.Center, cd.Extents, occlusionWorldViewProj, gCullHiZMapIdx))
     {
@@ -67,13 +64,8 @@ void main(uint dtid : SV_DispatchThreadID)
     bool visible = false;
 
 #ifdef WRITE
-    if(dtid % 8 == 0)
-    {
-        ResetByte(dtid / 8, gMeshletCulledMarkBufferIdx);
-    }
-
-    DeviceMemoryBarrier();
-   
+    InitCullMark(dtid);
+    
     if(dtid < gMeshletCount)
     {
         bool culled = false;

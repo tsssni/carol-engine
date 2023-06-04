@@ -1,6 +1,21 @@
 #include "include/cull.hlsli"
 #include "include/mesh.hlsli"
 
+void InitCullMark(uint dtid)
+{
+    if(dtid % 8 == 0)
+    {
+        ResetByte(dtid / 8, gInstanceCulledMarkBufferIdx);
+#ifdef FRUSTUM
+        ResetByte(dtid / 8, gInstanceFrustumCulledMarkBufferIdx);
+#endif
+#ifdef HIZ_OCCLUSION
+        SetByte(dtid / 8, gInstanceOcclusionCulledMarkBufferIdx);
+#endif
+        DeviceMemoryBarrier();
+    }
+}
+
 bool InstanceFrustumCull(uint dtid, MeshConstants mc)
 {
     float4x4 frustumWorldViewProj = mul(mc.World, gCullViewProj);
@@ -53,12 +68,7 @@ void main(uint dtid : SV_DispatchThreadID)
     StructuredBuffer<MeshConstants> meshCB = ResourceDescriptorHeap[gMeshBufferIdx];
     MeshConstants mc = meshCB.Load(dtid);
 
-    if(dtid % 8 == 0)
-    {
-        SetByte(dtid / 8, gInstanceCulledMarkBufferIdx);
-    }
-
-    DeviceMemoryBarrier();
+    InitCullMark(dtid);
 
 #ifdef FRUSTUM
     if(!culled)

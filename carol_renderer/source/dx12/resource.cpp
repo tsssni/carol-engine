@@ -128,13 +128,65 @@ uint32_t Carol::GetPlaneSize(DXGI_FORMAT format)
 	}
 }
 
+void Carol::MultipleResourceTransition(const vector<Resource*> resources, const vector<D3D12_RESOURCE_STATES>& states)
+{
+	vector<D3D12_RESOURCE_BARRIER> barriers;
+
+	for (int i = 0; i < resources.size(); ++i)
+	{
+		if (resources[i]->mState == states[i])
+		{
+			continue;
+		}
+
+		D3D12_RESOURCE_BARRIER barrier = {};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Transition.pResource = resources[i]->Get();
+		barrier.Transition.StateBefore = resources[i]->mState;
+		barrier.Transition.StateAfter = states[i];
+		barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		
+		resources[i]->mState = states[i];
+		barriers.push_back(barrier);
+	}
+
+	gGraphicsCommandList->ResourceBarrier(barriers.size(), barriers.data());
+}
+
+void Carol::MultipleUavBarrier(const vector<Resource*> resources)
+{
+	vector<D3D12_RESOURCE_BARRIER> barriers;
+
+	for (int i = 0; i < resources.size(); ++i)
+	{
+		D3D12_RESOURCE_BARRIER barrier = {};
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+		barrier.UAV.pResource = resources[i]->Get();
+		
+		barriers.push_back(barrier);
+	}
+
+	gGraphicsCommandList->ResourceBarrier(resources.size(), barriers.data());
+}
+
 Carol::Resource::Resource()
 {
 }
 
-Carol::Resource::Resource(D3D12_RESOURCE_DESC* desc, Heap* heap, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue)
-	:mState(initState), mHeapAllocInfo(heap->Allocate(desc))
+Carol::Resource::~Resource()
 {
+	if (mHeapAllocInfo && mHeapAllocInfo->Heap)
+	{
+		mMappedData = nullptr;
+		mHeapAllocInfo->Heap->Deallocate(mHeapAllocInfo.release());
+	}
+}
+
+void Carol::Resource::InitResource(D3D12_RESOURCE_DESC* desc, Heap* heap, D3D12_RESOURCE_STATES initState, D3D12_CLEAR_VALUE* optimizedClearValue)
+{
+	mState = initState;
+	mHeapAllocInfo = heap->Allocate(desc);
+
 	gDevice->CreatePlacedResource(
 		heap->GetHeap(mHeapAllocInfo.get()),
 		heap->GetOffset(mHeapAllocInfo.get()),
@@ -146,14 +198,6 @@ Carol::Resource::Resource(D3D12_RESOURCE_DESC* desc, Heap* heap, D3D12_RESOURCE_
 	mHeapAllocInfo->Resource = mResource;
 }
 
-Carol::Resource::~Resource()
-{
-	if (mHeapAllocInfo && mHeapAllocInfo->Heap)
-	{
-		mMappedData = nullptr;
-		mHeapAllocInfo->Heap->Deallocate(mHeapAllocInfo.release());
-	}
-}
 
 ID3D12Resource* Carol::Resource::Get()const
 {
@@ -342,73 +386,6 @@ Carol::Buffer::~Buffer()
 	dsvDeallocate(mDsvAllocInfo);
 }
 
-ID3D12Resource* Carol::Buffer::Get()const
-{
-	return mResource->Get();
-}
-
-ID3D12Resource** Carol::Buffer::GetAddressOf()const
-{
-	return mResource->GetAddressOf();
-}
-
-Carol::Heap* Carol::Buffer::GetHeap()const
-{
-	return mResource->GetHeap();
-}
-
-Carol::HeapAllocInfo* Carol::Buffer::GetAllocInfo() const
-{
-	return mResource->GetAllocInfo();
-}
-
-Carol::DescriptorManager* Carol::Buffer::GetDescriptorManager()const
-{
-	return mCpuSrvAllocInfo->Manager;
-}
-
-D3D12_GPU_VIRTUAL_ADDRESS Carol::Buffer::GetGPUVirtualAddress()const
-{
-	return mResource->GetGPUVirtualAddress();
-}
-
-void Carol::Buffer::Transition(D3D12_RESOURCE_STATES afterState)
-{
-	mResource->Transition(afterState);
-}
-
-void Carol::Buffer::UavBarrier()
-{
-	mResource->UAVBarrier();
-}
-
-void Carol::Buffer::CopySubresources(
-	Heap* intermediateHeap,
-	const void* data,
-	uint32_t byteSize)
-{
-	mResource->CopySubresources(intermediateHeap, data, byteSize);
-}
-
-void Carol::Buffer::CopySubresources(
-	Heap* intermediateHeap,
-	D3D12_SUBRESOURCE_DATA* subresources,
-	uint32_t firstSubresource,
-	uint32_t numSubresources)
-{
-	mResource->CopySubresources(intermediateHeap, subresources, firstSubresource, numSubresources);
-}
-
-void Carol::Buffer::CopyData(const void* data, uint32_t byteSize, uint32_t offset)
-{
-	mResource->CopyData(data, byteSize, offset);
-}
-
-void Carol::Buffer::ReleaseIntermediateBuffer()
-{
-	mResource->ReleaseIntermediateBuffer();
-}
-
 D3D12_CPU_DESCRIPTOR_HANDLE Carol::Buffer::GetCpuSrv(uint32_t planeSlice)const
 {
 	return mCpuSrvAllocInfo->Manager->GetCpuCbvSrvUavHandle(mCpuSrvAllocInfo.get(), planeSlice);
@@ -505,7 +482,7 @@ void Carol::Buffer::CreateSrvs(std::span<const D3D12_SHADER_RESOURCE_VIEW_DESC> 
 
 	for (int i = 0; i < srvDescs.size(); ++i)
 	{
-		gDevice->CreateShaderResourceView(mResource->Get(), &srvDescs[i], gDescriptorManager->GetCpuCbvSrvUavHandle(mCpuSrvAllocInfo.get(), i));
+		gDevice->CreateShaderResourceView(this->Get(), &srvDescs[i], gDescriptorManager->GetCpuCbvSrvUavHandle(mCpuSrvAllocInfo.get(), i));
 	}
 
 	gDevice->CopyDescriptorsSimple(
@@ -522,7 +499,7 @@ void Carol::Buffer::CreateUavs(std::span<const D3D12_UNORDERED_ACCESS_VIEW_DESC>
 
 	for (int i = 0; i < uavDescs.size(); ++i)
 	{
-		gDevice->CreateUnorderedAccessView(mResource->Get(), counter ? mResource->Get() : nullptr, &uavDescs[i], gDescriptorManager->GetCpuCbvSrvUavHandle(mCpuUavAllocInfo.get(), i));
+		gDevice->CreateUnorderedAccessView(this->Get(), counter ? this->Get() : nullptr, &uavDescs[i], gDescriptorManager->GetCpuCbvSrvUavHandle(mCpuUavAllocInfo.get(), i));
 	}
 
 	gDevice->CopyDescriptorsSimple(
@@ -538,7 +515,7 @@ void Carol::Buffer::CreateRtvs(std::span<const D3D12_RENDER_TARGET_VIEW_DESC> rt
 
 	for (int i = 0; i < rtvDescs.size(); ++i)
 	{
-		gDevice->CreateRenderTargetView(mResource->Get(), &rtvDescs[i], gDescriptorManager->GetRtvHandle(mRtvAllocInfo.get(), i));
+		gDevice->CreateRenderTargetView(this->Get(), &rtvDescs[i], gDescriptorManager->GetRtvHandle(mRtvAllocInfo.get(), i));
 	}
 }
 
@@ -548,7 +525,7 @@ void Carol::Buffer::CreateDsvs(std::span<const D3D12_DEPTH_STENCIL_VIEW_DESC> ds
 
 	for (int i = 0; i < dsvDescs.size(); ++i)
 	{
-		gDevice->CreateDepthStencilView(mResource->Get(), &dsvDescs[i], gDescriptorManager->GetDsvHandle(mDsvAllocInfo.get(), i));
+		gDevice->CreateDepthStencilView(this->Get(), &dsvDescs[i], gDescriptorManager->GetDsvHandle(mDsvAllocInfo.get(), i));
 	}
 }
 
@@ -592,7 +569,7 @@ Carol::ColorBuffer::ColorBuffer(
 	mResourceDesc.MipLevels = mipLevels;
 	mResourceDesc.Alignment = 0Ui64;
 	
-	mResource = make_unique<Resource>(&mResourceDesc, heap, initState, optClearValue);
+	InitResource(&mResourceDesc, heap, initState, optClearValue);
 	BindDescriptors();
 }
 
@@ -1140,7 +1117,7 @@ Carol::StructuredBuffer::StructuredBuffer(
 	mResourceDesc.MipLevels = 1ui16;
 	mResourceDesc.Alignment = 0ui64;
 
-	mResource = make_unique<Resource>(&mResourceDesc, heap, initState);
+	InitResource(&mResourceDesc, heap, initState);
 	BindDescriptors();
 }
 
@@ -1162,7 +1139,8 @@ Carol::StructuredBuffer& Carol::StructuredBuffer::operator=(StructuredBuffer&& s
 void Carol::StructuredBuffer::InitCounterResetBuffer(Heap* heap)
 {
 	auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(uint32_t));
-	sCounterResetBuffer = make_unique<Resource>(
+	sCounterResetBuffer = make_unique<Resource>();
+	sCounterResetBuffer->InitResource(
 		&desc,
 		heap,
 		D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -1178,7 +1156,7 @@ void Carol::StructuredBuffer::DeleteCounterResetBuffer()
 
 void Carol::StructuredBuffer::ResetCounter()
 {
-	gGraphicsCommandList->CopyBufferRegion(mResource->Get(), mCounterOffset, sCounterResetBuffer->Get(), 0, sizeof(uint32_t));
+	gGraphicsCommandList->CopyBufferRegion(this->Get(), mCounterOffset, sCounterResetBuffer->Get(), 0, sizeof(uint32_t));
 }
 
 void Carol::StructuredBuffer::CopyElements(const void* data, uint32_t offset, uint32_t numElements)
@@ -1383,7 +1361,7 @@ Carol::RawBuffer::RawBuffer(
 	mResourceDesc.MipLevels = 1ui16;
 	mResourceDesc.Alignment = 0ui64;
 
-	mResource = make_unique<Resource>(&mResourceDesc, heap, initState);
+	InitResource(&mResourceDesc, heap, initState);
 	BindDescriptors();
 }
 

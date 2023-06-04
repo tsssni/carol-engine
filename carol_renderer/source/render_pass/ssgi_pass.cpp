@@ -118,7 +118,6 @@ void Carol::SsgiPass::Generate()
 		uint32_t width = ceilf((mWidth >> i) / 32.f);
 		uint32_t height = ceilf((mHeight >> i) / 32.f);
 		gGraphicsCommandList->Dispatch(width, height, 1);
-		mSceneColorMap->UavBarrier();
 	}
 }
 
