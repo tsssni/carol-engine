@@ -37,7 +37,9 @@ namespace Carol
 		ColorBuffer* GetFrameMap()const;
 		ColorBuffer* GetDepthStencilMap()const;
 		uint32_t GetFrameMapUavIdx()const;
+		uint32_t GetFrameMapSrvIdx()const;
 		uint32_t GetHistMapUavIdx()const;
+		uint32_t GetHistMapSrvIdx()const;
 		uint32_t GetDepthStencilSrvIdx()const;
 
 		virtual void Draw()override;

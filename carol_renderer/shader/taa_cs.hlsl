@@ -12,8 +12,9 @@ static const int2 delta[9] =
     int2(1, -1),int2(1, 0),int2(1, 1)
 };
 
-groupshared float4 color[32][32];
+groupshared float3 color[32][32];
 groupshared float depth[32][32];
+groupshared float2 velocity[32][32];
 
 float3 Rgb2Ycocg(float3 rgbColor)
 {
@@ -60,7 +61,7 @@ void CalcPixelColorAabb(int2 pos, inout float3 minPixelColor, inout float3 maxPi
 
     float3 meanColor = float3(0.0f, 0.0f, 0.0f);
     float3 varColor = float3(0.0f, 0.0f, 0.0f);
-    static float3 gamma = 1.0f;
+    const static float3 gamma = 1.0f;
     
     [unroll]
     for (int i = 0; i < SAMPLE_COUNT; i++)
@@ -71,7 +72,7 @@ void CalcPixelColorAabb(int2 pos, inout float3 minPixelColor, inout float3 maxPi
     }
 
     meanColor /= SAMPLE_COUNT;
-    varColor = sqrt(abs(varColor / SAMPLE_COUNT - meanColor * meanColor));
+    varColor = sqrt(varColor / SAMPLE_COUNT - meanColor * meanColor);
     
     minPixelColor = meanColor - gamma * varColor;
     maxPixelColor = meanColor + gamma * varColor;
@@ -84,10 +85,12 @@ void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
     Texture2D velocityMap = ResourceDescriptorHeap[gVelocityMapIdx];
     RWTexture2D<float4> frameMap = ResourceDescriptorHeap[gRWFrameMapIdx];
     RWTexture2D<float4> histMap = ResourceDescriptorHeap[gRWHistMapIdx];
+    Texture2D histFrameMap = ResourceDescriptorHeap[gHistMapIdx];
 
     int2 uid = GetUavId(gid, gtid, BORDER_RADIUS);
     depth[gtid.x][gtid.y] = TextureBorderTest(uid, gRenderTargetSize) ? depthMap[uid].r : 1.f;
-    color[gtid.x][gtid.y] = frameMap[clamp(uid, 0, gRenderTargetSize)];
+    color[gtid.x][gtid.y] = frameMap[uid].rgb;
+    velocity[gtid.x][gtid.y] = velocityMap[uid].rg;
     GroupMemoryBarrierWithGroupSync();
 
     float minZ = 1.0f;
@@ -109,17 +112,17 @@ void main(int2 gid : SV_GroupID, int2 gtid : SV_GroupThreadID)
         }
     
         int2 framePos = gtid;
-        int2 histPos = uid + .5f + velocityMap[GetUavId(gid, minZPos, BORDER_RADIUS)].rg;
+        float2 histPos = (uid + .5f + velocity[minZPos.x][minZPos.y]) * gInvRenderTargetSize;
         
-        float4 framePixelColor = color[gtid.x][gtid.y];
-        float4 histPixelColor = histMap[histPos];
+        float3 framePixelColor = color[gtid.x][gtid.y];
+        float3 histPixelColor = histFrameMap.Sample(gsamLinearClamp, histPos).rgb;
     
         float3 minPixelColor;
         float3 maxPixelColor;
         CalcPixelColorAabb(framePos, minPixelColor, maxPixelColor);
-        histPixelColor.rgb = Ycocg2Rgb(Clip(Rgb2Ycocg(histPixelColor.rgb), minPixelColor, maxPixelColor));
+        histPixelColor = Ycocg2Rgb(Clip(Rgb2Ycocg(histPixelColor), minPixelColor, maxPixelColor));
     
-        float4 taaPixelColor = 0.05f * framePixelColor + 0.95f * histPixelColor;
+        float4 taaPixelColor = float4(0.05f * framePixelColor + 0.95f * histPixelColor, 1.f);
         frameMap[uid] = taaPixelColor;
         histMap[uid] = taaPixelColor;
     }

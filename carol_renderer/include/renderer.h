@@ -76,7 +76,9 @@ namespace Carol
 
 		// Display
 		uint32_t RWFrameMapIdx = 0;
+		uint32_t FrameMapIdx = 0;
 		uint32_t RWHistMapIdx = 0;
+		uint32_t HistMapIdx = 0;
 		uint32_t DepthStencilMapIdx = 0;
 		uint32_t SkyBoxIdx = 0;
 
@@ -107,8 +109,6 @@ namespace Carol
 
 		// Utils
 		uint32_t RandVecMapIdx = 0;
-
-		DirectX::XMFLOAT2 FramePad4;
 	};
  
     class Renderer
