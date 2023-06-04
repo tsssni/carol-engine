@@ -45,9 +45,6 @@ dxc -E main -T cs_6_6 -Fo dxil/oitppll_cs.dxil oitppll_cs.hlsl
 # root_signature.hlsl
 dxc -E main -T ms_6_6 -Fo dxil/root_signature.dxil root_signature.hlsl
 
-# scene_color_generate_cs.hlsl
-dxc -E main -T cs_6_6 -Fo dxil/scene_color_generate_cs.dxil scene_color_generate_cs.hlsl
-
 # screen_ms.hlsl
 dxc -E main -T ms_6_6 -Fo dxil/screen_ms.dxil screen_ms.hlsl
 
