@@ -102,16 +102,6 @@ void Carol::Mesh::Update(XMMATRIX& world)
 	XMStoreFloat4x4(&mMeshConstants->World, XMMatrixTranspose(world));
 }
 
-void Carol::Mesh::ClearCullMark()
-{
-	static const uint32_t clear0 = 0;
-	static const uint32_t clear1 = 0xffffffff;
-	gGraphicsCommandList->ClearUnorderedAccessViewUint(mMeshletFrustumCulledMarkBuffer->GetGpuUav(), mMeshletFrustumCulledMarkBuffer->GetCpuUav(), mMeshletFrustumCulledMarkBuffer->Get(), &clear0, 0, nullptr);
-	gGraphicsCommandList->ClearUnorderedAccessViewUint(mMeshletNormalConeCulledMarkBuffer->GetGpuUav(), mMeshletNormalConeCulledMarkBuffer->GetCpuUav(), mMeshletNormalConeCulledMarkBuffer->Get(), &clear0, 0, nullptr);
-	gGraphicsCommandList->ClearUnorderedAccessViewUint(mMeshletOcclusionCulledMarkBuffer->GetGpuUav(), mMeshletOcclusionCulledMarkBuffer->GetCpuUav(), mMeshletOcclusionCulledMarkBuffer->Get(), &clear1, 0, nullptr);
-	gGraphicsCommandList->ClearUnorderedAccessViewUint(mMeshletCulledMarkBuffer->GetGpuUav(), mMeshletCulledMarkBuffer->GetCpuUav(), mMeshletCulledMarkBuffer->Get(), &clear1, 0, nullptr);
-}
-
 void Carol::Mesh::SetAnimationClip(std::string_view clipName)
 {
 	string name(clipName);

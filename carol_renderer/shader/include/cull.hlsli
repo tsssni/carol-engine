@@ -99,6 +99,18 @@ void ResetMark(uint idx, uint markIdx)
     mark.InterlockedAnd(idx / 32u * 4u, ~(1u << (idx % 32u)));
 }
 
+void SetByte(uint addr, uint markIdx)
+{
+    RWByteAddressBuffer mark = ResourceDescriptorHeap[markIdx];
+    mark.Store(addr, 1);
+}
+
+void ResetByte(uint addr, uint markIdx)
+{
+    RWByteAddressBuffer mark = ResourceDescriptorHeap[markIdx];
+    mark.Store(addr, 0);
+}
+
 uint AabbPlaneTest(float3 center, float3 extents, float4 plane)
 {
     // The plane equation is plane.x*x+plane.y*y+plane.z*z+plane.w=0

@@ -5,6 +5,13 @@ bool InstanceFrustumCull(uint dtid, MeshConstants mc)
 {
     float4x4 frustumWorldViewProj = mul(mc.World, gCullViewProj);
 
+    if(dtid % 8 == 0)
+    {
+        SetByte(dtid / 8, gInstanceFrustumCulledMarkBufferIdx);
+    }
+
+    DeviceMemoryBarrier();
+
     if (AabbFrustumTest(mc.Center, mc.Extents, frustumWorldViewProj) == OUTSIDE)
     {
         SetMark(dtid, gInstanceFrustumCulledMarkBufferIdx);
@@ -17,6 +24,13 @@ bool InstanceFrustumCull(uint dtid, MeshConstants mc)
 bool InstanceHiZOcclusionCull(uint dtid, MeshConstants mc)
 {
     float4x4 occlusionWorldViewProj = mul(mc.HistWorld, gCullHistViewProj);
+
+    if(dtid % 8 == 0)
+    {
+        SetByte(dtid / 8, gInstanceOcclusionCulledMarkBufferIdx);
+    }
+
+    DeviceMemoryBarrier();
 
     if(HiZOcclusionTest(mc.Center, mc.Extents, occlusionWorldViewProj, gCullHiZMapIdx))
     {
@@ -38,6 +52,13 @@ void main(uint dtid : SV_DispatchThreadID)
     bool culled = false;
     StructuredBuffer<MeshConstants> meshCB = ResourceDescriptorHeap[gMeshBufferIdx];
     MeshConstants mc = meshCB.Load(dtid);
+
+    if(dtid % 8 == 0)
+    {
+        SetByte(dtid / 8, gInstanceCulledMarkBufferIdx);
+    }
+
+    DeviceMemoryBarrier();
 
 #ifdef FRUSTUM
     if(!culled)

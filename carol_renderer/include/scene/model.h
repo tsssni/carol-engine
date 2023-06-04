@@ -110,7 +110,6 @@ namespace Carol
 		void SetWorld(std::string_view modelName, DirectX::XMMATRIX world);
 		void SetAnimationClip(std::string_view modelName, std::string_view clipName);
 		void Update(Timer* timer, uint64_t cpuFenceValue, uint64_t completedFenceValue);
-		void ClearCullMark();
 
 		uint32_t GetMeshBufferIdx(MeshType type)const;
 		uint32_t GetCommandBufferIdx(MeshType type)const;

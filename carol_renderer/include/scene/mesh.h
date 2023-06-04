@@ -113,7 +113,6 @@ namespace Carol
 		void SetMetallicRoughnessTextureIdx(uint32_t idx);
 
 		void Update(DirectX::XMMATRIX& world);
-		void ClearCullMark();
 		void SetAnimationClip(std::string_view clipName);
 
 		const MeshConstants* GetMeshConstants()const;

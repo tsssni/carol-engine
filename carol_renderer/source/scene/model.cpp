@@ -385,24 +385,6 @@ void Carol::ModelManager::SetAnimationClip(string_view modelName, string_view cl
 	mModels[modelName.data()]->SetAnimationClip(clipName);
 }
 
-void Carol::ModelManager::ClearCullMark()
-{
-	static const uint32_t clear0 = 0;
-	static const uint32_t clear1 = 0xffffffff;
-
-	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
-	{
-		gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceFrustumCulledMarkBuffer[i]->GetGpuUav(), mInstanceFrustumCulledMarkBuffer[i]->GetCpuUav(), mInstanceFrustumCulledMarkBuffer[i]->Get(), &clear0, 0, nullptr);
-		gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceOcclusionCulledMarkBuffer[i]->GetGpuUav(), mInstanceOcclusionCulledMarkBuffer[i]->GetCpuUav(), mInstanceOcclusionCulledMarkBuffer[i]->Get(), &clear1, 0, nullptr);
-		gGraphicsCommandList->ClearUnorderedAccessViewUint(mInstanceCulledMarkBuffer[i]->GetGpuUav(), mInstanceCulledMarkBuffer[i]->GetCpuUav(), mInstanceCulledMarkBuffer[i]->Get(), &clear1, 0, nullptr);
-
-		for (auto& [name, mesh] : mMeshes[i])
-		{
-			mesh->ClearCullMark();
-		}
-	}
-}
-
 uint32_t Carol::ModelManager::GetMeshBufferIdx(MeshType type)const
 {
 	return mMeshBuffer[uint32_t(type)]->GetGpuSrvIdx();

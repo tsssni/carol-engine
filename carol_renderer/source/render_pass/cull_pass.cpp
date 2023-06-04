@@ -191,8 +191,6 @@ void Carol::CullPass::InitBuffers()
 
 void Carol::CullPass::CullReset()
 {
-	gModelManager->ClearCullMark();
-
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
 		MeshType type = MeshType(i);

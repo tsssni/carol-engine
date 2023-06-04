@@ -18,6 +18,7 @@ void main(uint2 dtid : SV_DispatchThreadID)
     Texture2D normalMap = ResourceDescriptorHeap[gNormalMapIdx];
     Texture2D depthStencilMap = ResourceDescriptorHeap[gDepthStencilMapIdx];
     Texture2D ambientMap = ResourceDescriptorHeap[gAmbientMapIdx];
+    Texture2D velocityMap = ResourceDescriptorHeap[gVelocityMapIdx];
     Texture2D ssgiMap = ResourceDescriptorHeap[gSsgiMapIdx];
 
     if (TextureBorderTest(dtid, gRenderTargetSize))
@@ -35,7 +36,7 @@ void main(uint2 dtid : SV_DispatchThreadID)
             float roughness = diffuseRoughnessMap[dtid].a;
             float metallic = emissiveMetallicMap[dtid].a;
             float3 normal = normalMap[dtid].rgb;
-            float3 ssgi = ssgiMap.Sample(gsamLinearClamp, uv).rgb;
+            float2 velocity = velocityMap[dtid].rg;
 
             float viewDepth;
             viewDepth = NdcDepthToViewDepth(depth, gProj);
@@ -52,6 +53,9 @@ void main(uint2 dtid : SV_DispatchThreadID)
             float3 toEye = normalize(gEyePosW - posW);
             float3 emissiveColor = emissive * dot(toEye, normal);
             float3 litColor = float3(0.f, 0.f, 0.f);
+
+            float2 histUV = (dtid + .5f + velocity) * gInvRenderTargetSize;
+            float3 ssgi = ssgiMap.Sample(gsamLinearClamp, histUV).rgb;
 
             Light indirectLight;
             indirectLight.Strength = ssgi;
