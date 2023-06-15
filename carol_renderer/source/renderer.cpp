@@ -381,7 +381,7 @@ void Carol::Renderer::Draw()
 
 	mSsaoPass->Draw();
 	mShadePass->Draw();
-	mSsgiPass->Draw();
+	// mSsgiPass->Draw();
 
 	// Post process
 	mToneMappingPass->Draw();
