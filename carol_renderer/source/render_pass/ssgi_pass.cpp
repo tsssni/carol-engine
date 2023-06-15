@@ -57,6 +57,16 @@ uint32_t Carol::SsgiPass::GetSsgiUavIdx()
     return mSsgiMap->GetGpuUavIdx();
 }
 
+void Carol::SsgiPass::SetSampleCount(uint32_t sampleCount)
+{
+    mSampleCount = sampleCount;
+}
+
+void Carol::SsgiPass::SetNumSteps(uint32_t numSteps)
+{
+    mNumSteps = numSteps;
+}
+
 void Carol::SsgiPass::InitPSOs()
 { 
     mSsgiGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
@@ -125,9 +135,11 @@ void Carol::SsgiPass::DrawSsgi()
 {
     uint32_t groupWidth = ceilf(mWidth * 1.f / 32.f);
 	uint32_t groupHeight = ceilf(mHeight * 1.f / 32.f);
+    uint32_t ssgiConstants[] = {mSampleCount, mNumSteps};
 
 	mSsgiMap->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	gGraphicsCommandList->SetPipelineState(mSsgiComputePSO->Get());
+    gGraphicsCommandList->SetComputeRoot32BitConstants(ROOT_CONSTANTS, _countof(ssgiConstants), ssgiConstants, 0);
 	gGraphicsCommandList->Dispatch(groupWidth, groupHeight, 1);
 	mSsgiMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 

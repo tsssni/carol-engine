@@ -3,9 +3,10 @@
 #include "include/texture.hlsli"
 #include "include/transform.hlsli"
 
-#ifndef SAMPLE_COUNT
-#define SAMPLE_COUNT 14
-#endif
+cbuffer SsaoCB : register(b4)
+{
+    uint gSampleCount;
+}
 
 float OcclusionFunction(float distZ)
 {
@@ -44,8 +45,7 @@ void main(int2 dtid : SV_DispatchThreadID)
         float3 randVec = 2.0f * randVecMap.Sample(gsamPointWrap, 4.0f * texC).xyz - 1.0f;
         float occlusionSum = 0.0f;
     
-        [unroll]
-        for (int sampleCount = 0; sampleCount < SAMPLE_COUNT; ++sampleCount)
+        for (int sampleCount = 0; sampleCount < gSampleCount; ++sampleCount)
         {
             float3 offset = reflect(gOffsetVectors[sampleCount].xyz, randVec);
             float flip = sign(dot(offset, centerNormal));
@@ -62,7 +62,7 @@ void main(int2 dtid : SV_DispatchThreadID)
             occlusionSum += occlusion;
         }
     
-        occlusionSum /= SAMPLE_COUNT;
+        occlusionSum /= gSampleCount;
         float access = saturate(pow(1.0f - occlusionSum, 6.f));
         ambientMap[dtid] = access;
     }

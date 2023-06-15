@@ -1,5 +1,6 @@
 #include <render_pass/ssao_pass.h>
 #include <render_pass/epf_pass.h>
+#include <dx12/root_signature.h>
 #include <dx12/heap.h>
 #include <dx12/resource.h>
 #include <dx12/pipeline_state.h>
@@ -54,6 +55,11 @@ void Carol::SsaoPass::OnResize(
 	}
 }
 
+void Carol::SsaoPass::SetSampleCount(uint32_t sampleCount)
+{
+	mSampleCount = 14;
+}
+
 void Carol::SsaoPass::SetBlurRadius(uint32_t blurRadius)
 {
 	mEpfPass->SetBlurRadius(blurRadius);
@@ -71,6 +77,7 @@ void Carol::SsaoPass::Draw()
 
 	mAmbientMap->Transition(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	gGraphicsCommandList->SetPipelineState(mSsaoComputePSO->Get());
+	gGraphicsCommandList->SetComputeRoot32BitConstant(ROOT_CONSTANTS, mSampleCount, 0);
 	gGraphicsCommandList->Dispatch(groupWidth, groupHeight, 1);
 	mAmbientMap->Transition(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 

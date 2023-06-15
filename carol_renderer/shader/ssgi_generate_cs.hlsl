@@ -35,6 +35,8 @@ float4 GetColorDepth(uint2 gtid, uint offset)
         depth[gtid.x][gtid.y + offset],
         depth[gtid.x + offset][gtid.y + offset]
     };
+    
+    float minD = min(d[0], min(d[1], min(d[2], d[3])));
 
     float3 c[4] =
     {
@@ -49,7 +51,7 @@ float4 GetColorDepth(uint2 gtid, uint offset)
     [unroll]
     for (int i = 1; i < 4;++i)
     {
-        float weight = 1.f - abs(d[0] - d[i]);
+        float weight = 1.f - (d[i] - minD);
         weight *= weight;
         sceneColor += weight * c[i];
     }

@@ -3,13 +3,11 @@
 #include "include/texture.hlsli"
 #include "include/transform.hlsli"
 
-#ifndef SAMPLE_COUNT
-#define SAMPLE_COUNT 14
-#endif
-
-#ifndef NUM_STEPS
-#define NUM_STEPS 16
-#endif
+cbuffer SsgiCB : register(b4)
+{
+    uint gSampleCount;
+    uint gNumSteps;
+}
 
 float OcclusionFunction(float distZ)
 {
@@ -51,27 +49,25 @@ void main(int2 dtid : SV_DispatchThreadID)
         float4 sampleColor = 0.f;
         uint sampleCount = 0;
 
-        [unroll]
-        for (int sampleStep = 0; sampleStep < SAMPLE_COUNT; ++sampleStep)
+        for (int sampleStep = 0; sampleStep < gSampleCount; ++sampleStep)
         {
             float3 traceVec = normalize(reflect(gOffsetVectors[sampleStep].xyz, randVec));
             traceVec *= sign(dot(traceVec, centerNormal)) * .1f;
 
             int traceStep;
             int traceSubstep;
+
             float mipLevel = 1.f;
+            float4 sampleMip;
 
             bool4 multisampleHit = false;
             bool foundAnyHit = false;
 
-            [unroll]
-            for (traceStep = 0; traceStep < NUM_STEPS; traceStep += 4)
+            for (traceStep = 0; traceStep < gNumSteps; traceStep += 4)
             {
                 float3 samplesPos[4];
                 float2 samplesUV[4];
                 float4 samplesZ;
-                
-                float sampleMip;
                 float4 sampleDepth;
 
                 [unroll]
@@ -80,9 +76,12 @@ void main(int2 dtid : SV_DispatchThreadID)
                     samplesPos[traceSubstep] = viewPos + (traceStep + traceSubstep + 1) * traceVec;
                 }
 
-                sampleMip = mipLevel;
-                mipLevel += 8.f / NUM_STEPS;
-                traceVec *= exp2(8.f / NUM_STEPS);
+                sampleMip.xy = mipLevel;
+                mipLevel += 8.f / gNumSteps;
+                sampleMip.zw = mipLevel;
+                mipLevel += 8.f / gNumSteps;
+
+                traceVec *= exp2(8.f / gNumSteps);
 
                 [unroll]
                 for (int sampleStep = 0; sampleStep < 4; ++sampleStep)
@@ -92,7 +91,7 @@ void main(int2 dtid : SV_DispatchThreadID)
 
                     samplesUV[sampleStep] = NdcTexPosToTexPos(sampleProjPos.xy);
                     samplesZ[sampleStep] = sampleProjPos.z;
-                    sampleDepth[sampleStep] = depthMap.SampleLevel(gsamLinearClamp, samplesUV[sampleStep], sampleMip).r;
+                    sampleDepth[sampleStep] = depthMap.SampleLevel(gsamLinearClamp, samplesUV[sampleStep], sampleMip[sampleStep]).r;
                 }
                 
                 float4 depthDiff = samplesZ - sampleDepth;
@@ -108,21 +107,25 @@ void main(int2 dtid : SV_DispatchThreadID)
             if(foundAnyHit)
             {
                 int hitStep = 0;
+                int hitMip = 1.f;
 
-                [unroll]
                 for (int hitSubstep = 0; hitSubstep < 4;++hitSubstep)
                 {
                     if(multisampleHit[hitSubstep])
                     {
-                        hitStep = traceStep * (hitSubstep + 1);
+                        hitStep = traceStep + hitSubstep + 1;
+                        hitMip = sampleMip[hitSubstep];
                         break;
                     }
                 }
 
                 float3 hitPos = viewPos + hitStep * traceVec;
                 float2 uv = ProjPosToTexPos(mul(float4(hitPos, 1.f), gProj));
-                sampleColor += sceneColorMap.SampleLevel(gsamLinearClamp, uv, mipLevel - 8.f / SAMPLE_COUNT) * dot(centerNormal, normalize(traceVec));
+
+                sampleColor += sceneColorMap.SampleLevel(gsamLinearClamp, uv, hitMip) * dot(centerNormal, normalize(traceVec));
                 ++sampleCount;
+
+                continue;
             }
             
         }

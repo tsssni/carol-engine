@@ -20,6 +20,7 @@ namespace Carol
 
 		virtual void Draw()override;
 		virtual void OnResize(uint32_t width, uint32_t height)override;
+		void SetSampleCount(uint32_t sampleCount);
 		void SetBlurRadius(uint32_t blurRadius);
 		void SetBlurCount(uint32_t blurCount);
 
@@ -33,6 +34,7 @@ namespace Carol
 		std::unique_ptr<ColorBuffer> mAmbientMap;
 
 		DXGI_FORMAT mAmbientMapFormat;
+		uint32_t mSampleCount;
 		uint32_t mBlurCount;
 
 		std::unique_ptr<ComputePSO> mSsaoComputePSO;

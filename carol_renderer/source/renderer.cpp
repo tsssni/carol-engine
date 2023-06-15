@@ -295,6 +295,7 @@ void Carol::Renderer::InitMainLightShadowPass()
 void Carol::Renderer::InitSsaoPass()
 {
 	mSsaoPass = make_unique<SsaoPass>();
+	mSsaoPass->SetSampleCount(14);
 	mSsaoPass->SetBlurRadius(5);
 	mSsaoPass->SetBlurCount(3);
 }
@@ -302,6 +303,8 @@ void Carol::Renderer::InitSsaoPass()
 void Carol::Renderer::InitSsgiPass()
 {
 	mSsgiPass = make_unique<SsgiPass>();
+	mSsgiPass->SetSampleCount(14);
+	mSsgiPass->SetNumSteps(16);
 }
 
 void Carol::Renderer::InitTaaPass()
@@ -378,7 +381,7 @@ void Carol::Renderer::Draw()
 
 	mSsaoPass->Draw();
 	mShadePass->Draw();
-	// mSsgiPass->Draw();
+	mSsgiPass->Draw();
 
 	// Post process
 	mToneMappingPass->Draw();

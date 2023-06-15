@@ -31,6 +31,9 @@ namespace Carol
 		uint32_t GetSsgiSrvIdx();
 		uint32_t GetSsgiUavIdx();
 
+		void SetSampleCount(uint32_t sampleCount);
+		void SetNumSteps(uint32_t numSteps);
+
 	protected:
 		virtual void InitPSOs()override;
 		virtual void InitBuffers()override;
@@ -48,6 +51,9 @@ namespace Carol
 
 		DXGI_FORMAT mSsgiFormat;
 		DXGI_FORMAT mSsgiHiZFormat;
+
+		uint32_t mSampleCount;
+		uint32_t mNumSteps;
 
 		std::unique_ptr<ComputePSO> mSsgiGenerateComputePSO;
 		std::unique_ptr<ComputePSO> mSsgiComputePSO;

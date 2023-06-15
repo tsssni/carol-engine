@@ -16,7 +16,7 @@ namespace Carol
 			FRAME_CB,
 			ROOT_CONSTANTS,
 			ROOT_SIGNATURE_COUNT
-		};
+	};
 
 	class RootSignature
 	{
