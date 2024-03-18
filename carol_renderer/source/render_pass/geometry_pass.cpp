@@ -5,12 +5,6 @@
 #include <dx12/shader.h>
 #include <global.h>
 
-namespace Carol
-{
-    using std::make_unique;
-    using std::vector;
-}
-
 Carol::GeometryPass::GeometryPass(
     DXGI_FORMAT diffuseRoughnessFormat,
     DXGI_FORMAT emissiveMetallicFormat,
@@ -41,7 +35,7 @@ void Carol::GeometryPass::Draw()
     };
 
     auto depthStencilDsv = mDepthStencilMap->GetDsv();
-    vector<Resource*> resources{
+    std::vector<Resource*> resources{
         mDiffuseRoughnessMap.get(),
         mEmissiveMetallicMap.get(), 
         mNormalMap.get(),
@@ -105,14 +99,14 @@ void Carol::GeometryPass::InitPSOs()
 {
     DXGI_FORMAT gbufferFormats[4] = { mDiffuseRoughnessFormat,mEmissiveMetallicFormat,mNormalFormat,mVelocityFormat };
 
-    mGeometryStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+    mGeometryStaticMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mGeometryStaticMeshPSO->SetRenderTargetFormat(_countof(gbufferFormats), gbufferFormats, GetDsvFormat(mDepthStencilFormat));
 	mGeometryStaticMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/cull_as.dxil"));
 	mGeometryStaticMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/static_mesh_ms.dxil"));
 	mGeometryStaticMeshPSO->SetPS(gShaderManager->LoadShader("shader/dxil/geometry_ps.dxil"));
 	mGeometryStaticMeshPSO->Finalize();
 
-    mGeometrySkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+    mGeometrySkinnedMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mGeometrySkinnedMeshPSO->SetRenderTargetFormat(_countof(gbufferFormats), gbufferFormats, GetDsvFormat(mDepthStencilFormat));
 	mGeometrySkinnedMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/cull_as.dxil"));
 	mGeometrySkinnedMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/skinned_mesh_ms.dxil"));
@@ -125,7 +119,7 @@ void Carol::GeometryPass::InitBuffers()
     float diffuseRoughnessColor[4] = {0.f,0.f,0.f,1.f};
     D3D12_CLEAR_VALUE diffuseRoughnessOptClearValue  = CD3DX12_CLEAR_VALUE(mDiffuseRoughnessFormat, diffuseRoughnessColor);
 
-	mDiffuseRoughnessMap = make_unique<ColorBuffer>(
+	mDiffuseRoughnessMap = std::make_unique<ColorBuffer>(
         mWidth,
         mHeight,
         1,
@@ -139,7 +133,7 @@ void Carol::GeometryPass::InitBuffers()
     float emissiveMetallicColor[4] = {0.f,0.f,0.f,0.f};
     D3D12_CLEAR_VALUE emissiveMetallicOptClearValue  = CD3DX12_CLEAR_VALUE(mDiffuseRoughnessFormat, emissiveMetallicColor);
 
-	mEmissiveMetallicMap = make_unique<ColorBuffer>(
+	mEmissiveMetallicMap = std::make_unique<ColorBuffer>(
         mWidth,
         mHeight,
         1,
@@ -153,7 +147,7 @@ void Carol::GeometryPass::InitBuffers()
     float normalColor[4] = { 0.f,0.f,0.f,1000.f };
     D3D12_CLEAR_VALUE normalOptClearValue  = CD3DX12_CLEAR_VALUE(mNormalFormat, normalColor);
 
-	mNormalMap = make_unique<ColorBuffer>(
+	mNormalMap = std::make_unique<ColorBuffer>(
         mWidth,
         mHeight,
         1,
@@ -166,7 +160,7 @@ void Carol::GeometryPass::InitBuffers()
 
     float velocityColor[4] = { 0.f,0.f,0.f,0.f };
 	D3D12_CLEAR_VALUE velocityOptClearValue = CD3DX12_CLEAR_VALUE(mVelocityFormat, velocityColor);
-	mVelocityMap = make_unique<ColorBuffer>(
+	mVelocityMap = std::make_unique<ColorBuffer>(
 		mWidth,
 		mHeight,
 		1,

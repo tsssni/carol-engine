@@ -2,10 +2,6 @@
 #include <utils/bitset.h>
 #include <cmath>
 
-namespace Carol {
-	using std::make_unique;
-}
-
 Carol::Buddy::Buddy(uint32_t size, uint32_t pageSize)
 	:mPageSize(pageSize), mOrder(GetOrder(size))
 {
@@ -15,7 +11,7 @@ Carol::Buddy::Buddy(uint32_t size, uint32_t pageSize)
 
 	for (int i = 0; i <= mOrder; ++i)
 	{
-		mBitsets[i] = make_unique<Bitset>(1 << (mOrder - i));
+		mBitsets[i] = std::make_unique<Bitset>(1 << (mOrder - i));
 	}
 }
 

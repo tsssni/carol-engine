@@ -5,13 +5,6 @@
 #include <string_view>
 #include <vector>
 
-namespace Carol
-{
-	using std::vector;
-	using std::wstring_view;
-	using std::make_unique;
-}
-
 Carol::ToneMappingPass::ToneMappingPass()
 {
 	InitPSOs();
@@ -28,7 +21,7 @@ void Carol::ToneMappingPass::Draw()
 
 void Carol::ToneMappingPass::InitPSOs()
 {
-	mLDRToneMappingComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mLDRToneMappingComputePSO = std::make_unique<ComputePSO>(PSO_DEFAULT);
 	mLDRToneMappingComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/tone_mapping_cs.dxil"));
 	mLDRToneMappingComputePSO->Finalize();
 }

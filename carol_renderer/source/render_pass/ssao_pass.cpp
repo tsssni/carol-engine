@@ -12,20 +12,9 @@
 
 #define BORDER_RADIUS 5
 
-namespace Carol
-{
-	using std::vector;
-	using std::wstring;
-	using std::wstring_view;
-	using std::make_unique;
-	using namespace DirectX;
-	using namespace DirectX::PackedVector;
-	using Microsoft::WRL::ComPtr;
-}
-
 Carol::SsaoPass::SsaoPass(DXGI_FORMAT ambientMapFormat)
 	:mAmbientMapFormat(ambientMapFormat),
-	mEpfPass(make_unique<EpfPass>())
+	mEpfPass(std::make_unique<EpfPass>())
 {
 	InitPSOs();
 }
@@ -87,7 +76,7 @@ void Carol::SsaoPass::Draw()
 
 void Carol::SsaoPass::InitBuffers()
 {
-	mAmbientMap = make_unique<ColorBuffer>(
+	mAmbientMap = std::make_unique<ColorBuffer>(
 		mWidth,
 		mHeight,
 		1,
@@ -100,7 +89,7 @@ void Carol::SsaoPass::InitBuffers()
 
 void Carol::SsaoPass::InitPSOs()
 {
-	mSsaoComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mSsaoComputePSO = std::make_unique<ComputePSO>(PSO_DEFAULT);
 	mSsaoComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/ssao_cs.dxil"));
 	mSsaoComputePSO->Finalize();
 }

@@ -9,13 +9,6 @@
 #include <vector>
 #include <string_view>
 
-namespace Carol {
-	using std::make_unique;
-	using std::vector;
-	using std::wstring_view;
-	using Microsoft::WRL::ComPtr;
-}
-
 IDXGISwapChain* Carol::DisplayPass::GetSwapChain()
 {
 	return mSwapChain.Get();
@@ -23,7 +16,7 @@ IDXGISwapChain* Carol::DisplayPass::GetSwapChain()
 
 IDXGISwapChain** Carol::DisplayPass::GetAddressOfSwapChain()
 {
-	return mSwapChain.GetAddressOf();
+	return reinterpret_cast<IDXGISwapChain**>(mSwapChain.GetAddressOf());
 }
 
 uint32_t Carol::DisplayPass::GetBackBufferCount()const
@@ -41,7 +34,7 @@ Carol::DisplayPass::DisplayPass(
 	mBackBufferFormat(backBufferFormat),
 	mFrameFormat(frameFormat),
 	mDepthStencilFormat(depthStencilFormat),
-	mBackBufferRtvAllocInfo(make_unique<DescriptorAllocInfo>())
+	mBackBufferRtvAllocInfo(std::make_unique<DescriptorAllocInfo>())
 {
 	InitPSOs();
 	InitSwapChain(hwnd);
@@ -110,7 +103,7 @@ void Carol::DisplayPass::Draw()
 
 void Carol::DisplayPass::Present()
 {
-	ComPtr<ID3D12Device> device;
+	Microsoft::WRL::ComPtr<ID3D12Device> device;
 	mSwapChain->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
 
 	if (FAILED(mSwapChain->Present(0, 0)))
@@ -123,7 +116,7 @@ void Carol::DisplayPass::Present()
 
 void Carol::DisplayPass::InitPSOs()
 {
-	mDisplayMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mDisplayMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mDisplayMeshPSO->SetRenderTargetFormat(mBackBufferFormat);
 	mDisplayMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/screen_ms.dxil"));
 	mDisplayMeshPSO->SetPS(gShaderManager->LoadShader("shader/dxil/display_ps.dxil"));
@@ -134,7 +127,7 @@ void Carol::DisplayPass::InitBuffers()
 {
 	float frameColor[4] = { 0.f,0.f,0.f,1.f };
 	D3D12_CLEAR_VALUE frameOptClearValue = CD3DX12_CLEAR_VALUE(mFrameFormat, frameColor);
-	mFrameMap = make_unique<ColorBuffer>(
+	mFrameMap = std::make_unique<ColorBuffer>(
 		mWidth,
 		mHeight,
 		1,
@@ -144,7 +137,7 @@ void Carol::DisplayPass::InitBuffers()
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		&frameOptClearValue);
-	mHistMap = make_unique<ColorBuffer>(
+	mHistMap = std::make_unique<ColorBuffer>(
 		mWidth,
 		mHeight,
 		1,
@@ -155,7 +148,7 @@ void Carol::DisplayPass::InitBuffers()
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	D3D12_CLEAR_VALUE depthStencilOptClearValue = CD3DX12_CLEAR_VALUE(GetDsvFormat(mDepthStencilFormat), 1.f, 0);
-	mDepthStencilMap = make_unique<ColorBuffer>(
+	mDepthStencilMap = std::make_unique<ColorBuffer>(
 		mWidth,
 		mHeight,
 		1,
@@ -168,7 +161,7 @@ void Carol::DisplayPass::InitBuffers()
 
 	for (int i = 0; i < mBackBuffer.size(); ++i)
 	{
-		mBackBuffer[i] = make_unique<Resource>();
+		mBackBuffer[i] = std::make_unique<Resource>();
 	}
 
 	ThrowIfFailed(mSwapChain->ResizeBuffers(
@@ -195,23 +188,28 @@ void Carol::DisplayPass::InitBuffers()
 
 void Carol::DisplayPass::InitSwapChain(HWND hwnd)
 {
-	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
-	swapChainDesc.BufferDesc.Width = 0;
-	swapChainDesc.BufferDesc.Height = 0;
-	swapChainDesc.BufferDesc.RefreshRate.Numerator = 144;
-	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-	swapChainDesc.BufferDesc.Format = mBackBufferFormat;
-	swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-	swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+	swapChainDesc.Width = 0;
+	swapChainDesc.Height = 0;
+	swapChainDesc.Format = mBackBufferFormat;
+	swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.SampleDesc.Quality = 0;
 	swapChainDesc.BufferUsage = DXGI_USAGE_BACK_BUFFER;
 	swapChainDesc.BufferCount = mBackBuffer.size();
-	swapChainDesc.OutputWindow = hwnd;
-	swapChainDesc.Windowed = true;
+	swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
+	DXGI_SWAP_CHAIN_FULLSCREEN_DESC swapChainFullSreenDesc = {};
+	swapChainFullSreenDesc.Windowed = true;
+
 	mSwapChain.Reset();
-	ThrowIfFailed(gDxgiFactory->CreateSwapChain(gCommandQueue.Get(), &swapChainDesc, mSwapChain.GetAddressOf()));
+	ThrowIfFailed(static_cast<IDXGIFactory4*>(gDxgiFactory.Get())->CreateSwapChainForHwnd(
+		gCommandQueue.Get(), 
+		hwnd, 
+		&swapChainDesc, 
+		&swapChainFullSreenDesc, 
+		nullptr, 
+		mSwapChain.GetAddressOf()));
 }

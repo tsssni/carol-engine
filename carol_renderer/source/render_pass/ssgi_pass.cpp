@@ -6,19 +6,14 @@
 #include <dx12/shader.h>
 #include <global.h>
 
-namespace Carol
-{
-    using std::make_unique;
-}
-
 Carol::SsgiPass::SsgiPass(DXGI_FORMAT ssgiFormat, DXGI_FORMAT ssgiHiZFormat)
     :mSsgiFormat(ssgiFormat),
     mSsgiHiZFormat(ssgiHiZFormat)
 {
     InitPSOs();
     
-	mSceneColorConstants = make_unique<SceneColorConstants>();
-	mSceneColorCBAllocator = make_unique<FastConstantBufferAllocator>(1024, sizeof(SceneColorConstants), gHeapManager->GetUploadBuffersHeap());
+	mSceneColorConstants = std::make_unique<SceneColorConstants>();
+	mSceneColorCBAllocator = std::make_unique<FastConstantBufferAllocator>(1024, sizeof(SceneColorConstants), gHeapManager->GetUploadBuffersHeap());
 }
 
 void Carol::SsgiPass::Draw()
@@ -69,18 +64,18 @@ void Carol::SsgiPass::SetNumSteps(uint32_t numSteps)
 
 void Carol::SsgiPass::InitPSOs()
 { 
-    mSsgiGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+    mSsgiGenerateComputePSO = std::make_unique<ComputePSO>(PSO_DEFAULT);
 	mSsgiGenerateComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/ssgi_generate_cs.dxil"));
 	mSsgiGenerateComputePSO->Finalize();
 
-    mSsgiComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+    mSsgiComputePSO = std::make_unique<ComputePSO>(PSO_DEFAULT);
 	mSsgiComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/ssgi_cs.dxil"));
 	mSsgiComputePSO->Finalize();
 }
 
 void Carol::SsgiPass::InitBuffers()
 {
-    mSceneColorMap = make_unique<ColorBuffer>(
+    mSceneColorMap = std::make_unique<ColorBuffer>(
         mWidth,
         mHeight,
         1,
@@ -92,7 +87,7 @@ void Carol::SsgiPass::InitBuffers()
         nullptr,
         mMipLevel);
 
-    mSsgiHiZMap = make_unique<ColorBuffer>(
+    mSsgiHiZMap = std::make_unique<ColorBuffer>(
         mWidth,
         mHeight,
         1,
@@ -104,7 +99,7 @@ void Carol::SsgiPass::InitBuffers()
         nullptr,
         mMipLevel);
 
-    mSsgiMap = make_unique<ColorBuffer>(
+    mSsgiMap = std::make_unique<ColorBuffer>(
         mWidth,
         mHeight,
         1,

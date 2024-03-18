@@ -1,11 +1,6 @@
 #include <scene/skinned_animation.h>
 #include <cmath>
 
-namespace Carol {
-	using std::vector;
-	using namespace DirectX;
-}
-
 float Carol::BoneAnimation::GetStartTime() const
 {
 	float tTrans = D3D12_FLOAT32_MAX;
@@ -15,7 +10,7 @@ float Carol::BoneAnimation::GetStartTime() const
 	if(TranslationKeyframes.size()!=0) tTrans = TranslationKeyframes.front().TimePos;
 	if(ScaleKeyframes.size()!=0) tScale = ScaleKeyframes.front().TimePos;
 	if(RotationQuatKeyframes.size()!=0) tQuat = RotationQuatKeyframes.front().TimePos;
-	return std::min(std::min(tTrans, tScale), tQuat);
+	return std::fmin(std::fmin(tTrans, tScale), tQuat);
 }
 
 float Carol::BoneAnimation::GetEndTime() const
@@ -27,10 +22,10 @@ float Carol::BoneAnimation::GetEndTime() const
 	if(TranslationKeyframes.size()!=0) tTrans = TranslationKeyframes.back().TimePos;
 	if(ScaleKeyframes.size()!=0) tScale = ScaleKeyframes.back().TimePos;
 	if(RotationQuatKeyframes.size()!=0) tQuat = RotationQuatKeyframes.back().TimePos;
-	return std::max(std::max(tTrans, tScale), tQuat);
+	return std::fmax(std::fmax(tTrans, tScale), tQuat);
 }
 
-Carol::XMVECTOR Carol::BoneAnimation::InterpolateTranslation(float t) const
+DirectX::XMVECTOR Carol::BoneAnimation::InterpolateTranslation(float t) const
 {
 	if (TranslationKeyframes.size() == 0)
 	{
@@ -39,11 +34,11 @@ Carol::XMVECTOR Carol::BoneAnimation::InterpolateTranslation(float t) const
 
 	if (t < TranslationKeyframes.front().TimePos)
 	{
-		return XMLoadFloat3(&TranslationKeyframes.front().Translation);
+		return DirectX::XMLoadFloat3(&TranslationKeyframes.front().Translation);
 	}
 	else if (t > TranslationKeyframes.back().TimePos)
 	{
-		return XMLoadFloat3(&TranslationKeyframes.back().Translation);
+		return DirectX::XMLoadFloat3(&TranslationKeyframes.back().Translation);
 	}
 	else
 	{
@@ -53,15 +48,15 @@ Carol::XMVECTOR Carol::BoneAnimation::InterpolateTranslation(float t) const
 			{
 				float lerpFactor = (t - TranslationKeyframes[i].TimePos) / (TranslationKeyframes[i + 1].TimePos - TranslationKeyframes[i].TimePos);
 
-				XMVECTOR preT = XMLoadFloat3(&TranslationKeyframes[i].Translation);
-				XMVECTOR sucT = XMLoadFloat3(&TranslationKeyframes[i + 1].Translation);
-				return XMVectorLerp(preT, sucT, lerpFactor);
+				DirectX::XMVECTOR preT = DirectX::XMLoadFloat3(&TranslationKeyframes[i].Translation);
+				DirectX::XMVECTOR sucT = DirectX::XMLoadFloat3(&TranslationKeyframes[i + 1].Translation);
+				return DirectX::XMVectorLerp(preT, sucT, lerpFactor);
 			}
 		}
 	}
 }
 
-Carol::XMVECTOR Carol::BoneAnimation::InterpolateScale(float t) const
+DirectX::XMVECTOR Carol::BoneAnimation::InterpolateScale(float t) const
 {
 	if (ScaleKeyframes.size() == 0)
 	{
@@ -70,11 +65,11 @@ Carol::XMVECTOR Carol::BoneAnimation::InterpolateScale(float t) const
 
 	if (t < ScaleKeyframes.front().TimePos)
 	{
-		return XMLoadFloat3(&ScaleKeyframes.front().Scale);
+		return DirectX::XMLoadFloat3(&ScaleKeyframes.front().Scale);
 	}
 	else if (t >= ScaleKeyframes.back().TimePos)
 	{
-		return XMLoadFloat3(&ScaleKeyframes.back().Scale);
+		return DirectX::XMLoadFloat3(&ScaleKeyframes.back().Scale);
 	}
 	else
 	{
@@ -84,15 +79,15 @@ Carol::XMVECTOR Carol::BoneAnimation::InterpolateScale(float t) const
 			{
 				float lerpFactor = (t - ScaleKeyframes[i].TimePos) / (ScaleKeyframes[i + 1].TimePos - ScaleKeyframes[i].TimePos);
 
-				XMVECTOR preS = XMLoadFloat3(&ScaleKeyframes[i].Scale);
-				XMVECTOR sucS = XMLoadFloat3(&ScaleKeyframes[i + 1].Scale);
-				return XMVectorLerp(preS, sucS, lerpFactor);
+				DirectX::XMVECTOR preS = DirectX::XMLoadFloat3(&ScaleKeyframes[i].Scale);
+				DirectX::XMVECTOR sucS = DirectX::XMLoadFloat3(&ScaleKeyframes[i + 1].Scale);
+				return DirectX::XMVectorLerp(preS, sucS, lerpFactor);
 			}
 		}
 	}
 }
 
-Carol::XMVECTOR Carol::BoneAnimation::InterpolateQuat(float t) const
+DirectX::XMVECTOR Carol::BoneAnimation::InterpolateQuat(float t) const
 {
 	if (RotationQuatKeyframes.size() == 0)
 	{
@@ -101,11 +96,11 @@ Carol::XMVECTOR Carol::BoneAnimation::InterpolateQuat(float t) const
 
 	if (t < RotationQuatKeyframes.front().TimePos)
 	{
-		return XMLoadFloat4(&RotationQuatKeyframes.front().RotationQuat);
+		return DirectX::XMLoadFloat4(&RotationQuatKeyframes.front().RotationQuat);
 	}
 	else if (t > RotationQuatKeyframes.back().TimePos)
 	{
-		return XMLoadFloat4(&RotationQuatKeyframes.back().RotationQuat);
+		return DirectX::XMLoadFloat4(&RotationQuatKeyframes.back().RotationQuat);
 	}
 	else
 	{
@@ -115,9 +110,9 @@ Carol::XMVECTOR Carol::BoneAnimation::InterpolateQuat(float t) const
 			{
 				float lerpFactor = (t - RotationQuatKeyframes[i].TimePos) / (RotationQuatKeyframes[i + 1].TimePos - RotationQuatKeyframes[i].TimePos);
 
-				XMVECTOR preQ = XMLoadFloat4(&RotationQuatKeyframes[i].RotationQuat);
-				XMVECTOR sucQ = XMLoadFloat4(&RotationQuatKeyframes[i + 1].RotationQuat);
-				return XMQuaternionSlerp(preQ, sucQ, lerpFactor);
+				DirectX::XMVECTOR preQ = DirectX::XMLoadFloat4(&RotationQuatKeyframes[i].RotationQuat);
+				DirectX::XMVECTOR sucQ = DirectX::XMLoadFloat4(&RotationQuatKeyframes[i + 1].RotationQuat);
+				return DirectX::XMQuaternionSlerp(preQ, sucQ, lerpFactor);
 			}
 		}
 	}
@@ -126,11 +121,11 @@ Carol::XMVECTOR Carol::BoneAnimation::InterpolateQuat(float t) const
 
 void Carol::BoneAnimation::Interpolate(float t, DirectX::XMFLOAT4X4& M) const
 {
-	XMVECTOR S = InterpolateScale(t);
-	XMVECTOR Q = InterpolateQuat(t);
-	XMVECTOR T = InterpolateTranslation(t);
-	XMVECTOR origin = { 0.0f,0.0f,0.0f,1.0f };
-	XMStoreFloat4x4(&M, XMMatrixAffineTransformation(S, origin, Q, T));
+	DirectX::XMVECTOR S = InterpolateScale(t);
+	DirectX::XMVECTOR Q = InterpolateQuat(t);
+	DirectX::XMVECTOR T = InterpolateTranslation(t);
+	DirectX::XMVECTOR origin = { 0.0f,0.0f,0.0f,1.0f };
+	DirectX::XMStoreFloat4x4(&M, DirectX::XMMatrixAffineTransformation(S, origin, Q, T));
 }
 
 void Carol::AnimationClip::CalcClipStartTime()
@@ -138,7 +133,7 @@ void Carol::AnimationClip::CalcClipStartTime()
 	mStartTime = D3D12_FLOAT32_MAX;
 	for (auto anime : BoneAnimations)
 	{
-		mStartTime = std::min(mStartTime, anime.GetStartTime());
+		mStartTime = std::fmin(mStartTime, anime.GetStartTime());
 	}
 }
 
@@ -149,7 +144,7 @@ void Carol::AnimationClip::CalcClipEndTime()
 		mEndTime = 0.f;
 		for (auto anime : BoneAnimations)
 		{
-			mEndTime = std::max(mEndTime, anime.GetEndTime());
+			mEndTime = std::fmax(mEndTime, anime.GetEndTime());
 		}
 	}
 }
@@ -164,7 +159,7 @@ float Carol::AnimationClip::GetClipEndTime()
 	return mEndTime;
 }
 
-void Carol::AnimationClip::Interpolate(float t, vector<DirectX::XMFLOAT4X4>& boneTransforms) const
+void Carol::AnimationClip::Interpolate(float t, std::vector<DirectX::XMFLOAT4X4>& boneTransforms) const
 {
 	for (int i = 0; i < boneTransforms.size(); ++i)
 	{	

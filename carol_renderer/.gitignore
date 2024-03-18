@@ -1,4 +1,9 @@
-x64/
-shader/dxil/
-shader/pdb/
-carol_renderer.vcxproj.user
+/*
+!include
+!shader
+shader/dxil
+shader/pdb
+!source
+!texture
+!win32
+!main.cpp

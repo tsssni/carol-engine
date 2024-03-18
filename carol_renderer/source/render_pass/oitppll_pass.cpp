@@ -5,11 +5,6 @@
 #include <dx12/shader.h>
 #include <global.h>
 
-namespace Carol
-{
-	using std::make_unique;
-}
-
 Carol::OitppllPass::OitppllPass()
 	:mIndirectCommandBuffer(TRANSPARENT_MESH_TYPE_COUNT)
 {
@@ -95,7 +90,7 @@ void Carol::OitppllPass::InitPSOs()
 	alphaBlendState.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
 	alphaBlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 
-	mBuildOitppllStaticMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mBuildOitppllStaticMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mBuildOitppllStaticMeshPSO->SetRasterizerState(&cullDisabledState);
 	mBuildOitppllStaticMeshPSO->SetDepthStencilState(&depthDisabledState);
 	mBuildOitppllStaticMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
@@ -104,7 +99,7 @@ void Carol::OitppllPass::InitPSOs()
 	mBuildOitppllStaticMeshPSO->SetPS(gShaderManager->LoadShader("shader/dxil/oitppll_build_ps.dxil"));
 	mBuildOitppllStaticMeshPSO->Finalize();
 
-	mBuildOitppllSkinnedMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mBuildOitppllSkinnedMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mBuildOitppllSkinnedMeshPSO->SetRasterizerState(&cullDisabledState);
 	mBuildOitppllSkinnedMeshPSO->SetDepthStencilState(&depthDisabledState);
 	mBuildOitppllSkinnedMeshPSO->SetDepthTargetFormat(DXGI_FORMAT_UNKNOWN);
@@ -113,27 +108,27 @@ void Carol::OitppllPass::InitPSOs()
 	mBuildOitppllSkinnedMeshPSO->SetPS(gShaderManager->LoadShader("shader/dxil/oitppll_build_ps.dxil"));
 	mBuildOitppllSkinnedMeshPSO->Finalize();
 
-	mOitppllComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mOitppllComputePSO = std::make_unique<ComputePSO>(PSO_DEFAULT);
 	mOitppllComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/oitppll_cs.dxil"));
 	mOitppllComputePSO->Finalize();
 }
 
 void Carol::OitppllPass::InitBuffers()
 {
-	mPpllBuffer = make_unique<StructuredBuffer>(
+	mPpllBuffer = std::make_unique<StructuredBuffer>(
 		mWidth * mHeight * 16,
 		sizeof(OitppllNode),
 		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-	mStartOffsetBuffer = make_unique<RawBuffer>(
+	mStartOffsetBuffer = std::make_unique<RawBuffer>(
 		mWidth * mHeight * sizeof(uint32_t),
 		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-	mCounterBuffer = make_unique<RawBuffer>(
+	mCounterBuffer = std::make_unique<RawBuffer>(
 		sizeof(uint32_t),
 		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,

@@ -1,11 +1,28 @@
 # CarolRenderer
 
-## Dependencies:
+## Build:
 
-- *Assimp* 5.2.5
-- *DirectXTex* 2023.4.28.1
-- *D3D12 Agility* 1.610.3
-- *DirectX Shader Compiler* 1.7.2303.01
+1. Enabel graphics tools in windows settings for debug layer
+2. Download [DirectX Shader Compiler](https://github.com/microsoft/DirectXShaderCompiler) and compile the shaders
+```pwsh
+  $env:PATH+=";/path/to/the/dxc.exe"
+  cd carol_renderer/shader
+  powershell -executionpolicy bypass -file compile_debug.ps1
+```
+3. Update submodule and build with cmake
+```pwsh
+  git submodule init
+  git submodule update
+  mkdir build
+  cd build
+  cmake ..
+  cmake --build .
+``` 
+4. Run
+```pwsh
+  cd build/bin
+  ./carol-engine.exe
+```
 
 ## Rendering Pipeline
 

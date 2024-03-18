@@ -7,15 +7,6 @@
 #include <assert.h>
 #include <cmath>
 
-namespace Carol {
-    using std::unique_ptr;
-    using std::make_unique;
-    using std::make_pair;
-    using std::mutex;
-    using std::lock_guard;
-    using Microsoft::WRL::ComPtr;
-}
-
 Carol::Heap::Heap(D3D12_HEAP_TYPE type, D3D12_HEAP_FLAGS flag)
     :mType(type), mFlag(flag)
 {
@@ -71,22 +62,22 @@ Carol::BuddyHeap::~BuddyHeap()
 	}
 }
 
-Carol::unique_ptr<Carol::HeapAllocInfo> Carol::BuddyHeap::Allocate(const D3D12_RESOURCE_DESC* desc)
+std::unique_ptr<Carol::HeapAllocInfo> Carol::BuddyHeap::Allocate(const D3D12_RESOURCE_DESC* desc)
 {
-    lock_guard<mutex> lock(mAllocatorMutex);
+    std::lock_guard<std::mutex> lock(mAllocatorMutex);
 
-    ComPtr<ID3D12Device> device;
+    Microsoft::WRL::ComPtr<ID3D12Device> device;
     mHeaps.back()->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
     uint32_t size = device->GetResourceAllocationInfo(0, 1, desc).SizeInBytes;
 
     BuddyAllocInfo buddyInfo;
-    unique_ptr<HeapAllocInfo> heapInfo;
+    std::unique_ptr<HeapAllocInfo> heapInfo;
 
     for (int i = 0; i < mBuddies.size(); ++i)
     {
         if (mBuddies[i]->Allocate(size, buddyInfo))
         {
-            heapInfo = make_unique<HeapAllocInfo>();
+            heapInfo = std::make_unique<HeapAllocInfo>();
             heapInfo->Heap = this;
             heapInfo->Bytes = buddyInfo.NumPages * mPageSize;
             heapInfo->Addr = i * mHeapSize + buddyInfo.PageId * mPageSize;
@@ -99,7 +90,7 @@ Carol::unique_ptr<Carol::HeapAllocInfo> Carol::BuddyHeap::Allocate(const D3D12_R
 
 	if (mBuddies.back()->Allocate(size, buddyInfo))
 	{
-		heapInfo = make_unique<HeapAllocInfo>();
+		heapInfo = std::make_unique<HeapAllocInfo>();
         heapInfo->Heap = this;
 		heapInfo->Bytes = buddyInfo.NumPages * mPageSize;
 		heapInfo->Addr = (mBuddies.size() - 1) * mHeapSize + buddyInfo.PageId * mPageSize;
@@ -120,7 +111,7 @@ uint32_t Carol::BuddyHeap::GetOffset(const HeapAllocInfo* info)const
 
 void Carol::BuddyHeap::Delete(const HeapAllocInfo* info)
 {
-    lock_guard<mutex> lock(mAllocatorMutex);
+    std::lock_guard<std::mutex> lock(mAllocatorMutex);
 
 	uint32_t buddyIdx = info->Addr / mHeapSize;
 	uint32_t blockIdx = (info->Addr % mHeapSize) / mPageSize;
@@ -145,7 +136,7 @@ void Carol::BuddyHeap::Align()
 void Carol::BuddyHeap::AddHeap()
 {
     mHeaps.emplace_back();
-    mBuddies.emplace_back(make_unique<Buddy>(mHeapSize,mPageSize));
+    mBuddies.emplace_back(std::make_unique<Buddy>(mHeapSize,mPageSize));
 
     D3D12_HEAP_DESC heapDesc = {};
     heapDesc.SizeInBytes = mHeapSize;
@@ -186,15 +177,15 @@ Carol::SegListHeap::~SegListHeap()
 	}
 }
 
-Carol::unique_ptr<Carol::HeapAllocInfo> Carol::SegListHeap::Allocate(const D3D12_RESOURCE_DESC* desc)
+std::unique_ptr<Carol::HeapAllocInfo> Carol::SegListHeap::Allocate(const D3D12_RESOURCE_DESC* desc)
 {
-    lock_guard<mutex> lock(mAllocatorMutex);
+    std::lock_guard<std::mutex> lock(mAllocatorMutex);
 
-    ComPtr<ID3D12Device> device;
+    Microsoft::WRL::ComPtr<ID3D12Device> device;
     mSegLists.back().back()->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
 
     uint32_t size = device->GetResourceAllocationInfo(0, 1, desc).SizeInBytes;
-    unique_ptr<HeapAllocInfo> heapInfo;
+    std::unique_ptr<HeapAllocInfo> heapInfo;
 
     if (size > mPageSize << mOrder)
     {
@@ -210,7 +201,7 @@ Carol::unique_ptr<Carol::HeapAllocInfo> Carol::SegListHeap::Allocate(const D3D12
         {
             if (mBitsets[order][i]->IsPageIdle(j))
             {
-                heapInfo = make_unique<HeapAllocInfo>();
+                heapInfo = std::make_unique<HeapAllocInfo>();
                 heapInfo->Heap = this;
                 heapInfo->Addr = (i * orderNumPages + j) * (mPageSize << order);
                 heapInfo->Bytes = mPageSize << order;
@@ -222,7 +213,7 @@ Carol::unique_ptr<Carol::HeapAllocInfo> Carol::SegListHeap::Allocate(const D3D12
     }
 
     AddHeap(order);
-    heapInfo = make_unique<HeapAllocInfo>();
+    heapInfo = std::make_unique<HeapAllocInfo>();
     heapInfo->Heap = this;
     heapInfo->Addr = (mSegLists[order].size() - 1) * orderNumPages * (mPageSize << order);
     heapInfo->Bytes = mPageSize << order;
@@ -250,7 +241,7 @@ uint32_t Carol::SegListHeap::GetOffset(const HeapAllocInfo* info)const
 
 void Carol::SegListHeap::Delete(const HeapAllocInfo* info)
 {
-    lock_guard<mutex> lock(mAllocatorMutex);
+    std::lock_guard<std::mutex> lock(mAllocatorMutex);
 
 	auto order = GetOrder(info->Bytes);
 	auto orderNumPages = 1 << (mOrder - order);
@@ -269,7 +260,7 @@ uint32_t Carol::SegListHeap::GetOrder(uint32_t size)const
 void Carol::SegListHeap::AddHeap(uint32_t order)
 {
     mSegLists[order].emplace_back();
-    mBitsets[order].emplace_back(make_unique<Bitset>(1 << (mOrder - order)));
+    mBitsets[order].emplace_back(std::make_unique<Bitset>(1 << (mOrder - order)));
 
     D3D12_HEAP_DESC desc = {};
     desc.SizeInBytes = (1 << (mOrder - order)) * (mPageSize << order);
@@ -290,10 +281,10 @@ Carol::HeapManager::HeapManager(
     uint32_t initReadbackBuffersHeapSize,
     uint32_t texturesMaxPageSize)
 {
-    mDefaultBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
-    mUploadBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_UPLOAD, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
-    mReadbackBuffersHeap = make_unique<BuddyHeap>(D3D12_HEAP_TYPE_READBACK, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
-    mTexturesHeap = make_unique<SegListHeap>(D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, texturesMaxPageSize);
+    mDefaultBuffersHeap = std::make_unique<BuddyHeap>(D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
+    mUploadBuffersHeap = std::make_unique<BuddyHeap>(D3D12_HEAP_TYPE_UPLOAD, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
+    mReadbackBuffersHeap = std::make_unique<BuddyHeap>(D3D12_HEAP_TYPE_READBACK, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, initDefaultBuffersHeapSize);
+    mTexturesHeap = std::make_unique<SegListHeap>(D3D12_HEAP_TYPE_DEFAULT, D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES, texturesMaxPageSize);
 }
 
 Carol::Heap* Carol::HeapManager::GetDefaultBuffersHeap()

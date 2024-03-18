@@ -1,3 +1,6 @@
-packages/
-x64/
-.vs/
+/*
+!carol-renderer
+!.gitmodules
+!CMakeLists.txt
+!LICENSE
+!README.md

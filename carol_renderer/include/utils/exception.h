@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include <string_view>
-#include <comdef.h>
+#include <Windows.h>
 
 namespace Carol
 {
@@ -24,7 +24,7 @@ namespace Carol
     {                                                                     \
         HRESULT hr__ = (x);                                               \
         std::string wfn = __FILE__;                                       \
-        if(FAILED(hr__)) { throw DxException(hr__, #x, wfn, __LINE__); }  \
+        if(FAILED(hr__)) { throw Carol::DxException(hr__, #x, wfn, __LINE__); }  \
     }
     #endif
 }

@@ -2,41 +2,39 @@
 #include <dx12/heap.h>
 #include <dx12/resource.h>
 #include <utils/exception.h>
-#include <utils/string.h>
 #include <global.h>
 #include <DirectXTex.h>
+#include <Windows.h>
 #include <memory>
 #include <vector>
 
-namespace Carol {
-	using std::vector;
-	using std::string;
-	using std::string_view;
-	using std::unordered_map;
-	using std::make_unique;
-	using namespace DirectX;
+std::wstring StringToWString(std::string_view str)
+{
+    WCHAR buffer[512];
+	MultiByteToWideChar(CP_ACP, 0, str.data(), -1, buffer, 512);
+	return std::wstring(buffer);
 }
 
 Carol::Texture::Texture(
-	string_view fileName,
+	std::string_view fileName,
 	bool isSrgb)
 	:mNumRef(1)
 {
-	string_view suffix = fileName.substr(fileName.find_last_of(L'.') + 1, 3);
-	TexMetadata metaData;
-	ScratchImage scratchImage;
+	std::string_view suffix = fileName.substr(fileName.find_last_of(L'.') + 1, 3);
+	DirectX::TexMetadata metaData;
+	DirectX::ScratchImage scratchImage;
 
 	if (suffix == "dds")
 	{
-		ThrowIfFailed(LoadFromDDSFile(StringToWString(fileName).data(), DDS_FLAGS_NONE, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromDDSFile(StringToWString(fileName).data(), DirectX::DDS_FLAGS_NONE, &metaData, scratchImage));
 	}
 	else if (suffix == "tga")
 	{
-		ThrowIfFailed(LoadFromTGAFile(StringToWString(fileName).data(), TGA_FLAGS_NONE, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromTGAFile(StringToWString(fileName).data(), DirectX::TGA_FLAGS_NONE, &metaData, scratchImage));
 	}
 	else
 	{
-		ThrowIfFailed(LoadFromWICFile(StringToWString(fileName).data(), WIC_FLAGS_NONE, &metaData, scratchImage));
+		ThrowIfFailed(LoadFromWICFile(StringToWString(fileName).data(), DirectX::WIC_FLAGS_NONE, &metaData, scratchImage));
 	}
 
 	if (isSrgb)
@@ -96,7 +94,7 @@ Carol::Texture::Texture(
 		break;
 	}
 
-	mTexture = make_unique<ColorBuffer>(
+	mTexture = std::make_unique<ColorBuffer>(
 		metaData.width,
 		metaData.height,
 		depthOrArraySize,
@@ -108,8 +106,8 @@ Carol::Texture::Texture(
 		nullptr,
 		metaData.mipLevels);
 
-	vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
-	const Image* images = scratchImage.GetImages();
+	std::vector<D3D12_SUBRESOURCE_DATA> subresources(scratchImage.GetImageCount());
+	const DirectX::Image* images = scratchImage.GetImages();
 
 	for (int i = 0; i < subresources.size(); ++i)
 	{
@@ -151,7 +149,7 @@ Carol::TextureManager::TextureManager()
 }
 
 uint32_t Carol::TextureManager::LoadTexture(
-	string_view fileName,
+	std::string_view fileName,
 	bool isSrgb)
 {
 	if (fileName.size() == 0)
@@ -159,7 +157,7 @@ uint32_t Carol::TextureManager::LoadTexture(
 		return -1;
 	}
 
-	string name(fileName);
+	std::string name(fileName);
 
 	if (mTextures.count(name) == 0)
 	{
@@ -175,9 +173,9 @@ uint32_t Carol::TextureManager::LoadTexture(
 	return mTextures[name]->GetGpuSrvIdx();
 }
 
-void Carol::TextureManager::UnloadTexture(string_view fileName)
+void Carol::TextureManager::UnloadTexture(std::string_view fileName)
 {
-	string name(fileName);
+	std::string name(fileName);
 	mTextures[name]->DecRef();
 
 	if (mTextures[name]->GetRef() == 0)
@@ -186,9 +184,9 @@ void Carol::TextureManager::UnloadTexture(string_view fileName)
 	}
 }
 
-void Carol::TextureManager::ReleaseIntermediateBuffers(string_view fileName)
+void Carol::TextureManager::ReleaseIntermediateBuffers(std::string_view fileName)
 {
-	string name(fileName);
+	std::string name(fileName);
 
 	if (mTextures.count(name) == 0)
 	{

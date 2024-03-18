@@ -9,18 +9,6 @@
 #include <string_view>
 #include <span>
 
-namespace Carol
-{
-	using std::vector;
-	using std::wstring;
-	using std::wstring_view;
-	using std::unique_ptr;
-	using std::make_unique;
-	using std::span;
-	using Microsoft::WRL::ComPtr;
-	using namespace DirectX;
-}
-
 Carol::ShadePass::ShadePass()
 {
 	InitPSOs();
@@ -37,7 +25,7 @@ void Carol::ShadePass::Draw()
 
 void Carol::ShadePass::InitPSOs()
 {	
-	mShadeComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mShadeComputePSO = std::make_unique<ComputePSO>(PSO_DEFAULT);
 	mShadeComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/shade_cs.dxil"));
 	mShadeComputePSO->Finalize();
 }

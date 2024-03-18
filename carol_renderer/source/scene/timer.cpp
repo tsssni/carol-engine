@@ -1,12 +1,6 @@
 #include <scene/timer.h>
 #include <windows.h>
 
-namespace Carol
-{
-    using std::wstring;
-    using std::wstring_view;
-}
-
 Carol::Timer::Timer()
 {
     uint64_t countsPerSec;
@@ -90,7 +84,7 @@ void Carol::Timer::Tick()
     }
 }
 
-Carol::wstring Carol::Timer::CalculateFrameStates(wstring_view mainWindowCaption)
+std::wstring Carol::Timer::CalculateFrameStates(std::wstring_view mainWindowCaption)
 {
     static int frameCnt = 0;
     static float timeElapsed = 0.0f;
@@ -102,10 +96,10 @@ Carol::wstring Carol::Timer::CalculateFrameStates(wstring_view mainWindowCaption
         float fps = (float)frameCnt;
         float mspf = 1000.0f / fps;
 
-        wstring fpsStr = std::to_wstring(fps);
-        wstring mspfStr = std::to_wstring(mspf);
+        std::wstring fpsStr = std::to_wstring(fps);
+        std::wstring mspfStr = std::to_wstring(mspf);
 
-        wstring windowText = wstring(mainWindowCaption) +
+        std::wstring windowText = std::wstring(mainWindowCaption) +
             L"    fps: " + fpsStr +
             L"   mspf: " + mspfStr;
 
@@ -115,5 +109,5 @@ Carol::wstring Carol::Timer::CalculateFrameStates(wstring_view mainWindowCaption
         return windowText;
     }
 
-    return wstring();
+    return std::wstring();
 }

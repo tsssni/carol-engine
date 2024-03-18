@@ -9,14 +9,6 @@
 
 #define BORDER_RADIUS 1
 
-namespace Carol {
-	using std::vector;
-	using std::wstring;
-	using std::wstring_view;
-	using std::make_unique;
-	using Microsoft::WRL::ComPtr;
-}
-
 Carol::TaaPass::TaaPass(
 	DXGI_FORMAT frameMapFormat)
 	:mFrameMapFormat(frameMapFormat)
@@ -27,7 +19,7 @@ Carol::TaaPass::TaaPass(
 
 void Carol::TaaPass::InitPSOs()
 {
-	mTaaComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mTaaComputePSO = std::make_unique<ComputePSO>(PSO_DEFAULT);
 	mTaaComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/taa_cs.dxil"));
 	mTaaComputePSO->Finalize();
 }

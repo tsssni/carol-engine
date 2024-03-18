@@ -49,7 +49,7 @@ namespace Carol
 		virtual void InitBuffers()override;
 		void InitSwapChain(HWND hwnd);
 
-		Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
+		Microsoft::WRL::ComPtr<IDXGISwapChain1> mSwapChain;
 		uint32_t mBackBufferIdx;
 
 		std::vector<std::unique_ptr<Resource>> mBackBuffer;

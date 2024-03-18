@@ -3,10 +3,6 @@
 #include <utils/exception.h>
 #include <global.h>
 
-namespace Carol {
-    using std::make_unique;
-}
-
 Carol::RootSignature::RootSignature()
 {
     Shader rootSignatureShader("shader/dxil/root_signature.dxil");

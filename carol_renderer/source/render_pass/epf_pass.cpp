@@ -5,11 +5,6 @@
 #include <dx12/shader.h>
 #include <global.h>
 
-namespace Carol
-{
-	using std::make_unique;
-}
-
 Carol::EpfPass::EpfPass()
 {
 	InitPSOs();
@@ -46,7 +41,7 @@ void Carol::EpfPass::Draw()
 
 void Carol::EpfPass::InitPSOs()
 {
-	mEpfComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mEpfComputePSO = std::make_unique<ComputePSO>(PSO_DEFAULT);
 	mEpfComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/epf_cs.dxil"));
 	mEpfComputePSO->Finalize();
 }

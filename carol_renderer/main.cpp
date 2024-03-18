@@ -10,17 +10,13 @@
 
 #define MAX_LOADSTRING 100
 
-using std::string;
-using Microsoft::WRL::ComPtr;
-using namespace DirectX;
-
 // 全局变量:
 HINSTANCE hInst;                                // 当前实例
 HWND hWnd;                                      // 当前窗口
 CHAR szTitle[MAX_LOADSTRING];                  // 标题栏文本
 CHAR szWindowClass[MAX_LOADSTRING];            // 主窗口类名
 
-string loadModelName;
+std::string loadModelName;
 
 // 此代码模块中包含的函数的前向声明:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -140,18 +136,18 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance; // 将实例句柄存储在全局变量中
+    hInst = hInstance; // 将实例句柄存储在全局变量中
 
-   hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
-   
-   RECT clientRect;
-   GetClientRect(hWnd, &clientRect);
+    hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+    
+    RECT clientRect;
+    GetClientRect(hWnd, &clientRect);
 
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
+    ShowWindow(hWnd, nCmdShow);
+    UpdateWindow(hWnd);
 
-   return TRUE;
+    return TRUE;
 }
 
 //
@@ -344,8 +340,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    static string modelPath;
-    static string textureDirPath;
+    static std::string modelPath;
+    static std::string textureDirPath;
 
     static float scale;
     static DirectX::XMFLOAT3 transl;
@@ -364,7 +360,7 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         num = buffer[0] == 0 ? defaultNum : atof(buffer);
     };
 
-    static auto GetEditTextWString = [](HWND hWnd, int resourceId, string& str)
+    static auto GetEditTextWString = [](HWND hWnd, int resourceId, std::string& str)
     {
         CHAR buffer[1024];
 
@@ -400,11 +396,9 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
         case IDC_MODEL_PATH_BUTTON:
         {
-            using namespace Carol;
-
             try
             {
-                ComPtr<IFileDialog> pfd;
+                Microsoft::WRL::ComPtr<IFileDialog> pfd;
                 ThrowIfFailed(CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(pfd.GetAddressOf())));
 
                 DWORD dwOptions;
@@ -412,15 +406,15 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 pfd->SetOptions(dwOptions | FOS_FILEMUSTEXIST);
 
                 ThrowIfFailed(pfd->Show(hWnd));
-                ComPtr<IShellItem> psi;
+                Microsoft::WRL::ComPtr<IShellItem> psi;
                 LPWSTR path = NULL;
 
                 ThrowIfFailed(pfd->GetResult(psi.GetAddressOf()));
                 ThrowIfFailed(psi->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &path));
 
-                SetDlgItemText(hWnd, IDC_MODEL_PATH_EDIT, Carol::WStringToString(path).data());
+                SetDlgItemTextW(hWnd, IDC_MODEL_PATH_EDIT, path);
             }
-            catch (DxException& e)
+            catch (Carol::DxException& e)
 			{
 				MessageBox(nullptr, e.ToString().c_str(), "HR Failed", MB_OK);
 				return 0;
@@ -431,11 +425,9 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         case IDC_TEXTURE_PATH_BUTTON:
         {
-            using namespace Carol;
-            
             try
             {
-                ComPtr<IFileDialog> pfd;
+                Microsoft::WRL::ComPtr<IFileDialog> pfd;
                 ThrowIfFailed(CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(pfd.GetAddressOf())));
 
                 DWORD dwOptions;
@@ -449,9 +441,9 @@ LRESULT LoadWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ThrowIfFailed(pfd->GetResult(&psi));
                 ThrowIfFailed(psi->GetDisplayName(SIGDN_DESKTOPABSOLUTEPARSING, &path));
 
-                SetDlgItemText(hWnd, IDC_TEXTURE_PATH_EDIT, Carol::WStringToString(path).data());
+                SetDlgItemTextW(hWnd, IDC_TEXTURE_PATH_EDIT, path);
             }
-            catch (DxException& e)
+            catch (Carol::DxException& e)
 			{
 				MessageBox(nullptr, e.ToString().c_str(), "HR Failed", MB_OK);
 				return 0;
@@ -523,7 +515,7 @@ LRESULT AnimationWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         CHAR buf[1024];
         SendMessage(lbhWnd, LB_GETTEXT, lbItem, (LPARAM)buf);
 
-        return string(buf);
+        return std::string(buf);
     };
 
     switch (message)
@@ -572,7 +564,7 @@ LRESULT DeleteWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         CHAR buf[1024];
         SendMessage(lbhWnd, LB_GETTEXT, lbItem, (LPARAM)buf);
 
-        return string(buf);
+        return std::string(buf);
     };
 
     switch (message)

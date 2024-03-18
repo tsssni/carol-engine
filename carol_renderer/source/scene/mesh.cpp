@@ -3,36 +3,27 @@
 #include <dx12/resource.h>
 #include <global.h>
 
-namespace Carol
+namespace
 {
-	using std::vector;
-	using std::unique_ptr;
-	using std::make_unique;
-	using std::span;
-	using std::pair;
-	using std::string;
-	using std::string_view;
-	using std::unordered_map;
-	using namespace DirectX;
-	void BoundingBoxCompare(const XMFLOAT3& pos, XMFLOAT3& boxMin, XMFLOAT3& boxMax);
-	void RadiusCompare(const XMVECTOR& pos, const XMVECTOR& center, const XMVECTOR& normalCone, float tanConeSpread, float& radius);
+	using DirectX::operator-;
+	using DirectX::operator*;
 }
 
-void Carol::BoundingBoxCompare(const XMFLOAT3& pos, XMFLOAT3& boxMin, XMFLOAT3& boxMax)
+void BoundingBoxCompare(const DirectX::XMFLOAT3& pos, DirectX::XMFLOAT3& boxMin, DirectX::XMFLOAT3& boxMax)
 {
-	boxMin.x = std::min(boxMin.x, pos.x);
-	boxMin.y = std::min(boxMin.y, pos.y);
-	boxMin.z = std::min(boxMin.z, pos.z);
+	boxMin.x = std::fmin(boxMin.x, pos.x);
+	boxMin.y = std::fmin(boxMin.y, pos.y);
+	boxMin.z = std::fmin(boxMin.z, pos.z);
 
-	boxMax.x = std::max(boxMax.x, pos.x);
-	boxMax.y = std::max(boxMax.y, pos.y);
-	boxMax.z = std::max(boxMax.z, pos.z);
+	boxMax.x = std::fmax(boxMax.x, pos.x);
+	boxMax.y = std::fmax(boxMax.y, pos.y);
+	boxMax.z = std::fmax(boxMax.z, pos.z);
 }
 
-void Carol::RadiusCompare(const XMVECTOR& pos, const XMVECTOR& center, const XMVECTOR& normalCone, float tanConeSpread, float& radius)
+void RadiusCompare(const DirectX::XMVECTOR& pos, const DirectX::XMVECTOR& center, const DirectX::XMVECTOR& normalCone, float tanConeSpread, float& radius)
 {
-	float height = XMVector3Dot(pos - center, normalCone).m128_f32[0];
-	float posRadius = XMVector3Length(pos - center - normalCone * height).m128_f32[0] - height * tanConeSpread;
+	float height = DirectX::XMVector3Dot(pos - center, normalCone).m128_f32[0];
+	float posRadius = DirectX::XMVector3Length(pos - center - normalCone * height).m128_f32[0] - height * tanConeSpread;
 	
 	if (posRadius > radius)
 	{
@@ -41,15 +32,15 @@ void Carol::RadiusCompare(const XMVECTOR& pos, const XMVECTOR& center, const XMV
 }
 
 Carol::Mesh::Mesh(
-	span<Vertex> vertices,
-	span<pair<string, vector<vector<Vertex>>>> skinnedVertices,
-	span<uint32_t> indices,
+	std::span<Vertex> vertices,
+	std::span<std::pair<std::string, std::vector<std::vector<Vertex>>>> skinnedVertices,
+	std::span<uint32_t> indices,
 	bool isSkinned,
 	bool isTransparent)
 	:mVertices(vertices),
 	mSkinnedVertices(skinnedVertices),
 	mIndices(indices),
-	mMeshConstants(make_unique<MeshConstants>()),
+	mMeshConstants(std::make_unique<MeshConstants>()),
 	mSkinned(isSkinned),
 	mTransparent(isTransparent)
 {
@@ -96,15 +87,15 @@ void Carol::Mesh::SetMetallicRoughnessTextureIdx(uint32_t idx)
 	mMeshConstants->MetallicRoughnessTextureIdx = idx;
 }
 
-void Carol::Mesh::Update(XMMATRIX& world)
+void Carol::Mesh::Update(DirectX::XMMATRIX& world)
 {
 	mMeshConstants->HistWorld = mMeshConstants->World;
-	XMStoreFloat4x4(&mMeshConstants->World, XMMatrixTranspose(world));
+	DirectX::XMStoreFloat4x4(&mMeshConstants->World, DirectX::XMMatrixTranspose(world));
 }
 
 void Carol::Mesh::SetAnimationClip(std::string_view clipName)
 {
-	string name(clipName);
+	std::string name(clipName);
 	mMeshConstants->CullDataBufferIdx = mCullDataBuffer[name]->GetGpuSrvIdx();
 	mMeshConstants->Center = mBoundingBoxes[name].Center;
 	mMeshConstants->Extents = mBoundingBoxes[name].Extents;
@@ -147,7 +138,7 @@ bool Carol::Mesh::IsTransparent()const
 
 void Carol::Mesh::LoadVertices()
 {
-	mVertexBuffer = make_unique<StructuredBuffer>(
+	mVertexBuffer = std::make_unique<StructuredBuffer>(
 		mVertices.size(),
 		sizeof(Vertex),
 		gHeapManager->GetDefaultBuffersHeap(),
@@ -160,7 +151,7 @@ void Carol::Mesh::LoadVertices()
 void Carol::Mesh::LoadMeshlets()
 {
 	Meshlet meshlet = {};
-	vector<uint8_t> vertices(mVertices.size(), 0xff);
+	std::vector<uint8_t> vertices(mVertices.size(), 0xff);
 
 	for (int i = 0; i < mIndices.size(); i += 3)
 	{
@@ -206,7 +197,7 @@ void Carol::Mesh::LoadMeshlets()
 		mMeshlets.push_back(meshlet);
 	}
 
-	mMeshletBuffer = make_unique<StructuredBuffer>(
+	mMeshletBuffer = std::make_unique<StructuredBuffer>(
 		mMeshlets.size(),
 		sizeof(Meshlet),
 		gHeapManager->GetDefaultBuffersHeap(),
@@ -219,15 +210,15 @@ void Carol::Mesh::LoadMeshlets()
 
 void Carol::Mesh::LoadCullData()
 {
-	static string staticName = "mesh";
-	vector<vector<Vertex>> vertices;
-	pair<string, vector<vector<Vertex>>> staticPair;
+	static std::string staticName = "mesh";
+	std::vector<std::vector<Vertex>> vertices;
+	std::pair<std::string, std::vector<std::vector<Vertex>>> staticpair;
 
 	if (!mSkinned)
 	{
 		vertices.emplace_back(mVertices.begin(), mVertices.end());
-		staticPair = make_pair(staticName, std::move(vertices));
-		mSkinnedVertices = span(&staticPair, 1);
+		staticpair = std::make_pair(staticName, std::move(vertices));
+		mSkinnedVertices = std::span(&staticpair, 1);
 	}
 
 	for (auto& [name, vertices] : mSkinnedVertices)
@@ -236,7 +227,7 @@ void Carol::Mesh::LoadCullData()
 		LoadMeshletBoundingBox(name, vertices);
 		LoadMeshletNormalCone(name, vertices);
 
-		mCullDataBuffer[name] = make_unique<StructuredBuffer>(
+		mCullDataBuffer[name] = std::make_unique<StructuredBuffer>(
 			mCullData[name].size(),
 			sizeof(CullData),
 			gHeapManager->GetDefaultBuffersHeap(),
@@ -257,7 +248,7 @@ void Carol::Mesh::InitCullMark()
 {
 	uint32_t byteSize = ceilf(mMeshlets.size() / 8.f);
 
-	mMeshletFrustumCulledMarkBuffer = make_unique<RawBuffer>(
+	mMeshletFrustumCulledMarkBuffer = std::make_unique<RawBuffer>(
 		byteSize,
 		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
@@ -265,7 +256,7 @@ void Carol::Mesh::InitCullMark()
 
 	mMeshConstants->MeshletFrustumCulledMarkBufferIdx = mMeshletFrustumCulledMarkBuffer->GetGpuUavIdx();
 
-	mMeshletNormalConeCulledMarkBuffer = make_unique<RawBuffer>(
+	mMeshletNormalConeCulledMarkBuffer = std::make_unique<RawBuffer>(
 		byteSize,
 		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
@@ -273,7 +264,7 @@ void Carol::Mesh::InitCullMark()
 
 	mMeshConstants->MeshletNormalConeCulledMarkBufferIdx = mMeshletNormalConeCulledMarkBuffer->GetGpuUavIdx();
 
-	mMeshletOcclusionCulledMarkBuffer = make_unique<RawBuffer>(
+	mMeshletOcclusionCulledMarkBuffer = std::make_unique<RawBuffer>(
 		byteSize,
 		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
@@ -281,7 +272,7 @@ void Carol::Mesh::InitCullMark()
 	
 	mMeshConstants->MeshletOcclusionCulledMarkBufferIdx = mMeshletOcclusionCulledMarkBuffer->GetGpuUavIdx();
 
-	mMeshletCulledMarkBuffer = make_unique<RawBuffer>(
+	mMeshletCulledMarkBuffer = std::make_unique<RawBuffer>(
 		byteSize,
 		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
@@ -290,17 +281,17 @@ void Carol::Mesh::InitCullMark()
 	mMeshConstants->MeshletCulledMarkBufferIdx = mMeshletCulledMarkBuffer->GetGpuUavIdx();
 }
 
-void Carol::Mesh::LoadMeshletBoundingBox(string_view clipName, span<vector<Vertex>> vertices)
+void Carol::Mesh::LoadMeshletBoundingBox(std::string_view clipName, std::span<std::vector<Vertex>> vertices)
 {
-	string name(clipName);
-	XMFLOAT3 meshBoxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
-	XMFLOAT3 meshBoxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
+	std::string name(clipName);
+	DirectX::XMFLOAT3 meshBoxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
+	DirectX::XMFLOAT3 meshBoxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
 
 	for (int i = 0; i < mMeshlets.size(); ++i)
 	{
 		auto& meshlet = mMeshlets[i];
-		XMFLOAT3 meshletBoxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
-		XMFLOAT3 meshletBoxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
+		DirectX::XMFLOAT3 meshletBoxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
+		DirectX::XMFLOAT3 meshletBoxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
 		
 		for (auto& criticalFrameVertices : vertices)
 		{
@@ -312,24 +303,24 @@ void Carol::Mesh::LoadMeshletBoundingBox(string_view clipName, span<vector<Verte
 			}
 		}
 
-		BoundingBox box;
-		BoundingBox::CreateFromPoints(box, XMLoadFloat3(&meshletBoxMin), XMLoadFloat3(&meshletBoxMax));
+		DirectX::BoundingBox box;
+		DirectX::BoundingBox::CreateFromPoints(box, DirectX::XMLoadFloat3(&meshletBoxMin), DirectX::XMLoadFloat3(&meshletBoxMax));
 
 		mCullData[name][i].Center = box.Center;
 		mCullData[name][i].Extent = box.Extents;
 	}
 	
-	BoundingBox::CreateFromPoints(mBoundingBoxes[name], XMLoadFloat3(&meshBoxMin), XMLoadFloat3(&meshBoxMax));
+	DirectX::BoundingBox::CreateFromPoints(mBoundingBoxes[name], DirectX::XMLoadFloat3(&meshBoxMin), DirectX::XMLoadFloat3(&meshBoxMax));
 }
 
-void Carol::Mesh::LoadMeshletNormalCone(string_view clipName, span<vector<Vertex>> vertices)
+void Carol::Mesh::LoadMeshletNormalCone(std::string_view clipName, std::span<std::vector<Vertex>> vertices)
 {
-	string name(clipName);
+	std::string name(clipName);
 
 	for (int i = 0; i < mMeshlets.size(); ++i)
 	{
 		auto& meshlet = mMeshlets[i];
-		XMVECTOR normalCone = LoadConeCenter(meshlet, vertices);
+		DirectX::XMVECTOR normalCone = LoadConeCenter(meshlet, vertices);
 		float cosConeSpread = LoadConeSpread(meshlet, normalCone, vertices);
 
 		if (cosConeSpread <= 0.f)
@@ -349,10 +340,10 @@ void Carol::Mesh::LoadMeshletNormalCone(string_view clipName, span<vector<Vertex
 			};
 			
 			float bottomDist = LoadConeBottomDist(meshlet, normalCone, vertices);
-			XMVECTOR center = XMLoadFloat3(&mCullData[name][i].Center);
+			DirectX::XMVECTOR center = DirectX::XMLoadFloat3(&mCullData[name][i].Center);
 
-			float centerToBottomDist = XMVector3Dot(center, normalCone).m128_f32[0] - bottomDist;
-			XMVECTOR bottomCenter = center - centerToBottomDist * normalCone;
+			float centerToBottomDist = DirectX::XMVector3Dot(center, normalCone).m128_f32[0] - bottomDist;
+			DirectX::XMVECTOR bottomCenter = center - centerToBottomDist * normalCone;
 			float radius = LoadBottomRadius(meshlet, bottomCenter, normalCone, tanConeSpread, vertices);
 			
 			mCullData[name][i].ApexOffset = centerToBottomDist + radius / tanConeSpread;
@@ -360,10 +351,10 @@ void Carol::Mesh::LoadMeshletNormalCone(string_view clipName, span<vector<Vertex
 	}
 }
 
-Carol::XMVECTOR Carol::Mesh::LoadConeCenter(const Meshlet& meshlet, span<vector<Vertex>> vertices)
+DirectX::XMVECTOR Carol::Mesh::LoadConeCenter(const Meshlet& meshlet, std::span<std::vector<Vertex>> vertices)
 {
-	XMFLOAT3 normalBoxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
-	XMFLOAT3 normalBoxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
+	DirectX::XMFLOAT3 normalBoxMin = { D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX, D3D12_FLOAT32_MAX };
+	DirectX::XMFLOAT3 normalBoxMax = { -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX, -D3D12_FLOAT32_MAX };
 
 	if (mSkinned)
 	{
@@ -377,12 +368,12 @@ Carol::XMVECTOR Carol::Mesh::LoadConeCenter(const Meshlet& meshlet, span<vector<
 		}
 	}
 	
-	BoundingBox box;
-	BoundingBox::CreateFromPoints(box, XMLoadFloat3(&normalBoxMin), XMLoadFloat3(&normalBoxMax));
-	return XMLoadFloat3(&box.Center);
+	DirectX::BoundingBox box;
+	DirectX::BoundingBox::CreateFromPoints(box, DirectX::XMLoadFloat3(&normalBoxMin), DirectX::XMLoadFloat3(&normalBoxMax));
+	return DirectX::XMLoadFloat3(&box.Center);
 }
 
-float Carol::Mesh::LoadConeSpread(const Meshlet& meshlet, const XMVECTOR& normalCone, span<vector<Vertex>> vertices)
+float Carol::Mesh::LoadConeSpread(const Meshlet& meshlet, const DirectX::XMVECTOR& normalCone, std::span<std::vector<Vertex>> vertices)
 {
 	float cosConeSpread = 1.f;
 
@@ -390,15 +381,15 @@ float Carol::Mesh::LoadConeSpread(const Meshlet& meshlet, const XMVECTOR& normal
 	{
 		for (int i = 0; i < meshlet.VertexCount; ++i)
 		{
-			auto normal = XMLoadFloat3(&criticalFrameVertices[meshlet.Vertices[i]].Normal);
-			cosConeSpread = std::min(cosConeSpread, XMVector3Dot(normalCone, XMVector3Normalize(normal)).m128_f32[0]);
+			auto normal = DirectX::XMLoadFloat3(&criticalFrameVertices[meshlet.Vertices[i]].Normal);
+			cosConeSpread = std::fmin(cosConeSpread, DirectX::XMVector3Dot(normalCone, DirectX::XMVector3Normalize(normal)).m128_f32[0]);
 		}
 	}
 
 	return cosConeSpread;
 }
 
-float Carol::Mesh::LoadConeBottomDist(const Meshlet& meshlet, const Carol::XMVECTOR& normalCone, span<vector<Vertex>> vertices)
+float Carol::Mesh::LoadConeBottomDist(const Meshlet& meshlet, const DirectX::XMVECTOR& normalCone, std::span<std::vector<Vertex>> vertices)
 {
 	float bd = D3D12_FLOAT32_MAX;
 
@@ -406,8 +397,8 @@ float Carol::Mesh::LoadConeBottomDist(const Meshlet& meshlet, const Carol::XMVEC
 	{
 		for (int i = 0; i < meshlet.VertexCount; ++i)
 		{
-			auto pos = XMLoadFloat3(&criticalFrameVertices[meshlet.Vertices[i]].Pos);
-			float dot = XMVector3Dot(normalCone, pos).m128_f32[0];
+			auto pos = DirectX::XMLoadFloat3(&criticalFrameVertices[meshlet.Vertices[i]].Pos);
+			float dot = DirectX::XMVector3Dot(normalCone, pos).m128_f32[0];
 
 			if (dot < bd)
 			{
@@ -419,7 +410,7 @@ float Carol::Mesh::LoadConeBottomDist(const Meshlet& meshlet, const Carol::XMVEC
 	return bd;
 }
 
-float Carol::Mesh::LoadBottomRadius(const Meshlet& meshlet, const DirectX::XMVECTOR& center, const DirectX::XMVECTOR& normalCone, float tanConeSpread, span<vector<Vertex>> vertices)
+float Carol::Mesh::LoadBottomRadius(const Meshlet& meshlet, const DirectX::XMVECTOR& center, const DirectX::XMVECTOR& normalCone, float tanConeSpread, std::span<std::vector<Vertex>> vertices)
 {
 	float radius = 0.f;
 
@@ -427,7 +418,7 @@ float Carol::Mesh::LoadBottomRadius(const Meshlet& meshlet, const DirectX::XMVEC
 	{
 		for (int i = 0; i < meshlet.VertexCount; ++i)
 		{
-			auto pos = XMLoadFloat3(&criticalFrameVertices[meshlet.Vertices[i]].Pos);
+			auto pos = DirectX::XMLoadFloat3(&criticalFrameVertices[meshlet.Vertices[i]].Pos);
 			RadiusCompare(pos, center, normalCone, tanConeSpread, radius);
 		}
 	}

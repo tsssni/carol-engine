@@ -4,17 +4,6 @@
 #include <global.h>
 #include <vector>
 
-namespace Carol {
-	using std::unique_ptr;
-	using std::make_pair;
-	using std::make_unique;
-	using std::vector;
-	using std::span;
-	using std::mutex;
-	using std::lock_guard;
-	using Microsoft::WRL::ComPtr;
-}
-
 DXGI_FORMAT Carol::GetBaseFormat(DXGI_FORMAT format)
 {
 	switch (format)
@@ -128,9 +117,9 @@ uint32_t Carol::GetPlaneSize(DXGI_FORMAT format)
 	}
 }
 
-void Carol::MultipleResourceTransition(const vector<Resource*> resources, const vector<D3D12_RESOURCE_STATES>& states)
+void Carol::MultipleResourceTransition(const std::vector<Resource*> resources, const std::vector<D3D12_RESOURCE_STATES>& states)
 {
-	vector<D3D12_RESOURCE_BARRIER> barriers;
+	std::vector<D3D12_RESOURCE_BARRIER> barriers;
 
 	for (int i = 0; i < resources.size(); ++i)
 	{
@@ -153,9 +142,9 @@ void Carol::MultipleResourceTransition(const vector<Resource*> resources, const 
 	gGraphicsCommandList->ResourceBarrier(barriers.size(), barriers.data());
 }
 
-void Carol::MultipleUavBarrier(const vector<Resource*> resources)
+void Carol::MultipleUavBarrier(const std::vector<Resource*> resources)
 {
-	vector<D3D12_RESOURCE_BARRIER> barriers;
+	std::vector<D3D12_RESOURCE_BARRIER> barriers;
 
 	for (int i = 0; i < resources.size(); ++i)
 	{
@@ -343,7 +332,7 @@ Carol::Buffer& Carol::Buffer::operator=(Buffer&& buffer)
 
 Carol::Buffer::~Buffer()
 {
-	static auto cpuCbvSrvUavDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
+	static auto cpuCbvSrvUavDeallocate = [&](std::unique_ptr<DescriptorAllocInfo>& info)
 	{
 		if (info && info->Manager)
 		{
@@ -351,7 +340,7 @@ Carol::Buffer::~Buffer()
 		}
 	};
 
-	static auto gpuCbvSrvUavDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
+	static auto gpuCbvSrvUavDeallocate = [&](std::unique_ptr<DescriptorAllocInfo>& info)
 	{
 		if (info && info->Manager)
 		{
@@ -359,7 +348,7 @@ Carol::Buffer::~Buffer()
 		}
 	};
 
-	static auto rtvDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
+	static auto rtvDeallocate = [&](std::unique_ptr<DescriptorAllocInfo>& info)
 	{
 		if (info && info->Manager)
 		{
@@ -367,7 +356,7 @@ Carol::Buffer::~Buffer()
 		}
 	};
 
-	static auto dsvDeallocate = [&](unique_ptr<DescriptorAllocInfo>& info)
+	static auto dsvDeallocate = [&](std::unique_ptr<DescriptorAllocInfo>& info)
 	{
 		if (info && info->Manager)
 		{
@@ -458,7 +447,7 @@ void Carol::Buffer::BindDescriptors()
 
 void Carol::Buffer::CreateCbvs(std::span<const D3D12_CONSTANT_BUFFER_VIEW_DESC> cbvDescs)
 {
-	ComPtr<ID3D12Device> device;
+	Microsoft::WRL::ComPtr<ID3D12Device> device;
 
 	mCpuCbvAllocInfo = gDescriptorManager->CpuCbvSrvUavAllocate(cbvDescs.size());
 	mGpuCbvAllocInfo = gDescriptorManager->GpuCbvSrvUavAllocate(cbvDescs.size());
@@ -610,7 +599,7 @@ void Carol::ColorBuffer::BindSrv()
 	srvDesc.Format = mFormat;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	
-	vector<D3D12_SHADER_RESOURCE_VIEW_DESC> srvDescs;
+	std::vector<D3D12_SHADER_RESOURCE_VIEW_DESC> srvDescs;
 
 	switch (mViewDimension)
 	{
@@ -741,7 +730,7 @@ void Carol::ColorBuffer::BindUav()
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 	uavDesc.Format = GetUavFormat(mFormat);
 	
-	vector<D3D12_UNORDERED_ACCESS_VIEW_DESC> uavDescs;
+	std::vector<D3D12_UNORDERED_ACCESS_VIEW_DESC> uavDescs;
 
 	switch (mViewDimension)
 	{
@@ -811,7 +800,8 @@ void Carol::ColorBuffer::BindUav()
 
 	case COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2DMS:
 	{
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DMS;
+		// only supported in D3D12 agility
+		// uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DMS;
 
 		uavDescs.push_back(uavDesc);
 		break;
@@ -819,9 +809,10 @@ void Carol::ColorBuffer::BindUav()
 	
 	case COLOR_BUFFER_VIEW_DIMENSION_TEXTURE2DMSARRAY:
 	{
-		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DMSARRAY;
-		uavDesc.Texture2DMSArray.ArraySize = mViewArraySize;
-		uavDesc.Texture2DMSArray.FirstArraySlice = mFirstArraySlice;
+		// only supported in D3D12 agility
+		// uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DMSARRAY;
+		// uavDesc.Texture2DMSArray.ArraySize = mViewArraySize;
+		// uavDesc.Texture2DMSArray.FirstArraySlice = mFirstArraySlice;
 
 		uavDescs.push_back(uavDesc);
 		break;
@@ -858,7 +849,7 @@ void Carol::ColorBuffer::BindRtv()
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	rtvDesc.Format = mFormat;
 
-	vector<D3D12_RENDER_TARGET_VIEW_DESC> rtvDescs;
+	std::vector<D3D12_RENDER_TARGET_VIEW_DESC> rtvDescs;
 
 	switch (mViewDimension)
 	{
@@ -974,7 +965,7 @@ void Carol::ColorBuffer::BindDsv()
 	dsvDesc.Format = GetDsvFormat(mFormat);
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
 	
-	vector<D3D12_DEPTH_STENCIL_VIEW_DESC> dsvDescs;
+	std::vector<D3D12_DEPTH_STENCIL_VIEW_DESC> dsvDescs;
 
 	switch (mViewDimension)
 	{
@@ -1085,7 +1076,7 @@ D3D12_RESOURCE_DIMENSION Carol::ColorBuffer::GetResourceDimension(ColorBufferVie
 	}
 }
 
-Carol::unique_ptr<Carol::Resource> Carol::StructuredBuffer::sCounterResetBuffer = nullptr;
+std::unique_ptr<Carol::Resource> Carol::StructuredBuffer::sCounterResetBuffer = nullptr;
 
 Carol::StructuredBuffer::StructuredBuffer(
 	uint32_t numElements,
@@ -1139,7 +1130,7 @@ Carol::StructuredBuffer& Carol::StructuredBuffer::operator=(StructuredBuffer&& s
 void Carol::StructuredBuffer::InitCounterResetBuffer(Heap* heap)
 {
 	auto desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(uint32_t));
-	sCounterResetBuffer = make_unique<Resource>();
+	sCounterResetBuffer = std::make_unique<Resource>();
 	sCounterResetBuffer->InitResource(
 		&desc,
 		heap,
@@ -1202,7 +1193,7 @@ void Carol::StructuredBuffer::BindSrv()
 	srvDesc.Buffer.StructureByteStride = mElementSize;
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 
-	CreateSrvs(span(&srvDesc, 1));
+	CreateSrvs(std::span(&srvDesc, 1));
 }
 
 void Carol::StructuredBuffer::BindUav()
@@ -1216,7 +1207,7 @@ void Carol::StructuredBuffer::BindUav()
 	uavDesc.Buffer.CounterOffsetInBytes = mCounterOffset;
 	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
-	CreateUavs(span(&uavDesc, 1), true);
+	CreateUavs(std::span(&uavDesc, 1), true);
 }
 
 void Carol::StructuredBuffer::BindRtv()
@@ -1246,7 +1237,7 @@ Carol::FastConstantBufferAllocator::FastConstantBufferAllocator(
 	Heap* heap)
 	:mCurrOffset(0)
 {
-	mResourceQueue = make_unique<StructuredBuffer>(numElements, elementSize, heap, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_FLAG_NONE, true);
+	mResourceQueue = std::make_unique<StructuredBuffer>(numElements, elementSize, heap, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_FLAG_NONE, true);
 }
 
 Carol::FastConstantBufferAllocator::FastConstantBufferAllocator(FastConstantBufferAllocator&& fastResourceAllocator)
@@ -1297,16 +1288,16 @@ Carol::FrameBufferAllocator& Carol::FrameBufferAllocator::operator=(FrameBufferA
 	return *this;
 }
 
-Carol::unique_ptr<Carol::StructuredBuffer> Carol::FrameBufferAllocator::RequestBuffer(uint32_t completedFenceValue, uint32_t numElements)
+std::unique_ptr<Carol::StructuredBuffer> Carol::FrameBufferAllocator::RequestBuffer(uint32_t completedFenceValue, uint32_t numElements)
 {
-	lock_guard<mutex> lock(mAllocatorMutex);
+	std::lock_guard<std::mutex> lock(mAllocatorMutex);
 
 	if (numElements > mNumElements)
 	{
 		mNumElements <<= 1;
 	}
 
-	unique_ptr<StructuredBuffer> buffer = nullptr;
+	std::unique_ptr<StructuredBuffer> buffer = nullptr;
 
 	while (!mBufferQueue.empty() && mBufferQueue.front().first <= completedFenceValue)
 	{
@@ -1322,7 +1313,7 @@ Carol::unique_ptr<Carol::StructuredBuffer> Carol::FrameBufferAllocator::RequestB
 
 	if (!buffer)
 	{
-		buffer = make_unique<StructuredBuffer>(
+		buffer = std::make_unique<StructuredBuffer>(
 			mNumElements,
 			mElementSize,
 			mHeap,
@@ -1338,7 +1329,7 @@ void Carol::FrameBufferAllocator::DiscardBuffer(StructuredBuffer* buffer, uint32
 {
 	if (buffer)
 	{
-		mBufferQueue.emplace(make_pair(cpuFenceValue, unique_ptr<StructuredBuffer>(buffer)));
+		mBufferQueue.emplace(make_pair(cpuFenceValue, std::unique_ptr<StructuredBuffer>(buffer)));
 	}
 }
 
@@ -1387,7 +1378,7 @@ void Carol::RawBuffer::BindSrv()
 	srvDesc.Buffer.StructureByteStride = 0;
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
 
-	CreateSrvs(span(&srvDesc, 1));
+	CreateSrvs(std::span(&srvDesc, 1));
 }
 
 void Carol::RawBuffer::BindUav()
@@ -1401,7 +1392,7 @@ void Carol::RawBuffer::BindUav()
 	uavDesc.Buffer.CounterOffsetInBytes = 0;
 	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
 
-	CreateUavs(span(&uavDesc, 1), false);
+	CreateUavs(std::span(&uavDesc, 1), false);
 }
 
 void Carol::RawBuffer::BindRtv()

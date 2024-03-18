@@ -2,14 +2,6 @@
 #include <utils/exception.h>
 #include <global.h>
 
-namespace Carol
-{
-    using std::make_pair;
-	using std::lock_guard;
-	using std::mutex;
-    using Microsoft::WRL::ComPtr;
-}
-
 Carol::CommandAllocatorPool::CommandAllocatorPool(D3D12_COMMAND_LIST_TYPE type)
     :mType(type)
 {
@@ -27,11 +19,11 @@ Carol::CommandAllocatorPool& Carol::CommandAllocatorPool::operator=(CommandAlloc
     return *this;
 }
 
-Carol::ComPtr<ID3D12CommandAllocator> Carol::CommandAllocatorPool::RequestAllocator(uint64_t completedFenceValue)
+Microsoft::WRL::ComPtr<ID3D12CommandAllocator> Carol::CommandAllocatorPool::RequestAllocator(uint64_t completedFenceValue)
 {
-    lock_guard<mutex> lock(mAllocatorMutex);
+    std::lock_guard<std::mutex> lock(mAllocatorMutex);
 
-	ComPtr<ID3D12CommandAllocator> allocator = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> allocator = nullptr;
 
 	if (!mAllocatorQueue.empty() && mAllocatorQueue.front().first <= completedFenceValue)
 	{
@@ -52,6 +44,6 @@ void Carol::CommandAllocatorPool::DiscardAllocator(ID3D12CommandAllocator* alloc
 {
 	if (allocator)
 	{
-		mAllocatorQueue.emplace(make_pair(cpuFenceValue, ComPtr<ID3D12CommandAllocator>(allocator)));
+		mAllocatorQueue.emplace(std::make_pair(cpuFenceValue, Microsoft::WRL::ComPtr<ID3D12CommandAllocator>(allocator)));
 	}
 }

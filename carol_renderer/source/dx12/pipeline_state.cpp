@@ -3,11 +3,6 @@
 #include <dx12/shader.h>
 #include <global.h>
 
-namespace Carol
-{
-	using Microsoft::WRL::ComPtr;
-}
-
 ID3D12PipelineState* Carol::PSO::Get()const
 {
 	return mPSO.Get();

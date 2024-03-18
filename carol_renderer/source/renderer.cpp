@@ -2,15 +2,9 @@
 #include <carol.h>
 #include <DirectXColors.h>
 
-namespace Carol {
-	using std::vector;
-	using std::unique_ptr;
-	using std::string;
-	using std::string_view;
-	using std::to_string;
-	using std::make_unique;
-	using Microsoft::WRL::ComPtr;
-	using namespace DirectX;
+namespace
+{
+	using DirectX::operator*;
 }
 
 Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
@@ -57,7 +51,7 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 	OnResize(width, height, true);
 
 	gGraphicsCommandList->Close();
-	vector<ID3D12CommandList*> cmdLists = { gGraphicsCommandList.Get() };
+	std::vector<ID3D12CommandList*> cmdLists = { gGraphicsCommandList.Get() };
 	gCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 
 	++gCpuFenceValue;
@@ -66,7 +60,7 @@ Carol::Renderer::Renderer(HWND hWnd, uint32_t width, uint32_t height)
 
 void Carol::Renderer::InitDebug()
 {
-	ComPtr<ID3D12Debug5> debugLayer;
+	Microsoft::WRL::ComPtr<ID3D12Debug5> debugLayer;
 	ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(debugLayer.GetAddressOf())));
 	debugLayer->EnableDebugLayer();
 	debugLayer->SetEnableAutoName(true);
@@ -76,14 +70,14 @@ void Carol::Renderer::InitDebug()
 
 void Carol::Renderer::InitDxgiFactory()
 {
-	ComPtr<IDXGIFactory4> dxgiFactory;
+	Microsoft::WRL::ComPtr<IDXGIFactory4> dxgiFactory;
 	ThrowIfFailed(CreateDXGIFactory1(IID_PPV_ARGS(dxgiFactory.GetAddressOf())));
 	gDxgiFactory = dxgiFactory;
 }
 
 void Carol::Renderer::InitDevice()
 {
-	ComPtr<ID3D12Device2> device;
+	Microsoft::WRL::ComPtr<ID3D12Device2> device;
 	ThrowIfFailed(D3D12CreateDevice(device.Get(), D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(device.GetAddressOf())));
 	
 	gDevice = device;
@@ -91,7 +85,7 @@ void Carol::Renderer::InitDevice()
 
 void Carol::Renderer::InitFence()
 {
-	ComPtr<ID3D12Fence> fence;
+	Microsoft::WRL::ComPtr<ID3D12Fence> fence;
 	ThrowIfFailed(gDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(fence.GetAddressOf())));
 	gFence = fence;
 	gCpuFenceValue = 0;
@@ -109,13 +103,13 @@ void Carol::Renderer::InitCommandQueue()
 
 void Carol::Renderer::InitCommandAllocatorPool()
 {
-	gCommandAllocatorPool = make_unique<CommandAllocatorPool>(D3D12_COMMAND_LIST_TYPE_DIRECT);
+	gCommandAllocatorPool = std::make_unique<CommandAllocatorPool>(D3D12_COMMAND_LIST_TYPE_DIRECT);
 }
 
 void Carol::Renderer::InitGraphicsCommandList()
 {
 	gCommandAllocator = gCommandAllocatorPool->RequestAllocator(gGpuFenceValue);
-	ComPtr<ID3D12GraphicsCommandList6> cmdList;
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList6> cmdList;
 	ThrowIfFailed(gDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, gCommandAllocator.Get(), nullptr, IID_PPV_ARGS(cmdList.GetAddressOf())));
 
 	gGraphicsCommandList = cmdList;
@@ -123,7 +117,7 @@ void Carol::Renderer::InitGraphicsCommandList()
 
 void Carol::Renderer::InitRootSignature()
 {
-	gRootSignature = make_unique<RootSignature>();
+	gRootSignature = std::make_unique<RootSignature>();
 }
 
 void Carol::Renderer::InitCommandSignature()
@@ -149,47 +143,47 @@ void Carol::Renderer::InitCommandSignature()
 
 void Carol::Renderer::InitHeapManager()
 {
-	gHeapManager = make_unique<HeapManager>(1 << 29);
+	gHeapManager = std::make_unique<HeapManager>(1 << 29);
 	StructuredBuffer::InitCounterResetBuffer(gHeapManager->GetUploadBuffersHeap());
 }
 
 void Carol::Renderer::InitDescriptorManager()
 {
-	gDescriptorManager = make_unique<DescriptorManager>();
+	gDescriptorManager = std::make_unique<DescriptorManager>();
 }
 
 void Carol::Renderer::InitShaderManager()
 {
-	gShaderManager = make_unique<ShaderManager>();
+	gShaderManager = std::make_unique<ShaderManager>();
 }
 
 void Carol::Renderer::InitTextureManager()
 {
-	gTextureManager = make_unique<TextureManager>();
+	gTextureManager = std::make_unique<TextureManager>();
 }
 
 void Carol::Renderer::InitTimer()
 {
-	mTimer = make_unique<Timer>();
+	mTimer = std::make_unique<Timer>();
 	mTimer->Reset();
 }
 
 void Carol::Renderer::InitCamera()
 {
-	mCamera = make_unique<PerspectiveCamera>();
-	mCamera->LookAt(XMFLOAT3(0.f, 10.f, -20.f), XMFLOAT3(0.f, 10.f, 0.f), XMFLOAT3(0.f, 1.f, 0.f));
+	mCamera = std::make_unique<PerspectiveCamera>();
+	mCamera->LookAt(DirectX::XMFLOAT3(0.f, 10.f, -20.f), DirectX::XMFLOAT3(0.f, 10.f, 0.f), DirectX::XMFLOAT3(0.f, 1.f, 0.f));
 	mCamera->UpdateViewMatrix();
 }
 
 void Carol::Renderer::InitModelManager()
 {
-	gModelManager = make_unique<ModelManager>("Carol");
+	gModelManager = std::make_unique<ModelManager>("Carol");
 }
 
 void Carol::Renderer::InitConstants()
 {
-	mFrameConstants = make_unique<FrameConstants>();
-	mFrameCBAllocator = make_unique<FastConstantBufferAllocator>(1024, sizeof(FrameConstants), gHeapManager->GetUploadBuffersHeap());
+	mFrameConstants = std::make_unique<FrameConstants>();
+	mFrameCBAllocator = std::make_unique<FastConstantBufferAllocator>(1024, sizeof(FrameConstants), gHeapManager->GetUploadBuffersHeap());
 }
 
 void Carol::Renderer::InitSkyBox()
@@ -199,36 +193,36 @@ void Carol::Renderer::InitSkyBox()
 
 void Carol::Renderer::InitRandomVectors()
 {
-	XMFLOAT4 offsets[14];
+	DirectX::XMFLOAT4 offsets[14];
 
-	offsets[0] = XMFLOAT4(+1.0f, +1.0f, +1.0f, 0.0f);
-	offsets[1] = XMFLOAT4(-1.0f, -1.0f, -1.0f, 0.0f);
+	offsets[0] = DirectX::XMFLOAT4(+1.0f, +1.0f, +1.0f, 0.0f);
+	offsets[1] = DirectX::XMFLOAT4(-1.0f, -1.0f, -1.0f, 0.0f);
 
-	offsets[2] = XMFLOAT4(-1.0f, +1.0f, +1.0f, 0.0f);
-	offsets[3] = XMFLOAT4(+1.0f, -1.0f, -1.0f, 0.0f);
+	offsets[2] = DirectX::XMFLOAT4(-1.0f, +1.0f, +1.0f, 0.0f);
+	offsets[3] = DirectX::XMFLOAT4(+1.0f, -1.0f, -1.0f, 0.0f);
 
-	offsets[4] = XMFLOAT4(+1.0f, +1.0f, -1.0f, 0.0f);
-	offsets[5] = XMFLOAT4(-1.0f, -1.0f, +1.0f, 0.0f);
+	offsets[4] = DirectX::XMFLOAT4(+1.0f, +1.0f, -1.0f, 0.0f);
+	offsets[5] = DirectX::XMFLOAT4(-1.0f, -1.0f, +1.0f, 0.0f);
 
-	offsets[6] = XMFLOAT4(-1.0f, +1.0f, -1.0f, 0.0f);
-	offsets[7] = XMFLOAT4(+1.0f, -1.0f, +1.0f, 0.0f);
+	offsets[6] = DirectX::XMFLOAT4(-1.0f, +1.0f, -1.0f, 0.0f);
+	offsets[7] = DirectX::XMFLOAT4(+1.0f, -1.0f, +1.0f, 0.0f);
 
 	// 6 centers of cube faces
-	offsets[8] = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
-	offsets[9] = XMFLOAT4(+1.0f, 0.0f, 0.0f, 0.0f);
+	offsets[8] = DirectX::XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
+	offsets[9] = DirectX::XMFLOAT4(+1.0f, 0.0f, 0.0f, 0.0f);
 
-	offsets[10] = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
-	offsets[11] = XMFLOAT4(0.0f, +1.0f, 0.0f, 0.0f);
+	offsets[10] = DirectX::XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
+	offsets[11] = DirectX::XMFLOAT4(0.0f, +1.0f, 0.0f, 0.0f);
 
-	offsets[12] = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
-	offsets[13] = XMFLOAT4(0.0f, 0.0f, +1.0f, 0.0f);
+	offsets[12] = DirectX::XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
+	offsets[13] = DirectX::XMFLOAT4(0.0f, 0.0f, +1.0f, 0.0f);
 
 	for (int i = 0; i < 14; ++i)
 	{
 		float s = 0.25f + rand() * 1.0f / RAND_MAX * (1.0f - 0.25f);
-		XMVECTOR v = s * XMVector4Normalize(XMLoadFloat4(&offsets[i]));
+		DirectX::XMVECTOR v = s * DirectX::XMVector4Normalize(DirectX::XMLoadFloat4(&offsets[i]));
 
-		XMStoreFloat4(&mFrameConstants->OffsetVectors[i], v);
+		DirectX::XMStoreFloat4(&mFrameConstants->OffsetVectors[i], v);
 	}
 }
 
@@ -240,7 +234,7 @@ void Carol::Renderer::InitGaussWeights()
 	int blurRadius = (int)ceil(2.0f * sigma);
 	assert(blurRadius <= maxGaussRadius);
 
-	vector<float> weights;
+	std::vector<float> weights;
 	float weightsSum = 0.0f;
 
 	weights.resize(2 * blurRadius + 1);
@@ -259,42 +253,42 @@ void Carol::Renderer::InitGaussWeights()
 
 void Carol::Renderer::InitCullPass()
 {
-	mCullPass = make_unique<CullPass>();
+	mCullPass = std::make_unique<CullPass>();
 }
 
 void Carol::Renderer::InitDisplayPass()
 {
-	mDisplayPass = make_unique<DisplayPass>(mhWnd, 2);
+	mDisplayPass = std::make_unique<DisplayPass>(mhWnd, 2);
 }
 
 void Carol::Renderer::InitGeometryPass()
 {
-	mGeometryPass = make_unique<GeometryPass>();
+	mGeometryPass = std::make_unique<GeometryPass>();
 }
 
 void Carol::Renderer::InitOitppllPass()
 {
-	mOitppllPass = make_unique<OitppllPass>();
+	mOitppllPass = std::make_unique<OitppllPass>();
 }
 
 void Carol::Renderer::InitShadePass()
 {
-	mShadePass = make_unique<ShadePass>();
+	mShadePass = std::make_unique<ShadePass>();
 }
 
 void Carol::Renderer::InitMainLightShadowPass()
 {
 	Light light = {};
 	light.Strength = { 2.f,1.9f,1.6f };
-	XMStoreFloat3(&light.Direction, { .4f,-1.f,.2f });
+	DirectX::XMStoreFloat3(&light.Direction, { .4f,-1.f,.2f });
 
-	mMainLightShadowPass = make_unique<CascadedShadowPass>(light);
+	mMainLightShadowPass = std::make_unique<CascadedShadowPass>(light);
 	mFrameConstants->AmbientColor = { .5f,.4525f,.4f };
 }
 
 void Carol::Renderer::InitSsaoPass()
 {
-	mSsaoPass = make_unique<SsaoPass>();
+	mSsaoPass = std::make_unique<SsaoPass>();
 	mSsaoPass->SetSampleCount(14);
 	mSsaoPass->SetBlurRadius(5);
 	mSsaoPass->SetBlurCount(3);
@@ -302,24 +296,24 @@ void Carol::Renderer::InitSsaoPass()
 
 void Carol::Renderer::InitSsgiPass()
 {
-	mSsgiPass = make_unique<SsgiPass>();
+	mSsgiPass = std::make_unique<SsgiPass>();
 	mSsgiPass->SetSampleCount(14);
 	mSsgiPass->SetNumSteps(16);
 }
 
 void Carol::Renderer::InitTaaPass()
 {
-	mTaaPass = make_unique<TaaPass>();
+	mTaaPass = std::make_unique<TaaPass>();
 }
 
 void Carol::Renderer::InitUtilsPass()
 {
-	mUtilsPass = make_unique<UtilsPass>();
+	mUtilsPass = std::make_unique<UtilsPass>();
 }
 
 void Carol::Renderer::InitToneMappingPass()
 {
-	mToneMappingPass = make_unique<ToneMappingPass>();
+	mToneMappingPass = std::make_unique<ToneMappingPass>();
 }
 
 float Carol::Renderer::AspectRatio()
@@ -397,7 +391,7 @@ void Carol::Renderer::Draw()
 	mDisplayPass->Draw();
 	
 	ThrowIfFailed(gGraphicsCommandList->Close());
-	vector<ID3D12CommandList*> cmdLists{ gGraphicsCommandList.Get()};
+	std::vector<ID3D12CommandList*> cmdLists{ gGraphicsCommandList.Get()};
 	gCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 
 	mDisplayPass->Present();
@@ -423,8 +417,8 @@ void Carol::Renderer::OnMouseMove(WPARAM btnState, int x, int y)
 	if ((btnState & MK_LBUTTON) != 0)
 	{
 		// Make each pixel correspond to a quarter of a degree.
-		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
-		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
+		float dx = DirectX::XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
+		float dy = DirectX::XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
 
 		mCamera->RotateY(dx);
 		mCamera->Pitch(dy);
@@ -464,10 +458,10 @@ void Carol::Renderer::CalcFrameState()
 		float fps = (float)frameCnt; // fps = frameCnt / 1
 		float mspf = 1000.0f / fps;
 
-		string fpsStr = to_string(fps);
-		string mspfStr = to_string(mspf);
+		std::string fpsStr = std::to_string(fps);
+		std::string mspfStr = std::to_string(mspf);
 
-		string windowText = mMainWndCaption +
+		std::string windowText = mMainWndCaption +
 			"    fps: " + fpsStr +
 			"   mspf: " + mspfStr;
 
@@ -546,30 +540,30 @@ void Carol::Renderer::Update()
 	mCamera->UpdateViewMatrix();
 	mMainLightShadowPass->Update(dynamic_cast<PerspectiveCamera*>(mCamera.get()), .4f);
 
-	XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
+	DirectX::XMFLOAT4X4 jitteredProj4x4f = mCamera->GetProj4x4f();
 	mTaaPass->GetHalton(jitteredProj4x4f._31, jitteredProj4x4f._32);
 
-	XMMATRIX view = mCamera->GetView();
-	XMMATRIX invView = XMMatrixInverse(nullptr, view);
-	XMMATRIX jitteredProj = XMLoadFloat4x4(&jitteredProj4x4f);
-	XMMATRIX invJitteredProj = XMMatrixInverse(nullptr, jitteredProj);
-	XMMATRIX viewJitteredProj = XMMatrixMultiply(view, jitteredProj);
-	XMMATRIX invViewJitteredProj = XMMatrixInverse(nullptr, viewJitteredProj);
+	DirectX::XMMATRIX view = mCamera->GetView();
+	DirectX::XMMATRIX invView = DirectX::XMMatrixInverse(nullptr, view);
+	DirectX::XMMATRIX jitteredProj = DirectX::XMLoadFloat4x4(&jitteredProj4x4f);
+	DirectX::XMMATRIX invJitteredProj = DirectX::XMMatrixInverse(nullptr, jitteredProj);
+	DirectX::XMMATRIX viewJitteredProj = DirectX::XMMatrixMultiply(view, jitteredProj);
+	DirectX::XMMATRIX invViewJitteredProj = DirectX::XMMatrixInverse(nullptr, viewJitteredProj);
 		
-	XMStoreFloat4x4(&mFrameConstants->View, XMMatrixTranspose(view));
-	XMStoreFloat4x4(&mFrameConstants->InvView, XMMatrixTranspose(invView));
-	XMStoreFloat4x4(&mFrameConstants->Proj, XMMatrixTranspose(jitteredProj));
-	XMStoreFloat4x4(&mFrameConstants->InvProj, XMMatrixTranspose(invJitteredProj));
-	XMStoreFloat4x4(&mFrameConstants->ViewProj, XMMatrixTranspose(viewJitteredProj));
-	XMStoreFloat4x4(&mFrameConstants->InvViewProj, XMMatrixTranspose(invViewJitteredProj));
+	DirectX::XMStoreFloat4x4(&mFrameConstants->View, DirectX::XMMatrixTranspose(view));
+	DirectX::XMStoreFloat4x4(&mFrameConstants->InvView, DirectX::XMMatrixTranspose(invView));
+	DirectX::XMStoreFloat4x4(&mFrameConstants->Proj, DirectX::XMMatrixTranspose(jitteredProj));
+	DirectX::XMStoreFloat4x4(&mFrameConstants->InvProj, DirectX::XMMatrixTranspose(invJitteredProj));
+	DirectX::XMStoreFloat4x4(&mFrameConstants->ViewProj, DirectX::XMMatrixTranspose(viewJitteredProj));
+	DirectX::XMStoreFloat4x4(&mFrameConstants->InvViewProj, DirectX::XMMatrixTranspose(invViewJitteredProj));
 
-	mCullPass->Update(XMLoadFloat4x4(&mFrameConstants->ViewProj), XMLoadFloat4x4(&mFrameConstants->HistViewProj), XMLoadFloat3(&mFrameConstants->EyePosW));
+	mCullPass->Update(DirectX::XMLoadFloat4x4(&mFrameConstants->ViewProj), DirectX::XMLoadFloat4x4(&mFrameConstants->HistViewProj), DirectX::XMLoadFloat3(&mFrameConstants->EyePosW));
 
-	XMMATRIX veloProj = mCamera->GetProj();
-	XMMATRIX veloViewProj = XMMatrixMultiply(view, veloProj);
+	DirectX::XMMATRIX veloProj = mCamera->GetProj();
+	DirectX::XMMATRIX veloViewProj = DirectX::XMMatrixMultiply(view, veloProj);
 
 	mFrameConstants->HistViewProj = mFrameConstants->VeloViewProj;
-	XMStoreFloat4x4(&mFrameConstants->VeloViewProj, XMMatrixTranspose(veloViewProj));
+	DirectX::XMStoreFloat4x4(&mFrameConstants->VeloViewProj, DirectX::XMMatrixTranspose(veloViewProj));
 	
 	mFrameConstants->EyePosW = mCamera->GetPosition3f();
 	mFrameConstants->NearZ = dynamic_cast<PerspectiveCamera*>(mCamera.get())->GetNearZ();
@@ -656,7 +650,7 @@ void Carol::Renderer::OnResize(uint32_t width, uint32_t height, bool init)
 	mFrameConstants->RandVecMapIdx = mUtilsPass->GetRandVecSrvIdx();
 }
 
-void Carol::Renderer::LoadModel(string_view path, string_view textureDir, string_view modelName, DirectX::XMMATRIX world, bool isSkinned)
+void Carol::Renderer::LoadModel(std::string_view path, std::string_view textureDir, std::string_view modelName, DirectX::XMMATRIX world, bool isSkinned)
 {
 	gCommandAllocatorPool->DiscardAllocator(gCommandAllocator.Get(), gCpuFenceValue);
 	gCommandAllocator = gCommandAllocatorPool->RequestAllocator(gGpuFenceValue);
@@ -670,29 +664,29 @@ void Carol::Renderer::LoadModel(string_view path, string_view textureDir, string
 	gModelManager->SetWorld(modelName, world);
 
 	gGraphicsCommandList->Close();
-	vector<ID3D12CommandList*> cmdLists = { gGraphicsCommandList.Get() };
+	std::vector<ID3D12CommandList*> cmdLists = { gGraphicsCommandList.Get() };
 	gCommandQueue->ExecuteCommandLists(1, cmdLists.data());
 
 	++gCpuFenceValue;
 	ThrowIfFailed(gCommandQueue->Signal(gFence.Get(), gCpuFenceValue));
 }
 
-void Carol::Renderer::UnloadModel(string_view modelName)
+void Carol::Renderer::UnloadModel(std::string_view modelName)
 {
 	gModelManager->UnloadModel(modelName);
 }
 
-Carol::vector<Carol::string_view> Carol::Renderer::GetAnimationNames(string_view modelName)
+std::vector<std::string_view> Carol::Renderer::GetAnimationNames(std::string_view modelName)
 {
 	return gModelManager->GetAnimationClips(modelName);
 }
 
-void Carol::Renderer::SetAnimation(string_view modelName, string_view animationName)
+void Carol::Renderer::SetAnimation(std::string_view modelName, std::string_view animationName)
 {
 	gModelManager->SetAnimationClip(modelName, animationName);
 }
 
-Carol::vector<Carol::string_view> Carol::Renderer::GetModelNames()
+std::vector<std::string_view> Carol::Renderer::GetModelNames()
 {
 	return gModelManager->GetModelNames();
 }

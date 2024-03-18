@@ -9,14 +9,11 @@
 #include <memory>
 #include <string_view>
 
-namespace Carol {
-	using std::vector;
-	using std::wstring;
-	using std::wstring_view;
-	using std::unique_ptr;
-	using std::make_unique;
-	using std::span;
-	using namespace DirectX;
+namespace
+{
+	using DirectX::operator+;
+	using DirectX::operator-;
+	using DirectX::operator*;
 }
 
 Carol::ShadowPass::ShadowPass(
@@ -28,7 +25,7 @@ Carol::ShadowPass::ShadowPass(
 	float slopeScaledDepthBias,
 	DXGI_FORMAT shadowFormat,
 	DXGI_FORMAT hiZFormat)
-	:mLight(make_unique<Light>(light)),
+	:mLight(std::make_unique<Light>(light)),
 	mDepthBias(depthBias),
 	mDepthBiasClamp(depthBiasClamp),
 	mSlopeScaledDepthBias(slopeScaledDepthBias),
@@ -37,7 +34,7 @@ Carol::ShadowPass::ShadowPass(
 	InitLight();
 	InitPSOs();
 
-	mCullPass = make_unique<CullPass>(
+	mCullPass = std::make_unique<CullPass>(
 		depthBias,
 		depthBiasClamp,
 		slopeScaledDepthBias,
@@ -55,16 +52,16 @@ void Carol::ShadowPass::Draw()
 
 void Carol::ShadowPass::Update(uint32_t lightIdx)
 {
-	XMMATRIX view = mCamera->GetView();
-	XMMATRIX proj = mCamera->GetProj();
-	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-	XMMATRIX histViewProj = XMMatrixTranspose(XMLoadFloat4x4(&mLight->ViewProj));
+	DirectX::XMMATRIX view = mCamera->GetView();
+	DirectX::XMMATRIX proj = mCamera->GetProj();
+	DirectX::XMMATRIX viewProj = DirectX::XMMatrixMultiply(view, proj);
+	DirectX::XMMATRIX histViewProj = DirectX::XMMatrixTranspose(DirectX::XMLoadFloat4x4(&mLight->ViewProj));
 	
-	XMStoreFloat4x4(&mLight->View, XMMatrixTranspose(view));
-	XMStoreFloat4x4(&mLight->Proj, XMMatrixTranspose(proj));
-	XMStoreFloat4x4(&mLight->ViewProj, XMMatrixTranspose(viewProj));
+	DirectX::XMStoreFloat4x4(&mLight->View, DirectX::XMMatrixTranspose(view));
+	DirectX::XMStoreFloat4x4(&mLight->Proj, DirectX::XMMatrixTranspose(proj));
+	DirectX::XMStoreFloat4x4(&mLight->ViewProj, DirectX::XMMatrixTranspose(viewProj));
 
-	mCullPass->Update(XMMatrixTranspose(viewProj), XMMatrixTranspose(histViewProj), XMLoadFloat3(&mLight->Position));
+	mCullPass->Update(DirectX::XMMatrixTranspose(viewProj), DirectX::XMMatrixTranspose(histViewProj), DirectX::XMLoadFloat3(&mLight->Position));
 }
 
 uint32_t Carol::ShadowPass::GetShadowSrvIdx()const
@@ -84,7 +81,7 @@ void Carol::ShadowPass::InitBuffers()
 	optClearValue.DepthStencil.Depth = 1.0f;
 	optClearValue.DepthStencil.Stencil = 0;
 
-	mShadowMap = make_unique<ColorBuffer>(
+	mShadowMap = std::make_unique<ColorBuffer>(
 		mWidth,
 		mHeight,
 		1,
@@ -145,52 +142,52 @@ void Carol::DirectLightShadowPass::Update(
 	static float dx[4] = { -1.f,1.f,-1.f,1.f };
 	static float dy[4] = { -1.f,-1.f,1.f,1.f };
 
-	XMFLOAT4 pointNear;
+	DirectX::XMFLOAT4 pointNear;
 	pointNear.z = zn;
 	pointNear.y = zn * tanf(0.5f * eyeCamera->GetFovY());
 	pointNear.x = zn * tanf(0.5f * eyeCamera->GetFovX());
 	
-	XMFLOAT4 pointFar;
+	DirectX::XMFLOAT4 pointFar;
 	pointFar.z = zf;
 	pointFar.y = zf * tanf(0.5f * eyeCamera->GetFovY());
 	pointFar.x = zf * tanf(0.5f * eyeCamera->GetFovX());
 
-	vector<XMFLOAT4> frustumSliceExtremaPoints;
-	XMMATRIX perspView = eyeCamera->GetView();
-	XMMATRIX invPerspView = XMMatrixInverse(nullptr, perspView);
-	XMMATRIX orthoView = mCamera->GetView();
-	XMMATRIX invOrthoView = XMMatrixInverse(nullptr, orthoView);
-	XMMATRIX invPerspOrthoView = XMMatrixMultiply(invPerspView, orthoView);
+	std::vector<DirectX::XMFLOAT4> frustumSliceExtremaPoints;
+	DirectX::XMMATRIX perspView = eyeCamera->GetView();
+	DirectX::XMMATRIX invPerspView = DirectX::XMMatrixInverse(nullptr, perspView);
+	DirectX::XMMATRIX orthoView = mCamera->GetView();
+	DirectX::XMMATRIX invOrthoView = DirectX::XMMatrixInverse(nullptr, orthoView);
+	DirectX::XMMATRIX invPerspOrthoView = DirectX::XMMatrixMultiply(invPerspView, orthoView);
 
 	for (int i = 0; i < 4; ++i)
 	{
-		XMFLOAT4 point;
+		DirectX::XMFLOAT4 point;
 		
 		point = { pointNear.x* dx[i], pointNear.y* dy[i], pointNear.z, 1.f };
-		XMStoreFloat4(&point, XMVector4Transform(XMLoadFloat4(&point), invPerspOrthoView));
+		DirectX::XMStoreFloat4(&point, DirectX::XMVector4Transform(DirectX::XMLoadFloat4(&point), invPerspOrthoView));
 		frustumSliceExtremaPoints.push_back(point);
 
 		point = { pointFar.x* dx[i], pointFar.y* dy[i], pointFar.z, 1.f };
-		XMStoreFloat4(&point, XMVector4Transform(XMLoadFloat4(&point), invPerspOrthoView));
+		DirectX::XMStoreFloat4(&point, DirectX::XMVector4Transform(DirectX::XMLoadFloat4(&point), invPerspOrthoView));
 		frustumSliceExtremaPoints.push_back(point);
 	}
 
-	XMFLOAT4 boxMin = { D3D12_FLOAT32_MAX,D3D12_FLOAT32_MAX,D3D12_FLOAT32_MAX,1.f };
-	XMFLOAT4 boxMax = { -D3D12_FLOAT32_MAX,-D3D12_FLOAT32_MAX,-D3D12_FLOAT32_MAX,1.f };
+	DirectX::XMFLOAT4 boxMin = { D3D12_FLOAT32_MAX,D3D12_FLOAT32_MAX,D3D12_FLOAT32_MAX,1.f };
+	DirectX::XMFLOAT4 boxMax = { -D3D12_FLOAT32_MAX,-D3D12_FLOAT32_MAX,-D3D12_FLOAT32_MAX,1.f };
 
 	for (auto& point : frustumSliceExtremaPoints)
 	{
-		boxMin.x = std::min(boxMin.x, point.x);
-		boxMin.y = std::min(boxMin.y, point.y);
-		boxMin.z = std::min(boxMin.z, point.z);
+		boxMin.x = std::fmin(boxMin.x, point.x);
+		boxMin.y = std::fmin(boxMin.y, point.y);
+		boxMin.z = std::fmin(boxMin.z, point.z);
 
-		boxMax.x = std::max(boxMax.x, point.x);
-		boxMax.y = std::max(boxMax.y, point.y);
-		boxMax.z = std::max(boxMax.z, point.z);
+		boxMax.x = std::fmax(boxMax.x, point.x);
+		boxMax.y = std::fmax(boxMax.y, point.y);
+		boxMax.z = std::fmax(boxMax.z, point.z);
 	}
 	
-	XMFLOAT4 center;
-	XMStoreFloat4(&center, XMVector4Transform(0.5f * (XMLoadFloat4(&boxMin) + XMLoadFloat4(&boxMax)), invOrthoView));
+	DirectX::XMFLOAT4 center;
+	DirectX::XMStoreFloat4(&center, DirectX::XMVector4Transform(0.5f * (DirectX::XMLoadFloat4(&boxMin) + DirectX::XMLoadFloat4(&boxMax)), invOrthoView));
 
 	float zRange = boxMax.z - boxMin.z;
 	dynamic_cast<OrthographicCamera*>(mCamera.get())->SetLens(
@@ -199,7 +196,7 @@ void Carol::DirectLightShadowPass::Update(
 		boxMin.z - zRange * 4,
 		boxMax.z + zRange);
 
-	mCamera->LookAt(XMLoadFloat4(&center) - XMLoadFloat3(&mLight->Direction), XMLoadFloat4(&center), { 0.f,1.f,0.f,0.f });
+	mCamera->LookAt(DirectX::XMLoadFloat4(&center) - DirectX::XMLoadFloat3(&mLight->Direction), DirectX::XMLoadFloat4(&center), { 0.f,1.f,0.f,0.f });
 	mCamera->UpdateViewMatrix();
 
 	ShadowPass::Update(lightIdx);
@@ -207,8 +204,8 @@ void Carol::DirectLightShadowPass::Update(
 
 void Carol::DirectLightShadowPass::InitCamera()
 {
-	mLight->Position = XMFLOAT3(-mLight->Direction.x, -mLight->Direction.y, -mLight->Direction.z);
-	mCamera = make_unique<OrthographicCamera>(50, 0, 200);
+	mLight->Position = DirectX::XMFLOAT3(-mLight->Direction.x, -mLight->Direction.y, -mLight->Direction.z);
+	mCamera = std::make_unique<OrthographicCamera>(50, 0, 200);
 	mCamera->LookAt(mLight->Position, { 0.f,0.f,0.f }, { 0.f,1.f,0.f });
 	mCamera->UpdateViewMatrix();
 }
@@ -229,7 +226,7 @@ Carol::CascadedShadowPass::CascadedShadowPass(
 {
 	for (auto& shadow : mShadow)
 	{
-		shadow = make_unique<DirectLightShadowPass>(
+		shadow = std::make_unique<DirectLightShadowPass>(
 			light,
 			width,
 			height,

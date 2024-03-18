@@ -8,14 +8,6 @@
 #include <scene/model.h>
 #include <global.h>
 
-namespace Carol
-{
-	using std::vector;
-	using std::make_unique;
-	using std::wstring_view;
-	using namespace DirectX;
-}
-
 Carol::CullPass::CullPass(
 	uint32_t depthBias,
 	float depthBiasClamp,
@@ -33,21 +25,21 @@ Carol::CullPass::CullPass(
 {
 	InitPSOs();
 
-	mCulledCommandBufferAllocator = make_unique<FrameBufferAllocator>(
+	mCulledCommandBufferAllocator = std::make_unique<FrameBufferAllocator>(
 		1024,
 		sizeof(IndirectCommand),
 		gHeapManager->GetDefaultBuffersHeap(),
 		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-	mHiZConstants = make_unique<HiZConstants>();
-	mHiZCBAllocator = make_unique<FastConstantBufferAllocator>(1024, sizeof(CullConstants), gHeapManager->GetUploadBuffersHeap());
+	mHiZConstants = std::make_unique<HiZConstants>();
+	mHiZCBAllocator = std::make_unique<FastConstantBufferAllocator>(1024, sizeof(CullConstants), gHeapManager->GetUploadBuffersHeap());
 
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
-		mCullConstants[i] = make_unique<CullConstants>();
+		mCullConstants[i] = std::make_unique<CullConstants>();
 	}
-	mCullCBAllocator = make_unique<FastConstantBufferAllocator>(1024, sizeof(CullConstants), gHeapManager->GetUploadBuffersHeap());
+	mCullCBAllocator = std::make_unique<FastConstantBufferAllocator>(1024, sizeof(CullConstants), gHeapManager->GetUploadBuffersHeap());
 }
 
 void Carol::CullPass::Draw()
@@ -65,7 +57,7 @@ void Carol::CullPass::Draw()
 	GenerateHiZ();
 }
 
-void Carol::CullPass::Update(XMMATRIX viewProj, XMMATRIX histViewProj, XMVECTOR eyePos)
+void Carol::CullPass::Update(DirectX::XMMATRIX viewProj, DirectX::XMMATRIX histViewProj, DirectX::XMVECTOR eyePos)
 {
 	for (int i = 0; i < MESH_TYPE_COUNT; ++i)
 	{
@@ -105,78 +97,78 @@ void Carol::CullPass::SetDepthMap(ColorBuffer* depthMap)
 
 void Carol::CullPass::InitPSOs()
 {
-	mOpaqueStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mOpaqueStaticCullMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueStaticCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/opaque_cull_as.dxil"));
 	mOpaqueStaticCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/static_cull_ms.dxil"));
 	mOpaqueStaticCullMeshPSO->Finalize();
 
-	mOpaqueSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mOpaqueSkinnedCullMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueSkinnedCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/opaque_cull_as.dxil"));
 	mOpaqueSkinnedCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/skinned_cull_ms.dxil"));
 	mOpaqueSkinnedCullMeshPSO->Finalize();
 
-	mTransparentStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mTransparentStaticCullMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentStaticCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/transparent_cull_as.dxil"));
 	mTransparentStaticCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/static_cull_ms.dxil"));
 	mTransparentStaticCullMeshPSO->Finalize();
 
-	mTransparentSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mTransparentSkinnedCullMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentSkinnedCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/transparent_cull_as.dxil"));
 	mTransparentSkinnedCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/skinned_cull_ms.dxil"));
 	mTransparentSkinnedCullMeshPSO->Finalize();
 
-	mOpaqueHistHiZStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mOpaqueHistHiZStaticCullMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueHistHiZStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueHistHiZStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueHistHiZStaticCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/opaque_hist_hiz_cull_as.dxil"));
 	mOpaqueHistHiZStaticCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/static_cull_ms.dxil"));
 	mOpaqueHistHiZStaticCullMeshPSO->Finalize();
 
-	mOpaqueHistHiZSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mOpaqueHistHiZSkinnedCullMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/opaque_hist_hiz_cull_as.dxil"));
 	mOpaqueHistHiZSkinnedCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/skinned_cull_ms.dxil"));
 	mOpaqueHistHiZSkinnedCullMeshPSO->Finalize();
 
-	mTransparentHistHiZStaticCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mTransparentHistHiZStaticCullMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentHistHiZStaticCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentHistHiZStaticCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentHistHiZStaticCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/transparent_hist_hiz_cull_as.dxil"));
 	mTransparentHistHiZStaticCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/static_cull_ms.dxil"));
 	mTransparentHistHiZStaticCullMeshPSO->Finalize();
 	
-	mTransparentHistHiZSkinnedCullMeshPSO = make_unique<MeshPSO>(PSO_DEFAULT);
+	mTransparentHistHiZSkinnedCullMeshPSO = std::make_unique<MeshPSO>(PSO_DEFAULT);
 	mTransparentHistHiZSkinnedCullMeshPSO->SetDepthBias(mDepthBias, mDepthBiasClamp, mSlopeScaledDepthBias);
 	mTransparentHistHiZSkinnedCullMeshPSO->SetDepthTargetFormat(GetDsvFormat(mDepthFormat));
 	mTransparentHistHiZSkinnedCullMeshPSO->SetAS(gShaderManager->LoadShader("shader/dxil/transparent_hist_hiz_cull_as.dxil"));
 	mTransparentHistHiZSkinnedCullMeshPSO->SetMS(gShaderManager->LoadShader("shader/dxil/skinned_cull_ms.dxil"));
 	mTransparentHistHiZSkinnedCullMeshPSO->Finalize();
 
-	mCullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mCullInstanceComputePSO = std::make_unique<ComputePSO>(PSO_DEFAULT);
 	mCullInstanceComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/cull_cs.dxil"));
 	mCullInstanceComputePSO->Finalize();
 
-	mHistHiZCullInstanceComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mHistHiZCullInstanceComputePSO = std::make_unique<ComputePSO>(PSO_DEFAULT);
 	mHistHiZCullInstanceComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/hist_hiz_cull_cs.dxil"));
 	mHistHiZCullInstanceComputePSO->Finalize();
 
-	mHiZGenerateComputePSO = make_unique<ComputePSO>(PSO_DEFAULT);
+	mHiZGenerateComputePSO = std::make_unique<ComputePSO>(PSO_DEFAULT);
 	mHiZGenerateComputePSO->SetCS(gShaderManager->LoadShader("shader/dxil/hiz_generate_cs.dxil"));
 	mHiZGenerateComputePSO->Finalize();
 }
 
 void Carol::CullPass::InitBuffers()
 {
-	mHiZMap = make_unique<ColorBuffer>(
+	mHiZMap = std::make_unique<ColorBuffer>(
 		mWidth,
 		mHeight,
 		1,
@@ -191,7 +183,7 @@ void Carol::CullPass::InitBuffers()
 
 void Carol::CullPass::CullReset()
 {
-	vector<Resource*> buffers;
+	std::vector<Resource*> buffers;
 
 	for (auto& buffer : mCulledCommandBuffer)
 	{

@@ -38,7 +38,6 @@
 #include <utils/buddy.h>
 #include <utils/exception.h>
 #include <utils/d3dx12.h>
-#include <utils/string.h>
 
 #include <renderer.h>
 #include <global.h>

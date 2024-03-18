@@ -3,19 +3,9 @@
 #include <global.h>
 #include <fstream>
 
-namespace Carol {
-    using std::vector;
-    using std::string;
-    using std::string_view;
-    using std::span;
-    using std::ifstream;
-    using std::make_unique;
-    using Microsoft::WRL::ComPtr;
-}
-
-Carol::Shader::Shader(string_view path)
+Carol::Shader::Shader(std::string_view path)
 {
-    ifstream file(path.data(), std::ios::ate | std::ios::binary);
+    std::ifstream file(path.data(), std::ios::ate | std::ios::binary);
     size_t size = file.tellg();
     mBlob.resize(size);
 
@@ -41,11 +31,11 @@ Carol::ShaderManager::ShaderManager()
 
 Carol::Shader* Carol::ShaderManager::LoadShader(std::string_view path)
 {
-    string pathStr = path.data();
+    std::string pathStr = path.data();
 
     if (mShaders.count(pathStr) == 0)
     {
-        mShaders[pathStr] = make_unique<Shader>(path);
+        mShaders[pathStr] = std::make_unique<Shader>(path);
     }
 
     return mShaders[pathStr].get();

@@ -4,16 +4,6 @@
 #include <utils/exception.h>
 #include <global.h>
 
-namespace Carol {
-	using std::vector;
-	using std::unique_ptr;
-	using std::make_unique;	
-	using std::make_pair;
-	using std::lock_guard;
-	using std::mutex;
-	using Microsoft::WRL::ComPtr;
-}
-
 Carol::DescriptorAllocator::DescriptorAllocator(
 	D3D12_DESCRIPTOR_HEAP_TYPE type,
 	uint32_t initNumCpuDescriptors,
@@ -53,18 +43,18 @@ Carol::DescriptorAllocator::~DescriptorAllocator()
 	}
 }
 
-Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::CpuAllocate(uint32_t numDescriptors)
+std::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::CpuAllocate(uint32_t numDescriptors)
 {
-	lock_guard<mutex> lock(mCpuAllocatorMutex);
+	std::lock_guard<std::mutex> lock(mCpuAllocatorMutex);
 
 	BuddyAllocInfo buddyInfo;
-	unique_ptr<DescriptorAllocInfo> descInfo;
+	std::unique_ptr<DescriptorAllocInfo> descInfo;
 
 	for (int i = 0; i < mCpuBuddies.size(); ++i)
 	{
 		if (mCpuBuddies[i]->Allocate(numDescriptors, buddyInfo))
 		{
-			descInfo = make_unique<DescriptorAllocInfo>();
+			descInfo = std::make_unique<DescriptorAllocInfo>();
 			descInfo->StartOffset = mNumCpuDescriptorsPerHeap * i + buddyInfo.PageId;
 			descInfo->NumDescriptors = numDescriptors;
 
@@ -76,7 +66,7 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::CpuAll
 
 	if (mCpuBuddies.back()->Allocate(numDescriptors, buddyInfo))
 	{
-		descInfo = make_unique<DescriptorAllocInfo>();
+		descInfo = std::make_unique<DescriptorAllocInfo>();
 		descInfo->StartOffset = mNumCpuDescriptorsPerHeap * (mCpuBuddies.size() - 1) + buddyInfo.PageId;
 		descInfo->NumDescriptors = numDescriptors;
 	}
@@ -96,18 +86,18 @@ CD3DX12_CPU_DESCRIPTOR_HANDLE Carol::DescriptorAllocator::GetCpuHandle(const Des
 	return CD3DX12_CPU_DESCRIPTOR_HANDLE(mCpuDescriptorHeaps[heapId]->GetCPUDescriptorHandleForHeapStart(), startOffset, mDescriptorSize).Offset(offset * mDescriptorSize);
 }
 
-Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::GpuAllocate(uint32_t numDescriptors)
+std::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorAllocator::GpuAllocate(uint32_t numDescriptors)
 {
-	lock_guard<mutex> lock(mGpuAllocatorMutex);
+	std::lock_guard<std::mutex> lock(mGpuAllocatorMutex);
 
 	BuddyAllocInfo buddyInfo;
-	unique_ptr<DescriptorAllocInfo> descInfo;
+	std::unique_ptr<DescriptorAllocInfo> descInfo;
 	
 	if (mType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
 	{
 		if (mGpuBuddy->Allocate(numDescriptors, buddyInfo))
 		{
-			descInfo = make_unique<DescriptorAllocInfo>();
+			descInfo = std::make_unique<DescriptorAllocInfo>();
 			descInfo->StartOffset = buddyInfo.PageId;
 			descInfo->NumDescriptors = numDescriptors;
 
@@ -172,7 +162,7 @@ ID3D12DescriptorHeap* Carol::DescriptorAllocator::GetGpuDescriptorHeap()const
 void Carol::DescriptorAllocator::AddCpuDescriptorAllocator()
 {
 	mCpuDescriptorHeaps.emplace_back();
-	mCpuBuddies.emplace_back(make_unique<Buddy>(mNumCpuDescriptorsPerHeap, 1u));
+	mCpuBuddies.emplace_back(std::make_unique<Buddy>(mNumCpuDescriptorsPerHeap, 1u));
 
 	D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc;
 	descHeapDesc.Type = mType;
@@ -187,7 +177,7 @@ void Carol::DescriptorAllocator::InitGpuDescriptorAllocator()
 {
 	if (mType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
 	{
-		mGpuBuddy = make_unique<Buddy>(mNumGpuDescriptors, 1u);
+		mGpuBuddy = std::make_unique<Buddy>(mNumGpuDescriptors, 1u);
 
 		D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc;
 		descHeapDesc.Type = mType;
@@ -201,7 +191,7 @@ void Carol::DescriptorAllocator::InitGpuDescriptorAllocator()
 
 void Carol::DescriptorAllocator::CpuDelete(const DescriptorAllocInfo* info)
 {
-	lock_guard<mutex> lock(mCpuAllocatorMutex);
+	std::lock_guard<std::mutex> lock(mCpuAllocatorMutex);
 
 	uint32_t buddyIdx = info->StartOffset / mNumCpuDescriptorsPerHeap;
 	uint32_t blockIdx = info->StartOffset % mNumCpuDescriptorsPerHeap;
@@ -212,7 +202,7 @@ void Carol::DescriptorAllocator::CpuDelete(const DescriptorAllocInfo* info)
 
 void Carol::DescriptorAllocator::GpuDelete(const DescriptorAllocInfo* info)
 {
-	lock_guard<mutex> lock(mGpuAllocatorMutex);
+	std::lock_guard<std::mutex> lock(mGpuAllocatorMutex);
 
 	BuddyAllocInfo buddyInfo(info->StartOffset, info->NumDescriptors);
 	mGpuBuddy->Deallocate(buddyInfo);
@@ -220,9 +210,9 @@ void Carol::DescriptorAllocator::GpuDelete(const DescriptorAllocInfo* info)
 
 Carol::DescriptorManager::DescriptorManager(uint32_t initCpuCbvSrvUavHeapSize, uint32_t initGpuCbvSrvUavHeapSize, uint32_t initRtvHeapSize, uint32_t initDsvHeapSize)
 {
-	mCbvSrvUavAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initCpuCbvSrvUavHeapSize, initGpuCbvSrvUavHeapSize);
-	mRtvAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, initRtvHeapSize, 0);
-	mDsvAllocator = make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, initDsvHeapSize, 0);
+	mCbvSrvUavAllocator = std::make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, initCpuCbvSrvUavHeapSize, initGpuCbvSrvUavHeapSize);
+	mRtvAllocator = std::make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, initRtvHeapSize, 0);
+	mDsvAllocator = std::make_unique<DescriptorAllocator>(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, initDsvHeapSize, 0);
 }
 
 void Carol::DescriptorManager::DelayedDelete(uint64_t cpuFenceValue, uint64_t completedFenceValue)
@@ -239,7 +229,7 @@ Carol::DescriptorManager::DescriptorManager(Carol::DescriptorManager&& manager)
 	mDsvAllocator = std::move(manager.mDsvAllocator);
 }
 
-Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::CpuCbvSrvUavAllocate(uint32_t numDescriptors)
+std::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::CpuCbvSrvUavAllocate(uint32_t numDescriptors)
 {
 	auto info = mCbvSrvUavAllocator->CpuAllocate(numDescriptors);
 	info->Manager = this;
@@ -247,7 +237,7 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::CpuCbvSr
 	return info;
 }
 
-Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::GpuCbvSrvUavAllocate(uint32_t numDescriptors)
+std::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::GpuCbvSrvUavAllocate(uint32_t numDescriptors)
 {
 	auto info = mCbvSrvUavAllocator->GpuAllocate(numDescriptors);
 	info->Manager = this;
@@ -255,7 +245,7 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::GpuCbvSr
 	return info;
 }
 
-Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::RtvAllocate(uint32_t numDescriptors)
+std::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::RtvAllocate(uint32_t numDescriptors)
 {
 	auto info = mRtvAllocator->CpuAllocate(numDescriptors);
 	info->Manager = this;
@@ -263,7 +253,7 @@ Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::RtvAlloc
 	return info;
 }
 
-Carol::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::DsvAllocate(uint32_t numDescriptors)
+std::unique_ptr<Carol::DescriptorAllocInfo> Carol::DescriptorManager::DsvAllocate(uint32_t numDescriptors)
 {
 	auto info = mDsvAllocator->CpuAllocate(numDescriptors);
 	info->Manager = this;
